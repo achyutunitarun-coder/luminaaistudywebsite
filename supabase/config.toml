@@ -1,0 +1,13 @@
+project_id = "nbtbgcvonvqnchiggsvo"
+
+[functions.chat]
+verify_jwt = false
+
+[functions.generate-test]
+verify_jwt = false
+
+[functions.generate-flashcards]
+verify_jwt = false
+
+[functions.doubt-solver]
+verify_jwt = false
