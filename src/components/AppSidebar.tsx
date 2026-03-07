@@ -9,6 +9,11 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  Calendar,
+  Zap,
+  Timer,
+  Target,
+  ClipboardList,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -29,9 +34,14 @@ import {
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'AI Chat', url: '/chat', icon: MessageSquare },
+  { title: 'Study Session', url: '/study-session', icon: Target },
   { title: 'Tests', url: '/tests', icon: FileText },
   { title: 'Flashcards', url: '/flashcards', icon: Layers },
   { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
+  { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
+  { title: 'Quick Study', url: '/quick-study', icon: Zap },
+  { title: 'Study Planner', url: '/study-planner', icon: Calendar },
+  { title: 'Focus Mode', url: '/focus-mode', icon: Timer },
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
@@ -70,7 +80,7 @@ export function AppSidebar() {
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full gradient-xp transition-all duration-500"
-                  style={{ width: `${Math.min((profile.xp % 100) , 100)}%` }}
+                  style={{ width: `${Math.min((profile.xp % 100), 100)}%` }}
                 />
               </div>
             </div>

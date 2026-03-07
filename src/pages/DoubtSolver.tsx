@@ -7,10 +7,17 @@ import ReactMarkdown from 'react-markdown';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
+const modes = [
+  { value: 'simple', label: '🟢 Simple', desc: 'Beginner-friendly' },
+  { value: 'exam', label: '📝 Exam Focused', desc: 'Exam-ready answers' },
+  { value: 'deep', label: '🧠 Deep Concept', desc: 'In-depth explanation' },
+];
+
 const DoubtSolver = () => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState('simple');
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,9 +28,9 @@ const DoubtSolver = () => {
     if (!input.trim() || isLoading) return;
     const question = input.trim();
     setInput('');
-    const userMsg: Msg = { role: 'user', content: question };
+    const userMsg: Msg = { role: 'user', content: `[${mode.toUpperCase()} MODE] ${question}` };
     const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    setMessages(prev => [...prev, { role: 'user', content: question }]);
     setIsLoading(true);
 
     try {
@@ -83,6 +90,23 @@ const DoubtSolver = () => {
       <div className="mb-4">
         <h1 className="text-2xl font-display font-bold text-foreground">AI Doubt Solver</h1>
         <p className="text-muted-foreground text-sm">Get step-by-step explanations for any topic</p>
+
+        {/* Concept Explanation Mode Selector */}
+        <div className="flex gap-2 mt-3">
+          {modes.map(m => (
+            <button
+              key={m.value}
+              onClick={() => setMode(m.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                mode === m.value
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'glass text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto space-y-4 mb-4">
@@ -90,6 +114,7 @@ const DoubtSolver = () => {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <HelpCircle className="w-16 h-16 text-muted-foreground/20 mb-4" />
             <p className="text-muted-foreground">Ask any question and get detailed explanations</p>
+            <p className="text-xs text-muted-foreground mt-1">Mode: {modes.find(m => m.value === mode)?.desc}</p>
           </div>
         )}
         {messages.map((msg, i) => (

@@ -14,6 +14,11 @@ import DoubtSolver from "@/pages/DoubtSolver";
 import Quest from "@/pages/Quest";
 import WeaknessRadar from "@/pages/WeaknessRadar";
 import SettingsPage from "@/pages/SettingsPage";
+import StudyPlanner from "@/pages/StudyPlanner";
+import NoteToQuiz from "@/pages/NoteToQuiz";
+import QuickStudy from "@/pages/QuickStudy";
+import FocusMode from "@/pages/FocusMode";
+import StudySession from "@/pages/StudySession";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +58,11 @@ const App = () => (
             <Route path="/quest" element={<ProtectedRoute><Quest /></ProtectedRoute>} />
             <Route path="/weakness-radar" element={<ProtectedRoute><WeaknessRadar /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/study-planner" element={<ProtectedRoute><StudyPlanner /></ProtectedRoute>} />
+            <Route path="/note-to-quiz" element={<ProtectedRoute><NoteToQuiz /></ProtectedRoute>} />
+            <Route path="/quick-study" element={<ProtectedRoute><QuickStudy /></ProtectedRoute>} />
+            <Route path="/focus-mode" element={<ProtectedRoute><FocusMode /></ProtectedRoute>} />
+            <Route path="/study-session" element={<ProtectedRoute><StudySession /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

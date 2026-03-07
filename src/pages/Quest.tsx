@@ -1,32 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Swords, Heart, Shield, Zap, Trophy, Star, Target } from 'lucide-react';
+import { Swords, Heart, Shield, Zap, Trophy, Star, Target, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
+import { toast } from 'sonner';
 
 type Boss = {
   name: string;
   hp: number;
   maxHp: number;
   icon: string;
-  subject: string;
   questions: { q: string; options: string[]; correct: number }[];
-};
-
-const sampleBoss: Boss = {
-  name: 'Algebra Demon',
-  hp: 100,
-  maxHp: 100,
-  icon: '👹',
-  subject: 'Algebra',
-  questions: [
-    { q: 'What is 2x + 3 = 11? Solve for x.', options: ['x = 3', 'x = 4', 'x = 5', 'x = 6'], correct: 1 },
-    { q: 'Simplify: 3(x + 2) - x', options: ['2x + 6', '2x + 2', '4x + 6', '3x + 2'], correct: 0 },
-    { q: 'Factor: x² - 9', options: ['(x-3)(x+3)', '(x-9)(x+1)', '(x-3)²', '(x+9)(x-1)'], correct: 0 },
-    { q: 'What is √144?', options: ['11', '12', '13', '14'], correct: 1 },
-    { q: 'If y = 2x + 1, what is y when x = 5?', options: ['9', '10', '11', '12'], correct: 2 },
-  ],
 };
 
 const dailyQuests = [
@@ -37,16 +23,46 @@ const dailyQuests = [
 ];
 
 const Quest = () => {
-  const { profile, getLevelTitle } = useProfile();
-  const [boss, setBoss] = useState<Boss>(sampleBoss);
+  const { profile } = useProfile();
+  const [boss, setBoss] = useState<Boss | null>(null);
+  const [topic, setTopic] = useState('');
+  const [generating, setGenerating] = useState(false);
   const [questionIdx, setQuestionIdx] = useState(0);
   const [playerHp, setPlayerHp] = useState(100);
   const [battleActive, setBattleActive] = useState(false);
   const [battleResult, setBattleResult] = useState<'win' | 'lose' | null>(null);
   const [xpEarned, setXpEarned] = useState(0);
 
+  const generateBoss = async () => {
+    if (!topic.trim()) return;
+    setGenerating(true);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-boss`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ topic }),
+      });
+      if (!resp.ok) throw new Error('Failed');
+      const data = await resp.json();
+      setBoss({
+        name: data.name,
+        hp: 100,
+        maxHp: 100,
+        icon: data.icon || '👹',
+        questions: data.questions,
+      });
+    } catch {
+      toast.error('Failed to generate boss');
+    }
+    setGenerating(false);
+  };
+
   const startBattle = () => {
-    setBoss({ ...sampleBoss });
+    if (!boss) return;
+    setBoss(prev => prev ? { ...prev, hp: prev.maxHp } : null);
     setPlayerHp(100);
     setQuestionIdx(0);
     setBattleActive(true);
@@ -55,11 +71,11 @@ const Quest = () => {
   };
 
   const answerQuestion = (optionIdx: number) => {
+    if (!boss) return;
     const q = boss.questions[questionIdx];
     if (optionIdx === q.correct) {
-      // Correct: boss loses HP
       const newBossHp = Math.max(0, boss.hp - 25);
-      setBoss(prev => ({ ...prev, hp: newBossHp }));
+      setBoss(prev => prev ? { ...prev, hp: newBossHp } : null);
       setXpEarned(prev => prev + 10);
       if (newBossHp <= 0) {
         setBattleResult('win');
@@ -67,7 +83,6 @@ const Quest = () => {
         return;
       }
     } else {
-      // Wrong: player loses HP
       const newPlayerHp = Math.max(0, playerHp - 20);
       setPlayerHp(newPlayerHp);
       if (newPlayerHp <= 0) {
@@ -83,7 +98,7 @@ const Quest = () => {
     <div className="max-w-4xl mx-auto space-y-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="text-2xl font-display font-bold text-foreground">Lumina Quest</h1>
-        <p className="text-muted-foreground text-sm">Battle knowledge bosses and level up!</p>
+        <p className="text-muted-foreground text-sm">Choose your topic and battle AI-generated knowledge bosses!</p>
       </motion.div>
 
       {/* Boss Battle */}
@@ -92,20 +107,44 @@ const Quest = () => {
           <Swords className="w-5 h-5 text-destructive" /> Boss Battle
         </h2>
 
-        {!battleActive && !battleResult && (
-          <div className="text-center py-8">
-            <div className="text-6xl mb-4">{boss.icon}</div>
-            <h3 className="text-xl font-display font-bold text-foreground mb-2">{boss.name}</h3>
-            <p className="text-muted-foreground mb-6">Defeat this boss by answering {boss.subject} questions!</p>
-            <Button onClick={startBattle} className="gradient-primary text-primary-foreground">
-              <Swords className="w-4 h-4 mr-2" /> Start Battle
-            </Button>
+        {!boss && !battleActive && (
+          <div className="text-center py-8 space-y-4">
+            <div className="text-6xl mb-2">⚔️</div>
+            <h3 className="text-xl font-display font-bold text-foreground">Choose Your Battle Topic</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">Enter any topic and the AI will generate a boss with questions for you to defeat!</p>
+            <div className="max-w-md mx-auto flex gap-2">
+              <Input
+                placeholder="e.g., Algebra, Photosynthesis, World War II"
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                className="bg-muted/50"
+                onKeyDown={e => e.key === 'Enter' && generateBoss()}
+              />
+              <Button onClick={generateBoss} disabled={generating || !topic.trim()} className="gradient-primary text-primary-foreground">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
         )}
 
-        {battleActive && (
+        {boss && !battleActive && !battleResult && (
+          <div className="text-center py-8">
+            <div className="text-6xl mb-4">{boss.icon}</div>
+            <h3 className="text-xl font-display font-bold text-foreground mb-2">{boss.name}</h3>
+            <p className="text-muted-foreground mb-6">Defeat this boss by answering questions on {topic}!</p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={startBattle} className="gradient-primary text-primary-foreground">
+                <Swords className="w-4 h-4 mr-2" /> Start Battle
+              </Button>
+              <Button onClick={() => { setBoss(null); setTopic(''); }} variant="ghost">
+                Change Topic
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {battleActive && boss && (
           <div className="space-y-6">
-            {/* HP Bars */}
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -131,17 +170,12 @@ const Quest = () => {
               </div>
             </div>
 
-            {/* Question */}
             <div className="glass rounded-xl p-5">
               <p className="text-primary text-xs font-semibold mb-2">Question {questionIdx + 1}</p>
               <p className="text-foreground font-medium mb-4">{boss.questions[questionIdx].q}</p>
               <div className="grid grid-cols-2 gap-2">
                 {boss.questions[questionIdx].options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => answerQuestion(i)}
-                    className="glass rounded-lg px-4 py-3 text-sm text-left hover:border-primary/50 transition-all"
-                  >
+                  <button key={i} onClick={() => answerQuestion(i)} className="glass rounded-lg px-4 py-3 text-sm text-left hover:border-primary/50 transition-all">
                     {opt}
                   </button>
                 ))}
@@ -159,9 +193,10 @@ const Quest = () => {
             <p className="text-muted-foreground mb-2">
               {battleResult === 'win' ? `You earned ${xpEarned} XP!` : 'Study more and try again!'}
             </p>
-            <Button onClick={startBattle} variant="outline" className="mt-4">
-              Try Again
-            </Button>
+            <div className="flex gap-2 justify-center mt-4">
+              <Button onClick={startBattle} variant="outline">Try Again</Button>
+              <Button onClick={() => { setBoss(null); setTopic(''); setBattleResult(null); }} variant="ghost">New Topic</Button>
+            </div>
           </motion.div>
         )}
       </motion.div>

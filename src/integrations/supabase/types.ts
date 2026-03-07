@@ -219,6 +219,42 @@ export type Database = {
           },
         ]
       }
+      mistakes: {
+        Row: {
+          correct_answer: string | null
+          created_at: string
+          id: string
+          mistake_type: string
+          question: string | null
+          subject: string | null
+          topic: string
+          user_answer: string | null
+          user_id: string
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string
+          id?: string
+          mistake_type?: string
+          question?: string | null
+          subject?: string | null
+          topic: string
+          user_answer?: string | null
+          user_id: string
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string
+          id?: string
+          mistake_type?: string
+          question?: string | null
+          subject?: string | null
+          topic?: string
+          user_answer?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -234,6 +270,7 @@ export type Database = {
           streak_days: number
           study_mode: string | null
           theme: string | null
+          total_study_minutes: number
           updated_at: string
           user_id: string
           xp: number
@@ -252,6 +289,7 @@ export type Database = {
           streak_days?: number
           study_mode?: string | null
           theme?: string | null
+          total_study_minutes?: number
           updated_at?: string
           user_id: string
           xp?: number
@@ -270,9 +308,91 @@ export type Database = {
           streak_days?: number
           study_mode?: string | null
           theme?: string | null
+          total_study_minutes?: number
           updated_at?: string
           user_id?: string
           xp?: number
+        }
+        Relationships: []
+      }
+      study_plans: {
+        Row: {
+          created_at: string
+          daily_hours: number
+          exam_date: string
+          id: string
+          plan_data: Json
+          subjects: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_hours?: number
+          exam_date: string
+          id?: string
+          plan_data?: Json
+          subjects?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_hours?: number
+          exam_date?: string
+          id?: string
+          plan_data?: Json
+          subjects?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          analysis: Json | null
+          doubts_solved: number
+          duration_minutes: number
+          ended_at: string | null
+          flashcards_reviewed: number
+          id: string
+          notes_generated: number
+          started_at: string
+          status: string
+          test_scores: Json | null
+          tests_taken: number
+          tools_used: Json | null
+          user_id: string
+        }
+        Insert: {
+          analysis?: Json | null
+          doubts_solved?: number
+          duration_minutes?: number
+          ended_at?: string | null
+          flashcards_reviewed?: number
+          id?: string
+          notes_generated?: number
+          started_at?: string
+          status?: string
+          test_scores?: Json | null
+          tests_taken?: number
+          tools_used?: Json | null
+          user_id: string
+        }
+        Update: {
+          analysis?: Json | null
+          doubts_solved?: number
+          duration_minutes?: number
+          ended_at?: string | null
+          flashcards_reviewed?: number
+          id?: string
+          notes_generated?: number
+          started_at?: string
+          status?: string
+          test_scores?: Json | null
+          tests_taken?: number
+          tools_used?: Json | null
+          user_id?: string
         }
         Relationships: []
       }
