@@ -20,58 +20,53 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const saveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const secondsRef = useRef(0);
+  const startTimeRef = useRef<number | null>(null);
 
   // Start timer when user logs in
   useEffect(() => {
     if (!user) {
       setIsRunning(false);
       setSeconds(0);
+      secondsRef.current = 0;
       setSessionId(null);
       return;
     }
 
     const startTimer = async () => {
-      // Check for existing active session today
-      const today = new Date().toISOString().split('T')[0];
-      const { data: existing } = await supabase
+      // Always create a fresh session for this page load
+      // First complete any lingering active sessions
+      await supabase
         .from('study_sessions')
-        .select('*')
+        .update({ status: 'completed', ended_at: new Date().toISOString() })
         .eq('user_id', user.id)
-        .eq('status', 'active')
-        .gte('started_at', today)
-        .order('started_at', { ascending: false })
-        .limit(1);
+        .eq('status', 'active');
 
-      if (existing && existing.length > 0) {
-        const session = existing[0];
-        const elapsed = Math.floor((Date.now() - new Date(session.started_at).getTime()) / 1000);
-        setSessionId(session.id);
-        setSeconds(elapsed);
-        secondsRef.current = elapsed;
-      } else {
-        const { data } = await supabase
-          .from('study_sessions')
-          .insert({ user_id: user.id, status: 'active' })
-          .select()
-          .single();
-        if (data) {
-          setSessionId(data.id);
-          setSeconds(0);
-          secondsRef.current = 0;
-        }
+      // Create new session
+      const { data } = await supabase
+        .from('study_sessions')
+        .insert({ user_id: user.id, status: 'active' })
+        .select()
+        .single();
+      
+      if (data) {
+        setSessionId(data.id);
+        startTimeRef.current = Date.now();
+        setSeconds(0);
+        secondsRef.current = 0;
+        setIsRunning(true);
       }
-      setIsRunning(true);
     };
 
     startTimer();
   }, [user]);
 
-  // Tick
+  // Tick - use elapsed time from startTimeRef for accuracy
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && startTimeRef.current) {
       intervalRef.current = setInterval(() => {
-        secondsRef.current += 1;
-        setSeconds(secondsRef.current);
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        secondsRef.current = elapsed;
+        setSeconds(elapsed);
       }, 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
