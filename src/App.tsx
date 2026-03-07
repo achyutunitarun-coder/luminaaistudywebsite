@@ -4,7 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
+import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
@@ -19,6 +21,8 @@ import NoteToQuiz from "@/pages/NoteToQuiz";
 import QuickStudy from "@/pages/QuickStudy";
 import FocusMode from "@/pages/FocusMode";
 import StudySession from "@/pages/StudySession";
+import Pulse from "@/pages/Pulse";
+import NotesGenerator from "@/pages/NotesGenerator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +35,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
   if (!user) return <Navigate to="/auth" replace />;
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <StudyTimerProvider>
+      <MonthlyReportModal />
+      <AppLayout>{children}</AppLayout>
+    </StudyTimerProvider>
+  );
 };
 
 const AuthRoute = () => {
@@ -63,6 +72,8 @@ const App = () => (
             <Route path="/quick-study" element={<ProtectedRoute><QuickStudy /></ProtectedRoute>} />
             <Route path="/focus-mode" element={<ProtectedRoute><FocusMode /></ProtectedRoute>} />
             <Route path="/study-session" element={<ProtectedRoute><StudySession /></ProtectedRoute>} />
+            <Route path="/pulse" element={<ProtectedRoute><Pulse /></ProtectedRoute>} />
+            <Route path="/notes-generator" element={<ProtectedRoute><NotesGenerator /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
