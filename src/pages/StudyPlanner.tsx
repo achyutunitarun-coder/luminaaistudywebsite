@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Plus, X, Loader2, Sparkles, BookOpen, Clock } from 'lucide-react';
+import { Calendar, Plus, X, Loader2, Sparkles, BookOpen, Clock, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,10 +15,17 @@ type PlanDay = {
 };
 
 const typeColors: Record<string, string> = {
-  study: 'bg-primary/10 text-primary',
-  practice: 'bg-secondary/10 text-secondary',
-  review: 'bg-warning/10 text-warning',
-  test: 'bg-destructive/10 text-destructive',
+  study: 'bg-primary/10 text-primary border border-primary/20',
+  practice: 'bg-secondary/10 text-secondary border border-secondary/20',
+  review: 'bg-warning/10 text-warning border border-warning/20',
+  test: 'bg-destructive/10 text-destructive border border-destructive/20',
+};
+
+const typeIcons: Record<string, string> = {
+  study: '📖',
+  practice: '✍️',
+  review: '🔄',
+  test: '📝',
 };
 
 const StudyPlanner = () => {
@@ -70,53 +77,65 @@ const StudyPlanner = () => {
     setGenerating(false);
   };
 
+  const daysUntilExam = examDate ? Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000) : null;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-8">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
-          <Calendar className="w-6 h-6 text-primary" /> Smart Study Planner
+        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
+          <Wand2 className="w-7 h-7 text-primary" /> Smart Study Planner
         </h1>
-        <p className="text-muted-foreground text-sm">AI builds a personalized study schedule for you</p>
+        <p className="text-muted-foreground mt-1">AI crafts a personalized schedule tailored to your goals</p>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-6 space-y-4">
-        <div>
-          <label className="text-sm font-semibold text-foreground mb-2 block">Subjects</label>
-          {subjects.map((s, i) => (
-            <div key={i} className="flex gap-2 mb-2">
-              <Input
-                placeholder={`Subject ${i + 1}`}
-                value={s}
-                onChange={e => setSubjects(prev => prev.map((v, j) => j === i ? e.target.value : v))}
-                className="bg-muted/50"
-              />
-              {subjects.length > 1 && (
-                <Button variant="ghost" size="icon" onClick={() => setSubjects(prev => prev.filter((_, j) => j !== i))}>
-                  <X className="w-4 h-4" />
-                </Button>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-8 space-y-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-primary/5 blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-secondary/5 blur-[80px]" />
+
+        <div className="relative z-10 space-y-6">
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-3 block">Subjects</label>
+            <div className="space-y-2">
+              {subjects.map((s, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    placeholder={`Subject ${i + 1} — e.g., Physics, Calculus...`}
+                    value={s}
+                    onChange={e => setSubjects(prev => prev.map((v, j) => j === i ? e.target.value : v))}
+                    className="bg-muted/50 rounded-xl"
+                  />
+                  {subjects.length > 1 && (
+                    <Button variant="ghost" size="icon" onClick={() => setSubjects(prev => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setSubjects(prev => [...prev, ''])} className="text-primary mt-2">
+              <Plus className="w-3 h-3 mr-1" /> Add Subject
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">Exam Date</label>
+              <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="bg-muted/50 rounded-xl" />
+              {daysUntilExam !== null && daysUntilExam > 0 && (
+                <p className="text-xs text-primary mt-1.5 font-medium">{daysUntilExam} days remaining</p>
               )}
             </div>
-          ))}
-          <Button variant="ghost" size="sm" onClick={() => setSubjects(prev => [...prev, ''])} className="text-primary">
-            <Plus className="w-3 h-3 mr-1" /> Add Subject
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">Daily Study Hours</label>
+              <Input type="number" value={dailyHours} onChange={e => setDailyHours(Number(e.target.value))} min={1} max={12} className="bg-muted/50 rounded-xl" />
+            </div>
+          </div>
+
+          <Button onClick={generatePlan} disabled={generating} className="gradient-primary text-primary-foreground h-12 px-8 text-base" size="lg">
+            {generating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sparkles className="w-5 h-5 mr-2" />}
+            Generate Study Plan
           </Button>
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-semibold text-foreground mb-2 block">Exam Date</label>
-            <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} className="bg-muted/50" />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-foreground mb-2 block">Daily Study Hours</label>
-            <Input type="number" value={dailyHours} onChange={e => setDailyHours(Number(e.target.value))} min={1} max={12} className="bg-muted/50" />
-          </div>
-        </div>
-
-        <Button onClick={generatePlan} disabled={generating} className="gradient-primary text-primary-foreground">
-          {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-          Generate Study Plan
-        </Button>
       </motion.div>
 
       {/* Existing Plans */}
@@ -128,31 +147,54 @@ const StudyPlanner = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: pi * 0.1 }}
-            className="glass rounded-xl p-6"
+            className="glass rounded-2xl p-6 space-y-4"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-display font-semibold text-foreground">
-                  {(plan.subjects as string[])?.join(', ')}
+                <h3 className="font-display font-semibold text-lg text-foreground">
+                  {(plan.subjects as string[])?.join(' · ')}
                 </h3>
-                <p className="text-xs text-muted-foreground">Exam: {plan.exam_date} • {plan.daily_hours}h/day</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> Exam: {plan.exam_date}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {plan.daily_hours}h/day
+                  </span>
+                </div>
               </div>
+              <span className="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">{days.length} days</span>
             </div>
-            <div className="space-y-3 max-h-96 overflow-auto">
-              {days.slice(0, 7).map((day, di) => (
-                <div key={di} className="border-l-2 border-primary/30 pl-4">
-                  <p className="text-xs font-semibold text-primary mb-1">Day {day.day} {day.date ? `— ${day.date}` : ''}</p>
+
+            <div className="space-y-3 max-h-[500px] overflow-auto pr-2">
+              {days.slice(0, 10).map((day, di) => (
+                <motion.div
+                  key={di}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: di * 0.03 }}
+                  className="relative pl-6 pb-4"
+                >
+                  {/* Timeline dot & line */}
+                  <div className="absolute left-0 top-1 w-3 h-3 rounded-full gradient-primary" />
+                  {di < days.length - 1 && <div className="absolute left-[5px] top-4 w-0.5 h-full bg-primary/20" />}
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-semibold text-foreground">Day {day.day}</span>
+                    {day.date && <span className="text-xs text-muted-foreground">— {day.date}</span>}
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {day.tasks?.map((task, ti) => (
-                      <span key={ti} className={`text-xs px-3 py-1 rounded-full ${typeColors[task.type] || 'bg-muted text-muted-foreground'}`}>
-                        <BookOpen className="w-3 h-3 inline mr-1" />
-                        {task.subject}: {task.topic} ({task.duration_minutes}m)
+                      <span key={ti} className={`text-xs px-3 py-1.5 rounded-xl ${typeColors[task.type] || 'bg-muted text-muted-foreground'}`}>
+                        {typeIcons[task.type] || '📚'} {task.subject}: {task.topic} ({task.duration_minutes}m)
                       </span>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               ))}
-              {days.length > 7 && <p className="text-xs text-muted-foreground text-center">+ {days.length - 7} more days</p>}
+              {days.length > 10 && (
+                <p className="text-xs text-muted-foreground text-center py-2">+ {days.length - 10} more days</p>
+              )}
             </div>
           </motion.div>
         );

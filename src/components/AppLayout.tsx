@@ -1,21 +1,24 @@
 import { ReactNode, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
-import { Flame, Coins, Sparkles, LogOut, Menu, X, ChevronDown } from 'lucide-react';
+import { useStudyTimer } from '@/hooks/useStudyTimer';
+import { Flame, Coins, Sparkles, LogOut, Menu, X, ChevronDown, Activity, Clock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const primaryNav = [
   { title: 'Dashboard', url: '/' },
+  { title: 'Pulse', url: '/pulse' },
   { title: 'Study Session', url: '/study-session' },
   { title: 'Tests', url: '/tests' },
   { title: 'AI Chat', url: '/chat' },
-  { title: 'Flashcards', url: '/flashcards' },
 ];
 
 const moreNav = [
+  { title: 'Flashcards', url: '/flashcards' },
   { title: 'Doubt Solver', url: '/doubt-solver' },
+  { title: 'Notes Generator', url: '/notes-generator' },
   { title: 'Note to Quiz', url: '/note-to-quiz' },
   { title: 'Quick Study', url: '/quick-study' },
   { title: 'Study Planner', url: '/study-planner' },
@@ -28,25 +31,30 @@ const moreNav = [
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { profile } = useProfile();
   const { signOut } = useAuth();
+  const { seconds } = useStudyTimer();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isMoreActive = moreNav.some(item => location.pathname === item.url);
+
+  const timerMins = Math.floor(seconds / 60);
+  const timerSecs = seconds % 60;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Nav */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/40">
+      <nav className="sticky top-0 z-50 backdrop-blur-2xl bg-background/70 border-b border-border/30">
         <div className="max-w-[1400px] mx-auto px-6">
-          <div className="h-12 flex items-center justify-between">
+          <div className="h-11 flex items-center justify-between">
             {/* Logo */}
-            <NavLink to="/" end className="flex items-center gap-2 flex-shrink-0" activeClassName="">
+            <NavLink to="/" end className="flex items-center gap-2.5 flex-shrink-0" activeClassName="">
               <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-sm text-foreground tracking-wide hidden sm:inline">
-                LUMINA
+              <span className="font-display font-semibold text-sm text-foreground tracking-tight hidden sm:inline">
+                Lumina
               </span>
             </NavLink>
 
@@ -57,7 +65,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                   key={item.url}
                   to={item.url}
                   end={item.url === '/'}
-                  className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md"
+                  className="px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md"
                   activeClassName="text-foreground"
                 >
                   {item.title}
@@ -69,7 +77,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 <button
                   onClick={() => setMoreOpen(!moreOpen)}
                   onBlur={() => setTimeout(() => setMoreOpen(false), 200)}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors rounded-md flex items-center gap-1 ${
+                  className={`px-3 py-1.5 text-[13px] font-medium transition-colors rounded-md flex items-center gap-1 ${
                     isMoreActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -82,22 +90,22 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 4, scale: 0.97 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-1.5 w-52 rounded-xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl py-1.5 overflow-hidden"
+                      className="absolute top-full right-0 mt-1.5 w-56 rounded-2xl bg-card/95 backdrop-blur-2xl border border-border/40 shadow-2xl py-2 overflow-hidden"
                     >
                       {moreNav.map(item => (
                         <NavLink
                           key={item.url}
                           to={item.url}
-                          className="block px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                          className="block px-4 py-2.5 text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
                           activeClassName="text-foreground bg-muted/30"
                         >
                           {item.title}
                         </NavLink>
                       ))}
-                      <div className="border-t border-border/50 mt-1.5 pt-1.5">
+                      <div className="border-t border-border/40 mt-2 pt-2">
                         <button
                           onClick={signOut}
-                          className="w-full text-left px-4 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                          className="w-full text-left px-4 py-2.5 text-[13px] text-destructive hover:bg-destructive/10 transition-colors"
                         >
                           Sign Out
                         </button>
@@ -110,6 +118,18 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
             {/* Right Side */}
             <div className="flex items-center gap-3">
+              {/* Live Timer Pill */}
+              <button
+                onClick={() => navigate('/pulse')}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                <Clock className="w-3 h-3 text-primary" />
+                <span className="text-xs font-medium text-primary tabular-nums">
+                  {timerMins}:{String(timerSecs).padStart(2, '0')}
+                </span>
+              </button>
+
               {profile && (
                 <div className="hidden sm:flex items-center gap-3">
                   <div className="flex items-center gap-1 text-xs">
@@ -130,7 +150,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 </div>
               )}
 
-              {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
                 className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground transition-colors"
