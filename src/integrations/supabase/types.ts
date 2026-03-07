@@ -262,6 +262,7 @@ export type Database = {
           created_at: string
           difficulty: string | null
           display_name: string | null
+          extra_preferences: string | null
           gamification_mode: string | null
           id: string
           last_study_date: string | null
@@ -281,6 +282,7 @@ export type Database = {
           created_at?: string
           difficulty?: string | null
           display_name?: string | null
+          extra_preferences?: string | null
           gamification_mode?: string | null
           id?: string
           last_study_date?: string | null
@@ -300,6 +302,7 @@ export type Database = {
           created_at?: string
           difficulty?: string | null
           display_name?: string | null
+          extra_preferences?: string | null
           gamification_mode?: string | null
           id?: string
           last_study_date?: string | null
