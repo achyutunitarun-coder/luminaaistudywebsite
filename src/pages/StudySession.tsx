@@ -6,9 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-type Strength = { topic: string; subject: string; detail: string; confidence_level: string };
-type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string };
-type Recommendation = { action: string; priority: string; estimated_time: string };
+type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
+type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
+type Recommendation = { action: string; priority: string; estimated_time: string; subjects_to_cover?: string; study_method?: string };
 
 type SessionAnalysis = {
   summary: string;
