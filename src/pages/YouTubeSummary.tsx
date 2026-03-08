@@ -141,7 +141,7 @@ export default function YouTubeSummary() {
               <CardDescription>AI-generated summary of the video</CardDescription>
             </div>
             <Button variant="ghost" size="icon" onClick={handleCopy}>
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
             </Button>
           </CardHeader>
           <CardContent>
