@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
 
+const ease = [0.25, 0.1, 0.25, 1];
+
 const Dashboard = () => {
   const { profile, getLevelTitle, xpForNextLevel } = useProfile();
   const { user } = useAuth();
@@ -53,49 +55,58 @@ const Dashboard = () => {
   const mins = totalToday % 60;
 
   const featureCards = [
-    { icon: Search, title: 'Weakness Detection', desc: 'Automatically identify weak subjects from tests.', color: 'text-destructive', bg: 'bg-destructive/10' },
-    { icon: TrendingUp, title: 'Smart Suggestions', desc: 'AI recommends exactly what to study next.', color: 'text-primary', bg: 'bg-primary/10' },
-    { icon: BarChart3, title: 'Progress Tracking', desc: 'See your strengths improve over time.', color: 'text-success', bg: 'bg-success/10' },
+    { icon: Search, title: 'Weakness Detection', desc: 'Automatically identify weak subjects from tests.', color: 'text-destructive', bg: 'bg-destructive/8' },
+    { icon: TrendingUp, title: 'Smart Suggestions', desc: 'AI recommends exactly what to study next.', color: 'text-primary', bg: 'bg-primary/8' },
+    { icon: BarChart3, title: 'Progress Tracking', desc: 'See your strengths improve over time.', color: 'text-success', bg: 'bg-success/8' },
   ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Hero */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="relative text-center py-14 px-8 rounded-[2rem] overflow-hidden"
+        transition={{ duration: 0.7, ease }}
+        className="relative text-center py-16 px-8 rounded-[2.5rem] overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-secondary/5" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/3 blur-[100px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/4 via-transparent to-secondary/4" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/3 blur-[140px]" />
         <div className="relative z-10">
           <motion.h1
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="text-4xl md:text-5xl lg:text-[3.5rem] font-display font-bold text-foreground leading-tight max-w-3xl mx-auto tracking-tight"
+            transition={{ delay: 0.15, ease }}
+            className="text-4xl md:text-5xl lg:text-[3.5rem] font-display font-bold text-foreground leading-[1.08] max-w-3xl mx-auto"
           >
             An AI that finds your weak subjects and helps you fix them.
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.3, ease }}
             className="text-lg text-muted-foreground max-w-xl mx-auto mt-5 leading-relaxed"
           >
             Lumina analyzes your tests, notes, and doubts to show exactly what you need to study next.
           </motion.p>
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="mt-7 flex items-center justify-center gap-3"
+            transition={{ delay: 0.45, ease }}
+            className="mt-8 flex items-center justify-center gap-3"
           >
-            <Button onClick={() => navigate('/study-session')} size="lg" className="gradient-primary text-primary-foreground px-8 h-12 text-sm font-semibold rounded-2xl shadow-lg shadow-primary/20">
+            <Button
+              onClick={() => navigate('/study-session')}
+              size="lg"
+              className="gradient-primary text-primary-foreground px-8 h-[52px] text-sm font-semibold rounded-2xl shadow-lg shadow-primary/15 hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
               Start Studying <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
-            <Button onClick={() => navigate('/quick-study')} variant="outline" size="lg" className="h-12 px-8 text-sm rounded-2xl">
+            <Button
+              onClick={() => navigate('/quick-study')}
+              variant="outline"
+              size="lg"
+              className="h-[52px] px-8 text-sm rounded-2xl border-border/20 hover:bg-muted/20 transition-all duration-300"
+            >
               Quick 10-Min Lesson
             </Button>
           </motion.div>
@@ -107,12 +118,12 @@ const Dashboard = () => {
         {featureCards.map((card, i) => (
           <motion.div
             key={card.title}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 + i * 0.1 }}
-            className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6 text-center"
+            transition={{ delay: 0.25 + i * 0.08, ease }}
+            className="rounded-2xl border border-border/15 bg-card/40 backdrop-blur-2xl p-6 text-center card-hover"
           >
-            <div className={`w-12 h-12 rounded-xl ${card.bg} flex items-center justify-center mx-auto mb-4`}>
+            <div className={`w-12 h-12 rounded-2xl ${card.bg} flex items-center justify-center mx-auto mb-4`}>
               <card.icon className={`w-6 h-6 ${card.color}`} />
             </div>
             <h3 className="font-display text-sm font-semibold text-foreground mb-1.5">{card.title}</h3>
@@ -123,32 +134,32 @@ const Dashboard = () => {
 
       {/* Welcome & XP */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-8 relative overflow-hidden"
+        transition={{ delay: 0.4, ease }}
+        className="rounded-[1.75rem] border border-border/15 bg-card/40 backdrop-blur-2xl p-8 relative overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute top-0 right-0 w-56 h-56 rounded-full bg-primary/4 blur-[60px]" />
         <div className="relative z-10">
-          <p className="text-muted-foreground text-sm mb-1">Welcome back,</p>
+          <p className="text-muted-foreground text-[13px] mb-1 font-medium">Welcome back,</p>
           <h2 className="text-3xl font-display font-bold text-foreground mb-1.5">
             {profile.display_name || 'Student'}
           </h2>
           <div className="flex items-center gap-2 mb-5">
-            <span className="text-xp font-display text-sm font-semibold">{getLevelTitle(profile.level)}</span>
-            <span className="text-muted-foreground/50">•</span>
-            <span className="text-muted-foreground text-sm">Level {profile.level}</span>
+            <span className="text-xp font-display text-[13px] font-semibold">{getLevelTitle(profile.level)}</span>
+            <span className="text-muted-foreground/30">•</span>
+            <span className="text-muted-foreground text-[13px]">Level {profile.level}</span>
           </div>
           <div className="max-w-md">
             <div className="flex justify-between text-xs mb-2">
-              <span className="text-xp font-semibold">{profile.xp} XP</span>
+              <span className="text-xp font-semibold tabular-nums">{profile.xp} XP</span>
               <span className="text-muted-foreground">{nextLevelXp} XP to Level {profile.level + 1}</span>
             </div>
-            <div className="h-2.5 rounded-full bg-muted/30 overflow-hidden">
+            <div className="h-2 rounded-full bg-muted/20 overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${xpProgress}%` }}
-                transition={{ duration: 1, delay: 0.3 }}
+                transition={{ duration: 1.2, delay: 0.3, ease }}
                 className="h-full rounded-full gradient-xp"
               />
             </div>
@@ -165,20 +176,20 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
-        <h2 className="text-base font-display font-semibold text-foreground mb-4">Quick Actions</h2>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, ease }}>
+        <h2 className="text-[15px] font-display font-semibold text-foreground mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
-            { name: 'AI Chat', desc: 'Ask questions, get explanations', icon: Zap, url: '/chat', color: 'text-primary', bg: 'bg-primary/10', hoverBorder: 'hover:border-primary/30' },
-            { name: 'Generate Test', desc: 'AI-powered adaptive tests', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/10', hoverBorder: 'hover:border-secondary/30' },
-            { name: 'Lumina Quest', desc: 'Battle bosses, earn rewards', icon: Swords, url: '/quest', color: 'text-xp', bg: 'bg-xp/10', hoverBorder: 'hover:border-xp/30' },
+            { name: 'AI Chat', desc: 'Ask questions, get explanations', icon: Zap, url: '/chat', color: 'text-primary', bg: 'bg-primary/8', hoverBorder: 'hover:border-primary/25' },
+            { name: 'Generate Test', desc: 'AI-powered adaptive tests', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8', hoverBorder: 'hover:border-secondary/25' },
+            { name: 'Lumina Quest', desc: 'Battle bosses, earn rewards', icon: Swords, url: '/quest', color: 'text-xp', bg: 'bg-xp/8', hoverBorder: 'hover:border-xp/25' },
           ].map(action => (
             <button
               key={action.name}
               onClick={() => navigate(action.url)}
-              className={`rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5 text-left ${action.hoverBorder} transition-all group`}
+              className={`rounded-2xl border border-border/15 bg-card/40 backdrop-blur-2xl p-5 text-left ${action.hoverBorder} transition-all duration-300 group card-hover`}
             >
-              <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3`}>
+              <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
                 <action.icon className={`w-5 h-5 ${action.color}`} />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
@@ -190,34 +201,34 @@ const Dashboard = () => {
 
       {/* Pulse Widget */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-8"
+        transition={{ delay: 0.55, ease }}
+        className="rounded-[1.75rem] border border-border/15 bg-card/40 backdrop-blur-2xl p-8"
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2">
+            <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" /> Pulse
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">Your study activity today</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
             View Details <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
 
         <div className="text-center">
-          <div className="flex items-baseline justify-center gap-1">
-            <span className="text-5xl font-display font-bold text-foreground">{hrs}</span>
-            <span className="text-lg text-muted-foreground/60">hr</span>
-            <span className="text-5xl font-display font-bold text-foreground ml-2">{mins}</span>
-            <span className="text-lg text-muted-foreground/60">min</span>
+          <div className="flex items-baseline justify-center gap-1 tabular-nums">
+            <span className="text-[56px] font-display font-bold text-foreground leading-none">{hrs}</span>
+            <span className="text-lg text-muted-foreground/40 font-light">hr</span>
+            <span className="text-[56px] font-display font-bold text-foreground ml-2 leading-none">{mins}</span>
+            <span className="text-lg text-muted-foreground/40 font-light">min</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">studied today</p>
+          <p className="text-xs text-muted-foreground mt-3">studied today</p>
         </div>
 
-        <div className="flex items-center justify-center gap-2.5 mt-6">
+        <div className="flex items-center justify-center gap-2.5 mt-8">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
             const dayData = weeklyMinutes?.find(s => {
               const d = new Date(s.started_at);
@@ -226,13 +237,13 @@ const Dashboard = () => {
             const active = dayData && dayData.duration_minutes > 0;
             const today = new Date().getDay() === (i + 1) % 7;
             return (
-              <div key={day} className="flex flex-col items-center gap-1">
-                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all ${
-                  active ? 'border-primary bg-primary/15 text-primary' : today ? 'border-primary/40 text-muted-foreground' : 'border-border/30 text-muted-foreground/40'
+              <div key={day} className="flex flex-col items-center gap-1.5">
+                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  active ? 'border-primary bg-primary/12 text-primary' : today ? 'border-primary/30 text-muted-foreground' : 'border-border/20 text-muted-foreground/30'
                 }`}>
                   {active ? '✓' : ''}
                 </div>
-                <span className={`text-[9px] ${today ? 'text-primary font-semibold' : 'text-muted-foreground/60'}`}>{day}</span>
+                <span className={`text-[9px] font-medium ${today ? 'text-primary' : 'text-muted-foreground/40'}`}>{day}</span>
               </div>
             );
           })}
