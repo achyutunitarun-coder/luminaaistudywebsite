@@ -24,6 +24,7 @@ import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
 import AudioAnalysis from "@/pages/AudioAnalysis";
+import YouTubeSummary from "@/pages/YouTubeSummary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
