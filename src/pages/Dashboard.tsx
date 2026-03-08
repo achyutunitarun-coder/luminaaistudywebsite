@@ -7,10 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useStudyTimer } from '@/hooks/useStudyTimer';
 
 const Dashboard = () => {
   const { profile, getLevelTitle, xpForNextLevel } = useProfile();
   const { user } = useAuth();
+  const { seconds: liveSeconds } = useStudyTimer();
   const navigate = useNavigate();
 
   const { data: todayMinutes } = useQuery({
@@ -45,7 +47,8 @@ const Dashboard = () => {
 
   const xpProgress = (profile.xp % 100);
   const nextLevelXp = xpForNextLevel(profile.level);
-  const totalToday = todayMinutes || 0;
+  const liveMinutes = Math.floor(liveSeconds / 60);
+  const totalToday = (todayMinutes || 0) + liveMinutes;
   const hrs = Math.floor(totalToday / 60);
   const mins = totalToday % 60;
 
