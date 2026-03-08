@@ -206,7 +206,10 @@ const StudySession = () => {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${w.severity === 'critical' ? 'bg-destructive/20 text-destructive' : w.severity === 'moderate' ? 'bg-warning/20 text-warning' : 'bg-muted text-muted-foreground'}`}>{w.severity}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2"><strong className="text-foreground">Root cause:</strong> {w.root_cause}</p>
-                  <p className="text-xs text-primary"><strong>Fix:</strong> {w.fix_suggestion}</p>
+                  {w.prerequisite_gaps && (
+                    <p className="text-xs text-warning/80 mb-2"><strong className="text-warning">⚠️ Prerequisites to revisit:</strong> {w.prerequisite_gaps}</p>
+                  )}
+                  <p className="text-xs text-primary"><strong>🔧 Fix plan:</strong> {w.fix_suggestion}</p>
                 </div>
               ))}
             </div>
