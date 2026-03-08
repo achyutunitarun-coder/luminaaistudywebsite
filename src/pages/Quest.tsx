@@ -47,13 +47,7 @@ const Quest = () => {
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
-      setBoss({
-        name: data.name,
-        hp: 100,
-        maxHp: 100,
-        icon: data.icon || '👹',
-        questions: data.questions,
-      });
+      setBoss({ name: data.name, hp: 100, maxHp: 100, icon: data.icon || '👹', questions: data.questions });
     } catch {
       toast.error('Failed to generate boss');
     }
@@ -77,50 +71,47 @@ const Quest = () => {
       const newBossHp = Math.max(0, boss.hp - 25);
       setBoss(prev => prev ? { ...prev, hp: newBossHp } : null);
       setXpEarned(prev => prev + 10);
-      if (newBossHp <= 0) {
-        setBattleResult('win');
-        setBattleActive(false);
-        return;
-      }
+      if (newBossHp <= 0) { setBattleResult('win'); setBattleActive(false); return; }
     } else {
       const newPlayerHp = Math.max(0, playerHp - 20);
       setPlayerHp(newPlayerHp);
-      if (newPlayerHp <= 0) {
-        setBattleResult('lose');
-        setBattleActive(false);
-        return;
-      }
+      if (newPlayerHp <= 0) { setBattleResult('lose'); setBattleActive(false); return; }
     }
     setQuestionIdx(prev => Math.min(prev + 1, boss.questions.length - 1));
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-display font-bold text-foreground">Lumina Quest</h1>
-        <p className="text-muted-foreground text-sm">Choose your topic and battle AI-generated knowledge bosses!</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--destructive))] to-[hsl(var(--warning))] flex items-center justify-center shadow-lg shadow-destructive/20">
+            <Swords className="w-6 h-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Lumina Quest</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Battle AI bosses by answering questions!</p>
+          </div>
+        </div>
       </motion.div>
 
-      {/* Boss Battle */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
-        <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Swords className="w-5 h-5 text-destructive" /> Boss Battle
-        </h2>
-
+      {/* Boss Battle Card */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="rounded-[2rem] border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+      >
         {!boss && !battleActive && (
-          <div className="text-center py-8 space-y-4">
-            <div className="text-6xl mb-2">⚔️</div>
+          <div className="text-center py-12 space-y-4">
+            <div className="text-5xl mb-2">⚔️</div>
             <h3 className="text-xl font-display font-bold text-foreground">Choose Your Battle Topic</h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto">Enter any topic and the AI will generate a boss with questions for you to defeat!</p>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">The AI will generate a boss with questions for you to defeat!</p>
             <div className="max-w-md mx-auto flex gap-2">
               <Input
-                placeholder="e.g., Algebra, Photosynthesis, World War II"
+                placeholder="e.g., Algebra, Photosynthesis..."
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
-                className="bg-muted/50"
+                className="bg-muted/20 border-border/30 rounded-xl"
                 onKeyDown={e => e.key === 'Enter' && generateBoss()}
               />
-              <Button onClick={generateBoss} disabled={generating || !topic.trim()} className="gradient-primary text-primary-foreground">
+              <Button onClick={generateBoss} disabled={generating || !topic.trim()} className="gradient-primary text-primary-foreground rounded-xl">
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               </Button>
             </div>
@@ -128,17 +119,15 @@ const Quest = () => {
         )}
 
         {boss && !battleActive && !battleResult && (
-          <div className="text-center py-8">
-            <div className="text-6xl mb-4">{boss.icon}</div>
+          <div className="text-center py-10">
+            <div className="text-5xl mb-4">{boss.icon}</div>
             <h3 className="text-xl font-display font-bold text-foreground mb-2">{boss.name}</h3>
-            <p className="text-muted-foreground mb-6">Defeat this boss by answering questions on {topic}!</p>
+            <p className="text-muted-foreground text-sm mb-6">Defeat this boss on {topic}!</p>
             <div className="flex gap-2 justify-center">
-              <Button onClick={startBattle} className="gradient-primary text-primary-foreground">
+              <Button onClick={startBattle} className="gradient-primary text-primary-foreground rounded-2xl h-12 px-8 shadow-lg shadow-primary/20">
                 <Swords className="w-4 h-4 mr-2" /> Start Battle
               </Button>
-              <Button onClick={() => { setBoss(null); setTopic(''); }} variant="ghost">
-                Change Topic
-              </Button>
+              <Button onClick={() => { setBoss(null); setTopic(''); }} variant="ghost" className="rounded-2xl h-12">Change Topic</Button>
             </div>
           </div>
         )}
@@ -149,33 +138,35 @@ const Quest = () => {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">{boss.icon}</span>
-                  <span className="text-sm font-semibold text-foreground">{boss.name}</span>
+                  <span className="text-sm font-bold text-foreground">{boss.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-destructive" />
-                  <Progress value={(boss.hp / boss.maxHp) * 100} className="h-3 flex-1" />
+                  <Progress value={(boss.hp / boss.maxHp) * 100} className="h-2.5 flex-1" />
                   <span className="text-xs text-muted-foreground">{boss.hp}/{boss.maxHp}</span>
                 </div>
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="w-5 h-5 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">You</span>
+                  <span className="text-sm font-bold text-foreground">You</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-success" />
-                  <Progress value={playerHp} className="h-3 flex-1" />
+                  <Progress value={playerHp} className="h-2.5 flex-1" />
                   <span className="text-xs text-muted-foreground">{playerHp}/100</span>
                 </div>
               </div>
             </div>
 
-            <div className="glass rounded-xl p-5">
-              <p className="text-primary text-xs font-semibold mb-2">Question {questionIdx + 1}</p>
-              <p className="text-foreground font-medium mb-4">{boss.questions[questionIdx].q}</p>
+            <div className="rounded-2xl border border-border/20 bg-muted/5 p-5">
+              <p className="text-primary text-xs font-bold mb-2">Question {questionIdx + 1}</p>
+              <p className="text-foreground font-medium mb-4 text-sm">{boss.questions[questionIdx].q}</p>
               <div className="grid grid-cols-2 gap-2">
                 {boss.questions[questionIdx].options.map((opt, i) => (
-                  <button key={i} onClick={() => answerQuestion(i)} className="glass rounded-lg px-4 py-3 text-sm text-left hover:border-primary/50 transition-all">
+                  <button key={i} onClick={() => answerQuestion(i)}
+                    className="rounded-xl border border-border/20 bg-muted/5 px-4 py-3 text-sm text-left hover:border-primary/30 hover:bg-primary/5 transition-all"
+                  >
                     {opt}
                   </button>
                 ))}
@@ -185,51 +176,51 @@ const Quest = () => {
         )}
 
         {battleResult && (
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-8">
-            <div className="text-6xl mb-4">{battleResult === 'win' ? '🏆' : '💀'}</div>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center py-10">
+            <div className="text-5xl mb-4">{battleResult === 'win' ? '🏆' : '💀'}</div>
             <h3 className="text-2xl font-display font-bold text-foreground mb-2">
               {battleResult === 'win' ? 'Victory!' : 'Defeated!'}
             </h3>
-            <p className="text-muted-foreground mb-2">
+            <p className="text-muted-foreground text-sm mb-4">
               {battleResult === 'win' ? `You earned ${xpEarned} XP!` : 'Study more and try again!'}
             </p>
-            <div className="flex gap-2 justify-center mt-4">
-              <Button onClick={startBattle} variant="outline">Try Again</Button>
-              <Button onClick={() => { setBoss(null); setTopic(''); setBattleResult(null); }} variant="ghost">New Topic</Button>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={startBattle} variant="outline" className="rounded-2xl">Try Again</Button>
+              <Button onClick={() => { setBoss(null); setTopic(''); setBattleResult(null); }} variant="ghost" className="rounded-2xl">New Topic</Button>
             </div>
           </motion.div>
         )}
       </motion.div>
 
       {/* Daily Quests */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h2 className="text-lg font-display font-semibold text-foreground mb-4">Daily Quests</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <h2 className="text-base font-display font-semibold text-foreground mb-4">Daily Quests</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {dailyQuests.map((quest, i) => (
-            <div key={i} className="glass rounded-xl p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div key={i} className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-4 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <quest.icon className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">{quest.title}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <Progress value={(quest.progress / quest.target) * 100} className="h-2 flex-1" />
-                  <span className="text-xs text-muted-foreground">{quest.progress}/{quest.target}</span>
+                  <Progress value={(quest.progress / quest.target) * 100} className="h-1.5 flex-1" />
+                  <span className="text-[10px] text-muted-foreground">{quest.progress}/{quest.target}</span>
                 </div>
               </div>
-              <span className="text-xs text-xp font-semibold">+{quest.xp} XP</span>
+              <span className="text-xs text-xp font-bold bg-xp/10 px-2.5 py-1 rounded-lg">+{quest.xp}</span>
             </div>
           ))}
         </div>
       </motion.div>
 
       {/* Leaderboard */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-        <h2 className="text-lg font-display font-semibold text-foreground mb-4">Leaderboard</h2>
-        <div className="glass rounded-xl p-4">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <h2 className="text-base font-display font-semibold text-foreground mb-4">Leaderboard</h2>
+        <div className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6">
           <div className="text-center py-8 text-muted-foreground">
-            <Trophy className="w-12 h-12 mx-auto mb-2 text-xp/30" />
-            <p>Leaderboard updates weekly. Keep studying to climb the ranks!</p>
+            <Trophy className="w-10 h-10 mx-auto mb-2 opacity-15" />
+            <p className="text-sm">Leaderboard updates weekly. Keep studying!</p>
           </div>
         </div>
       </motion.div>
