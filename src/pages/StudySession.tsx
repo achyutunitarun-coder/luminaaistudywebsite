@@ -102,9 +102,10 @@ const StudySession = () => {
       status: 'completed',
     }).eq('id', sessionId);
 
-    await supabase.from('profiles').update({
-      total_study_minutes: (duration),
-    }).eq('user_id', user.id);
+    await supabase.rpc('increment_study_minutes', {
+      p_user_id: user.id,
+      p_minutes: duration,
+    });
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-analysis`, {
