@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Loader2, ArrowLeft, Layers, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,45 +74,100 @@ const Flashcards = () => {
     setGenerating(false);
   };
 
+  // ── Active Deck / Card Review ──
   if (activeDeck && cards) {
     const card = cards[cardIndex];
+    const progress = cards.length > 0 ? ((cardIndex + 1) / cards.length) * 100 : 0;
+    const deckTitle = decks?.find(d => d.id === activeDeck)?.title;
+
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => { setActiveDeck(null); setCardIndex(0); setFlipped(false); }}>
-          ← Back to Decks
-        </Button>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Top bar */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => { setActiveDeck(null); setCardIndex(0); setFlipped(false); }} className="rounded-xl">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <span className="text-sm font-medium text-muted-foreground">{deckTitle}</span>
+          <span className="text-sm font-bold text-primary">{cardIndex + 1}/{cards.length}</span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
+            animate={{ width: `${progress}%` }}
+            transition={{ type: 'spring', stiffness: 100 }}
+          />
+        </div>
+
         {card && (
-          <div className="flex flex-col items-center">
-            <p className="text-sm text-muted-foreground mb-4">{cardIndex + 1} / {cards.length}</p>
-            <motion.div
-              className="w-full aspect-[3/2] glass rounded-2xl flex items-center justify-center p-8 cursor-pointer"
-              onClick={() => setFlipped(!flipped)}
-              whileTap={{ scale: 0.98 }}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={flipped ? 'back' : 'front'}
-                  initial={{ opacity: 0, rotateY: 90 }}
-                  animate={{ opacity: 1, rotateY: 0 }}
-                  exit={{ opacity: 0, rotateY: -90 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center"
+          <div className="flex flex-col items-center pt-4">
+            {/* Card with perspective flip */}
+            <div className="w-full perspective-[1200px]">
+              <motion.div
+                className="relative w-full aspect-[4/3] cursor-pointer"
+                onClick={() => setFlipped(!flipped)}
+                style={{ transformStyle: 'preserve-3d' }}
+                animate={{ rotateY: flipped ? 180 : 0 }}
+                transition={{ duration: 0.5, type: 'spring', stiffness: 80 }}
+              >
+                {/* Front */}
+                <div
+                  className="absolute inset-0 rounded-[2rem] border border-border/30 bg-gradient-to-br from-card via-card/90 to-muted/20 backdrop-blur-2xl flex flex-col items-center justify-center p-10 shadow-2xl shadow-primary/5"
+                  style={{ backfaceVisibility: 'hidden' }}
                 >
-                  <p className="text-xs text-primary font-semibold mb-2">{flipped ? 'ANSWER' : 'QUESTION'}</p>
-                  <p className="text-xl text-foreground font-medium">{flipped ? card.back : card.front}</p>
-                </motion.div>
-              </AnimatePresence>
-            </motion.div>
-            <div className="flex items-center gap-4 mt-6">
-              <Button variant="outline" size="icon" onClick={() => { setCardIndex(Math.max(0, cardIndex - 1)); setFlipped(false); }} disabled={cardIndex === 0}>
-                <ChevronLeft className="w-4 h-4" />
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-6 bg-primary/10 px-3 py-1 rounded-full">Question</span>
+                  <p className="text-xl md:text-2xl text-foreground font-display font-semibold text-center leading-relaxed">{card.front}</p>
+                  <p className="text-xs text-muted-foreground mt-8">Tap to reveal answer</p>
+                </div>
+
+                {/* Back */}
+                <div
+                  className="absolute inset-0 rounded-[2rem] border border-success/20 bg-gradient-to-br from-success/5 via-card/90 to-card flex flex-col items-center justify-center p-10 shadow-2xl shadow-success/5"
+                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                >
+                  <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em] mb-6 bg-success/10 px-3 py-1 rounded-full">Answer</span>
+                  <p className="text-xl md:text-2xl text-foreground font-display font-semibold text-center leading-relaxed">{card.back}</p>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center gap-3 mt-8">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => { setCardIndex(Math.max(0, cardIndex - 1)); setFlipped(false); }}
+                disabled={cardIndex === 0}
+                className="rounded-2xl h-12 w-12"
+              >
+                <ChevronLeft className="w-5 h-5" />
               </Button>
-              <Button variant="outline" size="icon" onClick={() => setFlipped(false)}>
+              <Button variant="outline" size="lg" onClick={() => setFlipped(false)} className="rounded-2xl h-12 w-12">
                 <RotateCcw className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="icon" onClick={() => { setCardIndex(Math.min(cards.length - 1, cardIndex + 1)); setFlipped(false); }} disabled={cardIndex === cards.length - 1}>
-                <ChevronRight className="w-4 h-4" />
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => { setCardIndex(Math.min(cards.length - 1, cardIndex + 1)); setFlipped(false); }}
+                disabled={cardIndex === cards.length - 1}
+                className="rounded-2xl h-12 w-12"
+              >
+                <ChevronRight className="w-5 h-5" />
               </Button>
+            </div>
+
+            {/* Dot indicators */}
+            <div className="flex gap-1.5 mt-6 flex-wrap justify-center max-w-md">
+              {cards.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setCardIndex(i); setFlipped(false); }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === cardIndex ? 'bg-primary w-6' : i < cardIndex ? 'bg-primary/40' : 'bg-muted/50'
+                  }`}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -120,51 +175,105 @@ const Flashcards = () => {
     );
   }
 
+  // ── Deck List ──
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">AI Flashcards</h1>
-          <p className="text-muted-foreground text-sm">Generate flashcards from any content</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)} className="gradient-primary text-primary-foreground">
-          <Plus className="w-4 h-4 mr-2" /> Create Deck
-        </Button>
-      </div>
-
-      {showCreate && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-xl p-6 space-y-4">
-          <Input placeholder="Deck title" value={title} onChange={e => setTitle(e.target.value)} className="bg-muted/50" />
-          <Textarea placeholder="Paste your notes, syllabus, or any content here..." value={content} onChange={e => setContent(e.target.value)} className="bg-muted/50 min-h-[120px]" />
-          <div className="flex gap-2">
-            <Button onClick={generateDeck} disabled={generating || !title.trim() || !content.trim()} className="gradient-primary text-primary-foreground">
-              {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              Generate Cards
-            </Button>
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+    <div className="max-w-5xl mx-auto space-y-8">
+      {/* Header */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shadow-xl shadow-primary/20">
+              <Layers className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Flashcards</h1>
+              <p className="text-muted-foreground text-sm mt-0.5">AI-generated decks for active recall</p>
+            </div>
           </div>
-        </motion.div>
-      )}
+          <Button
+            onClick={() => setShowCreate(!showCreate)}
+            className="gradient-primary text-primary-foreground rounded-2xl h-12 px-6 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4 mr-2" /> New Deck
+          </Button>
+        </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Create Deck Panel */}
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-xl p-8 space-y-5">
+              <Input
+                placeholder="Deck title — e.g., Biology Chapter 5"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="bg-muted/20 border-border/30 rounded-xl h-13 px-5 text-base"
+              />
+              <Textarea
+                placeholder="Paste your notes, textbook content, or syllabus here..."
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
+              />
+              <div className="flex gap-3">
+                <Button
+                  onClick={generateDeck}
+                  disabled={generating || !title.trim() || !content.trim()}
+                  className="gradient-primary text-primary-foreground h-12 px-8 rounded-2xl shadow-lg shadow-primary/20"
+                >
+                  {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Generate Cards
+                </Button>
+                <Button variant="ghost" onClick={() => setShowCreate(false)} className="rounded-2xl h-12">Cancel</Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Deck Grid — Bento style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {decks?.map((deck, i) => (
           <motion.button
             key={deck.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
+            transition={{ delay: i * 0.04 }}
             onClick={() => { setActiveDeck(deck.id); setCardIndex(0); setFlipped(false); }}
-            className="glass rounded-xl p-5 text-left hover:border-primary/50 transition-all"
+            className="group relative rounded-2xl border border-border/30 bg-card/40 hover:bg-card/70 backdrop-blur-xl p-6 text-left transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
           >
-            <h3 className="font-semibold text-foreground mb-1">{deck.title}</h3>
-            <p className="text-sm text-muted-foreground">{deck.card_count} cards</p>
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/5 blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center mb-4">
+                <Layers className="w-5 h-5 text-primary" />
+              </div>
+              <h3 className="font-display font-bold text-foreground mb-1 text-lg">{deck.title}</h3>
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Layers className="w-3 h-3" /> {deck.card_count} cards
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {new Date(deck.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
           </motion.button>
         ))}
       </div>
 
       {(!decks || decks.length === 0) && !showCreate && (
-        <div className="text-center py-16">
-          <p className="text-muted-foreground">No flashcard decks yet. Create your first one!</p>
+        <div className="text-center py-20">
+          <div className="w-20 h-20 rounded-3xl bg-muted/20 border border-border/20 flex items-center justify-center mx-auto mb-4">
+            <Layers className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground font-medium">No flashcard decks yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Create your first deck to start studying</p>
         </div>
       )}
     </div>

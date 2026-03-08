@@ -23,6 +23,7 @@ import FocusMode from "@/pages/FocusMode";
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
+import AudioAnalysis from "@/pages/AudioAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/study-session" element={<ProtectedRoute><StudySession /></ProtectedRoute>} />
             <Route path="/pulse" element={<ProtectedRoute><Pulse /></ProtectedRoute>} />
             <Route path="/notes-generator" element={<ProtectedRoute><NotesGenerator /></ProtectedRoute>} />
+            <Route path="/audio-analysis" element={<ProtectedRoute><AudioAnalysis /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
