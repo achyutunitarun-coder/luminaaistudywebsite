@@ -183,6 +183,9 @@ const StudySession = () => {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success">{s.subject}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{s.detail}</p>
+                  {s.maintenance_tip && (
+                    <p className="text-xs text-success/80 mt-1.5"><strong className="text-success">💡 Keep it up:</strong> {s.maintenance_tip}</p>
+                  )}
                 </div>
               ))}
             </div>
