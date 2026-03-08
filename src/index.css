@@ -114,7 +114,7 @@
     text-shadow: 0 0 10px hsl(264 67% 60% / 0.5);
   }
   .glass {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50;
+    @apply bg-card/50 backdrop-blur-2xl border border-border/20;
   }
   .gradient-primary {
     background: linear-gradient(135deg, hsl(174 72% 56%), hsl(264 67% 60%));
