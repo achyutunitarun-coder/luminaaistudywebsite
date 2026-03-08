@@ -23,6 +23,7 @@ import FocusMode from "@/pages/FocusMode";
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
+import AudioAnalysis from "@/pages/AudioAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
