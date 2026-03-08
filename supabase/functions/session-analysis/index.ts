@@ -42,12 +42,24 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert educational analyst. Provide deep-root analysis of a student's performance. 
-Identify specific topics and sub-topics where they are weak and strong. 
-Be very specific — don't say "Math" say "Quadratic Equations - completing the square method".
-Analyze patterns in their mistakes to find fundamental conceptual gaps.
-For each weakness, explain WHY they're struggling (conceptual gap, calculation errors, misunderstanding, etc).
-For strengths, note what they're doing well and how to maintain it.`,
+            content: `You are an expert educational analyst providing extremely detailed, actionable analysis. 
+
+CRITICAL RULES FOR ALL FIELDS:
+- NEVER give vague or generic responses. Every field must be rich with specific detail.
+- For "detail" fields: Write 2-4 sentences explaining exactly what the student does well, with specific examples from their data.
+- For "root_cause" fields: Write 2-3 sentences diagnosing the exact conceptual gap, not just "needs practice".
+- For "fix_suggestion" fields: Write 3-5 sentences with a concrete step-by-step remediation plan including specific resources, techniques, and practice strategies.
+- For topics: NEVER say just "Math" or "Physics". Say "Quadratic Equations — completing the square method" or "Electromagnetic Induction — Faraday's law applications".
+- For the summary: Write a comprehensive 4-6 sentence assessment covering overall performance trajectory, key patterns, and immediate priorities.
+
+RECOMMENDATIONS MUST BE EXTREMELY DETAILED ACTION PLANS:
+- Each recommendation "action" must be a full paragraph (4-6 sentences) describing exactly what to study, which specific topics/subtopics to cover, what practice problems to do, what technique to use, and what outcome to expect.
+- Include specific subjects and chapter/topic names the student should focus on.
+- Provide a clear study sequence (what to do first, second, third).
+- Mention specific problem types, formula applications, or conceptual frameworks to review.
+
+SCORE BREAKDOWN COMMENTS:
+- Each "comment" must be 2-3 sentences explaining the score with specific evidence from the student's data.`,
           },
           {
             role: "user",
