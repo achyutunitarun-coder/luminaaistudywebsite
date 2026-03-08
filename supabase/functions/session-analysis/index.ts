@@ -42,12 +42,24 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert educational analyst. Provide deep-root analysis of a student's performance. 
-Identify specific topics and sub-topics where they are weak and strong. 
-Be very specific — don't say "Math" say "Quadratic Equations - completing the square method".
-Analyze patterns in their mistakes to find fundamental conceptual gaps.
-For each weakness, explain WHY they're struggling (conceptual gap, calculation errors, misunderstanding, etc).
-For strengths, note what they're doing well and how to maintain it.`,
+            content: `You are an expert educational analyst providing extremely detailed, actionable analysis. 
+
+CRITICAL RULES FOR ALL FIELDS:
+- NEVER give vague or generic responses. Every field must be rich with specific detail.
+- For "detail" fields: Write 2-4 sentences explaining exactly what the student does well, with specific examples from their data.
+- For "root_cause" fields: Write 2-3 sentences diagnosing the exact conceptual gap, not just "needs practice".
+- For "fix_suggestion" fields: Write 3-5 sentences with a concrete step-by-step remediation plan including specific resources, techniques, and practice strategies.
+- For topics: NEVER say just "Math" or "Physics". Say "Quadratic Equations — completing the square method" or "Electromagnetic Induction — Faraday's law applications".
+- For the summary: Write a comprehensive 4-6 sentence assessment covering overall performance trajectory, key patterns, and immediate priorities.
+
+RECOMMENDATIONS MUST BE EXTREMELY DETAILED ACTION PLANS:
+- Each recommendation "action" must be a full paragraph (4-6 sentences) describing exactly what to study, which specific topics/subtopics to cover, what practice problems to do, what technique to use, and what outcome to expect.
+- Include specific subjects and chapter/topic names the student should focus on.
+- Provide a clear study sequence (what to do first, second, third).
+- Mention specific problem types, formula applications, or conceptual frameworks to review.
+
+SCORE BREAKDOWN COMMENTS:
+- Each "comment" must be 2-3 sentences explaining the score with specific evidence from the student's data.`,
           },
           {
             role: "user",
@@ -74,10 +86,11 @@ Recent test scores: ${JSON.stringify(testsData)}`,
                     properties: {
                       topic: { type: "string" },
                       subject: { type: "string" },
-                      detail: { type: "string" },
+                      detail: { type: "string", description: "2-4 sentences explaining what the student does well with specific examples" },
                       confidence_level: { type: "string", enum: ["high", "medium"] },
+                      maintenance_tip: { type: "string", description: "1-2 sentences on how to maintain and build on this strength" },
                     },
-                    required: ["topic", "subject", "detail", "confidence_level"],
+                    required: ["topic", "subject", "detail", "confidence_level", "maintenance_tip"],
                     additionalProperties: false,
                   },
                 },
@@ -86,13 +99,14 @@ Recent test scores: ${JSON.stringify(testsData)}`,
                   items: {
                     type: "object",
                     properties: {
-                      topic: { type: "string" },
+                      topic: { type: "string", description: "Specific sub-topic e.g. 'Integration by Parts — choosing u and dv'" },
                       subject: { type: "string" },
-                      root_cause: { type: "string" },
+                      root_cause: { type: "string", description: "2-3 sentences diagnosing the exact conceptual gap with evidence from their mistakes" },
                       severity: { type: "string", enum: ["critical", "moderate", "minor"] },
-                      fix_suggestion: { type: "string" },
+                      fix_suggestion: { type: "string", description: "3-5 sentences with step-by-step remediation: specific techniques, practice types, and resources" },
+                      prerequisite_gaps: { type: "string", description: "Any foundational concepts they need to revisit first before tackling this topic" },
                     },
-                    required: ["topic", "subject", "root_cause", "severity", "fix_suggestion"],
+                    required: ["topic", "subject", "root_cause", "severity", "fix_suggestion", "prerequisite_gaps"],
                     additionalProperties: false,
                   },
                 },
@@ -101,11 +115,13 @@ Recent test scores: ${JSON.stringify(testsData)}`,
                   items: {
                     type: "object",
                     properties: {
-                      action: { type: "string" },
+                      action: { type: "string", description: "4-6 sentence detailed action plan: what to study, specific topics, practice problems, techniques, and expected outcomes" },
                       priority: { type: "string", enum: ["high", "medium", "low"] },
                       estimated_time: { type: "string" },
+                      subjects_to_cover: { type: "string", description: "Comma-separated list of specific subjects and topics this action targets" },
+                      study_method: { type: "string", description: "Recommended study technique e.g. 'Feynman technique', 'spaced repetition', 'practice problems', 'concept mapping'" },
                     },
-                    required: ["action", "priority", "estimated_time"],
+                    required: ["action", "priority", "estimated_time", "subjects_to_cover", "study_method"],
                     additionalProperties: false,
                   },
                 },
@@ -116,7 +132,7 @@ Recent test scores: ${JSON.stringify(testsData)}`,
                     properties: {
                       area: { type: "string" },
                       score: { type: "number" },
-                      comment: { type: "string" },
+                      comment: { type: "string", description: "2-3 sentences explaining the score with specific evidence" },
                     },
                     required: ["area", "score", "comment"],
                     additionalProperties: false,

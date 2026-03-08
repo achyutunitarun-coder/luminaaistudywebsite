@@ -6,9 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-type Strength = { topic: string; subject: string; detail: string; confidence_level: string };
-type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string };
-type Recommendation = { action: string; priority: string; estimated_time: string };
+type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
+type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
+type Recommendation = { action: string; priority: string; estimated_time: string; subjects_to_cover?: string; study_method?: string };
 
 type SessionAnalysis = {
   summary: string;
@@ -183,6 +183,9 @@ const StudySession = () => {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success">{s.subject}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{s.detail}</p>
+                  {s.maintenance_tip && (
+                    <p className="text-xs text-success/80 mt-1.5"><strong className="text-success">💡 Keep it up:</strong> {s.maintenance_tip}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -203,7 +206,10 @@ const StudySession = () => {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${w.severity === 'critical' ? 'bg-destructive/20 text-destructive' : w.severity === 'moderate' ? 'bg-warning/20 text-warning' : 'bg-muted text-muted-foreground'}`}>{w.severity}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2"><strong className="text-foreground">Root cause:</strong> {w.root_cause}</p>
-                  <p className="text-xs text-primary"><strong>Fix:</strong> {w.fix_suggestion}</p>
+                  {w.prerequisite_gaps && (
+                    <p className="text-xs text-warning/80 mb-2"><strong className="text-warning">⚠️ Prerequisites to revisit:</strong> {w.prerequisite_gaps}</p>
+                  )}
+                  <p className="text-xs text-primary"><strong>🔧 Fix plan:</strong> {w.fix_suggestion}</p>
                 </div>
               ))}
             </div>
@@ -215,14 +221,24 @@ const StudySession = () => {
             <h2 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-xp" /> Action Plan
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {analysis.recommendations.map((r, i) => (
-                <div key={i} className="flex items-start gap-3 py-2">
-                  <span className={`text-xs font-semibold mt-0.5 ${priorityColors[r.priority]}`}>{r.priority.toUpperCase()}</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{r.action}</p>
-                    <p className="text-xs text-muted-foreground">⏱ {r.estimated_time}</p>
+                <div key={i} className="border border-border/30 rounded-xl p-4 bg-muted/10">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${r.priority === 'high' ? 'bg-destructive/20 text-destructive' : r.priority === 'medium' ? 'bg-warning/20 text-warning' : 'bg-muted text-muted-foreground'}`}>{r.priority}</span>
+                    <span className="text-xs text-muted-foreground">⏱ {r.estimated_time}</span>
+                    {r.study_method && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">📚 {r.study_method}</span>
+                    )}
                   </div>
+                  <p className="text-sm text-foreground leading-relaxed">{r.action}</p>
+                  {r.subjects_to_cover && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {r.subjects_to_cover.split(',').map((s, j) => (
+                        <span key={j} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/20 text-secondary-foreground/70 font-medium">{s.trim()}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
