@@ -12,6 +12,7 @@ import { useStudyTimer } from '@/hooks/useStudyTimer';
 const Dashboard = () => {
   const { profile, getLevelTitle, xpForNextLevel } = useProfile();
   const { user } = useAuth();
+  const { seconds: liveSeconds } = useStudyTimer();
   const navigate = useNavigate();
 
   const { data: todayMinutes } = useQuery({
