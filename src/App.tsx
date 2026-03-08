@@ -24,6 +24,7 @@ import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
 import AudioAnalysis from "@/pages/AudioAnalysis";
+import YouTubeSummary from "@/pages/YouTubeSummary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
               <Route path="/audio-analysis" element={<AudioAnalysis />} />
+              <Route path="/youtube-summary" element={<YouTubeSummary />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
