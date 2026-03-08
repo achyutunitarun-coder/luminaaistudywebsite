@@ -9,9 +9,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages } = await req.json();
+    const { messages, memoryContext } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    let systemPrompt = `You are Lumina AI, an expert study tutor. You help students understand concepts deeply. You provide:
+- Clear explanations with examples
+- Step-by-step solutions for math/science problems
+- Diagrams described in text when useful
+- Practice questions after explanations
+- Encourage and motivate students
+Keep responses well-structured using markdown. Be concise but thorough.`;
+
+    if (memoryContext && memoryContext.length > 0) {
+      systemPrompt += `\n\n## Memory from past conversations\nBelow are excerpts from the student's previous conversations. Use these to provide continuity, remember their topics/preferences, and reference past discussions when relevant. Do NOT mention that you're reading past conversations unless the user asks.\n\n`;
+      for (const conv of memoryContext) {
+        systemPrompt += `### "${conv.title}"\n`;
+        for (const msg of conv.messages) {
+          systemPrompt += `${msg.role === 'user' ? 'Student' : 'Lumina'}: ${msg.content}\n`;
+        }
+        systemPrompt += '\n';
+      }
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -22,16 +41,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content: `You are Lumina AI, an expert study tutor. You help students understand concepts deeply. You provide:
-- Clear explanations with examples
-- Step-by-step solutions for math/science problems
-- Diagrams described in text when useful
-- Practice questions after explanations
-- Encourage and motivate students
-Keep responses well-structured using markdown. Be concise but thorough.`,
-          },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         stream: true,
