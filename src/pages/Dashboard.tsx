@@ -47,7 +47,8 @@ const Dashboard = () => {
 
   const xpProgress = (profile.xp % 100);
   const nextLevelXp = xpForNextLevel(profile.level);
-  const totalToday = todayMinutes || 0;
+  const liveMinutes = Math.floor(liveSeconds / 60);
+  const totalToday = (todayMinutes || 0) + liveMinutes;
   const hrs = Math.floor(totalToday / 60);
   const mins = totalToday % 60;
 
