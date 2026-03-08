@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
@@ -28,18 +28,25 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedLayout = () => {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!user) return <Navigate to="/auth" replace />;
+
   return (
     <StudyTimerProvider>
       <MonthlyReportModal />
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </StudyTimerProvider>
   );
 };
@@ -60,22 +67,26 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-            <Route path="/tests" element={<ProtectedRoute><Tests /></ProtectedRoute>} />
-            <Route path="/flashcards" element={<ProtectedRoute><Flashcards /></ProtectedRoute>} />
-            <Route path="/doubt-solver" element={<ProtectedRoute><DoubtSolver /></ProtectedRoute>} />
-            <Route path="/quest" element={<ProtectedRoute><Quest /></ProtectedRoute>} />
-            <Route path="/weakness-radar" element={<ProtectedRoute><WeaknessRadar /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/study-planner" element={<ProtectedRoute><StudyPlanner /></ProtectedRoute>} />
-            <Route path="/note-to-quiz" element={<ProtectedRoute><NoteToQuiz /></ProtectedRoute>} />
-            <Route path="/quick-study" element={<ProtectedRoute><QuickStudy /></ProtectedRoute>} />
-            <Route path="/focus-mode" element={<ProtectedRoute><FocusMode /></ProtectedRoute>} />
-            <Route path="/study-session" element={<ProtectedRoute><StudySession /></ProtectedRoute>} />
-            <Route path="/pulse" element={<ProtectedRoute><Pulse /></ProtectedRoute>} />
-            <Route path="/notes-generator" element={<ProtectedRoute><NotesGenerator /></ProtectedRoute>} />
-            <Route path="/audio-analysis" element={<ProtectedRoute><AudioAnalysis /></ProtectedRoute>} />
+
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/tests" element={<Tests />} />
+              <Route path="/flashcards" element={<Flashcards />} />
+              <Route path="/doubt-solver" element={<DoubtSolver />} />
+              <Route path="/quest" element={<Quest />} />
+              <Route path="/weakness-radar" element={<WeaknessRadar />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/study-planner" element={<StudyPlanner />} />
+              <Route path="/note-to-quiz" element={<NoteToQuiz />} />
+              <Route path="/quick-study" element={<QuickStudy />} />
+              <Route path="/focus-mode" element={<FocusMode />} />
+              <Route path="/study-session" element={<StudySession />} />
+              <Route path="/pulse" element={<Pulse />} />
+              <Route path="/notes-generator" element={<NotesGenerator />} />
+              <Route path="/audio-analysis" element={<AudioAnalysis />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
