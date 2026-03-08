@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
 
-const ease = [0.25, 0.1, 0.25, 1];
+const ease = [0.25, 0.1, 0.25, 1] as const;
 
 const Dashboard = () => {
   const { profile, getLevelTitle, xpForNextLevel } = useProfile();
