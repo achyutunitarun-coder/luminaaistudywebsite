@@ -221,14 +221,24 @@ const StudySession = () => {
             <h2 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-xp" /> Action Plan
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {analysis.recommendations.map((r, i) => (
-                <div key={i} className="flex items-start gap-3 py-2">
-                  <span className={`text-xs font-semibold mt-0.5 ${priorityColors[r.priority]}`}>{r.priority.toUpperCase()}</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{r.action}</p>
-                    <p className="text-xs text-muted-foreground">⏱ {r.estimated_time}</p>
+                <div key={i} className="border border-border/30 rounded-xl p-4 bg-muted/10">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${r.priority === 'high' ? 'bg-destructive/20 text-destructive' : r.priority === 'medium' ? 'bg-warning/20 text-warning' : 'bg-muted text-muted-foreground'}`}>{r.priority}</span>
+                    <span className="text-xs text-muted-foreground">⏱ {r.estimated_time}</span>
+                    {r.study_method && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">📚 {r.study_method}</span>
+                    )}
                   </div>
+                  <p className="text-sm text-foreground leading-relaxed">{r.action}</p>
+                  {r.subjects_to_cover && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {r.subjects_to_cover.split(',').map((s, j) => (
+                        <span key={j} className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/20 text-secondary-foreground/70 font-medium">{s.trim()}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
