@@ -10,19 +10,6 @@ type StudyTimerCtx = {
 
 const StudyTimerContext = createContext<StudyTimerCtx>({ seconds: 0, isRunning: false, sessionId: null });
 
-const SESSION_ID_KEY = 'lumina_active_study_session_id';
-const SESSION_START_KEY = 'lumina_active_study_start_ms';
-
-const clearStoredSession = () => {
-  sessionStorage.removeItem(SESSION_ID_KEY);
-  sessionStorage.removeItem(SESSION_START_KEY);
-};
-
-const storeSession = (sessionId: string, startMs: number) => {
-  sessionStorage.setItem(SESSION_ID_KEY, sessionId);
-  sessionStorage.setItem(SESSION_START_KEY, String(startMs));
-};
-
 export const useStudyTimer = () => useContext(StudyTimerContext);
 
 export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
@@ -55,7 +42,6 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
       if (!data || cancelled) return;
 
       const now = Date.now();
-      storeSession(data.id, now);
       setSessionId(data.id);
       startTimeRef.current = now;
       secondsRef.current = 0;
@@ -72,34 +58,9 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
         pausedSecondsRef.current = 0;
         startTimeRef.current = null;
         setSessionId(null);
-        clearStoredSession();
         return;
       }
 
-      const storedSessionId = sessionStorage.getItem(SESSION_ID_KEY);
-      const storedStartMs = Number(sessionStorage.getItem(SESSION_START_KEY));
-
-      if (storedSessionId && Number.isFinite(storedStartMs) && storedStartMs > 0) {
-        const { data: existingSession } = await supabase
-          .from('study_sessions')
-          .select('id, status')
-          .eq('id', storedSessionId)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (existingSession?.status === 'active' && !cancelled) {
-          const elapsed = Math.max(0, Math.floor((Date.now() - storedStartMs) / 1000));
-          setSessionId(storedSessionId);
-          startTimeRef.current = storedStartMs;
-          secondsRef.current = elapsed;
-          pausedSecondsRef.current = elapsed;
-          setSeconds(elapsed);
-          setIsRunning(true);
-          return;
-        }
-      }
-
-      clearStoredSession();
       await startFreshSession(user.id);
     };
 
@@ -108,7 +69,7 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isRunning || !startTimeRef.current) {
@@ -145,7 +106,7 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       if (saveRef.current) clearInterval(saveRef.current);
     };
-  }, [isRunning, sessionId, user]);
+  }, [isRunning, sessionId, user?.id]);
 
   useEffect(() => {
     if (!user || !sessionId) return;
@@ -174,7 +135,7 @@ export const StudyTimerProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [sessionId, user]);
+  }, [sessionId, user?.id]);
 
   return (
     <StudyTimerContext.Provider value={{ seconds, isRunning, sessionId }}>
