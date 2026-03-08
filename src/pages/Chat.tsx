@@ -145,6 +145,45 @@ const Chat = () => {
     setEditingChat(null);
   };
 
+  const fetchMemoryContext = async () => {
+    if (!user) return [];
+    try {
+      // Get recent chats (excluding current), limited to last 10
+      const { data: recentChats } = await supabase
+        .from('chats')
+        .select('id, title')
+        .neq('id', activeChat || '')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+      if (!recentChats || recentChats.length === 0) return [];
+
+      // Fetch last 4 messages from each chat for context
+      const memoryContext = await Promise.all(
+        recentChats.map(async (chat) => {
+          const { data: msgs } = await supabase
+            .from('chat_messages')
+            .select('role, content')
+            .eq('chat_id', chat.id)
+            .order('created_at', { ascending: false })
+            .limit(4);
+          if (!msgs || msgs.length === 0) return null;
+          return {
+            title: chat.title,
+            messages: msgs.reverse().map(m => ({
+              role: m.role,
+              content: m.content.slice(0, 300), // Truncate long messages
+            })),
+          };
+        })
+      );
+      return memoryContext.filter(Boolean);
+    } catch (err) {
+      console.error('Failed to fetch memory context:', err);
+      return [];
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || !activeChat || isLoading) return;
     const userContent = input.trim();
@@ -164,11 +203,14 @@ const Chat = () => {
       role: m.role as 'user' | 'assistant', content: m.content,
     }));
 
+    // Fetch memory from past conversations
+    const memoryContext = await fetchMemoryContext();
+
     try {
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: allMessages }),
+        body: JSON.stringify({ messages: allMessages, memoryContext }),
       });
       if (!resp.ok || !resp.body) throw new Error('Stream failed');
 
