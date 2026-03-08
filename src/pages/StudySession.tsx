@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, MessageSquare, FileText, Layers, Target, Clock, TrendingUp, Loader2, ArrowRight, AlertTriangle, CheckCircle2, Lightbulb } from 'lucide-react';
+import { Play, Square, MessageSquare, FileText, Layers, Target, Clock, Loader2, AlertTriangle, CheckCircle2, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,10 +39,14 @@ const StudySession = () => {
   const [ending, setEnding] = useState(false);
   const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (active) {
-      intervalRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    if (active && startTimeRef.current) {
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        setSeconds(elapsed);
+      }, 1000);
     } else if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
@@ -53,7 +57,7 @@ const StudySession = () => {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    return { h: h.toString().padStart(2, '0'), m: m.toString().padStart(2, '0'), s: sec.toString().padStart(2, '0') };
   };
 
   const startSession = async () => {
@@ -64,6 +68,7 @@ const StudySession = () => {
     }).select().single();
     if (data) {
       setSessionId(data.id);
+      startTimeRef.current = Date.now();
       setActive(true);
       setSeconds(0);
       setToolsUsed([]);
@@ -109,10 +114,7 @@ const StudySession = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          sessionData: {
-            duration_minutes: duration,
-            tools_used: toolsUsed,
-          },
+          sessionData: { duration_minutes: duration, tools_used: toolsUsed },
           userId: user.id,
         }),
       });
@@ -130,7 +132,9 @@ const StudySession = () => {
     toast.success(`Session completed! ${duration} minutes logged.`);
   };
 
-  // Session Summary View - Enhanced
+  const time = formatTime(seconds);
+
+  // Session Summary View
   if (analysis) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
@@ -140,13 +144,11 @@ const StudySession = () => {
           <p className="text-muted-foreground mt-1">{Math.floor(seconds / 60)} minutes of focused study</p>
         </motion.div>
 
-        {/* Summary */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6">
           <h2 className="font-display font-semibold text-lg text-foreground mb-3">AI Deep Analysis</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{analysis.summary}</p>
         </motion.div>
 
-        {/* Score Breakdown */}
         {analysis.score_breakdown?.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-6">
             <h2 className="font-display font-semibold text-foreground mb-4">Performance Breakdown</h2>
@@ -167,7 +169,6 @@ const StudySession = () => {
           </motion.div>
         )}
 
-        {/* Strengths */}
         {analysis.strengths?.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-6">
             <h2 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -179,7 +180,6 @@ const StudySession = () => {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-semibold text-foreground">{s.topic}</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success">{s.subject}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${s.confidence_level === 'high' ? 'bg-success/20 text-success' : 'bg-primary/20 text-primary'}`}>{s.confidence_level}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{s.detail}</p>
                 </div>
@@ -188,7 +188,6 @@ const StudySession = () => {
           </motion.div>
         )}
 
-        {/* Weaknesses - Deep Root Analysis */}
         {analysis.weaknesses?.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-2xl p-6">
             <h2 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -210,7 +209,6 @@ const StudySession = () => {
           </motion.div>
         )}
 
-        {/* Recommendations */}
         {analysis.recommendations?.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-2xl p-6">
             <h2 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -259,13 +257,21 @@ const StudySession = () => {
         </motion.div>
       ) : (
         <div className="space-y-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-8 text-center">
-            <div className="text-6xl font-display font-bold text-foreground tabular-nums mb-2">
-              {formatTime(seconds)}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-8 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
+            <div className="relative z-10">
+              <div className="flex items-baseline justify-center gap-1 tabular-nums">
+                <span className="text-6xl font-display font-bold text-foreground">{time.h}</span>
+                <span className="text-2xl text-muted-foreground mx-1">:</span>
+                <span className="text-6xl font-display font-bold text-foreground">{time.m}</span>
+                <span className="text-2xl text-muted-foreground mx-1">:</span>
+                <span className="text-4xl font-display font-semibold text-muted-foreground">{time.s}</span>
+              </div>
+              <p className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-3">
+                <Clock className="w-3 h-3" /> Session in progress
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse ml-1" />
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-              <Clock className="w-3 h-3" /> Session in progress
-            </p>
           </motion.div>
 
           <div>
