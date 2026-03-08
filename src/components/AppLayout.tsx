@@ -60,13 +60,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             </NavLink>
 
             {/* Center Nav */}
-            <div className="hidden lg:flex items-center gap-0.5">
+            <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center px-4 min-w-0">
               {primaryNav.map(item => (
                 <NavLink
                   key={item.url}
                   to={item.url}
                   end={item.url === '/'}
-                  className="px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg"
+                  className="px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg whitespace-nowrap"
                   activeClassName="text-foreground bg-muted/40"
                 >
                   {item.title}
@@ -78,7 +78,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 <button
                   onClick={() => setMoreOpen(!moreOpen)}
                   onBlur={() => setTimeout(() => setMoreOpen(false), 200)}
-                  className={`px-3 py-1.5 text-[13px] font-medium transition-all duration-200 rounded-lg flex items-center gap-1 ${
+                  className={`px-3 py-1.5 text-[13px] font-medium transition-all duration-200 rounded-lg flex items-center gap-1 whitespace-nowrap ${
                     isMoreActive ? 'text-foreground bg-muted/40' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -153,7 +153,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground transition-all duration-200"
+                className="md:hidden p-1.5 text-muted-foreground hover:text-foreground transition-all duration-200"
               >
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -169,7 +169,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-              className="lg:hidden overflow-hidden border-t border-border/10"
+              className="md:hidden overflow-hidden border-t border-border/10"
             >
               <div className="max-w-[1400px] mx-auto px-6 py-3 space-y-0.5">
                 {[...primaryNav, ...moreNav].map(item => (
