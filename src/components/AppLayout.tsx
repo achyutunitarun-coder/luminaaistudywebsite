@@ -13,18 +13,18 @@ const primaryNav = [
   { title: 'Study Session', url: '/study-session' },
   { title: 'Tests', url: '/tests' },
   { title: 'AI Chat', url: '/chat' },
+  { title: 'Flashcards', url: '/flashcards' },
+  { title: 'Notes', url: '/notes-generator' },
+  { title: 'Quest', url: '/quest' },
 ];
 
 const moreNav = [
-  { title: 'Flashcards', url: '/flashcards' },
   { title: 'Doubt Solver', url: '/doubt-solver' },
-  { title: 'Notes Generator', url: '/notes-generator' },
   { title: 'Audio Analysis', url: '/audio-analysis' },
   { title: 'Note to Quiz', url: '/note-to-quiz' },
   { title: 'Quick Study', url: '/quick-study' },
   { title: 'Study Planner', url: '/study-planner' },
   { title: 'Focus Mode', url: '/focus-mode' },
-  { title: 'Lumina Quest', url: '/quest' },
   { title: 'Weakness Radar', url: '/weakness-radar' },
   { title: 'Settings', url: '/settings' },
 ];
