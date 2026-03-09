@@ -144,20 +144,25 @@ const FocusMode = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [active, paused]);
 
-  // Tab visibility detection — siren on tab switch
+  // Tab visibility detection — siren on tab switch (skip if switching to another Lumina tab)
   useEffect(() => {
     if (!active || paused) return;
 
     const handleVisibility = () => {
       if (document.hidden) {
-        // User left the tab
-        if (sirenEnabled) {
-          sirenRef.current.start();
-        }
-        setTabSwitchCount(prev => {
-          const next = prev + 1;
-          return next;
-        });
+        // Small delay to check if user went to another Lumina tab
+        setTimeout(() => {
+          if (!document.hidden) return; // Already came back
+          if (luminaTabActiveRef.current) {
+            // User switched to another Lumina tab — don't siren
+            return;
+          }
+          // External tab — trigger siren
+          if (sirenEnabled) {
+            sirenRef.current.start();
+          }
+          setTabSwitchCount(prev => prev + 1);
+        }, 300);
       } else {
         // User returned
         sirenRef.current.stop();
