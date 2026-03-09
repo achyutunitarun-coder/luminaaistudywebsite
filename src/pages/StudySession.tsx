@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
 type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
