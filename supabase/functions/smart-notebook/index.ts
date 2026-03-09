@@ -17,7 +17,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (mode === "notes") {
-      systemPrompt = `You are an expert study notes generator inspired by NotebookLM. Create detailed, well-organized notes from the provided file content with:
+      systemPrompt = `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina), inspired by NotebookLM. Create detailed, well-organized notes from the provided file content with:
 - Clear headings and subheadings using markdown
 - Key concepts highlighted in **bold**
 - Bullet points for easy scanning
