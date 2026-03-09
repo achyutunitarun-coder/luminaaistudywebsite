@@ -186,8 +186,11 @@ export const useFaceAttention = (enabled: boolean) => {
             // Detection error
           }
 
+          // Suppress distraction if user is actively typing (looking at keyboard)
+          const isTyping = (Date.now() - lastKeystrokeRef.current) < TYPING_GRACE_MS;
+
           // Frame smoothing to avoid flicker
-          const rawDistracted = !facePresent || gazeAway;
+          const rawDistracted = !isTyping && (!facePresent || gazeAway);
           if (rawDistracted) {
             distractedFrameCountRef.current++;
           } else {
