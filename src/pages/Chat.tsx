@@ -433,11 +433,11 @@ const Chat = () => {
   /* ─── Mobile Layout: show list OR chat ─── */
   if (isMobile) {
     return (
-      <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-6">
+      <div className="flex flex-col -mx-6 -my-8" style={{ height: 'calc(100vh - 3rem)' }}>
         {activeChat ? (
           <ActiveChatView />
         ) : (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <ChatSidebar {...sidebarProps} />
             <div className="border-t border-border/10">
               <WelcomeView />
@@ -450,11 +450,11 @@ const Chat = () => {
 
   /* ─── Desktop Layout: sidebar + chat ─── */
   return (
-    <div className="flex h-[calc(100vh-5rem)] -m-6 gap-0">
+    <div className="flex -mx-6 -my-8 gap-0" style={{ height: 'calc(100vh - 3rem)' }}>
       <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
         <ChatSidebar {...sidebarProps} />
       </div>
-      <div className="flex-1 flex flex-col bg-background">
+      <div className="flex-1 flex flex-col bg-background overflow-hidden">
         {activeChat ? <ActiveChatView /> : <WelcomeView />}
       </div>
     </div>
