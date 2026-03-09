@@ -88,6 +88,7 @@ const App = () => (
               <Route path="/notes-generator" element={<NotesGenerator />} />
               <Route path="/audio-analysis" element={<AudioAnalysis />} />
               <Route path="/youtube-summary" element={<YouTubeSummary />} />
+              <Route path="/flowcharts" element={<Flowcharts />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
