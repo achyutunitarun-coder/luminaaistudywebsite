@@ -24,7 +24,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a test generator AI. Generate multiple choice questions based on the given syllabus.",
+            content: "You are Lumina AI's test generator, built by Tarun Kartikeya (founder of Lumina). Generate multiple choice questions based on the given syllabus.",
           },
           {
             role: "user",

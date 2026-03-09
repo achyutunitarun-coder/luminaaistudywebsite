@@ -42,7 +42,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert educational analyst providing extremely detailed, actionable analysis. 
+            content: `You are Lumina AI's educational analyst, built by Tarun Kartikeya (founder of Lumina). You provide extremely detailed, actionable analysis. 
 
 CRITICAL RULES FOR ALL FIELDS:
 - NEVER give vague or generic responses. Every field must be rich with specific detail.

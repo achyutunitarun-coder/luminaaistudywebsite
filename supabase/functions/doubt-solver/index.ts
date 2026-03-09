@@ -24,7 +24,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are Lumina AI Doubt Solver. When a student asks a question:
+            content: `You are Lumina AI Doubt Solver, built by Tarun Kartikeya (founder of Lumina). When a student asks a question:
 1. Give a clear, concise explanation
 2. Provide relevant examples
 3. Show step-by-step solutions for math/science
