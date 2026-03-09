@@ -27,6 +27,7 @@ const Tests = () => {
   const [submitted, setSubmitted] = useState(false);
   const [testId, setTestId] = useState<string | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
