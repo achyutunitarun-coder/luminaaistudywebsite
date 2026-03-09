@@ -51,6 +51,7 @@ const mainItems = [
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
   { title: 'Flowcharts', url: '/flowcharts', icon: GitBranch },
+  { title: 'Smart Notebook', url: '/smart-notebook', icon: NotebookPen },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 

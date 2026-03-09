@@ -90,6 +90,7 @@ const App = () => (
               <Route path="/audio-analysis" element={<AudioAnalysis />} />
               <Route path="/youtube-summary" element={<YouTubeSummary />} />
               <Route path="/flowcharts" element={<Flowcharts />} />
+              <Route path="/smart-notebook" element={<SmartNotebook />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
