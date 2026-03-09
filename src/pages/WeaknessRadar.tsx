@@ -10,9 +10,9 @@ import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart'
 
 type DeepAnalysis = {
   summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
+  strengths: { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip: string }[];
+  weaknesses: { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps: string }[];
+  recommendations: { action: string; priority: string; estimated_time: string; subjects_to_cover: string; study_method: string }[];
   score_breakdown: { area: string; score: number; comment: string }[];
 };
 
