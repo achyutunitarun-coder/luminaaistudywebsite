@@ -10,8 +10,8 @@ export interface DistractionEvent {
 
 interface FaceAttentionState {
   attentionLevel: AttentionLevel;
-  focusStreak: number; // seconds of continuous focus
-  distractionSeconds: number; // current distraction duration
+  focusStreak: number;
+  distractionSeconds: number;
   distractionLog: DistractionEvent[];
   cameraActive: boolean;
   cameraError: string | null;
@@ -43,6 +43,10 @@ export const useFaceAttention = (enabled: boolean) => {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Smoothing: require consecutive distracted frames before triggering
+  const distractedFrameCountRef = useRef(0);
+  const DISTRACTED_FRAME_THRESHOLD = 3; // need 3 consecutive frames
+
   const cleanup = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (streamRef.current) {
@@ -66,14 +70,12 @@ export const useFaceAttention = (enabled: boolean) => {
 
     const init = async () => {
       try {
-        // Get webcam
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 320, height: 240, facingMode: 'user' },
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
 
-        // Create hidden video element
         const video = document.createElement('video');
         video.srcObject = stream;
         video.setAttribute('playsinline', 'true');
@@ -81,13 +83,11 @@ export const useFaceAttention = (enabled: boolean) => {
         await video.play();
         videoRef.current = video;
 
-        // Create offscreen canvas
         const canvas = document.createElement('canvas');
         canvas.width = 320;
         canvas.height = 240;
         canvasRef.current = canvas;
 
-        // Load MediaPipe FaceLandmarker
         const vision = await import('@mediapipe/tasks-vision');
         const { FaceLandmarker, FilesetResolver } = vision;
 
@@ -111,11 +111,21 @@ export const useFaceAttention = (enabled: boolean) => {
         setState(s => ({ ...s, cameraActive: true, cameraError: null }));
         focusStartRef.current = Date.now();
 
-        // Start detection loop
+        let lastProcessTime = 0;
+        const PROCESS_INTERVAL = 200; // Process every 200ms instead of every frame
+
         const detect = () => {
           if (cancelled || !faceLandmarkerRef.current || !videoRef.current) return;
 
           const now = performance.now();
+          
+          // Throttle detection to reduce CPU and improve reliability
+          if (now - lastProcessTime < PROCESS_INTERVAL) {
+            animFrameRef.current = requestAnimationFrame(detect);
+            return;
+          }
+          lastProcessTime = now;
+
           let facePresent = false;
           let gazeAway = false;
 
@@ -126,39 +136,56 @@ export const useFaceAttention = (enabled: boolean) => {
               facePresent = true;
               const landmarks = results.faceLandmarks[0];
 
-              // Nose tip (1), left eye (33), right eye (263)
+              // Nose tip position check — lowered thresholds for sensitivity
               const nose = landmarks[1];
-              
-              // Check if face is roughly centered (not turned away)
-              // nose.x: 0=left edge, 1=right edge of frame. Center ~0.5
-              // nose.y: 0=top, 1=bottom
               const xDeviation = Math.abs(nose.x - 0.5);
               const yDeviation = Math.abs(nose.y - 0.5);
 
-              // If nose is too far from center, they're looking away
-              if (xDeviation > 0.25 || yDeviation > 0.3) {
+              // More sensitive: trigger at smaller deviations
+              if (xDeviation > 0.15 || yDeviation > 0.2) {
                 gazeAway = true;
               }
 
-              // Also check blendshapes for eye direction if available
+              // Blendshape eye tracking — lowered thresholds
               if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
                 const shapes = results.faceBlendshapes[0].categories;
-                const eyeLookLeft = shapes.find((s: any) => s.categoryName === 'eyeLookOutLeft')?.score || 0;
-                const eyeLookRight = shapes.find((s: any) => s.categoryName === 'eyeLookOutRight')?.score || 0;
-                const eyeLookUp = shapes.find((s: any) => s.categoryName === 'eyeLookUpLeft')?.score || 0;
-                
-                // Strong lateral or upward gaze
-                if (eyeLookLeft > 0.6 || eyeLookRight > 0.6 || eyeLookUp > 0.5) {
+                const getScore = (name: string) => shapes.find((s: any) => s.categoryName === name)?.score || 0;
+
+                const eyeLookOutLeft = getScore('eyeLookOutLeft');
+                const eyeLookOutRight = getScore('eyeLookOutRight');
+                const eyeLookUpLeft = getScore('eyeLookUpLeft');
+                const eyeLookUpRight = getScore('eyeLookUpRight');
+                const eyeLookDownLeft = getScore('eyeLookDownLeft');
+                const eyeLookDownRight = getScore('eyeLookDownRight');
+                const eyeLookInLeft = getScore('eyeLookInLeft');
+                const eyeLookInRight = getScore('eyeLookInRight');
+
+                // Lateral gaze: both eyes looking same direction
+                const lookingLeft = eyeLookOutLeft > 0.35 || eyeLookInRight > 0.35;
+                const lookingRight = eyeLookOutRight > 0.35 || eyeLookInLeft > 0.35;
+                const lookingUp = (eyeLookUpLeft + eyeLookUpRight) / 2 > 0.3;
+                const lookingDown = (eyeLookDownLeft + eyeLookDownRight) / 2 > 0.45;
+
+                if (lookingLeft || lookingRight || lookingUp || lookingDown) {
                   gazeAway = true;
                 }
               }
             }
           } catch {
-            // Detection error, assume no face
+            // Detection error
           }
 
+          // Frame smoothing to avoid flicker
+          const rawDistracted = !facePresent || gazeAway;
+          if (rawDistracted) {
+            distractedFrameCountRef.current++;
+          } else {
+            distractedFrameCountRef.current = 0;
+          }
+
+          const isDistracted = distractedFrameCountRef.current >= DISTRACTED_FRAME_THRESHOLD;
+
           lastDetectionRef.current = { facePresent, gazeAway };
-          const isDistracted = !facePresent || gazeAway;
 
           setState(prev => {
             const nowMs = Date.now();
@@ -173,35 +200,35 @@ export const useFaceAttention = (enabled: boolean) => {
               }
               newDistractionSec = Math.floor((nowMs - distractionStartRef.current) / 1000);
 
-              if (newDistractionSec >= 10) {
+              if (newDistractionSec >= 6) {
                 newLevel = 'distracted';
-              } else if (newDistractionSec >= 5) {
+              } else if (newDistractionSec >= 2) {
                 newLevel = 'slightly_distracted';
               } else {
-                newLevel = prev.attentionLevel === 'focused' ? 'focused' : prev.attentionLevel;
+                // Even under 2s, show slight distraction immediately
+                newLevel = 'slightly_distracted';
               }
 
-              if (newDistractionSec >= 3) {
-                newFocusStreak = 0;
-              }
+              newFocusStreak = 0;
             } else {
               // Was distracted, now focused again — log it
               if (distractionStartRef.current) {
                 const dur = Math.floor((nowMs - distractionStartRef.current) / 1000);
-                if (dur >= 3) {
+                if (dur >= 2) {
                   newLog = [...prev.distractionLog, {
                     timestamp: distractionStartRef.current,
                     duration: dur,
-                    level: dur >= 10 ? 'distracted' : 'slightly_distracted',
+                    level: dur >= 6 ? 'distracted' : 'slightly_distracted',
                   }];
                 }
                 distractionStartRef.current = null;
               }
               newLevel = 'focused';
-              newFocusStreak = Math.floor((nowMs - focusStartRef.current) / 1000);
               if (prev.attentionLevel !== 'focused') {
                 focusStartRef.current = nowMs;
                 newFocusStreak = 0;
+              } else {
+                newFocusStreak = Math.floor((nowMs - focusStartRef.current) / 1000);
               }
             }
 
