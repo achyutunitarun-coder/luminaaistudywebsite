@@ -187,10 +187,11 @@ const Chat = () => {
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || !activeChat || isLoading) return;
-    const userContent = input.trim();
+    if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading) return;
+    const fileContext = buildFileContext(uploadedFiles);
+    const userContent = input.trim() + fileContext;
     setInput('');
-    setIsLoading(true);
+    setUploadedFiles([]);
 
     const { data: userMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent }).select().single();
     if (userMsg) setMessages(prev => [...prev, userMsg]);
