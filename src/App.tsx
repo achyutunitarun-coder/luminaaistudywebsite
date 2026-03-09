@@ -25,6 +25,7 @@ import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
 import AudioAnalysis from "@/pages/AudioAnalysis";
 import YouTubeSummary from "@/pages/YouTubeSummary";
+import Flowcharts from "@/pages/Flowcharts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
