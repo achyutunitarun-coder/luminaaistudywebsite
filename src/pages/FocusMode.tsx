@@ -225,9 +225,13 @@ const FocusMode = () => {
     }
   }, [attention.attentionLevel]);
 
-  // Cleanup siren on unmount
+  // Cleanup siren + speech on unmount
   useEffect(() => {
-    return () => sirenRef.current.stop();
+    return () => {
+      sirenRef.current.stop();
+      speechSynthesis.cancel();
+      if (focusVoiceIntervalRef.current) clearInterval(focusVoiceIntervalRef.current);
+    };
   }, []);
 
   const formatTime = (s: number) => {
