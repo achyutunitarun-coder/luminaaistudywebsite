@@ -49,7 +49,7 @@ const mainItems = [
   { title: 'Focus Mode', url: '/focus-mode', icon: Timer },
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
-  { title: 'Flowcharts', url: '/flowcharts', icon: BarChart3 },
+  { title: 'Flowcharts', url: '/flowcharts', icon: GitBranch },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
