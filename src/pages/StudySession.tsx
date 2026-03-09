@@ -39,6 +39,7 @@ const StudySession = () => {
   const [toolsUsed, setToolsUsed] = useState<string[]>([]);
   const [ending, setEnding] = useState(false);
   const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
