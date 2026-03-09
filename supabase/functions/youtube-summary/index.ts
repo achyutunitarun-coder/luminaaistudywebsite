@@ -11,6 +11,7 @@ function extractVideoId(url: string): string | null {
     /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
     /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
     /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
   ];
   for (const p of patterns) {
     const m = url.match(p);
@@ -19,53 +20,139 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-async function getTranscript(videoId: string): Promise<string> {
-  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  const res = await fetch(watchUrl, {
-    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-  });
-  const html = await res.text();
+async function getVideoInfo(videoId: string): Promise<{ title: string; description: string; transcript: string }> {
+  let title = "Unknown";
+  let description = "";
+  let transcript = "";
 
-  // Extract title
-  const titleMatch = html.match(/<title>(.+?)<\/title>/);
-  const title = titleMatch ? titleMatch[1].replace(" - YouTube", "").trim() : "Unknown";
+  // Method 1: Use oEmbed API for title (always works, no auth needed)
+  try {
+    const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+    if (oembedRes.ok) {
+      const oembed = await oembedRes.json();
+      title = oembed.title || title;
+    }
+  } catch (e) {
+    console.error("oEmbed error:", e);
+  }
 
-  // Try to get captions URL from player response
-  const captionMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
-  if (captionMatch) {
-    try {
-      const tracks = JSON.parse(captionMatch[1]);
-      if (tracks.length > 0) {
-        // Prefer English, fall back to first track
-        const enTrack = tracks.find((t: any) => t.languageCode === "en") || tracks[0];
-        const captionUrl = enTrack.baseUrl.replace(/\\u0026/g, "&");
-        const capRes = await fetch(captionUrl);
-        const capXml = await capRes.text();
-        // Parse XML captions
-        const textParts = capXml.match(/<text[^>]*>(.*?)<\/text>/gs) || [];
-        const transcript = textParts
-          .map((t: string) => t.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"'))
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
-        if (transcript) {
-          return `Title: ${title}\n\nTranscript:\n${transcript}`;
+  // Method 2: Try InnerTube API to get captions
+  try {
+    // First, get the page to extract a valid client version
+    const playerRes = await fetch("https://www.youtube.com/youtubei/v1/player", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: "WEB",
+            clientVersion: "2.20240101.00.00",
+            hl: "en",
+          },
+        },
+        videoId,
+      }),
+    });
+
+    if (playerRes.ok) {
+      const playerData = await playerRes.json();
+      
+      // Get title and description from player response
+      title = playerData?.videoDetails?.title || title;
+      description = playerData?.videoDetails?.shortDescription || "";
+
+      // Extract caption tracks
+      const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+      if (captionTracks && captionTracks.length > 0) {
+        // Prefer English, then auto-generated English, then first available
+        const enTrack = captionTracks.find((t: any) => t.languageCode === "en" && !t.kind) 
+          || captionTracks.find((t: any) => t.languageCode === "en")
+          || captionTracks[0];
+
+        if (enTrack?.baseUrl) {
+          // Fetch the actual transcript XML
+          const capUrl = enTrack.baseUrl + "&fmt=srv3";
+          const capRes = await fetch(capUrl);
+          if (capRes.ok) {
+            const capXml = await capRes.text();
+            const textParts = capXml.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
+            transcript = textParts
+              .map((t: string) =>
+                t.replace(/<[^>]+>/g, "")
+                  .replace(/&amp;/g, "&")
+                  .replace(/&lt;/g, "<")
+                  .replace(/&gt;/g, ">")
+                  .replace(/&#39;/g, "'")
+                  .replace(/&quot;/g, '"')
+                  .replace(/\n/g, " ")
+              )
+              .join(" ")
+              .replace(/\s+/g, " ")
+              .trim();
+          }
         }
       }
+    }
+  } catch (e) {
+    console.error("InnerTube error:", e);
+  }
+
+  // Method 3: If InnerTube failed, try scraping the watch page
+  if (!transcript) {
+    try {
+      const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+      const html = await watchRes.text();
+
+      // Try extracting caption tracks from the HTML
+      const captionMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
+      if (captionMatch) {
+        const tracks = JSON.parse(captionMatch[1]);
+        if (tracks.length > 0) {
+          const enTrack = tracks.find((t: any) => t.languageCode === "en") || tracks[0];
+          const capUrl = enTrack.baseUrl.replace(/\\u0026/g, "&");
+          const capRes = await fetch(capUrl);
+          if (capRes.ok) {
+            const capXml = await capRes.text();
+            const textParts = capXml.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
+            transcript = textParts
+              .map((t: string) =>
+                t.replace(/<[^>]+>/g, "")
+                  .replace(/&amp;/g, "&")
+                  .replace(/&lt;/g, "<")
+                  .replace(/&gt;/g, ">")
+                  .replace(/&#39;/g, "'")
+                  .replace(/&quot;/g, '"')
+                  .replace(/\n/g, " ")
+              )
+              .join(" ")
+              .replace(/\s+/g, " ")
+              .trim();
+          }
+        }
+      }
+
+      // Extract title from HTML if still unknown
+      if (title === "Unknown") {
+        const titleMatch = html.match(/<title>(.+?)<\/title>/);
+        if (titleMatch) title = titleMatch[1].replace(" - YouTube", "").trim();
+      }
+
+      // Extract description from meta
+      if (!description) {
+        const descMatch = html.match(/property="og:description"\s+content="([^"]*)/);
+        if (descMatch) description = descMatch[1];
+      }
     } catch (e) {
-      console.error("Caption parse error:", e);
+      console.error("HTML scrape error:", e);
     }
   }
 
-  // Fallback: extract description from meta
-  const descMatch = html.match(/property="og:description"\s+content="([^"]*)/);
-  const description = descMatch ? descMatch[1] : "";
-
-  if (description) {
-    return `Title: ${title}\n\nDescription: ${description}\n\n(No transcript available — summary based on available metadata)`;
-  }
-
-  return `Title: ${title}\n\n(No transcript or description available)`;
+  return { title, description, transcript };
 }
 
 serve(async (req) => {
@@ -81,8 +168,20 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const content = await getTranscript(videoId);
-    console.log("Transcript length:", content.length);
+    const { title, description, transcript } = await getVideoInfo(videoId);
+    
+    // Build the content to send to AI
+    let content = `Title: ${title}\n\n`;
+    if (transcript) {
+      content += `Transcript:\n${transcript}`;
+      console.log("Transcript extracted successfully, length:", transcript.length);
+    } else if (description) {
+      content += `Description: ${description}\n\n(No captions/transcript available for this video. Summarize based on the title and description. Acknowledge this limitation.)`;
+      console.log("No transcript, using description, length:", description.length);
+    } else {
+      content += `(No transcript or description available. Provide what analysis you can based on the video title alone. Clearly state that no transcript was available.)`;
+      console.log("No transcript or description available");
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -102,7 +201,7 @@ serve(async (req) => {
 - **Key Takeaways**: Most important lessons or facts
 - **Notable Quotes**: If any stand out from the transcript
 
-Use markdown formatting. Be thorough but concise. If only metadata is available (no transcript), acknowledge this limitation and provide what you can.`,
+Use markdown formatting. Be thorough but concise. If only metadata is available (no transcript), acknowledge this limitation and provide what you can based on the title and description.`,
           },
           { role: "user", content: `Summarize this YouTube video:\n\n${content.substring(0, 30000)}` },
         ],
