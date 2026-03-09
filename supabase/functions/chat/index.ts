@@ -13,7 +13,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    let systemPrompt = `You are Lumina AI, an expert study tutor. You help students understand concepts deeply. You provide:
+    let systemPrompt = `You are Lumina AI, an expert study tutor built by Tarun Kartikeya (founder of Lumina). You help students understand concepts deeply. You provide:
 - Clear explanations with examples
 - Step-by-step solutions for math/science problems
 - Diagrams described in text when useful

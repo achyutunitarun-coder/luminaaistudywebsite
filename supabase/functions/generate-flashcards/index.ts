@@ -24,7 +24,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a flashcard generator AI. Create concise, effective flashcards for studying.",
+            content: "You are Lumina AI's flashcard generator, built by Tarun Kartikeya (founder of Lumina). Create concise, effective flashcards for studying.",
           },
           {
             role: "user",

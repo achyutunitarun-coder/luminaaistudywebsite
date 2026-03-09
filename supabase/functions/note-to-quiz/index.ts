@@ -22,7 +22,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You generate quiz questions from student notes." },
+          { role: "system", content: "You are Lumina AI's quiz generator, built by Tarun Kartikeya (founder of Lumina). You generate quiz questions from student notes." },
           { role: "user", content: `Generate quiz questions from these notes:\n\n${notes}` },
         ],
         tools: [{

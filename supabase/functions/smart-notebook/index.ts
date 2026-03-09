@@ -52,7 +52,7 @@ Rules:
       userPrompt = `Analyze this document "${fileName}" and create a concept flowchart:\n\n${fileContent}`;
     } else if (mode === "overview") {
       const targetLang = language || "Spanish";
-      systemPrompt = `You are a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina), a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
 Include:
 - A title in ${targetLang}
 - Key concepts and definitions translated and explained
