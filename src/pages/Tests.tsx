@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Question = {
   question: string;
@@ -26,6 +27,7 @@ const Tests = () => {
   const [submitted, setSubmitted] = useState(false);
   const [testId, setTestId] = useState<string | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
@@ -36,13 +38,15 @@ const Tests = () => {
     setCurrentQ(0);
 
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullSyllabus = syllabus + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ syllabus, subject, numQuestions }),
+        body: JSON.stringify({ syllabus: fullSyllabus, subject, numQuestions }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
@@ -365,8 +369,11 @@ const Tests = () => {
               placeholder="Enter your syllabus, chapters, or topics..."
               value={syllabus}
               onChange={e => setSyllabus(e.target.value)}
-              className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm leading-relaxed resize-none"
+              className="bg-muted/20 border-border/30 rounded-xl min-h-[120px] px-5 py-4 text-sm leading-relaxed resize-none"
             />
+            <div className="mt-3">
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+            </div>
           </div>
 
           <Button

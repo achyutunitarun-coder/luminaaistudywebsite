@@ -4,6 +4,7 @@ import { Send, HelpCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ReactMarkdown from 'react-markdown';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -18,6 +19,7 @@ const DoubtSolver = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState('simple');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,12 +27,14 @@ const DoubtSolver = () => {
   }, [messages]);
 
   const ask = async () => {
-    if (!input.trim() || isLoading) return;
-    const question = input.trim();
+    if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
+    const fileContext = buildFileContext(uploadedFiles);
+    const question = input.trim() + fileContext;
     setInput('');
+    setUploadedFiles([]);
     const userMsg: Msg = { role: 'user', content: `[${mode.toUpperCase()} MODE] ${question}` };
     const updatedMessages = [...messages, userMsg];
-    setMessages(prev => [...prev, { role: 'user', content: question }]);
+    setMessages(prev => [...prev, { role: 'user', content: input.trim() || `[Uploaded ${uploadedFiles.length} file(s)]` }]);
     setIsLoading(true);
 
     try {
@@ -135,17 +139,20 @@ const DoubtSolver = () => {
         <div ref={endRef} />
       </div>
 
-      <div className="flex gap-2">
-        <Input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Ask your doubt..."
-          className="bg-muted/20 border-border/30 rounded-xl"
-          onKeyDown={e => e.key === 'Enter' && ask()}
-        />
-        <Button onClick={ask} disabled={isLoading} className="gradient-primary text-primary-foreground rounded-xl">
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
+      <div className="space-y-2">
+        <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Ask your doubt..."
+            className="bg-muted/20 border-border/30 rounded-xl"
+            onKeyDown={e => e.key === 'Enter' && ask()}
+          />
+          <Button onClick={ask} disabled={isLoading} className="gradient-primary text-primary-foreground rounded-xl">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );

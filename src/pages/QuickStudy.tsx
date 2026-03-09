@@ -4,6 +4,7 @@ import { Zap, Sparkles, Loader2, CheckCircle, Clock, BookOpen, RotateCcw, Trophy
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Lesson = {
   title: string;
@@ -20,6 +21,7 @@ const QuickStudy = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'quiz'>('concepts');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generate = async () => {
     if (!topic.trim()) return;
@@ -29,13 +31,15 @@ const QuickStudy = () => {
     setSubmitted(false);
     setActiveTab('concepts');
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullTopic = topic + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quick-study`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic: fullTopic }),
       });
       if (!resp.ok) throw new Error('Failed');
       setLesson(await resp.json());
@@ -90,6 +94,9 @@ const QuickStudy = () => {
                     className="bg-muted/20 border-border/30 rounded-xl h-14 px-5 text-base"
                     onKeyDown={e => e.key === 'Enter' && generate()}
                   />
+                  <div className="mt-3">
+                    <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+                  </div>
                 </div>
 
                 <div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
 type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
@@ -38,6 +39,7 @@ const StudySession = () => {
   const [toolsUsed, setToolsUsed] = useState<string[]>([]);
   const [ending, setEnding] = useState(false);
   const [analysis, setAnalysis] = useState<SessionAnalysis | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
@@ -115,7 +117,7 @@ const StudySession = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          sessionData: { duration_minutes: duration, tools_used: toolsUsed },
+          sessionData: { duration_minutes: duration, tools_used: toolsUsed, uploaded_materials: buildFileContext(uploadedFiles) },
           userId: user.id,
         }),
       });
@@ -315,6 +317,15 @@ const StudySession = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Upload study materials */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" /> Study Materials
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">Upload notes or resources for AI to analyze in your session report</p>
+            <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
           </div>
 
           <Button onClick={endSession} disabled={ending} variant="destructive" className="w-full h-12 text-base" size="lg">
