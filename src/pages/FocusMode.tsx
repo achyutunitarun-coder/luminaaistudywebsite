@@ -572,6 +572,9 @@ const FocusMode = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Floating AI Tools Widget */}
+      <FocusToolsWidget />
     </div>
   );
 };
