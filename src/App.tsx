@@ -26,6 +26,7 @@ import NotesGenerator from "@/pages/NotesGenerator";
 import AudioAnalysis from "@/pages/AudioAnalysis";
 import YouTubeSummary from "@/pages/YouTubeSummary";
 import Flowcharts from "@/pages/Flowcharts";
+import SmartNotebook from "@/pages/SmartNotebook";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/audio-analysis" element={<AudioAnalysis />} />
               <Route path="/youtube-summary" element={<YouTubeSummary />} />
               <Route path="/flowcharts" element={<Flowcharts />} />
+              <Route path="/smart-notebook" element={<SmartNotebook />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
