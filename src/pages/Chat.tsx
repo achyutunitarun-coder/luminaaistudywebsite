@@ -433,7 +433,7 @@ const Chat = () => {
   /* ─── Mobile Layout: show list OR chat ─── */
   if (isMobile) {
     return (
-      <div className="flex flex-col -mx-6 -my-8" style={{ height: 'calc(100vh - 3rem)' }}>
+      <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
         {activeChat ? (
           <ActiveChatView />
         ) : (
