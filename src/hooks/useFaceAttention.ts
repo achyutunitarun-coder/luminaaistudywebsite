@@ -19,6 +19,17 @@ interface FaceAttentionState {
 }
 
 export const useFaceAttention = (enabled: boolean) => {
+  const lastKeystrokeRef = useRef<number>(0);
+  const TYPING_GRACE_MS = 2000; // Suppress distraction alerts for 2s after typing
+
+  // Listen for any keystrokes globally to detect typing
+  useEffect(() => {
+    if (!enabled) return;
+    const handler = () => { lastKeystrokeRef.current = Date.now(); };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [enabled]);
+
   const [state, setState] = useState<FaceAttentionState>({
     attentionLevel: 'focused',
     focusStreak: 0,
@@ -175,8 +186,11 @@ export const useFaceAttention = (enabled: boolean) => {
             // Detection error
           }
 
+          // Suppress distraction if user is actively typing (looking at keyboard)
+          const isTyping = (Date.now() - lastKeystrokeRef.current) < TYPING_GRACE_MS;
+
           // Frame smoothing to avoid flicker
-          const rawDistracted = !facePresent || gazeAway;
+          const rawDistracted = !isTyping && (!facePresent || gazeAway);
           if (rawDistracted) {
             distractedFrameCountRef.current++;
           } else {
