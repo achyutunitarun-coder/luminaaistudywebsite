@@ -117,7 +117,7 @@ const StudySession = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          sessionData: { duration_minutes: duration, tools_used: toolsUsed },
+          sessionData: { duration_minutes: duration, tools_used: toolsUsed, uploaded_materials: buildFileContext(uploadedFiles) },
           userId: user.id,
         }),
       });
