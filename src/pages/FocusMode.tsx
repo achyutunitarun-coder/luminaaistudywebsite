@@ -155,11 +155,52 @@ const FocusMode = () => {
     return () => clearTimeout(t);
   }, [tabSwitchWarning]);
 
-  // Alert sound for severe face-distraction
+  // "FOCUS" voice alert using Speech Synthesis — repeats while distracted
+  const focusVoiceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSpeakingFocusRef = useRef(false);
+
+  const speakFocus = useCallback(() => {
+    if (!sirenEnabled || isSpeakingFocusRef.current) return;
+    try {
+      const utterance = new SpeechSynthesisUtterance('FOCUS');
+      utterance.rate = 0.9;
+      utterance.pitch = 0.8;
+      utterance.volume = 1.0;
+      isSpeakingFocusRef.current = true;
+      utterance.onend = () => { isSpeakingFocusRef.current = false; };
+      utterance.onerror = () => { isSpeakingFocusRef.current = false; };
+      speechSynthesis.speak(utterance);
+    } catch {}
+  }, [sirenEnabled]);
+
   useEffect(() => {
-    if (attention.attentionLevel === 'distracted' && attention.distractionSeconds >= 10) {
+    if (attention.attentionLevel === 'distracted' && sirenEnabled && active && !paused) {
+      setDismissedWarning(false);
+      // Say "FOCUS" immediately, then repeat every 2.5s
+      speakFocus();
+      focusVoiceIntervalRef.current = setInterval(speakFocus, 2500);
+    } else {
+      // Stop repeating
+      if (focusVoiceIntervalRef.current) {
+        clearInterval(focusVoiceIntervalRef.current);
+        focusVoiceIntervalRef.current = null;
+      }
+      speechSynthesis.cancel();
+      isSpeakingFocusRef.current = false;
+    }
+    return () => {
+      if (focusVoiceIntervalRef.current) {
+        clearInterval(focusVoiceIntervalRef.current);
+        focusVoiceIntervalRef.current = null;
+      }
+    };
+  }, [attention.attentionLevel, sirenEnabled, active, paused, speakFocus]);
+
+  // Also play a beep for slightly_distracted
+  useEffect(() => {
+    if (attention.attentionLevel === 'slightly_distracted' && attention.distractionSeconds >= 3) {
       const now = Date.now();
-      if (now - lastAlertRef.current > 15000) {
+      if (now - lastAlertRef.current > 5000) {
         lastAlertRef.current = now;
         setDismissedWarning(false);
         try {
@@ -169,10 +210,10 @@ const FocusMode = () => {
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.frequency.value = 520;
-          gain.gain.value = 0.15;
+          gain.gain.value = 0.2;
           osc.start();
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-          osc.stop(ctx.currentTime + 0.8);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+          osc.stop(ctx.currentTime + 0.6);
         } catch {}
       }
     }
