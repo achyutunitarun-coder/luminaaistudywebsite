@@ -369,8 +369,11 @@ const Tests = () => {
               placeholder="Enter your syllabus, chapters, or topics..."
               value={syllabus}
               onChange={e => setSyllabus(e.target.value)}
-              className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm leading-relaxed resize-none"
+              className="bg-muted/20 border-border/30 rounded-xl min-h-[120px] px-5 py-4 text-sm leading-relaxed resize-none"
             />
+            <div className="mt-3">
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+            </div>
           </div>
 
           <Button

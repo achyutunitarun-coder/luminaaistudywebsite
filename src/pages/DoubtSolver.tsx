@@ -139,17 +139,20 @@ const DoubtSolver = () => {
         <div ref={endRef} />
       </div>
 
-      <div className="flex gap-2">
-        <Input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Ask your doubt..."
-          className="bg-muted/20 border-border/30 rounded-xl"
-          onKeyDown={e => e.key === 'Enter' && ask()}
-        />
-        <Button onClick={ask} disabled={isLoading} className="gradient-primary text-primary-foreground rounded-xl">
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-        </Button>
+      <div className="space-y-2">
+        <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Ask your doubt..."
+            className="bg-muted/20 border-border/30 rounded-xl"
+            onKeyDown={e => e.key === 'Enter' && ask()}
+          />
+          <Button onClick={ask} disabled={isLoading} className="gradient-primary text-primary-foreground rounded-xl">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -405,7 +405,15 @@ const Chat = () => {
       {/* Input */}
       <div className="border-t border-border/10 p-3 md:p-4">
         <div className="max-w-3xl mx-auto">
+          {uploadedFiles.length > 0 && (
+            <div className="mb-2">
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-muted/15 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 focus-within:border-primary/30 focus-within:bg-muted/25 transition-all duration-200">
+            {uploadedFiles.length === 0 && (
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
+            )}
             <Input
               ref={inputRef}
               value={input}
@@ -416,7 +424,7 @@ const Chat = () => {
             />
             <Button
               onClick={sendMessage}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
               size="icon"
               className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-30 transition-opacity"
             >

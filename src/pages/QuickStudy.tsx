@@ -94,6 +94,9 @@ const QuickStudy = () => {
                     className="bg-muted/20 border-border/30 rounded-xl h-14 px-5 text-base"
                     onKeyDown={e => e.key === 'Enter' && generate()}
                   />
+                  <div className="mt-3">
+                    <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
+                  </div>
                 </div>
 
                 <div>
