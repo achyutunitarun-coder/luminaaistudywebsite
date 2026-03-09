@@ -26,6 +26,7 @@ import NotesGenerator from "@/pages/NotesGenerator";
 import AudioAnalysis from "@/pages/AudioAnalysis";
 import YouTubeSummary from "@/pages/YouTubeSummary";
 import Flowcharts from "@/pages/Flowcharts";
+import SmartNotebook from "@/pages/SmartNotebook";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
