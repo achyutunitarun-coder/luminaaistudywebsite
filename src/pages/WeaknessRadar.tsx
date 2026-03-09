@@ -10,9 +10,9 @@ import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart'
 
 type DeepAnalysis = {
   summary: string;
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
+  strengths: { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip: string }[];
+  weaknesses: { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps: string }[];
+  recommendations: { action: string; priority: string; estimated_time: string; subjects_to_cover: string; study_method: string }[];
   score_breakdown: { area: string; score: number; comment: string }[];
 };
 
@@ -91,6 +91,7 @@ const WeaknessRadar = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
+          userId: user?.id,
           sessionData: {
             tests_completed: tests?.length || 0,
             average_score: avgScore,
@@ -102,6 +103,8 @@ const WeaknessRadar = () => {
       if (resp.ok) {
         const data = await resp.json();
         setDeepAnalysis(data);
+      } else {
+        toast.error('Analysis failed. Try again.');
       }
     } catch {
       toast.error('Failed to run analysis');
@@ -262,21 +265,41 @@ const WeaknessRadar = () => {
                 </div>
               ))}
 
-              <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <h3 className="text-xs font-bold text-success mb-2">💪 Strengths</h3>
-                  {deepAnalysis.strengths?.map((s, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {s}</p>)}
+                  {deepAnalysis.strengths?.map((s, i) => (
+                    <div key={i} className="mb-2">
+                      <p className="text-xs font-medium text-foreground">{s.topic} <span className="text-muted-foreground">({s.subject})</span></p>
+                      <p className="text-xs text-muted-foreground">{s.detail}</p>
+                      <p className="text-xs text-success/70 italic">{s.maintenance_tip}</p>
+                    </div>
+                  ))}
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-warning mb-2">📋 Weaknesses</h3>
-                  {deepAnalysis.weaknesses?.map((w, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {w}</p>)}
+                  {deepAnalysis.weaknesses?.map((w, i) => (
+                    <div key={i} className="mb-2">
+                      <p className="text-xs font-medium text-foreground">{w.topic} <span className={`text-xs ${w.severity === 'critical' ? 'text-destructive' : w.severity === 'moderate' ? 'text-warning' : 'text-muted-foreground'}`}>({w.severity})</span></p>
+                      <p className="text-xs text-muted-foreground">{w.root_cause}</p>
+                      <p className="text-xs text-primary/70">{w.fix_suggestion}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               {deepAnalysis.recommendations?.length > 0 && (
                 <div className="border-t border-border/20 pt-4">
                   <h3 className="text-xs font-bold text-primary mb-2">🎯 Recommendations</h3>
-                  {deepAnalysis.recommendations.map((r, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {r}</p>)}
+                  {deepAnalysis.recommendations.map((r, i) => (
+                    <div key={i} className="mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${r.priority === 'high' ? 'bg-destructive/20 text-destructive' : r.priority === 'medium' ? 'bg-warning/20 text-warning' : 'bg-muted/20 text-muted-foreground'}`}>{r.priority}</span>
+                        <span className="text-[10px] text-muted-foreground">{r.estimated_time} · {r.study_method}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{r.action}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
