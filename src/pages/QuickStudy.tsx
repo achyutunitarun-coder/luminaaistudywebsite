@@ -4,6 +4,7 @@ import { Zap, Sparkles, Loader2, CheckCircle, Clock, BookOpen, RotateCcw, Trophy
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Lesson = {
   title: string;
