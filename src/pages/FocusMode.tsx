@@ -255,6 +255,8 @@ const FocusMode = () => {
 
   const endSession = () => {
     sirenRef.current.stop();
+    speechSynthesis.cancel();
+    if (focusVoiceIntervalRef.current) clearInterval(focusVoiceIntervalRef.current);
     setActive(false);
     setSeconds(0);
     setPaused(false);
