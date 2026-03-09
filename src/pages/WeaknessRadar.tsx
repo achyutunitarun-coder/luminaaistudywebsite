@@ -91,6 +91,7 @@ const WeaknessRadar = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
+          userId: user?.id,
           sessionData: {
             tests_completed: tests?.length || 0,
             average_score: avgScore,
@@ -102,6 +103,8 @@ const WeaknessRadar = () => {
       if (resp.ok) {
         const data = await resp.json();
         setDeepAnalysis(data);
+      } else {
+        toast.error('Analysis failed. Try again.');
       }
     } catch {
       toast.error('Failed to run analysis');
