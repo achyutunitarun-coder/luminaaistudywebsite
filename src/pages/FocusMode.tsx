@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useFaceAttention, type AttentionLevel, type DistractionEvent } from '@/hooks/useFaceAttention';
+import FocusToolsWidget from '@/components/FocusToolsWidget';
 
 const ATTENTION_CONFIG: Record<AttentionLevel, { label: string; color: string; bgClass: string; icon: React.ReactNode }> = {
   focused: {
@@ -101,6 +102,36 @@ const FocusMode = () => {
   const [tabSwitchWarning, setTabSwitchWarning] = useState('');
   const sirenRef = useRef(createSiren());
 
+  // BroadcastChannel: detect if user switched to another Lumina tab (same origin)
+  const luminaTabActiveRef = useRef(false);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    const bc = new BroadcastChannel('lumina-focus');
+    broadcastChannelRef.current = bc;
+
+    // When THIS tab becomes visible, broadcast so other Focus tabs know
+    const broadcastVisible = () => {
+      if (!document.hidden) {
+        bc.postMessage({ type: 'lumina-tab-active', timestamp: Date.now() });
+      }
+    };
+    document.addEventListener('visibilitychange', broadcastVisible);
+
+    // Listen for other Lumina tabs becoming active
+    bc.onmessage = () => {
+      // Another Lumina tab just became visible — flag it briefly
+      luminaTabActiveRef.current = true;
+      setTimeout(() => { luminaTabActiveRef.current = false; }, 500);
+    };
+
+    return () => {
+      document.removeEventListener('visibilitychange', broadcastVisible);
+      bc.close();
+      broadcastChannelRef.current = null;
+    };
+  }, []);
+
   const attention = useFaceAttention(active && attentionEnabled && !paused);
 
   // Timer
@@ -113,20 +144,25 @@ const FocusMode = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [active, paused]);
 
-  // Tab visibility detection — siren on tab switch
+  // Tab visibility detection — siren on tab switch (skip if switching to another Lumina tab)
   useEffect(() => {
     if (!active || paused) return;
 
     const handleVisibility = () => {
       if (document.hidden) {
-        // User left the tab
-        if (sirenEnabled) {
-          sirenRef.current.start();
-        }
-        setTabSwitchCount(prev => {
-          const next = prev + 1;
-          return next;
-        });
+        // Small delay to check if user went to another Lumina tab
+        setTimeout(() => {
+          if (!document.hidden) return; // Already came back
+          if (luminaTabActiveRef.current) {
+            // User switched to another Lumina tab — don't siren
+            return;
+          }
+          // External tab — trigger siren
+          if (sirenEnabled) {
+            sirenRef.current.start();
+          }
+          setTabSwitchCount(prev => prev + 1);
+        }, 300);
       } else {
         // User returned
         sirenRef.current.stop();
@@ -536,6 +572,9 @@ const FocusMode = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Floating AI Tools Widget */}
+      <FocusToolsWidget />
     </div>
   );
 };
