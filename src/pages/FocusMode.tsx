@@ -102,6 +102,36 @@ const FocusMode = () => {
   const [tabSwitchWarning, setTabSwitchWarning] = useState('');
   const sirenRef = useRef(createSiren());
 
+  // BroadcastChannel: detect if user switched to another Lumina tab (same origin)
+  const luminaTabActiveRef = useRef(false);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    const bc = new BroadcastChannel('lumina-focus');
+    broadcastChannelRef.current = bc;
+
+    // When THIS tab becomes visible, broadcast so other Focus tabs know
+    const broadcastVisible = () => {
+      if (!document.hidden) {
+        bc.postMessage({ type: 'lumina-tab-active', timestamp: Date.now() });
+      }
+    };
+    document.addEventListener('visibilitychange', broadcastVisible);
+
+    // Listen for other Lumina tabs becoming active
+    bc.onmessage = () => {
+      // Another Lumina tab just became visible — flag it briefly
+      luminaTabActiveRef.current = true;
+      setTimeout(() => { luminaTabActiveRef.current = false; }, 500);
+    };
+
+    return () => {
+      document.removeEventListener('visibilitychange', broadcastVisible);
+      bc.close();
+      broadcastChannelRef.current = null;
+    };
+  }, []);
+
   const attention = useFaceAttention(active && attentionEnabled && !paused);
 
   // Timer
