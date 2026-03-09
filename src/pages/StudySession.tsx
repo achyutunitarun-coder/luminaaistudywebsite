@@ -319,6 +319,15 @@ const StudySession = () => {
             </div>
           </div>
 
+          {/* Upload study materials */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" /> Study Materials
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">Upload notes or resources for AI to analyze in your session report</p>
+            <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
+          </div>
+
           <Button onClick={endSession} disabled={ending} variant="destructive" className="w-full h-12 text-base" size="lg">
             {ending ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Square className="w-5 h-5 mr-2" />}
             End Session & Get Deep Analysis
