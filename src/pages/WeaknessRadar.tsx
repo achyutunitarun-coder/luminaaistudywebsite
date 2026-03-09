@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, AlertTriangle, Brain, Loader2 } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, Brain, Loader2, GitBranch, Target, BookOpen, Zap, CheckCircle2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 type DeepAnalysis = {
   summary: string;
@@ -19,6 +20,7 @@ const WeaknessRadar = () => {
   const { user } = useAuth();
   const [analyzing, setAnalyzing] = useState(false);
   const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
+  const [showFlow, setShowFlow] = useState(false);
 
   const { data: tests } = useQuery({
     queryKey: ['tests', user?.id],
@@ -48,6 +50,36 @@ const WeaknessRadar = () => {
   }, {} as Record<string, number>) || {};
 
   const topMistakes = Object.entries(mistakesByTopic).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Build weakness flowchart
+  const weaknessNodes: FlowNode[] = [
+    { id: 'analyze', label: 'Take Tests', type: 'start', status: 'completed', icon: <BookOpen className="w-3 h-3" /> },
+    { id: 'detect', label: 'Detect Weaknesses', type: 'process', status: topMistakes.length > 0 ? 'completed' : 'active', icon: <AlertTriangle className="w-3 h-3" /> },
+    ...topMistakes.slice(0, 3).map(([topic], i) => ({
+      id: `weak-${i}`,
+      label: topic,
+      type: 'decision' as const,
+      status: 'active' as const,
+      icon: <Target className="w-3 h-3" />,
+      description: `${topMistakes[i][1]} mistakes`,
+    })),
+    { id: 'practice', label: 'Targeted Practice', type: 'process', status: 'upcoming', icon: <Zap className="w-3 h-3" /> },
+    { id: 'master', label: 'Mastery', type: 'end', status: 'locked', icon: <CheckCircle2 className="w-3 h-3" /> },
+  ];
+
+  const weaknessEdges: FlowEdge[] = [
+    { from: 'analyze', to: 'detect', animated: true },
+    ...topMistakes.slice(0, 3).map((_, i) => ({
+      from: 'detect',
+      to: `weak-${i}`,
+      animated: true,
+    })),
+    ...topMistakes.slice(0, 3).map((_, i) => ({
+      from: `weak-${i}`,
+      to: 'practice',
+    })),
+    { from: 'practice', to: 'master' },
+  ];
 
   const runDeepAnalysis = async () => {
     setAnalyzing(true);
@@ -99,126 +131,159 @@ const WeaknessRadar = () => {
           { icon: AlertTriangle, value: topMistakes.length, label: 'Weak Topics', color: 'text-warning' },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5"
+            className="rounded-2xl liquid-glass p-5"
           >
-            <stat.icon className={`w-7 h-7 ${stat.color} mb-2`} />
-            <p className="text-2xl font-display font-bold text-foreground">{stat.value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+            <div className="relative z-10">
+              <stat.icon className={`w-7 h-7 ${stat.color} mb-2`} />
+              <p className="text-2xl font-display font-bold text-foreground">{stat.value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+            </div>
           </motion.div>
         ))}
       </div>
 
+      {/* Weakness Flowchart */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2">
+            <GitBranch className="w-4 h-4 text-primary" /> Weakness Resolution Path
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFlow(!showFlow)}
+            className="text-primary text-xs rounded-xl hover:bg-primary/8"
+          >
+            {showFlow ? 'Hide' : 'Show'} Flowchart
+          </Button>
+        </div>
+        {showFlow && (
+          <FlowChart
+            nodes={weaknessNodes}
+            edges={weaknessEdges}
+            direction="vertical"
+            className="h-[350px]"
+          />
+        )}
+      </motion.div>
+
       {/* Mistake Patterns */}
       {topMistakes.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+          className="rounded-2xl liquid-glass p-6"
         >
-          <h2 className="text-base font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-warning" /> Mistake Patterns
-          </h2>
-          <div className="space-y-3">
-            {topMistakes.map(([topic, count], i) => (
-              <div key={topic} className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground w-36 truncate">{topic}</span>
-                <div className="flex-1 h-2.5 rounded-full bg-muted/20 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((count / (topMistakes[0]?.[1] || 1)) * 100, 100)}%` }}
-                    transition={{ delay: i * 0.1, duration: 0.6 }}
-                    className="h-full rounded-full bg-warning"
-                  />
+          <div className="relative z-10">
+            <h2 className="text-base font-display font-semibold text-foreground mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" /> Mistake Patterns
+            </h2>
+            <div className="space-y-3">
+              {topMistakes.map(([topic, count], i) => (
+                <div key={topic} className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground w-36 truncate">{topic}</span>
+                  <div className="flex-1 h-2.5 rounded-full bg-muted/20 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((count / (topMistakes[0]?.[1] || 1)) * 100, 100)}%` }}
+                      transition={{ delay: i * 0.1, duration: 0.6 }}
+                      className="h-full rounded-full bg-warning"
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-foreground w-8 text-right">{count}</span>
                 </div>
-                <span className="text-sm font-bold text-foreground w-8 text-right">{count}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </motion.div>
       )}
 
       {/* Performance Breakdown */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
-        <h2 className="text-base font-display font-semibold text-foreground mb-4">Performance Breakdown</h2>
-        {tests && tests.length > 0 ? (
-          <div className="space-y-3">
-            {tests.map((test, i) => (
-              <div key={test.id} className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground w-28 truncate">{test.subject || test.title}</span>
-                <div className="flex-1 h-3 rounded-full bg-muted/20 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Number(test.score) || 0}%` }}
-                    transition={{ delay: i * 0.08, duration: 0.5 }}
-                    className={`h-full rounded-full ${
-                      (Number(test.score) || 0) >= 70 ? 'bg-success' : (Number(test.score) || 0) >= 50 ? 'bg-warning' : 'bg-destructive'
-                    }`}
-                  />
+        <div className="relative z-10">
+          <h2 className="text-base font-display font-semibold text-foreground mb-4">Performance Breakdown</h2>
+          {tests && tests.length > 0 ? (
+            <div className="space-y-3">
+              {tests.map((test, i) => (
+                <div key={test.id} className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground w-28 truncate">{test.subject || test.title}</span>
+                  <div className="flex-1 h-3 rounded-full bg-muted/20 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Number(test.score) || 0}%` }}
+                      transition={{ delay: i * 0.08, duration: 0.5 }}
+                      className={`h-full rounded-full ${
+                        (Number(test.score) || 0) >= 70 ? 'bg-success' : (Number(test.score) || 0) >= 50 ? 'bg-warning' : 'bg-destructive'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-foreground w-10 text-right">{Number(test.score)?.toFixed(0) || 0}%</span>
                 </div>
-                <span className="text-sm font-bold text-foreground w-10 text-right">{Number(test.score)?.toFixed(0) || 0}%</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-10 text-muted-foreground">
-            <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-15" />
-            <p className="text-sm">Complete some tests to see your performance</p>
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-15" />
+              <p className="text-sm">Complete some tests to see your performance</p>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Deep AI Analysis */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2">
-            <Brain className="w-4 h-4 text-secondary" /> Deep AI Analysis
-          </h2>
-          <Button onClick={runDeepAnalysis} disabled={analyzing || !tests?.length} size="sm" className="gradient-primary text-primary-foreground rounded-xl">
-            {analyzing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Brain className="w-4 h-4 mr-1" />}
-            Analyze
-          </Button>
-        </div>
-
-        {deepAnalysis ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">{deepAnalysis.summary}</p>
-
-            {deepAnalysis.score_breakdown?.map((s, i) => (
-              <div key={i}>
-                <div className="flex justify-between text-sm mb-1.5">
-                  <span className="text-foreground font-medium">{s.area}</span>
-                  <span className={`font-bold ${s.score >= 70 ? 'text-success' : s.score >= 50 ? 'text-warning' : 'text-destructive'}`}>{s.score}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-muted/20 overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${s.score}%` }} className={`h-full rounded-full ${s.score >= 70 ? 'bg-success' : s.score >= 50 ? 'bg-warning' : 'bg-destructive'}`} />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{s.comment}</p>
-              </div>
-            ))}
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <h3 className="text-xs font-bold text-success mb-2">💪 Strengths</h3>
-                {deepAnalysis.strengths?.map((s, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {s}</p>)}
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-warning mb-2">📋 Weaknesses</h3>
-                {deepAnalysis.weaknesses?.map((w, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {w}</p>)}
-              </div>
-            </div>
-
-            {deepAnalysis.recommendations?.length > 0 && (
-              <div className="border-t border-border/20 pt-4">
-                <h3 className="text-xs font-bold text-primary mb-2">🎯 Recommendations</h3>
-                {deepAnalysis.recommendations.map((r, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {r}</p>)}
-              </div>
-            )}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2">
+              <Brain className="w-4 h-4 text-secondary" /> Deep AI Analysis
+            </h2>
+            <Button onClick={runDeepAnalysis} disabled={analyzing || !tests?.length} size="sm" className="gradient-primary text-primary-foreground rounded-xl">
+              {analyzing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Brain className="w-4 h-4 mr-1" />}
+              Analyze
+            </Button>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">Click "Analyze" to get a deep AI analysis</p>
-        )}
+
+          {deepAnalysis ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">{deepAnalysis.summary}</p>
+
+              {deepAnalysis.score_breakdown?.map((s, i) => (
+                <div key={i}>
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="text-foreground font-medium">{s.area}</span>
+                    <span className={`font-bold ${s.score >= 70 ? 'text-success' : s.score >= 50 ? 'text-warning' : 'text-destructive'}`}>{s.score}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted/20 overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${s.score}%` }} className={`h-full rounded-full ${s.score >= 70 ? 'bg-success' : s.score >= 50 ? 'bg-warning' : 'bg-destructive'}`} />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{s.comment}</p>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <h3 className="text-xs font-bold text-success mb-2">💪 Strengths</h3>
+                  {deepAnalysis.strengths?.map((s, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {s}</p>)}
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-warning mb-2">📋 Weaknesses</h3>
+                  {deepAnalysis.weaknesses?.map((w, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {w}</p>)}
+                </div>
+              </div>
+
+              {deepAnalysis.recommendations?.length > 0 && (
+                <div className="border-t border-border/20 pt-4">
+                  <h3 className="text-xs font-bold text-primary mb-2">🎯 Recommendations</h3>
+                  {deepAnalysis.recommendations.map((r, i) => <p key={i} className="text-xs text-muted-foreground mb-1">• {r}</p>)}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">Click "Analyze" to get a deep AI analysis</p>
+          )}
+        </div>
       </motion.div>
     </div>
   );

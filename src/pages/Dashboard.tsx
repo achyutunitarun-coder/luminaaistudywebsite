@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, BookOpen, Zap, Swords, Search, TrendingUp, BarChart3, Clock, ArrowRight } from 'lucide-react';
+import { Trophy, Flame, Target, BookOpen, Zap, Swords, Search, TrendingUp, BarChart3, Clock, ArrowRight, GitBranch, CheckCircle2, Lock } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { StatCard } from '@/components/StatCard';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
+import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 const ease = [0.25, 0.1, 0.25, 1] as const;
 
@@ -60,6 +61,19 @@ const Dashboard = () => {
     { icon: BarChart3, title: 'Progress Tracking', desc: 'See your strengths improve over time.', color: 'text-success', bg: 'bg-success/8' },
   ];
 
+  // Mini flowchart data for dashboard
+  const progressNodes: FlowNode[] = [
+    { id: 'p1', label: 'Start Learning', type: 'start', status: 'completed', icon: <BookOpen className="w-3 h-3" /> },
+    { id: 'p2', label: 'Take Tests', type: 'process', status: profile.xp > 50 ? 'completed' : 'active', icon: <Target className="w-3 h-3" /> },
+    { id: 'p3', label: 'Fix Weaknesses', type: 'decision', status: profile.xp > 100 ? 'active' : 'upcoming', icon: <Zap className="w-3 h-3" /> },
+    { id: 'p4', label: 'Master Topics', type: 'end', status: 'locked', icon: <CheckCircle2 className="w-3 h-3" /> },
+  ];
+  const progressEdges: FlowEdge[] = [
+    { from: 'p1', to: 'p2', animated: true },
+    { from: 'p2', to: 'p3', animated: profile.xp > 50 },
+    { from: 'p3', to: 'p4' },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Hero */}
@@ -67,9 +81,9 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease }}
-        className="relative text-center py-16 px-8 rounded-[2.5rem] overflow-hidden border border-primary/30 bg-card/30 backdrop-blur-2xl shadow-[0_0_30px_-5px_hsl(174_72%_56%/0.2),inset_0_0_30px_-5px_hsl(174_72%_56%/0.05)]"
+        className="relative text-center py-16 px-8 rounded-[2.5rem] overflow-hidden liquid-glass-intense"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/4 via-transparent to-secondary/4" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/4 via-transparent to-secondary/4 z-[2]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/3 blur-[140px]" />
         <div className="relative z-10">
           <motion.h1
@@ -121,13 +135,15 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 + i * 0.08, ease }}
-            className="rounded-2xl border border-border/15 bg-card/40 backdrop-blur-2xl p-6 text-center card-hover"
+            className="rounded-2xl liquid-glass p-6 text-center card-hover"
           >
-            <div className={`w-12 h-12 rounded-2xl ${card.bg} flex items-center justify-center mx-auto mb-4`}>
-              <card.icon className={`w-6 h-6 ${card.color}`} />
+            <div className="relative z-10">
+              <div className={`w-12 h-12 rounded-2xl ${card.bg} flex items-center justify-center mx-auto mb-4`}>
+                <card.icon className={`w-6 h-6 ${card.color}`} />
+              </div>
+              <h3 className="font-display text-sm font-semibold text-foreground mb-1.5">{card.title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
             </div>
-            <h3 className="font-display text-sm font-semibold text-foreground mb-1.5">{card.title}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
           </motion.div>
         ))}
       </div>
@@ -137,7 +153,7 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, ease }}
-        className="rounded-[1.75rem] border border-border/15 bg-card/40 backdrop-blur-2xl p-8 relative overflow-hidden"
+        className="rounded-[1.75rem] liquid-glass-intense p-8 relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-56 h-56 rounded-full bg-primary/4 blur-[60px]" />
         <div className="relative z-10">
@@ -175,25 +191,46 @@ const Dashboard = () => {
         <StatCard icon={BookOpen} label="Coins" value={profile.coins} color="secondary" delay={0.25} />
       </div>
 
+      {/* Learning Path Flowchart */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, ease }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
+            <GitBranch className="w-4 h-4 text-primary" /> Learning Path
+          </h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/flowcharts')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
+            View All <ArrowRight className="w-3 h-3 ml-1" />
+          </Button>
+        </div>
+        <FlowChart
+          nodes={progressNodes}
+          edges={progressEdges}
+          direction="horizontal"
+          className="h-[200px]"
+          interactive={false}
+        />
+      </motion.div>
+
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, ease }}>
         <h2 className="text-[15px] font-display font-semibold text-foreground mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
-            { name: 'AI Chat', desc: 'Ask questions, get explanations', icon: Zap, url: '/chat', color: 'text-primary', bg: 'bg-primary/8', hoverBorder: 'hover:border-primary/25' },
-            { name: 'Generate Test', desc: 'AI-powered adaptive tests', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8', hoverBorder: 'hover:border-secondary/25' },
-            { name: 'Lumina Quest', desc: 'Battle bosses, earn rewards', icon: Swords, url: '/quest', color: 'text-xp', bg: 'bg-xp/8', hoverBorder: 'hover:border-xp/25' },
+            { name: 'AI Chat', desc: 'Ask questions, get explanations', icon: Zap, url: '/chat', color: 'text-primary', bg: 'bg-primary/8' },
+            { name: 'Generate Test', desc: 'AI-powered adaptive tests', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
+            { name: 'Lumina Quest', desc: 'Battle bosses, earn rewards', icon: Swords, url: '/quest', color: 'text-xp', bg: 'bg-xp/8' },
           ].map(action => (
             <button
               key={action.name}
               onClick={() => navigate(action.url)}
-              className={`rounded-2xl border border-border/15 bg-card/40 backdrop-blur-2xl p-5 text-left ${action.hoverBorder} transition-all duration-300 group card-hover`}
+              className="rounded-2xl liquid-glass p-5 text-left transition-all duration-300 group card-hover"
             >
-              <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
-                <action.icon className={`w-5 h-5 ${action.color}`} />
+              <div className="relative z-10">
+                <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
+                  <action.icon className={`w-5 h-5 ${action.color}`} />
+                </div>
+                <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
+                <p className="text-xs text-muted-foreground">{action.desc}</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
-              <p className="text-xs text-muted-foreground">{action.desc}</p>
             </button>
           ))}
         </div>
@@ -204,49 +241,51 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.55, ease }}
-        className="rounded-[1.75rem] border border-border/15 bg-card/40 backdrop-blur-2xl p-8"
+        className="rounded-[1.75rem] liquid-glass p-8"
       >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" /> Pulse
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Your study activity today</p>
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" /> Pulse
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Your study activity today</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
+              View Details <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
-            View Details <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
 
-        <div className="text-center">
-          <div className="flex items-baseline justify-center gap-1 tabular-nums">
-            <span className="text-[56px] font-display font-bold text-foreground leading-none">{hrs}</span>
-            <span className="text-lg text-muted-foreground/40 font-light">hr</span>
-            <span className="text-[56px] font-display font-bold text-foreground ml-2 leading-none">{mins}</span>
-            <span className="text-lg text-muted-foreground/40 font-light">min</span>
+          <div className="text-center">
+            <div className="flex items-baseline justify-center gap-1 tabular-nums">
+              <span className="text-[56px] font-display font-bold text-foreground leading-none">{hrs}</span>
+              <span className="text-lg text-muted-foreground/40 font-light">hr</span>
+              <span className="text-[56px] font-display font-bold text-foreground ml-2 leading-none">{mins}</span>
+              <span className="text-lg text-muted-foreground/40 font-light">min</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">studied today</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">studied today</p>
-        </div>
 
-        <div className="flex items-center justify-center gap-2.5 mt-8">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-            const dayData = weeklyMinutes?.find(s => {
-              const d = new Date(s.started_at);
-              return d.getDay() === (i + 1) % 7;
-            });
-            const active = dayData && dayData.duration_minutes > 0;
-            const today = new Date().getDay() === (i + 1) % 7;
-            return (
-              <div key={day} className="flex flex-col items-center gap-1.5">
-                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
-                  active ? 'border-primary bg-primary/12 text-primary' : today ? 'border-primary/30 text-muted-foreground' : 'border-border/20 text-muted-foreground/30'
-                }`}>
-                  {active ? '✓' : ''}
+          <div className="flex items-center justify-center gap-2.5 mt-8">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+              const dayData = weeklyMinutes?.find(s => {
+                const d = new Date(s.started_at);
+                return d.getDay() === (i + 1) % 7;
+              });
+              const active = dayData && dayData.duration_minutes > 0;
+              const today = new Date().getDay() === (i + 1) % 7;
+              return (
+                <div key={day} className="flex flex-col items-center gap-1.5">
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                    active ? 'border-primary bg-primary/12 text-primary' : today ? 'border-primary/30 text-muted-foreground' : 'border-border/20 text-muted-foreground/30'
+                  }`}>
+                    {active ? '✓' : ''}
+                  </div>
+                  <span className={`text-[9px] font-medium ${today ? 'text-primary' : 'text-muted-foreground/40'}`}>{day}</span>
                 </div>
-                <span className={`text-[9px] font-medium ${today ? 'text-primary' : 'text-muted-foreground/40'}`}>{day}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </motion.div>
     </div>

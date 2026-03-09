@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Plus, X, Loader2, Sparkles, BookOpen, Clock, Wand2, GraduationCap, ChevronRight, Layers } from 'lucide-react';
+import { Calendar, Plus, X, Loader2, Sparkles, BookOpen, Clock, Wand2, GraduationCap, ChevronRight, Layers, GitBranch, Target, Zap, CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 type PlanDay = {
   day: number;
@@ -21,6 +22,39 @@ const typeColors: Record<string, { dot: string; bg: string; text: string }> = {
   test: { dot: 'bg-destructive', bg: 'bg-destructive/8', text: 'text-destructive' },
 };
 
+function buildPlanFlowchart(plan: any): { nodes: FlowNode[]; edges: FlowEdge[] } {
+  const subjects = (plan.subjects as string[]) || [];
+  const days = (plan.plan_data as PlanDay[]) || [];
+  const totalDays = days.length;
+
+  const nodes: FlowNode[] = [
+    { id: 'start', label: 'Plan Created', type: 'start', status: 'completed', icon: <Sparkles className="w-3 h-3" /> },
+  ];
+  const edges: FlowEdge[] = [];
+
+  subjects.forEach((subj, i) => {
+    const id = `subj-${i}`;
+    const completedDays = Math.floor(totalDays * 0.3); // estimate
+    nodes.push({
+      id,
+      label: subj,
+      type: 'process',
+      status: i === 0 ? 'active' : 'upcoming',
+      icon: <BookOpen className="w-3 h-3" />,
+      description: `${totalDays} days planned`,
+    });
+    edges.push({ from: 'start', to: id, animated: i === 0 });
+  });
+
+  const examId = 'exam';
+  nodes.push({ id: examId, label: 'Exam Day', type: 'end', status: 'locked', icon: <Target className="w-3 h-3" />, description: plan.exam_date });
+  subjects.forEach((_, i) => {
+    edges.push({ from: `subj-${i}`, to: examId });
+  });
+
+  return { nodes, edges };
+}
+
 const StudyPlanner = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -29,6 +63,7 @@ const StudyPlanner = () => {
   const [dailyHours, setDailyHours] = useState(2);
   const [generating, setGenerating] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
+  const [showFlowchart, setShowFlowchart] = useState<string | null>(null);
 
   const { data: plans } = useQuery({
     queryKey: ['study_plans', user?.id],
@@ -83,14 +118,14 @@ const StudyPlanner = () => {
         </div>
       </motion.div>
 
-      {/* Generator — horizontal split layout */}
+      {/* Generator */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden"
+        className="relative rounded-[2rem] liquid-glass-intense overflow-hidden"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,hsl(var(--primary)/0.06),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,hsl(var(--primary)/0.06),transparent_60%)] z-[2]" />
 
         <div className="relative z-10 p-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -151,7 +186,7 @@ const StudyPlanner = () => {
                     <button key={h} onClick={() => setDailyHours(h)}
                       className={`flex-1 h-11 rounded-xl text-sm font-bold transition-all ${
                         dailyHours === h ? 'gradient-primary text-primary-foreground shadow-md shadow-primary/20'
-                          : 'bg-muted/20 text-muted-foreground hover:bg-muted/40 border border-border/20'
+                          : 'liquid-glass-subtle text-muted-foreground hover:bg-muted/40'
                       }`}>{h}h</button>
                   ))}
                 </div>
@@ -169,12 +204,14 @@ const StudyPlanner = () => {
         </div>
       </motion.div>
 
-      {/* Plans — Calendar grid style */}
+      {/* Plans */}
       {plans?.map((plan, pi) => {
         const days = (plan.plan_data as PlanDay[]) || [];
         const isExpanded = expandedPlan === plan.id;
         const displayDays = isExpanded ? days : days.slice(0, 7);
         const totalTasks = days.reduce((sum, d) => sum + (d.tasks?.length || 0), 0);
+        const isFlowchartOpen = showFlowchart === plan.id;
+        const flowData = buildPlanFlowchart(plan);
 
         return (
           <motion.div
@@ -182,65 +219,89 @@ const StudyPlanner = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: pi * 0.06 }}
-            className="rounded-[2rem] border border-border/30 bg-card/40 backdrop-blur-xl overflow-hidden"
+            className="rounded-[2rem] liquid-glass overflow-hidden"
           >
-            <div className="p-6 pb-3 flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
-                  <GraduationCap className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-display font-bold text-foreground">{(plan.subjects as string[])?.join(' · ')}</h3>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {plan.exam_date}</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {plan.daily_hours}h/day</span>
-                    <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {totalTasks} tasks</span>
+            <div className="relative z-10">
+              <div className="p-6 pb-3 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-foreground">{(plan.subjects as string[])?.join(' · ')}</h3>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {plan.exam_date}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {plan.daily_hours}h/day</span>
+                      <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {totalTasks} tasks</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">{days.length}d</span>
-            </div>
-
-            {/* Calendar grid */}
-            <div className="px-6 pb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {displayDays.map((day, di) => (
-                  <motion.div
-                    key={di}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: di * 0.02 }}
-                    className="rounded-xl border border-border/15 bg-muted/5 p-4 hover:border-primary/20 transition-all"
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFlowchart(isFlowchartOpen ? null : plan.id)}
+                    className="text-primary text-xs rounded-xl hover:bg-primary/8"
                   >
-                    <div className="flex items-baseline justify-between mb-3">
-                      <span className="text-xs font-bold text-foreground">Day {day.day}</span>
-                      {day.date && <span className="text-[10px] text-muted-foreground">{day.date}</span>}
-                    </div>
-                    <div className="space-y-1.5">
-                      {day.tasks?.map((task, ti) => {
-                        const color = typeColors[task.type] || typeColors.study;
-                        return (
-                          <div key={ti} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg ${color.bg}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${color.dot} flex-shrink-0`} />
-                            <span className={`text-[11px] font-medium ${color.text} truncate`}>{task.topic}</span>
-                            <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">{task.duration_minutes}m</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                ))}
+                    <GitBranch className="w-3.5 h-3.5 mr-1" /> {isFlowchartOpen ? 'Hide' : 'Flow'}
+                  </Button>
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">{days.length}d</span>
+                </div>
               </div>
 
-              {days.length > 7 && (
-                <button
-                  onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  className="w-full mt-3 py-3 text-xs font-medium text-primary hover:bg-primary/5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
-                >
-                  {isExpanded ? 'Show less' : `Show all ${days.length} days`}
-                  <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                </button>
+              {/* Flowchart for this plan */}
+              {isFlowchartOpen && (
+                <div className="px-6 pb-4">
+                  <FlowChart
+                    nodes={flowData.nodes}
+                    edges={flowData.edges}
+                    direction="horizontal"
+                    className="h-[220px]"
+                  />
+                </div>
               )}
+
+              {/* Calendar grid */}
+              <div className="px-6 pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {displayDays.map((day, di) => (
+                    <motion.div
+                      key={di}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: di * 0.02 }}
+                      className="rounded-xl liquid-glass-subtle p-4 hover:border-primary/20 transition-all"
+                    >
+                      <div className="flex items-baseline justify-between mb-3">
+                        <span className="text-xs font-bold text-foreground">Day {day.day}</span>
+                        {day.date && <span className="text-[10px] text-muted-foreground">{day.date}</span>}
+                      </div>
+                      <div className="space-y-1.5">
+                        {day.tasks?.map((task, ti) => {
+                          const color = typeColors[task.type] || typeColors.study;
+                          return (
+                            <div key={ti} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg ${color.bg}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${color.dot} flex-shrink-0`} />
+                              <span className={`text-[11px] font-medium ${color.text} truncate`}>{task.topic}</span>
+                              <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">{task.duration_minutes}m</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {days.length > 7 && (
+                  <button
+                    onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
+                    className="w-full mt-3 py-3 text-xs font-medium text-primary hover:bg-primary/5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {isExpanded ? 'Show less' : `Show all ${days.length} days`}
+                    <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  </button>
+                )}
+              </div>
             </div>
           </motion.div>
         );
