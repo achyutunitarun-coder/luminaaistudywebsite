@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useFaceAttention, type AttentionLevel, type DistractionEvent } from '@/hooks/useFaceAttention';
+import FocusToolsWidget from '@/components/FocusToolsWidget';
 
 const ATTENTION_CONFIG: Record<AttentionLevel, { label: string; color: string; bgClass: string; icon: React.ReactNode }> = {
   focused: {
