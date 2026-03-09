@@ -262,8 +262,7 @@ const Chat = () => {
     setActiveChat, createChat, deleteChat, renameChat,
   };
 
-  /* ─── Empty / Welcome State ─── */
-  const WelcomeView = () => (
+  const welcomeView = (
     <div className="flex-1 flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -312,8 +311,7 @@ const Chat = () => {
     </div>
   );
 
-  /* ─── Active Chat View ─── */
-  const ActiveChatView = () => (
+  const activeChatView = (
     <>
       {/* Header */}
       <div className="h-12 md:h-14 border-b border-border/10 flex items-center px-4 md:px-6 gap-2">
@@ -435,12 +433,12 @@ const Chat = () => {
     return (
       <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
         {activeChat ? (
-          <ActiveChatView />
+          activeChatView
         ) : (
           <div className="flex-1 flex flex-col overflow-hidden">
             <ChatSidebar {...sidebarProps} />
             <div className="border-t border-border/10">
-              <WelcomeView />
+              {welcomeView}
             </div>
           </div>
         )}
@@ -455,7 +453,7 @@ const Chat = () => {
         <ChatSidebar {...sidebarProps} />
       </div>
       <div className="flex-1 flex flex-col bg-background overflow-hidden">
-        {activeChat ? <ActiveChatView /> : <WelcomeView />}
+        {activeChat ? activeChatView : welcomeView}
       </div>
     </div>
   );
