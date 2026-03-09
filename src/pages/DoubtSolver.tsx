@@ -19,6 +19,7 @@ const DoubtSolver = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState('simple');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
