@@ -21,6 +21,7 @@ const QuickStudy = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'quiz'>('concepts');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generate = async () => {
     if (!topic.trim()) return;
