@@ -16,6 +16,7 @@ import {
   ClipboardList,
   FileAudio,
   Youtube,
+  GitBranch,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -48,6 +49,7 @@ const mainItems = [
   { title: 'Focus Mode', url: '/focus-mode', icon: Timer },
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
+  { title: 'Flowcharts', url: '/flowcharts', icon: GitBranch },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
