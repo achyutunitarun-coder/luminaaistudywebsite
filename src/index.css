@@ -76,6 +76,17 @@
     --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
     --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
     --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+
+    /* Liquid Glass tokens */
+    --liquid-glass-bg: hsl(230 20% 12% / 0.45);
+    --liquid-glass-border: hsl(0 0% 100% / 0.08);
+    --liquid-glass-highlight: hsl(0 0% 100% / 0.12);
+    --liquid-glass-shadow: 0 8px 32px hsl(0 0% 0% / 0.35),
+      0 2px 8px hsl(0 0% 0% / 0.2);
+    --liquid-glass-inner-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.1),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.1);
+    --liquid-glass-blur: 40px;
+    --liquid-glass-saturate: 1.8;
   }
 }
 
@@ -130,16 +141,95 @@
   .text-glow-secondary {
     text-shadow: 0 0 12px hsl(264 67% 60% / 0.4);
   }
+
+  /* iOS 26 Liquid Glass — Primary effect */
+  .liquid-glass {
+    background: var(--liquid-glass-bg);
+    backdrop-filter: blur(var(--liquid-glass-blur)) saturate(var(--liquid-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--liquid-glass-blur)) saturate(var(--liquid-glass-saturate));
+    border: 1px solid var(--liquid-glass-border);
+    box-shadow:
+      var(--liquid-glass-shadow),
+      var(--liquid-glass-inner-shadow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      hsl(0 0% 100% / 0.08) 0%,
+      transparent 40%,
+      transparent 60%,
+      hsl(0 0% 100% / 0.03) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Liquid Glass — Subtle variant */
+  .liquid-glass-subtle {
+    background: hsl(230 20% 11% / 0.35);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid hsl(0 0% 100% / 0.05);
+    box-shadow:
+      0 4px 16px hsl(0 0% 0% / 0.25),
+      inset 0 1px 0 hsl(0 0% 100% / 0.06);
+  }
+
+  /* Liquid Glass — Intense/prominent variant */
+  .liquid-glass-intense {
+    background: hsl(230 20% 14% / 0.55);
+    backdrop-filter: blur(60px) saturate(2);
+    -webkit-backdrop-filter: blur(60px) saturate(2);
+    border: 1px solid hsl(0 0% 100% / 0.12);
+    box-shadow:
+      0 12px 48px hsl(0 0% 0% / 0.4),
+      0 4px 12px hsl(0 0% 0% / 0.25),
+      inset 0 1px 0 hsl(0 0% 100% / 0.15),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.08);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass-intense::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      160deg,
+      hsl(174 72% 56% / 0.06) 0%,
+      transparent 30%,
+      transparent 70%,
+      hsl(264 67% 60% / 0.04) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Liquid Glass — Navigation bar variant */
+  .liquid-glass-nav {
+    background: hsl(230 22% 8% / 0.6);
+    backdrop-filter: blur(48px) saturate(2);
+    -webkit-backdrop-filter: blur(48px) saturate(2);
+    border-bottom: 1px solid hsl(0 0% 100% / 0.06);
+    box-shadow:
+      0 4px 24px hsl(0 0% 0% / 0.3),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.15);
+  }
+
+  /* Legacy compat */
   .glass {
-    @apply bg-card/60 backdrop-blur-3xl border border-border/15;
-    box-shadow: 
-      0 0 0 0.5px hsl(0 0% 100% / 0.05) inset,
-      0 8px 40px -12px hsl(0 0% 0% / 0.4);
+    @apply liquid-glass;
   }
   .glass-subtle {
-    @apply bg-card/30 backdrop-blur-2xl border border-border/10;
-    box-shadow: 0 0 0 0.5px hsl(0 0% 100% / 0.03) inset;
+    @apply liquid-glass-subtle;
   }
+
   .gradient-primary {
     background: linear-gradient(135deg, hsl(174 72% 56%), hsl(200 80% 50%), hsl(264 67% 60%));
   }
@@ -150,22 +240,20 @@
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
   }
 
+  /* Apple vibrancy — updated to liquid glass */
+  .vibrancy {
+    @apply liquid-glass-nav;
+  }
+
   /* Apple-like card hover lift */
   .card-hover {
     transition: transform 0.35s var(--ease-apple), box-shadow 0.35s var(--ease-apple);
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px -8px hsl(0 0% 0% / 0.3);
-  }
-
-  /* Apple vibrancy effect */
-  .vibrancy {
-    @apply backdrop-blur-3xl backdrop-saturate-[1.8];
-    background-color: hsl(var(--card) / 0.72);
     box-shadow:
-      0 0 0 0.5px hsl(0 0% 100% / 0.06) inset,
-      0 2px 4px hsl(0 0% 0% / 0.08);
+      0 16px 48px -8px hsl(0 0% 0% / 0.35),
+      inset 0 1px 0 hsl(0 0% 100% / 0.12);
   }
 }
 
