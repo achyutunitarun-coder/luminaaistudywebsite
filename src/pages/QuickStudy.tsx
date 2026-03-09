@@ -31,13 +31,15 @@ const QuickStudy = () => {
     setSubmitted(false);
     setActiveTab('concepts');
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullTopic = topic + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quick-study`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic: fullTopic }),
       });
       if (!resp.ok) throw new Error('Failed');
       setLesson(await resp.json());
