@@ -27,12 +27,14 @@ const DoubtSolver = () => {
   }, [messages]);
 
   const ask = async () => {
-    if (!input.trim() || isLoading) return;
-    const question = input.trim();
+    if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
+    const fileContext = buildFileContext(uploadedFiles);
+    const question = input.trim() + fileContext;
     setInput('');
+    setUploadedFiles([]);
     const userMsg: Msg = { role: 'user', content: `[${mode.toUpperCase()} MODE] ${question}` };
     const updatedMessages = [...messages, userMsg];
-    setMessages(prev => [...prev, { role: 'user', content: question }]);
+    setMessages(prev => [...prev, { role: 'user', content: input.trim() || `[Uploaded ${uploadedFiles.length} file(s)]` }]);
     setIsLoading(true);
 
     try {
