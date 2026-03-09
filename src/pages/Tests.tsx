@@ -38,13 +38,15 @@ const Tests = () => {
     setCurrentQ(0);
 
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullSyllabus = syllabus + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ syllabus, subject, numQuestions }),
+        body: JSON.stringify({ syllabus: fullSyllabus, subject, numQuestions }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
