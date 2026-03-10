@@ -17,7 +17,7 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (mode === "notes") {
-      systemPrompt = `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina), inspired by NotebookLM. Create detailed, well-organized notes from the provided file content with:
+      systemPrompt = `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), inspired by NotebookLM. Create detailed, well-organized notes from the provided file content with:
 - Clear headings and subheadings using markdown
 - Key concepts highlighted in **bold**
 - Bullet points for easy scanning
@@ -27,7 +27,7 @@ serve(async (req) => {
 Be thorough but concise. Use markdown formatting.`;
       userPrompt = `Create comprehensive study notes from this file "${fileName}":\n\n${fileContent}`;
     } else if (mode === "flowchart") {
-      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina), an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart representing the key concepts, their relationships, and logical flow.
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart representing the key concepts, their relationships, and logical flow.
 
 Return ONLY valid JSON in this exact format (no markdown, no code fences):
 {
@@ -52,7 +52,7 @@ Rules:
       userPrompt = `Analyze this document "${fileName}" and create a concept flowchart:\n\n${fileContent}`;
     } else if (mode === "overview") {
       const targetLang = language || "Spanish";
-      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina), a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
 Include:
 - A title in ${targetLang}
 - Key concepts and definitions translated and explained
