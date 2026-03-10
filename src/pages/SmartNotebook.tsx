@@ -423,7 +423,7 @@ const SmartNotebook = () => {
                     </div>
                     <div className="p-6 pt-4">
                       <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-li:text-muted-foreground">
-                        <ReactMarkdown>{overviews[selectedLang]}</ReactMarkdown>
+                        <MarkdownRenderer>{overviews[selectedLang]}</MarkdownRenderer>
                       </div>
                     </div>
                     {loadingLang === selectedLang && (

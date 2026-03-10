@@ -146,7 +146,7 @@ export default function YouTubeSummary() {
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{summary}</ReactMarkdown>
+              <MarkdownRenderer>{summary}</MarkdownRenderer>
             </div>
           </CardContent>
         </Card>

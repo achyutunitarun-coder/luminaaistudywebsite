@@ -374,7 +374,7 @@ const Chat = () => {
                       prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
                       prose-blockquote:border-primary/30 prose-blockquote:text-muted-foreground
                     ">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                     </div>
                   </div>
                 </div>

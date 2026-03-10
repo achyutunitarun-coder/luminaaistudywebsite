@@ -131,7 +131,7 @@ const DoubtSolver = () => {
               msg.role === 'user' ? 'gradient-primary text-primary-foreground' : 'border border-border/20 bg-card/60 backdrop-blur-xl'
             }`}>
               <div className="prose prose-sm prose-invert max-w-none">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <MarkdownRenderer>{msg.content}</MarkdownRenderer>
               </div>
             </div>
           </motion.div>
