@@ -10,12 +10,13 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkMath]}
-      rehypePlugins={[rehypeKatex]}
-      className={className}
-    >
-      {children}
-    </ReactMarkdown>
+    <div className={className}>
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 }
