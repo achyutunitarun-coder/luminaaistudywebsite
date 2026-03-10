@@ -27,7 +27,7 @@ serve(async (req) => {
 Be thorough but concise. Use markdown formatting.`;
       userPrompt = `Create comprehensive study notes from this file "${fileName}":\n\n${fileContent}`;
     } else if (mode === "flowchart") {
-      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina), an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart representing the key concepts, their relationships, and logical flow.
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart representing the key concepts, their relationships, and logical flow.
 
 Return ONLY valid JSON in this exact format (no markdown, no code fences):
 {
