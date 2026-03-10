@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Loader2, BookOpen, Copy, Check, ArrowLeft, Radio, FileAudio, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
