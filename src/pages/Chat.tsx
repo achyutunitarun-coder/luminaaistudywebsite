@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 type Chat = { id: string; title: string; created_at: string };
@@ -374,7 +374,7 @@ const Chat = () => {
                       prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
                       prose-blockquote:border-primary/30 prose-blockquote:text-muted-foreground
                     ">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                     </div>
                   </div>
                 </div>

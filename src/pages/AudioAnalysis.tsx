@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Loader2, BookOpen, Copy, Check, ArrowLeft, Radio, FileAudio, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
@@ -287,7 +287,7 @@ const AudioAnalysis = () => {
                 {notes && (
                   <div className="w-full mt-8 rounded-2xl bg-muted/10 border border-border/20 p-6 max-h-[400px] overflow-y-auto">
                     <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground">
-                      <ReactMarkdown>{notes}</ReactMarkdown>
+                      <MarkdownRenderer>{notes}</MarkdownRenderer>
                     </div>
                   </div>
                 )}
@@ -337,7 +337,7 @@ const AudioAnalysis = () => {
 
               <div className="p-6 pt-4">
                 <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground prose-li:text-muted-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md">
-                  <ReactMarkdown>{notes}</ReactMarkdown>
+                  <MarkdownRenderer>{notes}</MarkdownRenderer>
                 </div>
               </div>
             </div>
