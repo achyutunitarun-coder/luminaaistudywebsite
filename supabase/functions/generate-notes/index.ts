@@ -28,7 +28,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina), inspired by NotebookLM. Create detailed, well-organized notes with:
+            content: `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), inspired by NotebookLM. Create detailed, well-organized notes with:
 - Clear headings and subheadings
 - Key concepts highlighted in bold
 - Bullet points for easy scanning

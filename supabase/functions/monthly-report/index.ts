@@ -22,7 +22,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). You generate detailed monthly study reports for students. Be encouraging but honest about weaknesses." },
+          { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate detailed monthly study reports for students. Be encouraging but honest about weaknesses." },
           { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },
         ],
         tools: [{
