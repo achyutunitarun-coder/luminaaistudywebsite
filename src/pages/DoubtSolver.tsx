@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Send, HelpCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
