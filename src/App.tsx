@@ -19,7 +19,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import StudyPlanner from "@/pages/StudyPlanner";
 import NoteToQuiz from "@/pages/NoteToQuiz";
 import QuickStudy from "@/pages/QuickStudy";
-import FocusMode from "@/pages/FocusMode";
+
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
