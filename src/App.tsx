@@ -83,7 +83,7 @@ const App = () => (
               <Route path="/study-planner" element={<StudyPlanner />} />
               <Route path="/note-to-quiz" element={<NoteToQuiz />} />
               <Route path="/quick-study" element={<QuickStudy />} />
-              <Route path="/focus-mode" element={<FocusMode />} />
+              
               <Route path="/study-session" element={<StudySession />} />
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
