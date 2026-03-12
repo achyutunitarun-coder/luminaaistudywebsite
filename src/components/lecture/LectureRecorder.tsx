@@ -141,34 +141,46 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
         toast.info(`Large lecture detected: ${chunks.length} parts queued. Processing may take several minutes.`);
       }
 
-      const textParts: string[] = [];
-      const mergedWords: TranscriptWord[] = [];
+      const textParts = new Array<string>(chunks.length).fill('');
+      const wordsByChunk: TranscriptWord[][] = Array.from({ length: chunks.length }, () => []);
+      let completedChunks = 0;
+      let nextChunkIndex = 0;
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        setProcessingLabel(`Transcribing part ${i + 1}/${chunks.length}...`);
+      const concurrency = chunks.length >= 8 ? BASE_TRANSCRIPTION_CONCURRENCY : Math.min(2, chunks.length);
+      setProcessingLabel(`Transcribing audio... 0/${chunks.length} parts complete`);
 
-        const jobId = await startTranscriptionJob(chunk, authHeader);
-        const result = await pollForResult(jobId, authHeader);
+      const worker = async () => {
+        while (true) {
+          const chunkIndex = nextChunkIndex;
+          nextChunkIndex += 1;
+          if (chunkIndex >= chunks.length) return;
 
-        if (result?.text?.trim()) {
-          textParts.push(result.text.trim());
-        }
+          const chunk = chunks[chunkIndex];
+          const jobId = await startTranscriptionJob(chunk, authHeader);
+          const result = await pollForResult(jobId, authHeader);
 
-        if (Array.isArray(result?.words)) {
-          mergedWords.push(
-            ...result.words.map((word) => ({
+          if (result?.text?.trim()) {
+            textParts[chunkIndex] = result.text.trim();
+          }
+
+          if (Array.isArray(result?.words)) {
+            wordsByChunk[chunkIndex] = result.words.map((word) => ({
               ...word,
               start: typeof word.start === 'number' ? word.start + chunk.offsetSeconds : word.start,
               end: typeof word.end === 'number' ? word.end + chunk.offsetSeconds : word.end,
-            }))
-          );
+            }));
+          }
+
+          completedChunks += 1;
+          setProcessingLabel(`Transcribing audio... ${completedChunks}/${chunks.length} parts complete`);
         }
-      }
+      };
+
+      await Promise.all(Array.from({ length: Math.max(1, concurrency) }, () => worker()));
 
       const mergedTranscript: TranscriptResult = {
-        text: textParts.join('\n\n').trim(),
-        words: mergedWords,
+        text: textParts.filter(Boolean).join('\n\n').trim(),
+        words: wordsByChunk.flat(),
       };
 
       if (!mergedTranscript.text || mergedTranscript.text.length < 10) {
