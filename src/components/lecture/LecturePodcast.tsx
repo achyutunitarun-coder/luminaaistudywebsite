@@ -142,7 +142,55 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     }
   }, [notes, onScriptChange]);
 
-  const speakLine = (text: string, voice: SpeechSynthesisVoice | null, pitch: number, rate: number): Promise<void> => {
+  const waitForVoices = useCallback((timeoutMs = 1500): Promise<void> => {
+    if (speechSynthesis.getVoices().length) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        speechSynthesis.removeEventListener('voiceschanged', done);
+        resolve();
+      };
+
+      speechSynthesis.addEventListener('voiceschanged', done);
+      setTimeout(done, timeoutMs);
+    });
+  }, []);
+
+  const splitForSpeech = (text: string, maxChars = 220): string[] => {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) return [];
+    if (normalized.length <= maxChars) return [normalized];
+
+    const chunks: string[] = [];
+    let remaining = normalized;
+
+    while (remaining.length > maxChars) {
+      let splitAt = remaining.lastIndexOf('.', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf('?', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf('!', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf(',', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf(' ', maxChars);
+
+      const fallbackCut = Math.min(maxChars, remaining.length);
+      const cut = splitAt > 0 ? splitAt + 1 : fallbackCut;
+      const part = remaining.slice(0, cut).trim();
+      if (part) chunks.push(part);
+      remaining = remaining.slice(cut).trim();
+    }
+
+    if (remaining) chunks.push(remaining);
+    return chunks;
+  };
+
+  const speakChunk = (
+    text: string,
+    voice: SpeechSynthesisVoice | null,
+    pitch: number,
+    rate: number,
+  ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const utt = new SpeechSynthesisUtterance(text);
       utteranceRef.current = utt;
@@ -150,13 +198,50 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       utt.pitch = pitch;
       utt.rate = rate;
       utt.volume = 1;
-      utt.onend = () => resolve();
-      utt.onerror = (e) => {
-        if (e.error === 'canceled' || e.error === 'interrupted') resolve();
-        else reject(new Error('Speech failed'));
+
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
       };
+
+      utt.onend = finish;
+      utt.onerror = (e) => {
+        if (settled) return;
+        settled = true;
+        if (e.error === 'canceled' || e.error === 'interrupted') {
+          resolve();
+          return;
+        }
+        reject(new Error(e.error || 'synthesis-failed'));
+      };
+
       speechSynthesis.speak(utt);
     });
+  };
+
+  const speakLine = async (
+    text: string,
+    voice: SpeechSynthesisVoice | null,
+    pitch: number,
+    rate: number,
+  ): Promise<void> => {
+    const chunks = splitForSpeech(text);
+
+    for (const chunk of chunks) {
+      if (isCancelledRef.current) break;
+      try {
+        await speakChunk(chunk, voice, pitch, rate);
+      } catch {
+        // Fallback with default browser voice/settings for reliability.
+        await speakChunk(chunk, null, 1, 1);
+      }
+
+      if (!isCancelledRef.current) {
+        await new Promise((r) => setTimeout(r, 60));
+      }
+    }
   };
 
   const playPodcast = useCallback(async () => {
@@ -168,11 +253,13 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       return;
     }
 
+    await waitForVoices();
+
+    // Clear any stale queue before starting a new run.
+    speechSynthesis.cancel();
+    await new Promise((r) => setTimeout(r, 30));
+
     const { alex, sam } = getVoicePair();
-    if (!alex && !sam) {
-      toast.error('No speech voices available in your browser. Try Chrome for best results.');
-      return;
-    }
 
     setIsPlaying(true);
     setIsPaused(false);
@@ -181,31 +268,37 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     try {
       for (let i = 0; i < parsedScript.length; i++) {
         if (isCancelledRef.current) break;
+
         setCurrentLineIdx(i);
         const line = parsedScript[i];
         const isAlex = line.speaker === 'ALEX';
+
         await speakLine(
           line.text,
           isAlex ? alex : sam,
           isAlex ? 1.0 : 1.12,
           isAlex ? 0.95 : 1.0,
         );
-        // Small natural pause between speakers
+
         if (i < parsedScript.length - 1 && parsedScript[i + 1].speaker !== line.speaker) {
-          await new Promise(r => setTimeout(r, 250));
+          await new Promise((r) => setTimeout(r, 250));
         }
       }
+
       if (!isCancelledRef.current) toast.success('Podcast finished!');
-    } catch (e: any) {
-      if (!isCancelledRef.current) toast.error(e.message || 'Playback error');
+    } catch {
+      if (!isCancelledRef.current) {
+        toast.error('Speech synthesis failed in this browser. Try Chrome desktop for best results.');
+      }
     } finally {
       setIsPlaying(false);
       setIsPaused(false);
       setCurrentLineIdx(-1);
     }
-  }, [parsedScript, isPaused]);
+  }, [parsedScript, isPaused, waitForVoices]);
 
   const pausePodcast = useCallback(() => {
+    if (!speechSynthesis.speaking) return;
     speechSynthesis.pause();
     setIsPaused(true);
   }, []);
@@ -294,12 +387,13 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
           <div className="flex items-center gap-3">
             {!isPlaying ? (
               <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length}>
-                <Play className="w-4 h-4 mr-2" /> {isPaused ? 'Resume' : 'Play Podcast'}
+                <Play className="w-4 h-4 mr-2" /> Play Podcast
               </Button>
             ) : (
               <>
-                <Button onClick={pausePodcast} variant="outline" className="h-11 px-5 rounded-2xl">
-                  <Pause className="w-4 h-4 mr-2" /> Pause
+                <Button onClick={isPaused ? playPodcast : pausePodcast} variant="outline" className="h-11 px-5 rounded-2xl">
+                  {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+                  {isPaused ? 'Resume' : 'Pause'}
                 </Button>
                 <Button onClick={stopPodcast} variant="destructive" className="h-11 px-5 rounded-2xl">
                   <Square className="w-4 h-4 mr-2" /> Stop
