@@ -15,15 +15,18 @@ const LectureAI = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState('');
   const [notesGenerated, setNotesGenerated] = useState(false);
-  const notesAccumRef = useRef('');
+  const [isDocumentSource, setIsDocumentSource] = useState(false);
 
   const handleTranscriptReady = useCallback((data: any) => {
     setTranscript(data);
   }, []);
 
+  const handleDocumentTextReady = useCallback((_text: string) => {
+    setIsDocumentSource(true);
+  }, []);
+
   const handleSetNotes = useCallback((content: string) => {
-    notesAccumRef.current += content;
-    setNotes(notesAccumRef.current);
+    setNotes(content);
   }, []);
 
   const handleSetNotesGenerated = useCallback((v: boolean) => {
@@ -34,12 +37,11 @@ const LectureAI = () => {
     setTranscript(null);
     setNotes('');
     setNotesGenerated(false);
-    notesAccumRef.current = '';
+    setIsDocumentSource(false);
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center shadow-xl shadow-primary/25">
@@ -47,7 +49,7 @@ const LectureAI = () => {
           </div>
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Lecture AI</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">Record → Transcribe → Notes → Flashcards → Quiz → Podcast</p>
+            <p className="text-muted-foreground text-sm mt-0.5">Record, upload audio or documents → Notes → Flashcards → Quiz → Podcast</p>
           </div>
         </div>
       </motion.div>
@@ -57,14 +59,17 @@ const LectureAI = () => {
           onTranscriptReady={handleTranscriptReady}
           isProcessing={isProcessing}
           setIsProcessing={setIsProcessing}
+          onDocumentTextReady={handleDocumentTextReady}
         />
       ) : (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
           <div className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-2xl overflow-hidden">
-            <Tabs defaultValue="transcript" className="w-full">
+            <Tabs defaultValue={isDocumentSource ? "notes" : "transcript"} className="w-full">
               <div className="px-5 pt-5">
                 <TabsList className="w-full grid grid-cols-5 h-11 rounded-xl bg-muted/20">
-                  <TabsTrigger value="transcript" className="rounded-lg text-xs data-[state=active]:bg-background">Transcript</TabsTrigger>
+                  <TabsTrigger value="transcript" className="rounded-lg text-xs data-[state=active]:bg-background">
+                    {isDocumentSource ? 'Source' : 'Transcript'}
+                  </TabsTrigger>
                   <TabsTrigger value="notes" className="rounded-lg text-xs data-[state=active]:bg-background">Notes</TabsTrigger>
                   <TabsTrigger value="flashcards" className="rounded-lg text-xs data-[state=active]:bg-background">Flashcards</TabsTrigger>
                   <TabsTrigger value="quiz" className="rounded-lg text-xs data-[state=active]:bg-background">Quiz</TabsTrigger>

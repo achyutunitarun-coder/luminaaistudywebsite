@@ -5,17 +5,90 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const STYLE_PROMPTS: Record<string, string> = {
+  detailed: `Create extremely thorough and detailed study notes. Include:
+- Multiple levels of headings (H1, H2, H3) for clear hierarchy
+- Every key concept explained in depth with 2-3 sentences minimum
+- Bold key terms and italicize supporting details
+- Bullet points AND numbered lists where appropriate
+- Important formulas, definitions, and theorems in blockquotes
+- Real-world examples and analogies for complex concepts
+- "Common Mistakes" or "Watch Out" sections
+- Connections between different concepts
+- A detailed summary section at the end
+- Memory aids, mnemonics, and visualization tips
+- At least 2000-3000 words of content
+Be exhaustive — a student should be able to study ONLY from these notes.`,
+
+  exam: `Create exam-focused study notes optimized for test preparation. Include:
+- Key definitions in blockquotes with precise wording
+- All formulas with variable explanations
+- "Likely Exam Questions" sections after each topic
+- Quick-recall tables for comparing concepts
+- Highlighted "Must Remember" points in bold
+- Common exam traps and how to avoid them
+- Step-by-step problem-solving frameworks
+- Summary tables and comparison charts
+- Practice question hints at the end
+- At least 2000 words of focused content`,
+
+  simple: `Create clear, beginner-friendly study notes. Include:
+- Simple language — explain like teaching a friend
+- Lots of real-world analogies and examples
+- Visual descriptions (describe diagrams in words)
+- "Think of it this way..." sections for hard concepts
+- Key takeaways in bold
+- Short paragraphs with plenty of whitespace
+- Step-by-step breakdowns of processes
+- "In simple terms..." summaries after complex sections
+- Recap at the end with the 5 most important points
+- At least 1800 words of content`,
+
+  cornell: `Create notes in Cornell Method format. Structure:
+## Main Topic
+
+| Cues / Questions | Notes |
+|---|---|
+| Key question 1 | Detailed answer with examples |
+| Key question 2 | Detailed answer with examples |
+
+### Summary
+Concise summary paragraph.
+
+Follow this format for EVERY major section. Include:
+- Thoughtful cue questions that test understanding
+- Detailed notes with examples and connections
+- Comprehensive summaries
+- At least 2000 words of content`,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { topic, sourceText } = await req.json();
+    const { topic, sourceText, style, isRefinement } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    const stylePrompt = STYLE_PROMPTS[style || "detailed"] || STYLE_PROMPTS.detailed;
+
+    const systemPrompt = isRefinement
+      ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
+      : `You are Lumina AI's premium study notes generator. Your job is to create the most comprehensive, well-organized, and pedagogically effective study notes possible.
+
+${stylePrompt}
+
+CRITICAL RULES:
+- Be THOROUGH. Cover every concept mentioned in the source material.
+- Use markdown formatting extensively.
+- Never skip details — if something is mentioned, explain it fully.
+- Include transitions between sections for reading flow.
+- Add "Key Insight" callouts for particularly important points.
+- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original lecture.`;
+
     const userContent = sourceText
-      ? `Create comprehensive, well-structured study notes on "${topic}" using this source material:\n\n${sourceText}`
-      : `Create comprehensive, well-structured study notes on "${topic}".`;
+      ? sourceText
+      : `Create comprehensive study notes on "${topic}".`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -26,17 +99,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content: `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), inspired by NotebookLM. Create detailed, well-organized notes with:
-- Clear headings and subheadings
-- Key concepts highlighted in bold
-- Bullet points for easy scanning
-- Important formulas or definitions in blockquotes
-- Summary at the end
-- Memory aids and mnemonics where helpful
-Use markdown formatting. Be thorough but concise.`,
-          },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
         stream: true,
