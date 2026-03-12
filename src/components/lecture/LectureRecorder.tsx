@@ -119,7 +119,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       if (data.status === 'complete') return data.result;
       if (data.status === 'failed') throw new Error(data.error || 'Transcription failed');
 
-      await delay(3000);
+      await delay(POLL_INTERVAL_MS);
     }
 
     throw new Error('Transcription timed out. Please retry with a smaller chunk.');
