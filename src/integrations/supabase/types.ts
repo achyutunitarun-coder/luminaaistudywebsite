@@ -318,6 +318,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_lectures: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          podcast_script: string | null
+          source_type: string | null
+          title: string
+          transcript_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          podcast_script?: string | null
+          source_type?: string | null
+          title?: string
+          transcript_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          podcast_script?: string | null
+          source_type?: string | null
+          title?: string
+          transcript_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_plans: {
         Row: {
           created_at: string
