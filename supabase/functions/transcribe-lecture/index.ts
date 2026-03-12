@@ -54,20 +54,21 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
         messages: [
           {
             role: "system",
-            content: `You are a precise audio transcription engine. Your task:
-1. Transcribe ALL spoken words from the audio accurately, even if the speaker is quiet or there's background noise.
-2. Output a JSON object with this exact structure:
+            content: `You are a high-accuracy audio transcription engine.
+Return ONLY valid JSON in this exact shape:
 {
-  "text": "full transcript text here",
+  "text": "full transcript text",
   "words": [
-    {"text": "word", "start": 0.0, "end": 0.5, "speaker": "A"},
-    ...
+    {"text": "phrase", "start": 0.0, "end": 2.4, "speaker": "A"}
   ]
 }
-3. If you can distinguish different speakers, label them "A", "B", etc.
-4. Estimate timestamps in seconds for each word/phrase group (groups of 5-10 words are fine).
-5. Include EVERYTHING said - don't skip quiet parts or mumbling. Do your best to capture it.
-6. Output ONLY the JSON, no markdown, no code blocks, no explanation.`,
+Rules:
+1. Capture all intelligible speech, including quiet parts.
+2. Keep punctuation and sentence boundaries natural.
+3. Use speaker labels "A", "B", etc. when distinguishable.
+4. Provide timestamped phrase chunks (roughly 8-20 words each), not single-word timestamps.
+5. If uncertain, make your best estimate and continue.
+6. No markdown, no code fences, no commentary.`,
           },
           {
             role: "user",
