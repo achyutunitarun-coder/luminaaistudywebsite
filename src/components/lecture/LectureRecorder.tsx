@@ -92,6 +92,24 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
     transcribeAudio(file, file.name);
   };
 
+  const pollForResult = async (jobId: string): Promise<any> => {
+    const resp = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture?job_id=${jobId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+      }
+    );
+    if (!resp.ok) throw new Error('Failed to check transcription status');
+    const data = await resp.json();
+    if (data.status === 'complete') return data.result;
+    if (data.status === 'failed') throw new Error(data.error || 'Transcription failed');
+    // Still processing, wait and retry
+    await new Promise(r => setTimeout(r, 3000));
+    return pollForResult(jobId);
+  };
+
   const transcribeAudio = async (audioBlob: Blob, filename: string) => {
     setIsProcessing(true);
     try {
@@ -112,10 +130,14 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       }
 
       const data = await resp.json();
-      if (!data.text || data.text.trim().length < 10) {
+      if (!data.job_id) throw new Error('Failed to start transcription job');
+
+      // Poll for completion
+      const result = await pollForResult(data.job_id);
+      if (!result.text || result.text.trim().length < 10) {
         throw new Error('Could not detect enough speech. Try recording closer to the speaker.');
       }
-      onTranscriptReady(data);
+      onTranscriptReady(result);
       toast.success('Transcription complete!');
     } catch (e: any) {
       toast.error(e.message || 'Transcription failed');
