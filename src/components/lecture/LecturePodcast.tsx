@@ -387,7 +387,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
           <div className="flex items-center gap-3">
             {!isPlaying ? (
               <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length}>
-                <Play className="w-4 h-4 mr-2" /> {isPaused ? 'Resume' : 'Play Podcast'}
+                <Play className="w-4 h-4 mr-2" /> Play Podcast
               </Button>
             ) : (
               <>
