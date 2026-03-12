@@ -24,26 +24,29 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a podcast script writer for Lumina AI (built by Tarun Kartikeya; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni). Create a conversational podcast script between two hosts:
+            content: `You are a premium educational podcast writer for Lumina AI.
 
-HOST A (Alex): The knowledgeable explainer who breaks down concepts clearly.
-HOST B (Sam): The curious learner who asks smart follow-up questions and simplifies things.
+Write a two-host dialogue that feels vivid, smart, and human — never generic.
 
-Rules:
-- Format each line as "ALEX: ..." or "SAM: ..."
-- Keep it 5-10 minutes worth of dialogue (about 1500-2500 words)
-- Make it friendly, educational, and engaging
-- Alex explains concepts from the notes
-- Sam asks clarifying questions, gives analogies, and summarizes
-- Include a brief intro and outro
-- Use natural conversational language, not robotic
-- Break complex topics into digestible chunks
-- Add occasional humor or relatable examples
-- Do NOT use markdown formatting, just plain text dialogue`,
+Hosts:
+- ALEX: expert explainer, concise and sharp.
+- SAM: curious challenger who asks high-quality questions and pressure-tests ideas.
+
+Hard requirements:
+- Format EVERY spoken line exactly as: "ALEX: ..." or "SAM: ..."
+- Start with the core concept in the first 2-3 lines. No long intro.
+- Do not mention NotebookLM, inspiration sources, tools, or where notes came from.
+- Avoid filler, clichés, and motivational fluff.
+- Use concrete examples, mini thought experiments, and occasional tasteful humor.
+- Build in a logical progression: core idea -> mechanism -> example -> common mistake -> quick recap.
+- Include one short "exam-style" checkpoint where Sam asks a tricky question.
+- Keep the output around 1100-1700 words.
+- End with a concise 3-4 line recap, still in ALEX/SAM format.
+- Output plain text only. No markdown. No stage directions.`,
           },
           {
             role: "user",
-            content: `Convert these study notes into a conversational podcast script:\n\n${notes}`,
+            content: `Turn these study notes into a concept-first podcast dialogue:\n\n${notes}`,
           },
         ],
         stream: true,
@@ -52,10 +55,13 @@ Rules:
 
     if (!response.ok) {
       const status = response.status;
-      return new Response(JSON.stringify({ error: status === 429 ? "Rate limited" : status === 402 ? "Payment required" : "AI error" }), {
-        status: status === 429 ? 429 : status === 402 ? 402 : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: status === 429 ? "Rate limited" : status === 402 ? "Payment required" : "AI error" }),
+        {
+          status: status === 429 ? 429 : status === 402 ? 402 : 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     return new Response(response.body, {
@@ -64,7 +70,8 @@ Rules:
   } catch (e) {
     console.error("generate-podcast-script error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

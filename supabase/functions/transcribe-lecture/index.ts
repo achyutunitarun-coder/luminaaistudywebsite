@@ -7,6 +7,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
+    const json = atob(padded);
+
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+const extractUserId = (authHeader: string | null): string => {
+  const token = authHeader?.replace("Bearer ", "").trim() || "";
+  if (token.split(".").length === 3) {
+    const payload = decodeJwtPayload(token);
+    const sub = typeof payload?.sub === "string" ? payload.sub : null;
+    if (sub && UUID_REGEX.test(sub)) return sub;
+  }
+
+  return crypto.randomUUID();
+};
+
 async function processTranscription(jobId: string, base64Audio: string, mimeType: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -71,11 +99,7 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
     let transcript;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        transcript = JSON.parse(jsonMatch[0]);
-      } else {
-        transcript = { text: content, words: [] };
-      }
+      transcript = jsonMatch ? JSON.parse(jsonMatch[0]) : { text: content, words: [] };
     } catch {
       transcript = { text: content, words: [] };
     }
@@ -104,9 +128,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if this is a poll request
     const url = new URL(req.url);
     const jobId = url.searchParams.get("job_id");
+
     if (jobId) {
       const { data, error } = await supabase
         .from("transcription_jobs")
@@ -115,54 +139,51 @@ serve(async (req) => {
         .single();
 
       if (error) throw new Error("Job not found");
+
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Handle new transcription upload
     const formData = await req.formData();
-    const audioFile = formData.get("audio") as File;
-    if (!audioFile) throw new Error("No audio file provided");
+    const audioFile = formData.get("audio") as File | null;
 
-    // Get user_id from auth header
-    const authHeader = req.headers.get("authorization") || "";
-    let userId = "anonymous";
-    try {
-      const token = authHeader.replace("Bearer ", "");
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      userId = payload.sub || "anonymous";
-    } catch {}
+    if (!audioFile) throw new Error("No audio file provided");
+    if (audioFile.size === 0) throw new Error("Audio file is empty");
+
+    const userId = extractUserId(req.headers.get("authorization"));
 
     const arrayBuffer = await audioFile.arrayBuffer();
-    const base64Audio = base64Encode(arrayBuffer);
+    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
 
+    const fileType = (audioFile.type || "").toLowerCase();
     const name = audioFile.name.toLowerCase();
-    let mimeType = "audio/webm";
-    if (name.endsWith(".mp3")) mimeType = "audio/mpeg";
-    else if (name.endsWith(".wav")) mimeType = "audio/wav";
-    else if (name.endsWith(".m4a")) mimeType = "audio/mp4";
 
-    // Create job record
+    let mimeType = "audio/webm";
+    if (fileType.includes("wav") || name.endsWith(".wav")) mimeType = "audio/wav";
+    else if (fileType.includes("mpeg") || name.endsWith(".mp3")) mimeType = "audio/mpeg";
+    else if (fileType.includes("mp4") || name.endsWith(".m4a")) mimeType = "audio/mp4";
+
     const { data: job, error: insertError } = await supabase
       .from("transcription_jobs")
       .insert({ user_id: userId, status: "processing" })
-      .select()
+      .select("id")
       .single();
 
-    if (insertError) throw new Error("Failed to create job: " + insertError.message);
+    if (insertError || !job) {
+      throw new Error(`Failed to create job: ${insertError?.message ?? "Unknown insert error"}`);
+    }
 
-    // Start background processing
     EdgeRuntime.waitUntil(processTranscription(job.id, base64Audio, mimeType));
 
-    // Return immediately with job ID
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("transcribe-lecture error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
