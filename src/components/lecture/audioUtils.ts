@@ -6,18 +6,14 @@ export interface PreparedAudioChunk {
 }
 
 const TARGET_SAMPLE_RATE = 16_000;
-const DEFAULT_CHUNK_SECONDS = 8 * 60;
+const DEFAULT_CHUNK_SECONDS = 75;
+const MAX_SINGLE_CHUNK_BYTES = 4 * 1024 * 1024;
+const MAX_CHUNKS = 240;
 
 export const getPreferredRecordingMimeType = (): string => {
   if (typeof MediaRecorder === 'undefined') return '';
 
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/mp4',
-    'audio/webm',
-    'audio/ogg;codecs=opus',
-  ];
-
+  const candidates = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'];
   return candidates.find((mime) => MediaRecorder.isTypeSupported(mime)) ?? '';
 };
 
@@ -121,6 +117,10 @@ export const prepareAudioChunksForTranscription = async (
       });
     }
 
+    if (chunks.length > MAX_CHUNKS) {
+      throw new Error('This audio is extremely long. Please split into smaller recordings (under 5 hours each).');
+    }
+
     return chunks.length
       ? chunks
       : [
@@ -132,6 +132,10 @@ export const prepareAudioChunksForTranscription = async (
           },
         ];
   } catch {
+    if (audioBlob.size > MAX_SINGLE_CHUNK_BYTES) {
+      throw new Error('Unsupported codec for long-file chunking. Export as MP3 or WAV and retry.');
+    }
+
     return [
       {
         blob: audioBlob,

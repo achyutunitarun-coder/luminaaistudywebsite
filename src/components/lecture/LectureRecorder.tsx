@@ -258,7 +258,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
           return;
         }
 
-        void transcribeAudio(blob, `lecture-recording-${Date.now()}.webm`);
+        const extension = recorderMime.includes('mp4') ? 'm4a' : recorderMime.includes('ogg') ? 'ogg' : 'webm';
+        void transcribeAudio(blob, `lecture-recording-${Date.now()}.${extension}`);
       };
 
       recorder.start(800);
