@@ -1,8 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Upload, Loader2, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  getPreferredRecordingMimeType,
+  prepareAudioChunksForTranscription,
+  type PreparedAudioChunk,
+} from '@/components/lecture/audioUtils';
 
 interface Props {
   onTranscriptReady: (transcript: any) => void;
@@ -10,150 +16,274 @@ interface Props {
   setIsProcessing: (v: boolean) => void;
 }
 
+interface TranscriptWord {
+  text: string;
+  start?: number;
+  end?: number;
+  speaker?: string;
+}
+
+interface TranscriptResult {
+  text: string;
+  words?: TranscriptWord[];
+}
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: Props) => {
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [processingLabel, setProcessingLabel] = useState('Analyzing audio and extracting speech...');
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rawStreamRef = useRef<MediaStream | null>(null);
+  const processedStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  const startRecording = useCallback(async () => {
-    try {
-      // Request mic with audio processing to boost quiet voices
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true, // Auto-boost quiet audio
-        },
-      });
+  const cleanupAudioPipeline = useCallback(async () => {
+    rawStreamRef.current?.getTracks().forEach((track) => track.stop());
+    processedStreamRef.current?.getTracks().forEach((track) => track.stop());
 
-      // Apply additional gain boost via Web Audio API
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 2.5; // Boost quiet voices by 2.5x
-      const compressor = audioContext.createDynamicsCompressor();
-      compressor.threshold.value = -50;
-      compressor.knee.value = 40;
-      compressor.ratio.value = 4;
-      compressor.attack.value = 0;
-      compressor.release.value = 0.25;
+    rawStreamRef.current = null;
+    processedStreamRef.current = null;
 
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(gainNode);
-      gainNode.connect(compressor);
-      compressor.connect(destination);
-
-      const processedStream = destination.stream;
-      const mediaRecorder = new MediaRecorder(processedStream, { mimeType: 'audio/webm' });
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        processedStream.getTracks().forEach(t => t.stop());
-        audioContext.close();
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        transcribeAudio(blob, 'recording.webm');
-      };
-
-      mediaRecorder.start(1000);
-      mediaRecorderRef.current = mediaRecorder;
-      setRecording(true);
-      setRecordingTime(0);
-      timerRef.current = window.setInterval(() => setRecordingTime(t => t + 1), 1000);
-      toast.success('Recording started — even quiet voices will be captured');
-    } catch {
-      toast.error('Microphone access denied');
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      await audioContextRef.current.close();
     }
+    audioContextRef.current = null;
   }, []);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-    if (timerRef.current) clearInterval(timerRef.current);
-    setRecording(false);
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      void cleanupAudioPipeline();
+    };
+  }, [cleanupAudioPipeline]);
+
+  const getAuthorizationHeader = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return `Bearer ${token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
   }, []);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error('File must be under 20MB');
-      return;
-    }
-    transcribeAudio(file, file.name);
-  };
+  const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string) => {
+    const formData = new FormData();
+    formData.append('audio', chunk.blob, chunk.filename);
 
-  const pollForResult = async (jobId: string): Promise<any> => {
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture?job_id=${jobId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-      }
-    );
-    if (!resp.ok) throw new Error('Failed to check transcription status');
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture`, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+      },
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Transcription failed' }));
+      throw new Error(err.error || `Transcription failed: ${resp.status}`);
+    }
+
     const data = await resp.json();
-    if (data.status === 'complete') return data.result;
-    if (data.status === 'failed') throw new Error(data.error || 'Transcription failed');
-    // Still processing, wait and retry
-    await new Promise(r => setTimeout(r, 3000));
-    return pollForResult(jobId);
-  };
+    if (!data.job_id) throw new Error('Failed to start transcription job');
+    return data.job_id as string;
+  }, []);
 
-  const transcribeAudio = async (audioBlob: Blob, filename: string) => {
-    setIsProcessing(true);
-    try {
-      const formData = new FormData();
-      formData.append('audio', audioBlob, filename);
+  const pollForResult = useCallback(async (jobId: string, authHeader: string): Promise<TranscriptResult> => {
+    const timeoutMs = 60 * 60 * 1000; // 1 hour
+    const startedAt = Date.now();
 
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture`, {
-        method: 'POST',
+    while (Date.now() - startedAt < timeoutMs) {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture?job_id=${jobId}`, {
         headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: authHeader,
         },
-        body: formData,
       });
 
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'Transcription failed' }));
-        throw new Error(err.error || `Transcription failed: ${resp.status}`);
-      }
+      if (!resp.ok) throw new Error('Failed to check transcription status');
 
       const data = await resp.json();
-      if (!data.job_id) throw new Error('Failed to start transcription job');
+      if (data.status === 'complete') return data.result;
+      if (data.status === 'failed') throw new Error(data.error || 'Transcription failed');
 
-      // Poll for completion
-      const result = await pollForResult(data.job_id);
-      if (!result.text || result.text.trim().length < 10) {
+      await delay(3000);
+    }
+
+    throw new Error('Transcription timed out. Please retry with a smaller chunk.');
+  }, []);
+
+  const transcribeAudio = useCallback(async (audioBlob: Blob, filename: string) => {
+    setIsProcessing(true);
+
+    try {
+      setProcessingLabel('Preparing audio for transcription...');
+      const chunks = await prepareAudioChunksForTranscription(audioBlob, filename);
+      const authHeader = await getAuthorizationHeader();
+
+      if (chunks.length > 1) {
+        toast.info(`Long audio detected: split into ${chunks.length} parts for reliable transcription.`);
+      }
+
+      const textParts: string[] = [];
+      const mergedWords: TranscriptWord[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        setProcessingLabel(`Transcribing part ${i + 1}/${chunks.length}...`);
+
+        const jobId = await startTranscriptionJob(chunk, authHeader);
+        const result = await pollForResult(jobId, authHeader);
+
+        if (result?.text?.trim()) {
+          textParts.push(result.text.trim());
+        }
+
+        if (Array.isArray(result?.words)) {
+          mergedWords.push(
+            ...result.words.map((word) => ({
+              ...word,
+              start: typeof word.start === 'number' ? word.start + chunk.offsetSeconds : word.start,
+              end: typeof word.end === 'number' ? word.end + chunk.offsetSeconds : word.end,
+            }))
+          );
+        }
+      }
+
+      const mergedTranscript: TranscriptResult = {
+        text: textParts.join('\n\n').trim(),
+        words: mergedWords,
+      };
+
+      if (!mergedTranscript.text || mergedTranscript.text.length < 10) {
         throw new Error('Could not detect enough speech. Try recording closer to the speaker.');
       }
-      onTranscriptReady(result);
+
+      onTranscriptReady(mergedTranscript);
       toast.success('Transcription complete!');
     } catch (e: any) {
       toast.error(e.message || 'Transcription failed');
     } finally {
       setIsProcessing(false);
+      setProcessingLabel('Analyzing audio and extracting speech...');
     }
-  };
+  }, [getAuthorizationHeader, onTranscriptReady, pollForResult, setIsProcessing, startTranscriptionJob]);
 
-  const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+        },
+      });
+
+      rawStreamRef.current = stream;
+
+      let recordingStream: MediaStream = stream;
+      try {
+        const audioContext = new AudioContext({ sampleRate: 48000 });
+        audioContextRef.current = audioContext;
+
+        const source = audioContext.createMediaStreamSource(stream);
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = 2.2;
+
+        const compressor = audioContext.createDynamicsCompressor();
+        compressor.threshold.value = -30;
+        compressor.knee.value = 22;
+        compressor.ratio.value = 10;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.2;
+
+        const destination = audioContext.createMediaStreamDestination();
+
+        source.connect(gainNode);
+        gainNode.connect(compressor);
+        compressor.connect(destination);
+
+        recordingStream = destination.stream;
+        processedStreamRef.current = recordingStream;
+      } catch {
+        toast.info('Advanced audio processing unavailable — using direct microphone input.');
+      }
+
+      const preferredMimeType = getPreferredRecordingMimeType();
+      const recorder = preferredMimeType
+        ? new MediaRecorder(recordingStream, { mimeType: preferredMimeType, audioBitsPerSecond: 128000 })
+        : new MediaRecorder(recordingStream, { audioBitsPerSecond: 128000 });
+
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+
+      recorder.onerror = () => {
+        toast.error('Recording failed. Please retry.');
+        setRecording(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+        void cleanupAudioPipeline();
+      };
+
+      recorder.onstop = () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setRecording(false);
+
+        const recorderMime = recorder.mimeType?.split(';')[0] || preferredMimeType.split(';')[0] || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: recorderMime });
+        chunksRef.current = [];
+
+        void cleanupAudioPipeline();
+
+        if (blob.size < 2048) {
+          toast.error('Recording is too short to transcribe.');
+          return;
+        }
+
+        void transcribeAudio(blob, `lecture-recording-${Date.now()}.webm`);
+      };
+
+      recorder.start(800);
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+      setRecordingTime(0);
+      timerRef.current = window.setInterval(() => setRecordingTime((t) => t + 1), 1000);
+      toast.success('Recording started — voice boost is active.');
+    } catch {
+      toast.error('Microphone access denied');
+    }
+  }, [cleanupAudioPipeline, transcribeAudio]);
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+
+    if (recorder.state !== 'inactive') {
+      recorder.requestData();
+      recorder.stop();
+    }
+
+    mediaRecorderRef.current = null;
+  }, []);
+
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void transcribeAudio(file, file.name);
+  }, [transcribeAudio]);
+
+  const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
   if (isProcessing) {
     return (
       <div className="flex flex-col items-center py-20">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
         <h2 className="text-xl font-display font-bold text-foreground mb-1">Transcribing Audio</h2>
-        <p className="text-muted-foreground text-sm">Analyzing audio and extracting speech...</p>
+        <p className="text-muted-foreground text-sm text-center">{processingLabel}</p>
       </div>
     );
   }
@@ -176,7 +306,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
                 <span className="text-sm font-semibold text-destructive uppercase tracking-wider">Recording</span>
               </div>
               <span className="text-3xl font-mono font-bold text-foreground mb-2 tabular-nums">{formatTime(recordingTime)}</span>
-              <p className="text-xs text-muted-foreground mb-6">Audio boost active — quiet voices amplified</p>
+              <p className="text-xs text-muted-foreground mb-6">Optimized gain + dynamics capture quiet lecture voices</p>
               <Button onClick={stopRecording} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-12 px-8 rounded-2xl">
                 <StopCircle className="w-5 h-5 mr-2" /> Stop Recording
               </Button>
@@ -194,7 +324,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
               </motion.button>
               <h2 className="text-2xl font-display font-bold text-foreground mb-2">Record a Lecture</h2>
               <p className="text-muted-foreground text-sm text-center max-w-md mb-6">
-                Record live or upload an audio file. Built-in audio boost captures even quiet professors clearly.
+                Record live or upload audio of any length. Long files are auto-split into chunks and merged into one transcript.
               </p>
               <div className="flex gap-3">
                 <Button onClick={startRecording} className="h-11 px-6 rounded-2xl">
@@ -203,7 +333,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="h-11 px-6 rounded-2xl">
                   <Upload className="w-4 h-4 mr-2" /> Upload File
                 </Button>
-                <input ref={fileInputRef} type="file" accept=".mp3,.wav,.m4a,.webm,audio/*" onChange={handleFileUpload} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
               </div>
             </motion.div>
           )}
