@@ -87,7 +87,7 @@ const App = () => (
               <Route path="/study-session" element={<StudySession />} />
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
-              <Route path="/audio-analysis" element={<AudioAnalysis />} />
+              <Route path="/lecture-ai" element={<LectureAI />} />
               <Route path="/youtube-summary" element={<YouTubeSummary />} />
               <Route path="/flowcharts" element={<Flowcharts />} />
               <Route path="/smart-notebook" element={<SmartNotebook />} />
