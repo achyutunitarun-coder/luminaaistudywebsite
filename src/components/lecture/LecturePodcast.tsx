@@ -142,7 +142,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     }
   }, [notes, onScriptChange]);
 
-  const waitForVoices = (timeoutMs = 1500): Promise<void> => {
+  const waitForVoices = useCallback((timeoutMs = 1500): Promise<void> => {
     if (speechSynthesis.getVoices().length) return Promise.resolve();
 
     return new Promise((resolve) => {
@@ -157,7 +157,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       speechSynthesis.addEventListener('voiceschanged', done);
       setTimeout(done, timeoutMs);
     });
-  };
+  }, []);
 
   const splitForSpeech = (text: string, maxChars = 220): string[] => {
     const normalized = text.replace(/\s+/g, ' ').trim();
