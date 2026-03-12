@@ -5,9 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Voice IDs for podcast hosts
-const VOICE_ALEX = "cjVigY5qzO86Huf0OWal"; // Eric - clear, confident
-const VOICE_SAM = "EXAVITQu4vr4xnSDxMaL"; // Sarah - warm, curious
+// Natural-sounding voices for podcast hosts
+const VOICE_ALEX = "cjVigY5qzO86Huf0OWal"; // Eric - clear, confident male
+const VOICE_SAM = "EXAVITQu4vr4xnSDxMaL"; // Sarah - warm, expressive female
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -19,6 +19,7 @@ serve(async (req) => {
 
     const voiceId = voice === "sam" ? VOICE_SAM : VOICE_ALEX;
 
+    // Use eleven_multilingual_v2 for most natural speech
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
       {
@@ -29,11 +30,11 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           text,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.55,
-            similarity_boost: 0.75,
-            style: 0.4,
+            stability: 0.45,
+            similarity_boost: 0.78,
+            style: 0.55,
             use_speaker_boost: true,
           },
         }),
@@ -44,12 +45,12 @@ serve(async (req) => {
       const errText = await response.text();
       console.error("ElevenLabs TTS error:", response.status, errText);
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+        return new Response(JSON.stringify({ error: "Voice synthesis rate limited. Please wait a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Insufficient ElevenLabs credits." }), {
+        return new Response(JSON.stringify({ error: "ElevenLabs credits exhausted." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
