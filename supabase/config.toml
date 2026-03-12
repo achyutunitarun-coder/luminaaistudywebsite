@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.generate-lecture-tools]
 verify_jwt = false
+
+[functions.transcribe-lecture]
+verify_jwt = false

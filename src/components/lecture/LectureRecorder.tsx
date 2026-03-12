@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Upload, Loader2, FileAudio, StopCircle } from 'lucide-react';
+import { Mic, Upload, Loader2, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -20,8 +20,34 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      // Request mic with audio processing to boost quiet voices
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true, // Auto-boost quiet audio
+        },
+      });
+
+      // Apply additional gain boost via Web Audio API
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 2.5; // Boost quiet voices by 2.5x
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.value = -50;
+      compressor.knee.value = 40;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0;
+      compressor.release.value = 0.25;
+
+      const destination = audioContext.createMediaStreamDestination();
+      source.connect(gainNode);
+      gainNode.connect(compressor);
+      compressor.connect(destination);
+
+      const processedStream = destination.stream;
+      const mediaRecorder = new MediaRecorder(processedStream, { mimeType: 'audio/webm' });
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
@@ -30,6 +56,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
 
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
+        processedStream.getTracks().forEach(t => t.stop());
+        audioContext.close();
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         transcribeAudio(blob, 'recording.webm');
       };
@@ -39,7 +67,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       setRecording(true);
       setRecordingTime(0);
       timerRef.current = window.setInterval(() => setRecordingTime(t => t + 1), 1000);
-      toast.success('Recording started');
+      toast.success('Recording started — even quiet voices will be captured');
     } catch {
       toast.error('Microphone access denied');
     }
@@ -57,11 +85,6 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'audio/webm', 'audio/mp3'];
-    if (!validTypes.some(t => file.type.includes(t.split('/')[1]))) {
-      toast.error('Please upload an mp3, wav, or m4a file');
-      return;
-    }
     if (file.size > 20 * 1024 * 1024) {
       toast.error('File must be under 20MB');
       return;
@@ -75,7 +98,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       const formData = new FormData();
       formData.append('audio', audioBlob, filename);
 
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`, {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-lecture`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
@@ -85,10 +108,13 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: 'Transcription failed' }));
-        throw new Error(err.error || 'Transcription failed');
+        throw new Error(err.error || `Transcription failed: ${resp.status}`);
       }
 
       const data = await resp.json();
+      if (!data.text || data.text.trim().length < 10) {
+        throw new Error('Could not detect enough speech. Try recording closer to the speaker.');
+      }
       onTranscriptReady(data);
       toast.success('Transcription complete!');
     } catch (e: any) {
@@ -105,7 +131,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       <div className="flex flex-col items-center py-20">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
         <h2 className="text-xl font-display font-bold text-foreground mb-1">Transcribing Audio</h2>
-        <p className="text-muted-foreground text-sm">This may take a moment for longer recordings...</p>
+        <p className="text-muted-foreground text-sm">Analyzing audio and extracting speech...</p>
       </div>
     );
   }
@@ -127,7 +153,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
                 <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
                 <span className="text-sm font-semibold text-destructive uppercase tracking-wider">Recording</span>
               </div>
-              <span className="text-3xl font-mono font-bold text-foreground mb-6 tabular-nums">{formatTime(recordingTime)}</span>
+              <span className="text-3xl font-mono font-bold text-foreground mb-2 tabular-nums">{formatTime(recordingTime)}</span>
+              <p className="text-xs text-muted-foreground mb-6">Audio boost active — quiet voices amplified</p>
               <Button onClick={stopRecording} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-12 px-8 rounded-2xl">
                 <StopCircle className="w-5 h-5 mr-2" /> Stop Recording
               </Button>
@@ -145,7 +172,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
               </motion.button>
               <h2 className="text-2xl font-display font-bold text-foreground mb-2">Record a Lecture</h2>
               <p className="text-muted-foreground text-sm text-center max-w-md mb-6">
-                Record live or upload an audio file (mp3, wav, m4a). We'll transcribe it and generate study materials.
+                Record live or upload an audio file. Built-in audio boost captures even quiet professors clearly.
               </p>
               <div className="flex gap-3">
                 <Button onClick={startRecording} className="h-11 px-6 rounded-2xl">
