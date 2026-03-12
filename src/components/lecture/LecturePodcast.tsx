@@ -295,7 +295,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       setIsPaused(false);
       setCurrentLineIdx(-1);
     }
-  }, [parsedScript, isPaused]);
+  }, [parsedScript, isPaused, waitForVoices]);
 
   const pausePodcast = useCallback(() => {
     if (!speechSynthesis.speaking) return;
