@@ -27,7 +27,6 @@ const moreNav = [
   { title: 'Study Planner', url: '/study-planner' },
   
   { title: 'Weakness Radar', url: '/weakness-radar' },
-  { title: 'Flowcharts', url: '/flowcharts' },
   { title: 'Settings', url: '/settings' },
 ];
 
