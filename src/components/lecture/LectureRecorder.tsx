@@ -176,7 +176,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       onTranscriptReady(mergedTranscript);
       toast.success('Transcription complete!');
     } catch (e: any) {
-      toast.error(e.message || 'Transcription failed');
+      const message = String(e?.message || 'Transcription failed');
+      toast.error(message.includes('546') ? 'Transcription request overloaded. We auto-retry now with smaller payloads — please retry once.' : message);
     } finally {
       setIsProcessing(false);
       setProcessingLabel('Analyzing audio and extracting speech...');
