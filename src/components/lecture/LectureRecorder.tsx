@@ -138,7 +138,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       }
 
       if (chunks.length > 40) {
-        toast.info(`Large lecture detected: ${chunks.length} parts queued. Processing may take several minutes.`);
+        toast.info(`Large lecture detected: ${chunks.length} parts queued with parallel processing for faster completion.`);
       }
 
       const textParts = new Array<string>(chunks.length).fill('');
