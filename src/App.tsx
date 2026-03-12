@@ -23,7 +23,7 @@ import QuickStudy from "@/pages/QuickStudy";
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
-import AudioAnalysis from "@/pages/AudioAnalysis";
+import LectureAI from "@/pages/LectureAI";
 import YouTubeSummary from "@/pages/YouTubeSummary";
 import Flowcharts from "@/pages/Flowcharts";
 import SmartNotebook from "@/pages/SmartNotebook";
@@ -87,7 +87,7 @@ const App = () => (
               <Route path="/study-session" element={<StudySession />} />
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
-              <Route path="/audio-analysis" element={<AudioAnalysis />} />
+              <Route path="/lecture-ai" element={<LectureAI />} />
               <Route path="/youtube-summary" element={<YouTubeSummary />} />
               <Route path="/flowcharts" element={<Flowcharts />} />
               <Route path="/smart-notebook" element={<SmartNotebook />} />

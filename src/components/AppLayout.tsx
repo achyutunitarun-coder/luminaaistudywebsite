@@ -20,7 +20,7 @@ const moreNav = [
   { title: 'Notes', url: '/notes-generator' },
   { title: 'Quest', url: '/quest' },
   { title: 'Doubt Solver', url: '/doubt-solver' },
-  { title: 'Audio Analysis', url: '/audio-analysis' },
+  { title: 'Lecture AI', url: '/lecture-ai' },
   { title: 'YouTube Summary', url: '/youtube-summary' },
   { title: 'Note to Quiz', url: '/note-to-quiz' },
   { title: 'Quick Study', url: '/quick-study' },

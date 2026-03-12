@@ -14,3 +14,15 @@ verify_jwt = false
 
 [functions.youtube-summary]
 verify_jwt = false
+
+[functions.elevenlabs-transcribe]
+verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.generate-podcast-script]
+verify_jwt = false
+
+[functions.generate-lecture-tools]
+verify_jwt = false
