@@ -23,7 +23,7 @@ import QuickStudy from "@/pages/QuickStudy";
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
-import AudioAnalysis from "@/pages/AudioAnalysis";
+import LectureAI from "@/pages/LectureAI";
 import YouTubeSummary from "@/pages/YouTubeSummary";
 import Flowcharts from "@/pages/Flowcharts";
 import SmartNotebook from "@/pages/SmartNotebook";
