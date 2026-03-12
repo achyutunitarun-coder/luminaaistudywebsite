@@ -6,9 +6,29 @@ export interface PreparedAudioChunk {
 }
 
 const TARGET_SAMPLE_RATE = 16_000;
-const DEFAULT_CHUNK_SECONDS = 75;
+const DEFAULT_CHUNK_SECONDS = 90;
+const MIN_CHUNK_SECONDS = 75;
+const MAX_CHUNK_SECONDS = 150;
+const TARGET_CHUNK_BYTES = Math.floor(4.8 * 1024 * 1024);
 const MAX_SINGLE_CHUNK_BYTES = 4 * 1024 * 1024;
 const MAX_CHUNKS = 240;
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const getAdaptiveChunkSeconds = (durationSeconds: number, requestedChunkSeconds?: number) => {
+  const maxChunkByBytes = Math.floor(TARGET_CHUNK_BYTES / (TARGET_SAMPLE_RATE * 2));
+  const safeMaxChunkSeconds = Math.min(MAX_CHUNK_SECONDS, maxChunkByBytes);
+
+  if (typeof requestedChunkSeconds === 'number' && Number.isFinite(requestedChunkSeconds) && requestedChunkSeconds > 0) {
+    return clamp(requestedChunkSeconds, MIN_CHUNK_SECONDS, safeMaxChunkSeconds);
+  }
+
+  if (durationSeconds > 2 * 60 * 60) return safeMaxChunkSeconds;
+  if (durationSeconds > 45 * 60) return Math.min(130, safeMaxChunkSeconds);
+  if (durationSeconds > 15 * 60) return Math.min(110, safeMaxChunkSeconds);
+
+  return Math.min(DEFAULT_CHUNK_SECONDS, safeMaxChunkSeconds);
+};
 
 export const getPreferredRecordingMimeType = (): string => {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -94,7 +114,7 @@ const encodeMonoPcm16ToWav = (samples: Float32Array, sampleRate: number): Blob =
 export const prepareAudioChunksForTranscription = async (
   audioBlob: Blob,
   filename: string,
-  chunkSeconds = DEFAULT_CHUNK_SECONDS
+  chunkSeconds?: number
 ): Promise<PreparedAudioChunk[]> => {
   const baseName = filename.replace(/\.[^/.]+$/, '') || 'lecture-audio';
 
@@ -103,7 +123,8 @@ export const prepareAudioChunksForTranscription = async (
     const normalized = await renderMonoAt16k(decoded);
     const monoSamples = normalized.getChannelData(0);
 
-    const samplesPerChunk = Math.max(1, Math.floor(chunkSeconds * TARGET_SAMPLE_RATE));
+    const adaptiveChunkSeconds = getAdaptiveChunkSeconds(normalized.duration, chunkSeconds);
+    const samplesPerChunk = Math.max(1, Math.floor(adaptiveChunkSeconds * TARGET_SAMPLE_RATE));
     const chunks: PreparedAudioChunk[] = [];
 
     for (let start = 0; start < monoSamples.length; start += samplesPerChunk) {
