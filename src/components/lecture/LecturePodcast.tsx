@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Loader2, Podcast, Play, Square, RotateCcw, Volume2 } from 'lucide-react';
+import { Loader2, Podcast, Play, Square, RotateCcw, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 
 interface Props {
   notes: string;
+  onScriptChange?: (script: string) => void;
 }
 
 interface ScriptLine {
@@ -13,52 +13,53 @@ interface ScriptLine {
   text: string;
 }
 
-// Pick the best available voices for each speaker
-const pickVoices = (): { alex: SpeechSynthesisVoice | null; sam: SpeechSynthesisVoice | null } => {
+// Select distinct, high-quality voices for the two hosts
+const getVoicePair = (): { alex: SpeechSynthesisVoice | null; sam: SpeechSynthesisVoice | null } => {
   const voices = speechSynthesis.getVoices();
   if (!voices.length) return { alex: null, sam: null };
 
-  const enVoices = voices.filter(v => v.lang.startsWith('en'));
-  
-  // Prefer high-quality / "natural" / "neural" voices
-  const premium = enVoices.filter(v =>
-    /natural|neural|premium|enhanced|online/i.test(v.name) || v.name.includes('Google')
-  );
-  
-  const maleNames = /daniel|james|george|brian|liam|guy|aaron|tom|mark|david|eric|roger|charlie|male/i;
-  const femaleNames = /sarah|samantha|alice|karen|fiona|moira|victoria|zoe|female|woman|lisa|kate|emma/i;
+  const en = voices.filter(v => v.lang.startsWith('en'));
 
-  const findVoice = (pool: SpeechSynthesisVoice[], pattern: RegExp) =>
-    pool.find(v => pattern.test(v.name)) || pool[0] || null;
+  // Rank voices by quality indicators
+  const rank = (v: SpeechSynthesisVoice) => {
+    let score = 0;
+    const n = v.name.toLowerCase();
+    if (/natural|neural|premium|enhanced|wavenet|studio/i.test(n)) score += 10;
+    if (/google|microsoft|apple/i.test(n)) score += 5;
+    if (!v.localService) score += 3; // cloud voices tend to sound better
+    return score;
+  };
 
-  const alexVoice = findVoice(premium.length ? premium : enVoices, maleNames);
-  let samVoice = findVoice(premium.length ? premium : enVoices, femaleNames);
-  
-  // Make sure they're different voices
-  if (samVoice === alexVoice) {
-    samVoice = (premium.length ? premium : enVoices).find(v => v !== alexVoice) || samVoice;
-  }
+  const sorted = [...en].sort((a, b) => rank(b) - rank(a));
+
+  // Try to pick a male-sounding and female-sounding voice
+  const maleRe = /daniel|james|george|brian|liam|guy|aaron|tom|mark|david|eric|roger|charlie|male|adam|ryan/i;
+  const femaleRe = /sarah|samantha|alice|karen|fiona|moira|victoria|zoe|female|lisa|kate|emma|jenny|aria/i;
+
+  const alexVoice = sorted.find(v => maleRe.test(v.name)) || sorted[0] || null;
+  let samVoice = sorted.find(v => femaleRe.test(v.name) && v !== alexVoice) || sorted.find(v => v !== alexVoice) || sorted[0] || null;
 
   return { alex: alexVoice, sam: samVoice };
 };
 
-const LecturePodcast = ({ notes }: Props) => {
+const LecturePodcast = ({ notes, onScriptChange }: Props) => {
   const [script, setScript] = useState('');
   const [parsedScript, setParsedScript] = useState<ScriptLine[]>([]);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentLineIdx, setCurrentLineIdx] = useState(-1);
 
   const isCancelledRef = useRef(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
-    // Preload voices
+    // Preload voices (some browsers load async)
     speechSynthesis.getVoices();
-    const onVoices = () => speechSynthesis.getVoices();
-    speechSynthesis.addEventListener('voiceschanged', onVoices);
+    const handler = () => speechSynthesis.getVoices();
+    speechSynthesis.addEventListener('voiceschanged', handler);
     return () => {
-      speechSynthesis.removeEventListener('voiceschanged', onVoices);
+      speechSynthesis.removeEventListener('voiceschanged', handler);
       speechSynthesis.cancel();
     };
   }, []);
@@ -131,6 +132,7 @@ const LecturePodcast = ({ notes }: Props) => {
 
       const lines = parseScriptLines(fullScript);
       setParsedScript(lines);
+      onScriptChange?.(fullScript);
       if (!lines.length) throw new Error('Script format invalid. Please retry.');
       toast.success('Podcast script ready! Click Play to hear it.');
     } catch (error: any) {
@@ -138,7 +140,7 @@ const LecturePodcast = ({ notes }: Props) => {
     } finally {
       setGeneratingScript(false);
     }
-  }, [notes]);
+  }, [notes, onScriptChange]);
 
   const speakLine = (text: string, voice: SpeechSynthesisVoice | null, pitch: number, rate: number): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -160,13 +162,20 @@ const LecturePodcast = ({ notes }: Props) => {
   const playPodcast = useCallback(async () => {
     if (!parsedScript.length) return;
 
-    const { alex, sam } = pickVoices();
+    if (isPaused) {
+      speechSynthesis.resume();
+      setIsPaused(false);
+      return;
+    }
+
+    const { alex, sam } = getVoicePair();
     if (!alex && !sam) {
-      toast.error('No speech voices available in your browser.');
+      toast.error('No speech voices available in your browser. Try Chrome for best results.');
       return;
     }
 
     setIsPlaying(true);
+    setIsPaused(false);
     isCancelledRef.current = false;
 
     try {
@@ -178,31 +187,41 @@ const LecturePodcast = ({ notes }: Props) => {
         await speakLine(
           line.text,
           isAlex ? alex : sam,
-          isAlex ? 1.0 : 1.15,   // slightly higher pitch for Sam
-          isAlex ? 1.0 : 1.02,   // slightly faster for Sam
+          isAlex ? 1.0 : 1.12,
+          isAlex ? 0.95 : 1.0,
         );
+        // Small natural pause between speakers
+        if (i < parsedScript.length - 1 && parsedScript[i + 1].speaker !== line.speaker) {
+          await new Promise(r => setTimeout(r, 250));
+        }
       }
       if (!isCancelledRef.current) toast.success('Podcast finished!');
     } catch (e: any) {
       if (!isCancelledRef.current) toast.error(e.message || 'Playback error');
     } finally {
       setIsPlaying(false);
+      setIsPaused(false);
       setCurrentLineIdx(-1);
     }
-  }, [parsedScript]);
+  }, [parsedScript, isPaused]);
+
+  const pausePodcast = useCallback(() => {
+    speechSynthesis.pause();
+    setIsPaused(true);
+  }, []);
 
   const stopPodcast = useCallback(() => {
     isCancelledRef.current = true;
     speechSynthesis.cancel();
     setIsPlaying(false);
+    setIsPaused(false);
     setCurrentLineIdx(-1);
   }, []);
 
   // Auto-scroll to current line
   useEffect(() => {
     if (currentLineIdx >= 0) {
-      const el = document.getElementById(`podcast-line-${currentLineIdx}`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.getElementById(`podcast-line-${currentLineIdx}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [currentLineIdx]);
 
@@ -275,12 +294,17 @@ const LecturePodcast = ({ notes }: Props) => {
           <div className="flex items-center gap-3">
             {!isPlaying ? (
               <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length}>
-                <Play className="w-4 h-4 mr-2" /> Play Podcast
+                <Play className="w-4 h-4 mr-2" /> {isPaused ? 'Resume' : 'Play Podcast'}
               </Button>
             ) : (
-              <Button onClick={stopPodcast} variant="destructive" className="h-11 px-6 rounded-2xl">
-                <Square className="w-4 h-4 mr-2" /> Stop
-              </Button>
+              <>
+                <Button onClick={pausePodcast} variant="outline" className="h-11 px-5 rounded-2xl">
+                  <Pause className="w-4 h-4 mr-2" /> Pause
+                </Button>
+                <Button onClick={stopPodcast} variant="destructive" className="h-11 px-5 rounded-2xl">
+                  <Square className="w-4 h-4 mr-2" /> Stop
+                </Button>
+              </>
             )}
             <Button variant="ghost" size="sm" onClick={generateScript} className="rounded-xl" disabled={isPlaying}>
               <RotateCcw className="w-4 h-4 mr-1.5" /> Redo Script
