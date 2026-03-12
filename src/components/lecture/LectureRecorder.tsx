@@ -69,7 +69,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
     return `Bearer ${token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
   }, []);
 
-  const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string) => {
+  const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string, attempt = 1) => {
     const formData = new FormData();
     formData.append('audio', chunk.blob, chunk.filename);
 
@@ -82,7 +82,16 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
     });
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Transcription failed' }));
+      if (resp.status === 546 && attempt < 3) {
+        await delay(700 * attempt);
+        return startTranscriptionJob(chunk, authHeader, attempt + 1);
+      }
+
+      const err = await resp.json().catch(() => ({ error: '' }));
+      if (resp.status === 413) {
+        throw new Error('Audio chunk too large for backend processing. The file was stopped to avoid wasting credits.');
+      }
+
       throw new Error(err.error || `Transcription failed: ${resp.status}`);
     }
 
@@ -126,6 +135,10 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
         toast.info(`Long audio detected: split into ${chunks.length} parts for reliable transcription.`);
       }
 
+      if (chunks.length > 40) {
+        toast.info(`Large lecture detected: ${chunks.length} parts queued. Processing may take several minutes.`);
+      }
+
       const textParts: string[] = [];
       const mergedWords: TranscriptWord[] = [];
 
@@ -163,7 +176,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
       onTranscriptReady(mergedTranscript);
       toast.success('Transcription complete!');
     } catch (e: any) {
-      toast.error(e.message || 'Transcription failed');
+      const message = String(e?.message || 'Transcription failed');
+      toast.error(message.includes('546') ? 'Transcription request overloaded. We auto-retry now with smaller payloads — please retry once.' : message);
     } finally {
       setIsProcessing(false);
       setProcessingLabel('Analyzing audio and extracting speech...');
@@ -244,7 +258,8 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
           return;
         }
 
-        void transcribeAudio(blob, `lecture-recording-${Date.now()}.webm`);
+        const extension = recorderMime.includes('mp4') ? 'm4a' : recorderMime.includes('ogg') ? 'ogg' : 'webm';
+        void transcribeAudio(blob, `lecture-recording-${Date.now()}.${extension}`);
       };
 
       recorder.start(800);

@@ -145,6 +145,18 @@ serve(async (req) => {
       });
     }
 
+    const contentLength = Number(req.headers.get("content-length") ?? 0);
+    const maxRequestBytes = 6 * 1024 * 1024;
+    if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+      return new Response(
+        JSON.stringify({ error: "Audio chunk too large. The app will auto-split long files to avoid credit waste." }),
+        {
+          status: 413,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File | null;
 
