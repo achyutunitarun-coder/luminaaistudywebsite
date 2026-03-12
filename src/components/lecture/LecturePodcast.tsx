@@ -13,33 +13,59 @@ interface ScriptLine {
   text: string;
 }
 
+// Pick the best available voices for each speaker
+const pickVoices = (): { alex: SpeechSynthesisVoice | null; sam: SpeechSynthesisVoice | null } => {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return { alex: null, sam: null };
+
+  const enVoices = voices.filter(v => v.lang.startsWith('en'));
+  
+  // Prefer high-quality / "natural" / "neural" voices
+  const premium = enVoices.filter(v =>
+    /natural|neural|premium|enhanced|online/i.test(v.name) || v.name.includes('Google')
+  );
+  
+  const maleNames = /daniel|james|george|brian|liam|guy|aaron|tom|mark|david|eric|roger|charlie|male/i;
+  const femaleNames = /sarah|samantha|alice|karen|fiona|moira|victoria|zoe|female|woman|lisa|kate|emma/i;
+
+  const findVoice = (pool: SpeechSynthesisVoice[], pattern: RegExp) =>
+    pool.find(v => pattern.test(v.name)) || pool[0] || null;
+
+  const alexVoice = findVoice(premium.length ? premium : enVoices, maleNames);
+  let samVoice = findVoice(premium.length ? premium : enVoices, femaleNames);
+  
+  // Make sure they're different voices
+  if (samVoice === alexVoice) {
+    samVoice = (premium.length ? premium : enVoices).find(v => v !== alexVoice) || samVoice;
+  }
+
+  return { alex: alexVoice, sam: samVoice };
+};
+
 const LecturePodcast = ({ notes }: Props) => {
   const [script, setScript] = useState('');
   const [parsedScript, setParsedScript] = useState<ScriptLine[]>([]);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentLineIdx, setCurrentLineIdx] = useState(-1);
-  const [loadingAudio, setLoadingAudio] = useState(false);
-  const [audioSegments, setAudioSegments] = useState<{ url: string; speaker: string }[]>([]);
-  const [preloadProgress, setPreloadProgress] = useState(0);
 
   const isCancelledRef = useRef(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
+    // Preload voices
+    speechSynthesis.getVoices();
+    const onVoices = () => speechSynthesis.getVoices();
+    speechSynthesis.addEventListener('voiceschanged', onVoices);
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      // Cleanup blob URLs
-      audioSegments.forEach((seg) => URL.revokeObjectURL(seg.url));
+      speechSynthesis.removeEventListener('voiceschanged', onVoices);
+      speechSynthesis.cancel();
     };
   }, []);
 
   const parseScriptLines = (fullScript: string): ScriptLine[] => {
     const parsed: ScriptLine[] = [];
-    const lines = fullScript.split('\n').map((line) => line.trim());
+    const lines = fullScript.split('\n').map(l => l.trim());
     for (const line of lines) {
       if (!line) continue;
       const match = line.match(/^(ALEX|SAM)\s*:\s*(.+)$/i);
@@ -57,7 +83,6 @@ const LecturePodcast = ({ notes }: Props) => {
     setScript('');
     setParsedScript([]);
     setCurrentLineIdx(-1);
-    setAudioSegments([]);
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-podcast-script`, {
@@ -115,100 +140,71 @@ const LecturePodcast = ({ notes }: Props) => {
     }
   }, [notes]);
 
-  const synthesizeLine = useCallback(async (text: string, speaker: 'ALEX' | 'SAM'): Promise<string> => {
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({
-        text,
-        voice: speaker === 'SAM' ? 'sam' : 'alex',
-      }),
-    });
-
-    if (!resp.ok) {
-      if (resp.status === 429) throw new Error('Voice synthesis rate limited. Wait a moment and retry.');
-      if (resp.status === 402) throw new Error('Voice synthesis credits exhausted.');
-      throw new Error('Voice synthesis failed');
-    }
-
-    const audioBlob = await resp.blob();
-    return URL.createObjectURL(audioBlob);
-  }, []);
-
-  const playAudioUrl = (url: string): Promise<void> => {
+  const speakLine = (text: string, voice: SpeechSynthesisVoice | null, pitch: number, rate: number): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error('Audio playback failed'));
-      audio.play().catch(reject);
+      const utt = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utt;
+      if (voice) utt.voice = voice;
+      utt.pitch = pitch;
+      utt.rate = rate;
+      utt.volume = 1;
+      utt.onend = () => resolve();
+      utt.onerror = (e) => {
+        if (e.error === 'canceled' || e.error === 'interrupted') resolve();
+        else reject(new Error('Speech failed'));
+      };
+      speechSynthesis.speak(utt);
     });
   };
 
   const playPodcast = useCallback(async () => {
     if (!parsedScript.length) return;
 
+    const { alex, sam } = pickVoices();
+    if (!alex && !sam) {
+      toast.error('No speech voices available in your browser.');
+      return;
+    }
+
     setIsPlaying(true);
-    setLoadingAudio(true);
     isCancelledRef.current = false;
 
     try {
-      // Pre-synthesize all lines for smoother playback
-      const segments: { url: string; speaker: string }[] = [];
-
-      // Batch synthesize: process 2 at a time
-      for (let i = 0; i < parsedScript.length; i += 2) {
-        if (isCancelledRef.current) break;
-
-        const batch = parsedScript.slice(i, i + 2);
-        const urls = await Promise.all(
-          batch.map((line) => synthesizeLine(line.text, line.speaker))
-        );
-
-        urls.forEach((url, j) => {
-          segments.push({ url, speaker: batch[j].speaker });
-        });
-
-        setPreloadProgress(Math.round(((i + batch.length) / parsedScript.length) * 100));
-
-        // Start playing once we have the first segment ready
-        if (i === 0) setLoadingAudio(false);
-      }
-
-      setAudioSegments(segments);
-      setLoadingAudio(false);
-      setPreloadProgress(100);
-
-      // Play sequentially
-      for (let i = 0; i < segments.length; i++) {
+      for (let i = 0; i < parsedScript.length; i++) {
         if (isCancelledRef.current) break;
         setCurrentLineIdx(i);
-        await playAudioUrl(segments[i].url);
+        const line = parsedScript[i];
+        const isAlex = line.speaker === 'ALEX';
+        await speakLine(
+          line.text,
+          isAlex ? alex : sam,
+          isAlex ? 1.0 : 1.15,   // slightly higher pitch for Sam
+          isAlex ? 1.0 : 1.02,   // slightly faster for Sam
+        );
       }
-
       if (!isCancelledRef.current) toast.success('Podcast finished!');
     } catch (e: any) {
-      toast.error(e.message || 'Playback error');
+      if (!isCancelledRef.current) toast.error(e.message || 'Playback error');
     } finally {
       setIsPlaying(false);
       setCurrentLineIdx(-1);
-      setLoadingAudio(false);
     }
-  }, [parsedScript, synthesizeLine]);
+  }, [parsedScript]);
 
   const stopPodcast = useCallback(() => {
     isCancelledRef.current = true;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    speechSynthesis.cancel();
     setIsPlaying(false);
     setCurrentLineIdx(-1);
-    setLoadingAudio(false);
   }, []);
+
+  // Auto-scroll to current line
+  useEffect(() => {
+    if (currentLineIdx >= 0) {
+      const el = document.getElementById(`podcast-line-${currentLineIdx}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [currentLineIdx]);
 
   if (!notes) {
     return (
@@ -227,7 +223,7 @@ const LecturePodcast = ({ notes }: Props) => {
           <Podcast className="w-12 h-12 text-muted-foreground/40 mb-4" />
           <h3 className="text-lg font-display font-bold text-foreground mb-2">Generate Podcast</h3>
           <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
-            Two AI hosts will break your notes into an engaging, concept-first conversation with natural-sounding voices.
+            Two AI hosts will break your notes into an engaging, concept-first conversation.
           </p>
           <Button onClick={generateScript} className="h-11 px-6 rounded-2xl">
             <Podcast className="w-4 h-4 mr-2" /> Generate Script
@@ -243,11 +239,12 @@ const LecturePodcast = ({ notes }: Props) => {
 
       {script && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-border/30 bg-card/40 p-5 max-h-[300px] overflow-y-auto" id="podcast-script-container">
+          <div className="rounded-2xl border border-border/30 bg-card/40 p-5 max-h-[300px] overflow-y-auto">
             {parsedScript.length > 0
               ? parsedScript.map((line, i) => (
                   <div
                     key={i}
+                    id={`podcast-line-${i}`}
                     className={`mb-2 rounded-lg px-2 py-1 transition-colors ${
                       i === currentLineIdx ? 'bg-primary/10 border-l-2 border-primary' : ''
                     }`}
@@ -275,18 +272,9 @@ const LecturePodcast = ({ notes }: Props) => {
                 })}
           </div>
 
-          {loadingAudio && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Volume2 className="w-4 h-4 animate-pulse" /> Synthesizing natural voices...
-              </div>
-              <Progress value={preloadProgress} className="h-1.5" />
-            </div>
-          )}
-
           <div className="flex items-center gap-3">
             {!isPlaying ? (
-              <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length || loadingAudio}>
+              <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length}>
                 <Play className="w-4 h-4 mr-2" /> Play Podcast
               </Button>
             ) : (
