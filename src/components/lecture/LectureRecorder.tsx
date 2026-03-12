@@ -135,6 +135,10 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
         toast.info(`Long audio detected: split into ${chunks.length} parts for reliable transcription.`);
       }
 
+      if (chunks.length > 40) {
+        toast.info(`Large lecture detected: ${chunks.length} parts queued. Processing may take several minutes.`);
+      }
+
       const textParts: string[] = [];
       const mergedWords: TranscriptWord[] = [];
 
