@@ -29,6 +29,8 @@ interface TranscriptResult {
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const BASE_TRANSCRIPTION_CONCURRENCY = 3;
+const POLL_INTERVAL_MS = 1800;
 
 const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: Props) => {
   const [recording, setRecording] = useState(false);
