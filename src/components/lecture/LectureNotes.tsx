@@ -54,7 +54,7 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
-            if (content) setNotes(prev => prev + content);
+            if (content) setNotes(content);
           } catch {}
         }
       }
