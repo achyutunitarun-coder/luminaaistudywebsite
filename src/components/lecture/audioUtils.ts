@@ -114,7 +114,7 @@ const encodeMonoPcm16ToWav = (samples: Float32Array, sampleRate: number): Blob =
 export const prepareAudioChunksForTranscription = async (
   audioBlob: Blob,
   filename: string,
-  chunkSeconds = DEFAULT_CHUNK_SECONDS
+  chunkSeconds?: number
 ): Promise<PreparedAudioChunk[]> => {
   const baseName = filename.replace(/\.[^/.]+$/, '') || 'lecture-audio';
 
