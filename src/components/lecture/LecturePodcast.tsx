@@ -391,8 +391,9 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
               </Button>
             ) : (
               <>
-                <Button onClick={pausePodcast} variant="outline" className="h-11 px-5 rounded-2xl">
-                  <Pause className="w-4 h-4 mr-2" /> Pause
+                <Button onClick={isPaused ? playPodcast : pausePodcast} variant="outline" className="h-11 px-5 rounded-2xl">
+                  {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+                  {isPaused ? 'Resume' : 'Pause'}
                 </Button>
                 <Button onClick={stopPodcast} variant="destructive" className="h-11 px-5 rounded-2xl">
                   <Square className="w-4 h-4 mr-2" /> Stop
