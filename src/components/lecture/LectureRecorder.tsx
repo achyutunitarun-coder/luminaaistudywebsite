@@ -69,7 +69,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
     return `Bearer ${token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
   }, []);
 
-  const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string) => {
+  const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string, attempt = 1) => {
     const formData = new FormData();
     formData.append('audio', chunk.blob, chunk.filename);
 
@@ -82,7 +82,16 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing }: P
     });
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Transcription failed' }));
+      if (resp.status === 546 && attempt < 3) {
+        await delay(700 * attempt);
+        return startTranscriptionJob(chunk, authHeader, attempt + 1);
+      }
+
+      const err = await resp.json().catch(() => ({ error: '' }));
+      if (resp.status === 413) {
+        throw new Error('Audio chunk too large for backend processing. The file was stopped to avoid wasting credits.');
+      }
+
       throw new Error(err.error || `Transcription failed: ${resp.status}`);
     }
 
