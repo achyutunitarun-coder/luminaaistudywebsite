@@ -92,6 +92,12 @@ Rules:
 
     if (!response.ok) {
       const errText = await response.text();
+      if (response.status === 429) {
+        throw new Error("Transcription is rate-limited right now. Please retry in a moment.");
+      }
+      if (response.status === 402) {
+        throw new Error("Transcription credits are exhausted. Please top up workspace usage.");
+      }
       throw new Error(`Transcription API error ${response.status}: ${errText}`);
     }
 
