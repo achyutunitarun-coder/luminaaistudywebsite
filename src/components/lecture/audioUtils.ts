@@ -125,6 +125,7 @@ export const prepareAudioChunksForTranscription = async (
 
     const adaptiveChunkSeconds = getAdaptiveChunkSeconds(normalized.duration, chunkSeconds);
     const samplesPerChunk = Math.max(1, Math.floor(adaptiveChunkSeconds * TARGET_SAMPLE_RATE));
+    const chunks: PreparedAudioChunk[] = [];
 
     for (let start = 0; start < monoSamples.length; start += samplesPerChunk) {
       const end = Math.min(start + samplesPerChunk, monoSamples.length);
