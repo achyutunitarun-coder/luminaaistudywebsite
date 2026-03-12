@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Loader2, Copy, Check, BookOpen } from 'lucide-react';
+import { Loader2, Copy, Check, BookOpen, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface Props {
@@ -12,14 +13,44 @@ interface Props {
   setNotesGenerated: (v: boolean) => void;
 }
 
+const STYLE_PRESETS = [
+  { label: 'Detailed & Structured', value: 'detailed', description: 'Comprehensive notes with headings, subheadings, and deep explanations' },
+  { label: 'Exam-Ready', value: 'exam', description: 'Focus on key facts, definitions, formulas, and potential exam questions' },
+  { label: 'Simple & Clear', value: 'simple', description: 'Easy-to-understand language with examples and analogies' },
+  { label: 'Cornell Method', value: 'cornell', description: 'Cues, notes, and summary sections in Cornell note-taking format' },
+];
+
 const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGenerated }: Props) => {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState('detailed');
+  const [customInstruction, setCustomInstruction] = useState('');
+  const [followUpInput, setFollowUpInput] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
 
-  const generateNotes = useCallback(async () => {
-    setLoading(true);
-    setNotes('');
+  const generateNotes = useCallback(async (additionalInstruction?: string) => {
+    const isRefine = !!additionalInstruction && notesGenerated;
+    if (isRefine) {
+      setIsRefining(true);
+    } else {
+      setLoading(true);
+      setNotes('');
+    }
+
     try {
+      const stylePreset = STYLE_PRESETS.find((s) => s.value === selectedStyle);
+      const styleLabel = stylePreset?.label || 'Detailed & Structured';
+
+      let userPrompt = `Create comprehensive study notes from this lecture content. Style: ${styleLabel}.`;
+      if (customInstruction.trim()) {
+        userPrompt += `\n\nUser preferences: ${customInstruction.trim()}`;
+      }
+      if (additionalInstruction) {
+        userPrompt += `\n\nAdditional request: ${additionalInstruction}`;
+        userPrompt += `\n\nHere are the current notes to refine:\n${notes}`;
+      }
+      userPrompt += `\n\nLecture content:\n${transcript}`;
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
         headers: {
@@ -28,7 +59,9 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
         },
         body: JSON.stringify({
           topic: 'Lecture Analysis',
-          sourceText: `Transcribed lecture content:\n\n${transcript}`,
+          sourceText: userPrompt,
+          style: selectedStyle,
+          isRefinement: isRefine,
         }),
       });
 
@@ -37,6 +70,7 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let accumulated = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -54,19 +88,30 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
-            if (content) setNotes(content);
+            if (content) {
+              accumulated += content;
+              setNotes(accumulated);
+            }
           } catch {}
         }
       }
 
       setNotesGenerated(true);
-      toast.success('Notes generated!');
+      toast.success(isRefine ? 'Notes updated!' : 'Notes generated!');
     } catch {
       toast.error('Failed to generate notes');
     } finally {
       setLoading(false);
+      setIsRefining(false);
     }
-  }, [transcript, setNotes, setNotesGenerated]);
+  }, [transcript, setNotes, setNotesGenerated, selectedStyle, customInstruction, notes, notesGenerated]);
+
+  const handleFollowUp = () => {
+    if (!followUpInput.trim()) return;
+    const instruction = followUpInput.trim();
+    setFollowUpInput('');
+    generateNotes(instruction);
+  };
 
   const copyNotes = () => {
     navigator.clipboard.writeText(notes);
@@ -77,13 +122,42 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
 
   if (!notesGenerated && !loading && !notes) {
     return (
-      <div className="flex flex-col items-center py-16">
+      <div className="flex flex-col items-center py-10">
         <BookOpen className="w-12 h-12 text-muted-foreground/40 mb-4" />
         <h3 className="text-lg font-display font-bold text-foreground mb-2">Generate Study Notes</h3>
         <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
-          Transform your lecture transcript into organized, structured study notes with key concepts highlighted.
+          Transform your lecture into organized, in-depth study notes. Choose a style and add any preferences below.
         </p>
-        <Button onClick={generateNotes} className="h-11 px-6 rounded-2xl">
+
+        {/* Style presets */}
+        <div className="grid grid-cols-2 gap-2 mb-4 w-full max-w-lg">
+          {STYLE_PRESETS.map((style) => (
+            <button
+              key={style.value}
+              onClick={() => setSelectedStyle(style.value)}
+              className={`text-left p-3 rounded-xl border transition-all ${
+                selectedStyle === style.value
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border/30 bg-card/30 text-muted-foreground hover:border-border/60'
+              }`}
+            >
+              <div className="text-sm font-semibold">{style.label}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{style.description}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Custom instruction */}
+        <div className="w-full max-w-lg mb-4">
+          <Textarea
+            placeholder="Any specific preferences? e.g., 'Focus on formulas', 'Include diagrams descriptions', 'Make it beginner-friendly'..."
+            value={customInstruction}
+            onChange={(e) => setCustomInstruction(e.target.value)}
+            className="rounded-xl bg-card/40 border-border/30 text-sm min-h-[60px] resize-none"
+          />
+        </div>
+
+        <Button onClick={() => generateNotes()} className="h-11 px-6 rounded-2xl">
           <BookOpen className="w-4 h-4 mr-2" /> Generate Notes
         </Button>
       </div>
@@ -94,7 +168,7 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
     <div className="space-y-4">
       {loading && !notes && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" /> Generating notes...
+          <Loader2 className="w-4 h-4 animate-spin" /> Generating detailed notes...
         </div>
       )}
       {notes && (
@@ -108,9 +182,35 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
           <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground max-h-[500px] overflow-y-auto pr-2">
             <MarkdownRenderer>{notes}</MarkdownRenderer>
           </div>
-          {loading && (
+          {(loading || isRefining) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="w-3 h-3 animate-spin" /> Still generating...
+              <Loader2 className="w-3 h-3 animate-spin" /> {isRefining ? 'Refining notes...' : 'Still generating...'}
+            </div>
+          )}
+
+          {/* Conversational follow-up */}
+          {notesGenerated && !loading && !isRefining && (
+            <div className="flex gap-2 items-end mt-4">
+              <Textarea
+                placeholder="Want changes? e.g., 'Make the formulas section longer', 'Add more examples', 'Simplify the explanation of X'..."
+                value={followUpInput}
+                onChange={(e) => setFollowUpInput(e.target.value)}
+                className="rounded-xl bg-card/40 border-border/30 text-sm min-h-[44px] max-h-[100px] resize-none flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleFollowUp();
+                  }
+                }}
+              />
+              <Button
+                onClick={handleFollowUp}
+                disabled={!followUpInput.trim()}
+                size="sm"
+                className="rounded-xl h-11 px-4"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
             </div>
           )}
         </>
