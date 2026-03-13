@@ -21,6 +21,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4096,
         messages: [
           { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You create 10-minute quick study lessons." },
           { role: "user", content: `Create a quick 10-minute lesson on "${topic}". Include key concepts and 5 practice questions.` },

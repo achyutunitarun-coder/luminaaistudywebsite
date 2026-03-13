@@ -73,6 +73,7 @@ Use markdown formatting. Keep technical terms in their original language in pare
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 5000,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

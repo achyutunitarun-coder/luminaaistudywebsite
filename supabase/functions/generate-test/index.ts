@@ -21,6 +21,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4096,
         messages: [
           {
             role: "system",
@@ -66,20 +67,27 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const t = await response.text();
-      console.error("AI error:", response.status, t);
-      // Forward rate limit and payment errors properly
+      const rawError = await response.text();
+      let providerMessage = "";
+      try {
+        const parsed = JSON.parse(rawError);
+        providerMessage = parsed?.error?.message || parsed?.error || "";
+      } catch {
+        providerMessage = rawError;
+      }
+
+      console.error("AI error:", response.status, rawError);
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }), {
+        return new Response(JSON.stringify({ error: providerMessage || "Rate limit exceeded. Please wait a moment and try again." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+        return new Response(JSON.stringify({ error: providerMessage || "This request needs more available credits or fewer max_tokens." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: "Failed to generate test" }), {
+      return new Response(JSON.stringify({ error: providerMessage || "Failed to generate test" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

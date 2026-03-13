@@ -21,6 +21,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4096,
         messages: [
           { role: "system", content: "You are Lumina AI's quiz generator, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate quiz questions from student notes." },
           { role: "user", content: `Generate quiz questions from these notes:\n\n${notes}` },
