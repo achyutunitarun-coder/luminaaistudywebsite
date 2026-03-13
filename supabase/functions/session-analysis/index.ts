@@ -11,9 +11,8 @@ serve(async (req) => {
 
   try {
     const { sessionData, userId } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
     // Fetch user's mistakes and test data for deep analysis
     let mistakesData: any[] = [];
     let testsData: any[] = [];
