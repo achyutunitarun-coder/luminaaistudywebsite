@@ -222,7 +222,7 @@ const ChatPage = () => {
         if (resp.status === 429) {
           toast.error('Rate limit exceeded. Please wait a moment and try again.');
         } else if (resp.status === 402) {
-          toast.error('AI credits exhausted. Please add credits to continue.');
+          toast.error(errorData.error || 'This AI request exceeded your available provider credit/token limit.');
         } else {
           toast.error(errorData.error || 'Failed to get AI response. Please try again.');
         }
