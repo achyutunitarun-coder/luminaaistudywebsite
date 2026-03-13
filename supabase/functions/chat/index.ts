@@ -49,19 +49,27 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
     });
 
     if (!response.ok) {
+      const rawError = await response.text();
+      let providerMessage = "";
+      try {
+        const parsed = JSON.parse(rawError);
+        providerMessage = parsed?.error?.message || parsed?.error || "";
+      } catch {
+        providerMessage = rawError;
+      }
+
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        return new Response(JSON.stringify({ error: providerMessage || "Rate limit exceeded. Please try again later." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Usage limit reached. Please add credits." }), {
+        return new Response(JSON.stringify({ error: providerMessage || "This request needs more available credits or fewer max_tokens." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
+      console.error("AI provider error:", response.status, rawError);
+      return new Response(JSON.stringify({ error: providerMessage || "AI service error" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
