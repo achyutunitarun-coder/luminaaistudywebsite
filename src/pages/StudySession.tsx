@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
 type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
@@ -25,14 +26,9 @@ const severityColors: Record<string, string> = {
   minor: 'border-muted-foreground/20 bg-muted/30',
 };
 
-const priorityColors: Record<string, string> = {
-  high: 'text-destructive',
-  medium: 'text-warning',
-  low: 'text-muted-foreground',
-};
-
 const StudySession = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [active, setActive] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
@@ -109,6 +105,59 @@ const StudySession = () => {
       p_minutes: duration,
     });
 
+    // Award XP and coins for study session
+    const xpEarned = Math.max(5, Math.floor(duration / 10) * 5); // 5 XP per 10 min
+    const coinsEarned = Math.max(2, Math.floor(duration / 15) * 3); // 3 coins per 15 min
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, coins, level, streak_days, last_study_date')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (profile) {
+        const newXp = (profile.xp || 0) + xpEarned;
+        const newCoins = (profile.coins || 0) + coinsEarned;
+        const newLevel = Math.floor(newXp / 100) + 1;
+        
+        // Streak logic
+        const today = new Date().toISOString().split('T')[0];
+        const lastDate = profile.last_study_date;
+        let newStreak = profile.streak_days || 0;
+        
+        if (lastDate !== today) {
+          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+          if (lastDate === yesterday) {
+            newStreak += 1; // Consecutive day
+          } else if (!lastDate) {
+            newStreak = 1; // First study day
+          } else {
+            newStreak = 1; // Streak broken, restart
+          }
+        }
+        
+        await supabase
+          .from('profiles')
+          .update({ 
+            xp: newXp, 
+            coins: newCoins, 
+            level: newLevel,
+            streak_days: newStreak,
+            last_study_date: today,
+          })
+          .eq('user_id', user.id);
+        
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+        
+        if (newLevel > (profile.level || 1)) {
+          toast.success(`🎉 Level Up! You're now Level ${newLevel}!`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to award XP/coins:', err);
+    }
+
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-analysis`, {
         method: 'POST',
@@ -132,7 +181,7 @@ const StudySession = () => {
 
     setActive(false);
     setEnding(false);
-    toast.success(`Session completed! ${duration} minutes logged.`);
+    toast.success(`Session completed! ${duration} minutes logged. +${xpEarned} XP, +${coinsEarned} coins`);
   };
 
   const time = formatTime(seconds);

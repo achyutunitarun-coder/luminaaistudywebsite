@@ -68,6 +68,17 @@ serve(async (req) => {
     if (!response.ok) {
       const t = await response.text();
       console.error("AI error:", response.status, t);
+      // Forward rate limit and payment errors properly
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: "Failed to generate test" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

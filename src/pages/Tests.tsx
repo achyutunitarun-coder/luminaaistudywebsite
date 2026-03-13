@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Question = {
   question: string;
@@ -18,6 +19,7 @@ type Question = {
 
 const Tests = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [syllabus, setSyllabus] = useState('');
   const [subject, setSubject] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
@@ -48,7 +50,20 @@ const Tests = () => {
         },
         body: JSON.stringify({ syllabus: fullSyllabus, subject, numQuestions }),
       });
-      if (!resp.ok) throw new Error('Failed');
+      
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        if (resp.status === 429) {
+          toast.error('Rate limit exceeded. Please wait a moment and try again.');
+        } else if (resp.status === 402) {
+          toast.error('AI credits exhausted. Please add credits to continue.');
+        } else {
+          toast.error(errData.error || 'Failed to generate test. Please try again.');
+        }
+        setGenerating(false);
+        return;
+      }
+      
       const data = await resp.json();
       if (data.questions) {
         setQuestions(data.questions);
@@ -57,21 +72,78 @@ const Tests = () => {
           total_questions: data.questions.length, questions: data.questions, status: 'in_progress',
         }).select().single();
         if (test) setTestId(test.id);
+      } else {
+        toast.error('No questions received. Please try again with more detailed topics.');
       }
     } catch {
-      toast.error('Failed to generate test');
+      toast.error('Failed to generate test. Please check your connection and try again.');
     }
     setGenerating(false);
   };
 
   const submitTest = async () => {
-    if (!testId) return;
+    if (!testId || !user) return;
     let correct = 0;
     questions.forEach((q, i) => { if (answers[i] === q.correct) correct++; });
     const score = (correct / questions.length) * 100;
+    
     await supabase.from('tests').update({ correct_answers: correct, score, answers, status: 'completed' }).eq('id', testId);
+    
+    // Award XP and coins for completing a test
+    const xpEarned = 50; // 50 XP per test completed
+    const coinsEarned = Math.max(5, Math.round(score / 10)); // 5-10 coins based on score
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, coins, level')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (profile) {
+        const newXp = (profile.xp || 0) + xpEarned;
+        const newCoins = (profile.coins || 0) + coinsEarned;
+        // Level up every 100 XP
+        const newLevel = Math.floor(newXp / 100) + 1;
+        
+        await supabase
+          .from('profiles')
+          .update({ 
+            xp: newXp, 
+            coins: newCoins, 
+            level: newLevel,
+            last_study_date: new Date().toISOString().split('T')[0],
+          })
+          .eq('user_id', user.id);
+        
+        // Invalidate profile query to refresh UI
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+        
+        if (newLevel > (profile.level || 1)) {
+          toast.success(`🎉 Level Up! You're now Level ${newLevel}!`);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to award XP/coins:', err);
+    }
+    
+    // Track mistakes for weakness radar
+    questions.forEach((q, i) => {
+      if (answers[i] !== undefined && answers[i] !== q.correct) {
+        supabase.from('mistakes').insert({
+          user_id: user.id,
+          topic: q.question.slice(0, 100),
+          subject: subject || 'General',
+          mistake_type: 'conceptual',
+          question: q.question,
+          correct_answer: q.options[q.correct],
+          user_answer: q.options[answers[i]],
+        }).then(() => {});
+      }
+    });
+    
     setSubmitted(true);
-    toast.success(`Score: ${score.toFixed(0)}%`);
+    toast.success(`Score: ${score.toFixed(0)}% — Earned ${xpEarned} XP and ${coinsEarned} coins! 🎉`);
   };
 
   const scoreCount = submitted ? questions.reduce((acc, q, i) => acc + (answers[i] === q.correct ? 1 : 0), 0) : 0;
@@ -196,7 +268,6 @@ const Tests = () => {
                 className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-2xl overflow-hidden"
               >
                 <div className="p-8">
-                  {/* Question number & text */}
                   <div className="flex items-start gap-4 mb-8">
                     <span className={`text-sm font-bold px-3 py-1.5 rounded-xl flex-shrink-0 ${
                       submitted
@@ -215,7 +286,6 @@ const Tests = () => {
                     )}
                   </div>
 
-                  {/* Options - full width stack */}
                   <div className="space-y-3">
                     {q.options.map((opt, oi) => {
                       const isSelected = answers[currentQ] === oi;
@@ -245,7 +315,6 @@ const Tests = () => {
                     })}
                   </div>
 
-                  {/* Explanation */}
                   <AnimatePresence>
                     {submitted && (
                       <motion.div
@@ -259,7 +328,6 @@ const Tests = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Bottom nav */}
                 <div className="flex items-center justify-between px-8 py-5 border-t border-border/15 bg-muted/5">
                   <Button
                     variant="ghost"
