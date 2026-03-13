@@ -10,9 +10,8 @@ serve(async (req) => {
 
   try {
     const { fileContent, fileName, mode, language } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
     let systemPrompt = "";
     let userPrompt = "";
 
