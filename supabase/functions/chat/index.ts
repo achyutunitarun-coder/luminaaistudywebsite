@@ -39,6 +39,7 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4096,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,

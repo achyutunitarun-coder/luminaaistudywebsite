@@ -21,6 +21,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 4096,
         messages: [
           { role: "system", content: "You are Lumina AI's study planner, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Generate personalized daily study plans." },
           { role: "user", content: `Create a daily study plan. Subjects: ${subjects.join(", ")}. Exam date: ${examDate}. Daily study time: ${dailyHours} hours. Generate a day-by-day plan with specific tasks, topics, and time allocations.` },

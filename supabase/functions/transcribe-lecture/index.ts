@@ -50,6 +50,7 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
+        max_tokens: 8000,
         temperature: 0.1,
         messages: [
           {
