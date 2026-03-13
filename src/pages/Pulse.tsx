@@ -14,8 +14,10 @@ const xpRules = [
   { icon: Target, label: 'Study Session (per 10 min)', xp: 5, color: 'text-warning' },
 ];
 
+const MAX_DAILY_MINUTES = 1440; // 24 hours cap
+
 const Pulse = () => {
-  const { seconds } = useStudyTimer();
+  const { seconds, isRunning } = useStudyTimer();
   const { profile } = useProfile();
   const { user } = useAuth();
 
@@ -54,8 +56,9 @@ const Pulse = () => {
     const dayMins = weeklyData?.filter(s => {
       const d = new Date(s.started_at);
       return d.getDay() === (i + 1) % 7;
-    }).reduce((sum, s) => sum + (s.duration_minutes || 0), 0) || 0;
-    return dayMins;
+    }).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, MAX_DAILY_MINUTES), 0) || 0;
+    // Cap each day at 24 hours
+    return Math.min(dayMins, MAX_DAILY_MINUTES);
   });
   const maxDay = Math.max(...weeklyMinsByDay, 1);
   const totalWeekMins = weeklyMinsByDay.reduce((a, b) => a + b, 0);
@@ -77,7 +80,7 @@ const Pulse = () => {
         </div>
       </motion.div>
 
-      {/* Live Timer — Hero Card */}
+      {/* Live Timer — only show when session is actively running */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -88,20 +91,32 @@ const Pulse = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/3 blur-[100px]" />
         
         <div className="relative z-10 py-14 px-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em]">Live Session</span>
-          </div>
-          
-          <div className="flex items-baseline justify-center gap-1 tabular-nums">
-            <span className="text-7xl md:text-8xl font-display font-bold text-foreground">{String(hrs).padStart(2, '0')}</span>
-            <span className="text-2xl text-muted-foreground/50 font-light mx-1">:</span>
-            <span className="text-7xl md:text-8xl font-display font-bold text-foreground">{String(mins).padStart(2, '0')}</span>
-            <span className="text-2xl text-muted-foreground/50 font-light mx-1">:</span>
-            <span className="text-5xl md:text-6xl font-display font-semibold text-muted-foreground">{String(secs).padStart(2, '0')}</span>
-          </div>
-          
-          <p className="text-sm text-muted-foreground mt-4">studying right now</p>
+          {isRunning && seconds > 0 ? (
+            <>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em]">Live Session</span>
+              </div>
+              
+              <div className="flex items-baseline justify-center gap-1 tabular-nums">
+                <span className="text-7xl md:text-8xl font-display font-bold text-foreground">{String(hrs).padStart(2, '0')}</span>
+                <span className="text-2xl text-muted-foreground/50 font-light mx-1">:</span>
+                <span className="text-7xl md:text-8xl font-display font-bold text-foreground">{String(mins).padStart(2, '0')}</span>
+                <span className="text-2xl text-muted-foreground/50 font-light mx-1">:</span>
+                <span className="text-5xl md:text-6xl font-display font-semibold text-muted-foreground">{String(secs).padStart(2, '0')}</span>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mt-4">studying right now</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">No Active Session</span>
+              </div>
+              <p className="text-lg text-muted-foreground">Start a study session to see your live timer</p>
+            </>
+          )}
         </div>
       </motion.div>
 

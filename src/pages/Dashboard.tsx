@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, BookOpen, Zap, Swords, Search, TrendingUp, BarChart3, Clock, ArrowRight, GitBranch, CheckCircle2, Lock } from 'lucide-react';
+import { Trophy, Flame, Target, BookOpen, Zap, Swords, Search, TrendingUp, BarChart3, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { StatCard } from '@/components/StatCard';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
-import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 const ease = [0.25, 0.1, 0.25, 1] as const;
 
@@ -59,19 +58,6 @@ const Dashboard = () => {
     { icon: Search, title: 'Weakness Detection', desc: 'Automatically identify weak subjects from tests.', color: 'text-destructive', bg: 'bg-destructive/8' },
     { icon: TrendingUp, title: 'Smart Suggestions', desc: 'AI recommends exactly what to study next.', color: 'text-primary', bg: 'bg-primary/8' },
     { icon: BarChart3, title: 'Progress Tracking', desc: 'See your strengths improve over time.', color: 'text-success', bg: 'bg-success/8' },
-  ];
-
-  // Mini flowchart data for dashboard
-  const progressNodes: FlowNode[] = [
-    { id: 'p1', label: 'Start Learning', type: 'start', status: 'completed', icon: <BookOpen className="w-3 h-3" /> },
-    { id: 'p2', label: 'Take Tests', type: 'process', status: profile.xp > 50 ? 'completed' : 'active', icon: <Target className="w-3 h-3" /> },
-    { id: 'p3', label: 'Fix Weaknesses', type: 'decision', status: profile.xp > 100 ? 'active' : 'upcoming', icon: <Zap className="w-3 h-3" /> },
-    { id: 'p4', label: 'Master Topics', type: 'end', status: 'locked', icon: <CheckCircle2 className="w-3 h-3" /> },
-  ];
-  const progressEdges: FlowEdge[] = [
-    { from: 'p1', to: 'p2', animated: true },
-    { from: 'p2', to: 'p3', animated: profile.xp > 50 },
-    { from: 'p3', to: 'p4' },
   ];
 
   return (
@@ -191,23 +177,28 @@ const Dashboard = () => {
         <StatCard icon={BookOpen} label="Coins" value={profile.coins} color="secondary" delay={0.25} />
       </div>
 
-      {/* Learning Path Flowchart */}
+      {/* Learning Progress */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, ease }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-primary" /> Learning Path
+            <CheckCircle2 className="w-4 h-4 text-primary" /> Learning Progress
           </h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/flowcharts')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
-            View All <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
         </div>
-        <FlowChart
-          nodes={progressNodes}
-          edges={progressEdges}
-          direction="horizontal"
-          className="h-[200px]"
-          interactive={false}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { label: 'Start Learning', desc: 'Begin your study journey', done: true, color: 'text-success' },
+            { label: 'Take Tests', desc: 'Test your knowledge with AI', done: profile.xp > 50, color: 'text-primary' },
+            { label: 'Master Topics', desc: 'Fix weaknesses and level up', done: profile.xp > 200, color: 'text-xp' },
+          ].map((step, i) => (
+            <div key={i} className={`rounded-2xl liquid-glass p-5 ${step.done ? 'border-success/20' : ''}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className={`w-5 h-5 ${step.done ? 'text-success' : 'text-muted-foreground/30'}`} />
+                <span className={`text-sm font-semibold ${step.done ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{step.desc}</p>
+            </div>
+          ))}
+        </div>
       </motion.div>
 
       {/* Quick Actions */}

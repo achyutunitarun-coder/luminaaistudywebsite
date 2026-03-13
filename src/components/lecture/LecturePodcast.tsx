@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Loader2, Podcast, Play, Square, RotateCcw, Pause } from 'lucide-react';
+import { Loader2, Podcast, Play, Square, RotateCcw, Pause, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -13,31 +13,29 @@ interface ScriptLine {
   text: string;
 }
 
-// Select distinct, high-quality voices for the two hosts
 const getVoicePair = (): { alex: SpeechSynthesisVoice | null; sam: SpeechSynthesisVoice | null } => {
   const voices = speechSynthesis.getVoices();
   if (!voices.length) return { alex: null, sam: null };
 
   const en = voices.filter(v => v.lang.startsWith('en'));
+  if (!en.length) return { alex: voices[0] || null, sam: voices[1] || voices[0] || null };
 
-  // Rank voices by quality indicators
   const rank = (v: SpeechSynthesisVoice) => {
     let score = 0;
     const n = v.name.toLowerCase();
     if (/natural|neural|premium|enhanced|wavenet|studio/i.test(n)) score += 10;
     if (/google|microsoft|apple/i.test(n)) score += 5;
-    if (!v.localService) score += 3; // cloud voices tend to sound better
+    if (!v.localService) score += 3;
     return score;
   };
 
   const sorted = [...en].sort((a, b) => rank(b) - rank(a));
 
-  // Try to pick a male-sounding and female-sounding voice
   const maleRe = /daniel|james|george|brian|liam|guy|aaron|tom|mark|david|eric|roger|charlie|male|adam|ryan/i;
   const femaleRe = /sarah|samantha|alice|karen|fiona|moira|victoria|zoe|female|lisa|kate|emma|jenny|aria/i;
 
   const alexVoice = sorted.find(v => maleRe.test(v.name)) || sorted[0] || null;
-  let samVoice = sorted.find(v => femaleRe.test(v.name) && v !== alexVoice) || sorted.find(v => v !== alexVoice) || sorted[0] || null;
+  const samVoice = sorted.find(v => femaleRe.test(v.name) && v !== alexVoice) || sorted.find(v => v !== alexVoice) || sorted[0] || null;
 
   return { alex: alexVoice, sam: samVoice };
 };
@@ -52,9 +50,9 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
 
   const isCancelledRef = useRef(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const playingRef = useRef(false);
 
   useEffect(() => {
-    // Preload voices (some browsers load async)
     speechSynthesis.getVoices();
     const handler = () => speechSynthesis.getVoices();
     speechSynthesis.addEventListener('voiceschanged', handler);
@@ -97,7 +95,15 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
 
       if (!resp.ok || !resp.body) {
         const err = await resp.json().catch(() => ({ error: 'Failed to generate script' }));
-        throw new Error(err.error || 'Failed to generate script');
+        if (resp.status === 429) {
+          toast.error('Rate limit exceeded. Please wait and try again.');
+        } else if (resp.status === 402) {
+          toast.error('AI credits exhausted. Please add credits.');
+        } else {
+          throw new Error(err.error || 'Failed to generate script');
+        }
+        setGeneratingScript(false);
+        return;
       }
 
       const reader = resp.body.getReader();
@@ -142,7 +148,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     }
   }, [notes, onScriptChange]);
 
-  const waitForVoices = useCallback((timeoutMs = 1500): Promise<void> => {
+  const waitForVoices = useCallback((timeoutMs = 2000): Promise<void> => {
     if (speechSynthesis.getVoices().length) return Promise.resolve();
 
     return new Promise((resolve) => {
@@ -159,7 +165,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     });
   }, []);
 
-  const splitForSpeech = (text: string, maxChars = 220): string[] => {
+  const splitForSpeech = (text: string, maxChars = 200): string[] => {
     const normalized = text.replace(/\s+/g, ' ').trim();
     if (!normalized) return [];
     if (normalized.length <= maxChars) return [normalized];
@@ -169,10 +175,10 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
 
     while (remaining.length > maxChars) {
       let splitAt = remaining.lastIndexOf('.', maxChars);
-      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf('?', maxChars);
-      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf('!', maxChars);
-      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf(',', maxChars);
-      if (splitAt < Math.floor(maxChars * 0.4)) splitAt = remaining.lastIndexOf(' ', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.3)) splitAt = remaining.lastIndexOf('?', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.3)) splitAt = remaining.lastIndexOf('!', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.3)) splitAt = remaining.lastIndexOf(',', maxChars);
+      if (splitAt < Math.floor(maxChars * 0.3)) splitAt = remaining.lastIndexOf(' ', maxChars);
 
       const fallbackCut = Math.min(maxChars, remaining.length);
       const cut = splitAt > 0 ? splitAt + 1 : fallbackCut;
@@ -192,6 +198,8 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     rate: number,
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
+      if (isCancelledRef.current) { resolve(); return; }
+      
       const utt = new SpeechSynthesisUtterance(text);
       utteranceRef.current = utt;
       if (voice) utt.voice = voice;
@@ -217,6 +225,9 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
         reject(new Error(e.error || 'synthesis-failed'));
       };
 
+      // Safety timeout - if speech doesn't end in 30s, resolve anyway
+      setTimeout(() => finish(), 30000);
+
       speechSynthesis.speak(utt);
     });
   };
@@ -234,12 +245,17 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       try {
         await speakChunk(chunk, voice, pitch, rate);
       } catch {
-        // Fallback with default browser voice/settings for reliability.
-        await speakChunk(chunk, null, 1, 1);
+        // Fallback with default voice
+        try {
+          await speakChunk(chunk, null, 1, 1);
+        } catch {
+          // Skip this chunk entirely
+          console.warn('Speech chunk skipped:', chunk.slice(0, 50));
+        }
       }
 
       if (!isCancelledRef.current) {
-        await new Promise((r) => setTimeout(r, 60));
+        await new Promise((r) => setTimeout(r, 50));
       }
     }
   };
@@ -253,11 +269,14 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
       return;
     }
 
+    // Prevent double-play
+    if (playingRef.current) return;
+    playingRef.current = true;
+
     await waitForVoices();
 
-    // Clear any stale queue before starting a new run.
     speechSynthesis.cancel();
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 50));
 
     const { alex, sam } = getVoicePair();
 
@@ -280,20 +299,21 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
           isAlex ? 0.95 : 1.0,
         );
 
-        if (i < parsedScript.length - 1 && parsedScript[i + 1].speaker !== line.speaker) {
-          await new Promise((r) => setTimeout(r, 250));
+        if (!isCancelledRef.current && i < parsedScript.length - 1 && parsedScript[i + 1].speaker !== line.speaker) {
+          await new Promise((r) => setTimeout(r, 200));
         }
       }
 
       if (!isCancelledRef.current) toast.success('Podcast finished!');
     } catch {
       if (!isCancelledRef.current) {
-        toast.error('Speech synthesis failed in this browser. Try Chrome desktop for best results.');
+        toast.error('Speech synthesis had issues. Try Chrome desktop for best results.');
       }
     } finally {
       setIsPlaying(false);
       setIsPaused(false);
       setCurrentLineIdx(-1);
+      playingRef.current = false;
     }
   }, [parsedScript, isPaused, waitForVoices]);
 
@@ -309,7 +329,20 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentLineIdx(-1);
+    playingRef.current = false;
   }, []);
+
+  const downloadScript = useCallback(() => {
+    if (!script) return;
+    const blob = new Blob([script], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'podcast-script.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Script downloaded!');
+  }, [script]);
 
   // Auto-scroll to current line
   useEffect(() => {
@@ -384,7 +417,7 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
                 })}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {!isPlaying ? (
               <Button onClick={playPodcast} className="h-11 px-6 rounded-2xl" disabled={!parsedScript.length}>
                 <Play className="w-4 h-4 mr-2" /> Play Podcast
@@ -402,6 +435,9 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
             )}
             <Button variant="ghost" size="sm" onClick={generateScript} className="rounded-xl" disabled={isPlaying}>
               <RotateCcw className="w-4 h-4 mr-1.5" /> Redo Script
+            </Button>
+            <Button variant="outline" size="sm" onClick={downloadScript} className="rounded-xl">
+              <Download className="w-4 h-4 mr-1.5" /> Download
             </Button>
             {isPlaying && currentLineIdx >= 0 && (
               <span className="text-xs text-muted-foreground">

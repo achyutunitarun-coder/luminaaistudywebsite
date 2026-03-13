@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { toast } from 'sonner';
 
 type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
@@ -99,7 +100,7 @@ const ChatSidebar = ({
 );
 
 /* ─── Main Chat Component ─── */
-const Chat = () => {
+const ChatPage = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [chats, setChats] = useState<Chat[]>([]);
@@ -150,7 +151,6 @@ const Chat = () => {
   const fetchMemoryContext = async () => {
     if (!user) return [];
     try {
-      // Get recent chats (excluding current), limited to last 10
       const { data: recentChats } = await supabase
         .from('chats')
         .select('id, title')
@@ -160,7 +160,6 @@ const Chat = () => {
 
       if (!recentChats || recentChats.length === 0) return [];
 
-      // Fetch last 4 messages from each chat for context
       const memoryContext = await Promise.all(
         recentChats.map(async (chat) => {
           const { data: msgs } = await supabase
@@ -174,7 +173,7 @@ const Chat = () => {
             title: chat.title,
             messages: msgs.reverse().map(m => ({
               role: m.role,
-              content: m.content.slice(0, 300), // Truncate long messages
+              content: m.content.slice(0, 300),
             })),
           };
         })
@@ -188,6 +187,9 @@ const Chat = () => {
 
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading) return;
+    
+    setIsLoading(true); // FIX: was missing - caused no loading indicator
+    
     const fileContext = buildFileContext(uploadedFiles);
     const userContent = input.trim() + fileContext;
     setInput('');
@@ -206,7 +208,6 @@ const Chat = () => {
       role: m.role as 'user' | 'assistant', content: m.content,
     }));
 
-    // Fetch memory from past conversations
     const memoryContext = await fetchMemoryContext();
 
     try {
@@ -215,7 +216,21 @@ const Chat = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({ messages: allMessages, memoryContext }),
       });
-      if (!resp.ok || !resp.body) throw new Error('Stream failed');
+      
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        if (resp.status === 429) {
+          toast.error('Rate limit exceeded. Please wait a moment and try again.');
+        } else if (resp.status === 402) {
+          toast.error('AI credits exhausted. Please add credits to continue.');
+        } else {
+          toast.error(errorData.error || 'Failed to get AI response. Please try again.');
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!resp.body) throw new Error('No response body');
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -251,9 +266,14 @@ const Chat = () => {
       if (assistantContent) {
         const { data: savedMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'assistant', content: assistantContent }).select().single();
         if (savedMsg) setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
+      } else {
+        // No content received - remove the empty assistant message
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        toast.error('AI returned an empty response. Please try again.');
       }
     } catch (error) {
       console.error('Chat error:', error);
+      toast.error('Failed to connect to AI. Please try again.');
     }
     setIsLoading(false);
   };
@@ -293,7 +313,9 @@ const Chat = () => {
             <button
               key={suggestion}
               onClick={async () => {
-                await createChat();
+                if (!activeChat) {
+                  await createChat();
+                }
                 setInput(suggestion);
                 setTimeout(() => inputRef.current?.focus(), 100);
               }}
@@ -470,4 +492,4 @@ const Chat = () => {
   );
 };
 
-export default Chat;
+export default ChatPage;
