@@ -10,9 +10,8 @@ serve(async (req) => {
 
   try {
     const { notes, type } = await req.json(); // type: "flashcards" | "quiz" | "summary"
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
     const prompts: Record<string, string> = {
       flashcards: `From these lecture notes, generate 10-15 flashcards. Return valid JSON array: [{"front": "question", "back": "answer"}]. Only return the JSON, no other text.\n\nNotes:\n${notes}`,
       quiz: `From these lecture notes, generate 8-10 multiple choice quiz questions. Return valid JSON array: [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}] where correct is the 0-based index. Only return the JSON.\n\nNotes:\n${notes}`,
