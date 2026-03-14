@@ -20,35 +20,19 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-async function getVideoInfo(videoId: string): Promise<{ title: string; description: string; transcript: string }> {
+async function fetchTranscriptFromInnerTube(videoId: string): Promise<{ title: string; description: string; transcript: string }> {
   let title = "Unknown";
   let description = "";
   let transcript = "";
 
-  // Method 1: Use oEmbed API for title (always works, no auth needed)
+  // Method 1: InnerTube Player API
   try {
-    const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-    if (oembedRes.ok) {
-      const oembed = await oembedRes.json();
-      title = oembed.title || title;
-    }
-  } catch (e) {
-    console.error("oEmbed error:", e);
-  }
-
-  // Method 2: Try InnerTube API to get captions
-  try {
-    // First, get the page to extract a valid client version
     const playerRes = await fetch("https://www.youtube.com/youtubei/v1/player", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         context: {
-          client: {
-            clientName: "WEB",
-            clientVersion: "2.20240101.00.00",
-            hl: "en",
-          },
+          client: { clientName: "WEB", clientVersion: "2.20240101.00.00", hl: "en" },
         },
         videoId,
       }),
@@ -56,21 +40,16 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
 
     if (playerRes.ok) {
       const playerData = await playerRes.json();
-      
-      // Get title and description from player response
       title = playerData?.videoDetails?.title || title;
       description = playerData?.videoDetails?.shortDescription || "";
 
-      // Extract caption tracks
       const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
       if (captionTracks && captionTracks.length > 0) {
-        // Prefer English, then auto-generated English, then first available
-        const enTrack = captionTracks.find((t: any) => t.languageCode === "en" && !t.kind) 
+        const enTrack = captionTracks.find((t: any) => t.languageCode === "en" && !t.kind)
           || captionTracks.find((t: any) => t.languageCode === "en")
           || captionTracks[0];
 
         if (enTrack?.baseUrl) {
-          // Fetch the actual transcript XML
           const capUrl = enTrack.baseUrl + "&fmt=srv3";
           const capRes = await fetch(capUrl);
           if (capRes.ok) {
@@ -79,16 +58,10 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
             transcript = textParts
               .map((t: string) =>
                 t.replace(/<[^>]+>/g, "")
-                  .replace(/&amp;/g, "&")
-                  .replace(/&lt;/g, "<")
-                  .replace(/&gt;/g, ">")
-                  .replace(/&#39;/g, "'")
-                  .replace(/&quot;/g, '"')
-                  .replace(/\n/g, " ")
+                  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+                  .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " ")
               )
-              .join(" ")
-              .replace(/\s+/g, " ")
-              .trim();
+              .join(" ").replace(/\s+/g, " ").trim();
           }
         }
       }
@@ -97,7 +70,7 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
     console.error("InnerTube error:", e);
   }
 
-  // Method 3: If InnerTube failed, try scraping the watch page
+  // Method 2: HTML scrape fallback
   if (!transcript) {
     try {
       const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
@@ -108,7 +81,6 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
       });
       const html = await watchRes.text();
 
-      // Try extracting caption tracks from the HTML
       const captionMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
       if (captionMatch) {
         const tracks = JSON.parse(captionMatch[1]);
@@ -122,27 +94,18 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
             transcript = textParts
               .map((t: string) =>
                 t.replace(/<[^>]+>/g, "")
-                  .replace(/&amp;/g, "&")
-                  .replace(/&lt;/g, "<")
-                  .replace(/&gt;/g, ">")
-                  .replace(/&#39;/g, "'")
-                  .replace(/&quot;/g, '"')
-                  .replace(/\n/g, " ")
+                  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+                  .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " ")
               )
-              .join(" ")
-              .replace(/\s+/g, " ")
-              .trim();
+              .join(" ").replace(/\s+/g, " ").trim();
           }
         }
       }
 
-      // Extract title from HTML if still unknown
       if (title === "Unknown") {
         const titleMatch = html.match(/<title>(.+?)<\/title>/);
         if (titleMatch) title = titleMatch[1].replace(" - YouTube", "").trim();
       }
-
-      // Extract description from meta
       if (!description) {
         const descMatch = html.match(/property="og:description"\s+content="([^"]*)/);
         if (descMatch) description = descMatch[1];
@@ -150,6 +113,17 @@ async function getVideoInfo(videoId: string): Promise<{ title: string; descripti
     } catch (e) {
       console.error("HTML scrape error:", e);
     }
+  }
+
+  // Method 3: oEmbed for title fallback
+  if (title === "Unknown") {
+    try {
+      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      if (oembedRes.ok) {
+        const oembed = await oembedRes.json();
+        title = oembed.title || title;
+      }
+    } catch {}
   }
 
   return { title, description, transcript };
@@ -167,20 +141,53 @@ serve(async (req) => {
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
-    const { title, description, transcript } = await getVideoInfo(videoId);
-    
-    // Build the content to send to AI
-    let content = `Title: ${title}\n\n`;
-    if (transcript) {
-      content += `Transcript:\n${transcript}`;
-      console.log("Transcript extracted successfully, length:", transcript.length);
-    } else if (description) {
-      content += `Description: ${description}\n\n(No captions/transcript available for this video. Summarize based on the title and description. Acknowledge this limitation.)`;
-      console.log("No transcript, using description, length:", description.length);
+
+    const { title, description, transcript } = await fetchTranscriptFromInnerTube(videoId);
+
+    console.log("Video:", title, "| Transcript length:", transcript.length, "| Description length:", description.length);
+
+    // Build the content to send to AI — prioritize transcript
+    let content = `Video Title: ${title}\n\n`;
+    let hasFullContent = false;
+
+    if (transcript && transcript.length > 100) {
+      // Use full transcript, split into chunks if very long
+      const maxChars = 60000;
+      const trimmedTranscript = transcript.length > maxChars ? transcript.substring(0, maxChars) + "\n\n[Transcript truncated due to length]" : transcript;
+      content += `Full Video Transcript:\n${trimmedTranscript}`;
+      hasFullContent = true;
+      console.log("Using full transcript for analysis");
+    } else if (description && description.length > 50) {
+      content += `Video Description:\n${description}\n\n⚠️ Note: No captions/transcript available for this video. This summary is based on the video description only, not the actual spoken content.`;
+      console.log("Using description only — no transcript available");
     } else {
-      content += `(No transcript or description available. Provide what analysis you can based on the video title alone. Clearly state that no transcript was available.)`;
-      console.log("No transcript or description available");
+      content += `⚠️ No transcript or description available for this video. Only the title is known. The summary will be very limited.`;
+      console.log("No transcript or description — title only");
     }
+
+    const systemPrompt = hasFullContent
+      ? `You are Lumina AI's video analyzer. You have the FULL TRANSCRIPT of this video. Create an extremely thorough, detailed summary:
+
+## 📺 Video Overview
+2-3 sentence summary of what the video covers.
+
+## 🎯 Key Points
+- Bullet points of every major idea discussed (aim for 10-15 points)
+
+## 📝 Detailed Summary
+Organize by topics/sections as they appear in the video. Be thorough — cover every important concept discussed. Use sub-headings for each section.
+
+## 💡 Key Takeaways
+The 5-7 most important lessons, facts, or insights from this video.
+
+## 📌 Notable Quotes
+Any memorable or impactful quotes from the video.
+
+## 🔗 Topics Mentioned
+List all specific topics, people, books, or resources mentioned.
+
+Use markdown formatting. Be comprehensive — the user should not need to watch the video after reading this summary.`
+      : `You are Lumina AI's video analyzer. Unfortunately, no transcript was available for this video. Summarize based on the available metadata (title and description). Be transparent about this limitation and provide what analysis you can. Suggest the user try a video with captions enabled for better results.`;
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -190,20 +197,10 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        max_tokens: 5000,
+        max_tokens: 6000,
         messages: [
-          {
-            role: "system",
-            content: `You are Lumina AI's video summarizer, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Given a YouTube video's transcript (or metadata), create a comprehensive summary with:
-- **Video Overview**: 2-3 sentence summary
-- **Key Points**: Bullet points of main ideas
-- **Detailed Summary**: Organized by topics/sections
-- **Key Takeaways**: Most important lessons or facts
-- **Notable Quotes**: If any stand out from the transcript
-
-Use markdown formatting. Be thorough but concise. If only metadata is available (no transcript), acknowledge this limitation and provide what you can based on the title and description.`,
-          },
-          { role: "user", content: `Summarize this YouTube video:\n\n${content.substring(0, 30000)}` },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Analyze and summarize this YouTube video thoroughly:\n\n${content}` },
         ],
         stream: true,
       }),

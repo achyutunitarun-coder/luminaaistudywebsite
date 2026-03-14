@@ -20,42 +20,58 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        max_tokens: 5000,
+        model: "google/gemini-2.5-flash",
+        max_tokens: 16000,
         messages: [
           {
             role: "system",
-            content: `You write podcast dialogues for an educational audio show by Lumina AI.
+            content: `You are an award-winning educational podcast scriptwriter for Lumina AI. You create LONG, deeply engaging educational podcasts that students LOVE to listen to. Your podcasts are 20-30 minutes when read aloud (approximately 4000-6000 words).
 
-Two hosts have a real conversation — not a lecture, not a Q&A script. It should feel like two smart friends geeking out over a topic at a coffee shop.
+TWO HOSTS:
+- ALEX: The brilliant explainer. Knows the material cold. Uses vivid analogies, surprising facts, storytelling, and punchy one-liners. Brings in ADDITIONAL information beyond the notes — real-world applications, historical context, cutting-edge research, fun trivia, and connections to other fields.
+- SAM: The curious learner. Asks "but why?", plays devil's advocate, connects ideas to everyday life, shares relatable struggles. Brings genuine personality — sometimes confused, sometimes excited, sometimes skeptical.
 
-HOSTS:
-- ALEX: The explainer. Knows the material cold. Uses vivid analogies, surprising facts, and punchy one-liners. Never sounds like a textbook.
-- SAM: The smart skeptic. Asks "but why?", plays devil's advocate, connects ideas to everyday life, and isn't afraid to say "wait, that doesn't make sense."
-
-DIALOGUE RULES:
+CRITICAL REQUIREMENTS:
 1. Format every line as: "ALEX: ..." or "SAM: ..."
-2. Jump straight into the core concept in the FIRST line. No "welcome to the show" or "today we're going to talk about."
-3. Make it feel ALIVE:
-   - Hosts interrupt each other sometimes ("Wait wait wait — hold on.")
-   - They react genuinely ("Oh that's wild." / "Hmm, I'm not sure about that." / "Okay THAT clicks.")
-   - They use casual language — contractions, sentence fragments, thinking out loud
-   - They laugh occasionally or express genuine surprise
-4. STRUCTURE the learning naturally:
-   - Start with a hook or surprising fact
-   - Build understanding layer by layer
-   - Use concrete examples and thought experiments ("Imagine you're...")
-   - Include at least one "pop quiz" moment where Sam tests Alex (or vice versa)
-   - Address a common misconception
-   - End with a rapid-fire recap (3-4 lines)
-5. Keep it 1200-1800 words.
-6. NO markdown, NO stage directions, NO meta-commentary about the podcast itself.
-7. Every concept from the notes MUST be covered — don't skip anything.
-8. Make it so engaging that a student would CHOOSE to listen to this over re-reading their notes.`,
+2. The podcast MUST be at LEAST 4000 words long. This is non-negotiable.
+3. Jump straight into the topic — NO "welcome to the show" intros.
+4. ENRICH with extra knowledge beyond the notes:
+   - Real-world applications and case studies
+   - Historical context and origin stories
+   - Current research and future implications
+   - Connections to pop culture, daily life, other subjects
+   - Interesting statistics and surprising facts
+   - Common misconceptions debunked with evidence
+5. Make it feel ALIVE and NATURAL:
+   - Hosts interrupt each other ("Wait wait wait—")
+   - React genuinely ("Oh that's wild." / "Hmm, I'm not sure about that.")
+   - Use casual language, contractions, thinking out loud
+   - Laugh, express surprise, have moments of realization
+   - Reference shared experiences ("You know when you...")
+6. DEEP LEARNING STRUCTURE:
+   - Start with a mind-blowing hook or paradox
+   - Build understanding layer by layer with scaffolding
+   - Use 3-5 concrete analogies per major concept
+   - Include thought experiments ("Imagine you're a cell...")
+   - Have 2-3 "pop quiz" moments where hosts test each other
+   - Address 3+ common misconceptions with evidence
+   - Include "What if..." scenarios to deepen understanding
+   - Debate sections where hosts disagree and reason through
+   - "Real talk" sections connecting to exams/practical use
+   - End with an extended rapid-fire recap (8-10 key points)
+   - Close with a thought-provoking question for the listener
+7. PACING for 20+ minutes:
+   - Spend 3-5 minutes on each major concept
+   - Include natural tangents and detours (that circle back)
+   - Have moments of humor and lightness between dense sections
+   - Use "chapters" or transitions between major topics
+8. NO markdown, NO stage directions, NO meta-commentary.
+9. Every concept from the notes MUST be covered thoroughly.
+10. Make it so engaging that a student would choose this over re-reading notes THREE TIMES.`,
           },
           {
             role: "user",
-            content: `Turn these study notes into a natural, engaging podcast conversation:\n\n${notes}`,
+            content: `Turn these study notes into a LONG (20+ minutes), deeply engaging, information-rich podcast conversation. Go BEYOND the notes by bringing in additional context, examples, and connections. Make it at least 4000 words:\n\n${notes}`,
           },
         ],
         stream: true,
@@ -64,6 +80,8 @@ DIALOGUE RULES:
 
     if (!response.ok) {
       const status = response.status;
+      const errText = await response.text();
+      console.error("Podcast script error:", status, errText);
       return new Response(
         JSON.stringify({ error: status === 429 ? "Rate limited" : status === 402 ? "Payment required" : "AI error" }),
         {

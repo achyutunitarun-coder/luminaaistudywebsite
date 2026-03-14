@@ -9,7 +9,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { content, title } = await req.json();
+    const { content, title, cardCount = 20 } = await req.json();
+    const count = Math.min(Math.max(Number(cardCount) || 20, 5), 80);
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
@@ -21,15 +22,15 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        max_tokens: 4096,
+        max_tokens: count > 40 ? 8000 : 4096,
         messages: [
           {
             role: "system",
-            content: "You are Lumina AI's flashcard generator, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Create concise, effective flashcards for studying.",
+            content: `You are Lumina AI's flashcard generator. Create exactly ${count} concise, effective flashcards for studying. Each card should test a different concept. Make questions clear and answers thorough but concise.`,
           },
           {
             role: "user",
-            content: `Create flashcards for "${title}" from this content:\n\n${content}`,
+            content: `Create exactly ${count} flashcards for "${title}" from this content:\n\n${content}`,
           },
         ],
         tools: [
@@ -37,7 +38,7 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "generate_flashcards",
-              description: "Generate study flashcards with front (question) and back (answer)",
+              description: `Generate exactly ${count} study flashcards with front (question) and back (answer)`,
               parameters: {
                 type: "object",
                 properties: {

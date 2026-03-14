@@ -13,15 +13,10 @@ const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
-
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized + "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
-    const json = atob(padded);
-
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
+    return JSON.parse(atob(padded));
+  } catch { return null; }
 };
 
 const extractUserId = (authHeader: string | null): string => {
@@ -31,7 +26,6 @@ const extractUserId = (authHeader: string | null): string => {
     const sub = typeof payload?.sub === "string" ? payload.sub : null;
     if (sub && UUID_REGEX.test(sub)) return sub;
   }
-
   return crypto.randomUUID();
 };
 
@@ -42,6 +36,8 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -67,7 +63,7 @@ Rules:
 1. Capture all intelligible speech, including quiet parts.
 2. Keep punctuation and sentence boundaries natural.
 3. Use speaker labels "A", "B", etc. when distinguishable.
-4. Provide timestamped phrase chunks (roughly 8-20 words each), not single-word timestamps.
+4. Provide timestamped phrase chunks (roughly 8-20 words each).
 5. If uncertain, make your best estimate and continue.
 6. No markdown, no code fences, no commentary.`,
           },
@@ -93,13 +89,19 @@ Rules:
 
     if (!response.ok) {
       const errText = await response.text();
-      if (response.status === 429) {
-        throw new Error("Transcription is rate-limited right now. Please retry in a moment.");
-      }
-      if (response.status === 402) {
-        throw new Error("Transcription credits are exhausted. Please top up workspace usage.");
-      }
-      throw new Error(`Transcription API error ${response.status}: ${errText}`);
+      console.error("Transcription API error:", response.status, errText);
+
+      // Parse the actual error from the provider
+      let errorMessage = `Transcription failed (${response.status})`;
+      try {
+        const parsed = JSON.parse(errText);
+        errorMessage = parsed?.error?.message || parsed?.error || errorMessage;
+      } catch {}
+
+      if (response.status === 429) errorMessage = "Rate limited — please retry in a moment.";
+      if (response.status === 402) errorMessage = "OpenRouter credits exhausted. Please top up your OpenRouter account.";
+
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -131,7 +133,8 @@ serve(async (req) => {
 
   try {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured. Please add your OpenRouter API key.");
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -145,9 +148,7 @@ serve(async (req) => {
         .select("status, result, error")
         .eq("id", jobId)
         .single();
-
       if (error) throw new Error("Job not found");
-
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -157,17 +158,13 @@ serve(async (req) => {
     const maxRequestBytes = 6 * 1024 * 1024;
     if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
       return new Response(
-        JSON.stringify({ error: "Audio chunk too large. The app will auto-split long files to avoid credit waste." }),
-        {
-          status: 413,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "Audio chunk too large. The app will auto-split long files." }),
+        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const formData = await req.formData();
     const audioFile = formData.get("audio") as File | null;
-
     if (!audioFile) throw new Error("No audio file provided");
     if (audioFile.size === 0) throw new Error("Audio file is empty");
 
