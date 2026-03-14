@@ -100,7 +100,9 @@ Rules:
       } catch {}
 
       if (response.status === 429) errorMessage = "Rate limited — please retry in a moment.";
-      if (response.status === 402) errorMessage = "OpenRouter credits exhausted. Please top up your OpenRouter account.";
+      if (response.status === 402 && !errorMessage.toLowerCase().includes("free")) {
+        errorMessage = "No free model route was available right now. Please retry in a moment.";
+      }
 
       throw new Error(errorMessage);
     }
