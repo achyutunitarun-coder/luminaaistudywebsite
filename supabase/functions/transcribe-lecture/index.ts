@@ -45,7 +45,8 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        models: ["openrouter/healer-alpha", "openrouter/hunter-alpha"],
+        model: "openrouter/healer-alpha",
         max_tokens: 8000,
         temperature: 0.1,
         messages: [

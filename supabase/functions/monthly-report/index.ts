@@ -20,7 +20,8 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        model: "openrouter/hunter-alpha",
         max_tokens: 4096,
         messages: [
           { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate detailed monthly study reports for students. Be encouraging but honest about weaknesses." },

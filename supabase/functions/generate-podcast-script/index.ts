@@ -20,7 +20,8 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        model: "openrouter/hunter-alpha",
         max_tokens: 16000,
         messages: [
           {
