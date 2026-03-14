@@ -23,6 +23,7 @@ serve(async (req) => {
         models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
         model: "openrouter/hunter-alpha",
         max_tokens: 4096,
+        include_reasoning: false,
         messages: [
           { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate detailed monthly study reports for students. Be encouraging but honest about weaknesses." },
           { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },

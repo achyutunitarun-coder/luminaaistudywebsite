@@ -23,6 +23,7 @@ serve(async (req) => {
         models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
         model: "openrouter/hunter-alpha",
         max_tokens: 4096,
+        include_reasoning: false,
         messages: [
           { role: "system", content: "You are Lumina AI's study planner, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Generate personalized daily study plans." },
           { role: "user", content: `Create a daily study plan. Subjects: ${subjects.join(", ")}. Exam date: ${examDate}. Daily study time: ${dailyHours} hours. Generate a day-by-day plan with specific tasks, topics, and time allocations.` },

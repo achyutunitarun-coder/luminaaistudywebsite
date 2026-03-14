@@ -48,6 +48,7 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
         models: ["openrouter/healer-alpha", "openrouter/hunter-alpha"],
         model: "openrouter/healer-alpha",
         max_tokens: 8000,
+        include_reasoning: false,
         temperature: 0.1,
         messages: [
           {

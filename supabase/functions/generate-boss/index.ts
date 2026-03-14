@@ -23,6 +23,7 @@ serve(async (req) => {
         models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
         model: "openrouter/hunter-alpha",
         max_tokens: 4096,
+        include_reasoning: false,
         messages: [
           { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You create educational boss battle questions for a gamified study app." },
           { role: "user", content: `Create a boss battle for the topic "${topic}". Generate a boss name, emoji icon, and 5 challenging questions with 4 options each.` },
