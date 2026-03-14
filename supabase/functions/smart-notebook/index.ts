@@ -72,8 +72,10 @@ Use markdown formatting. Keep technical terms in their original language in pare
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        model: "openrouter/hunter-alpha",
         max_tokens: 5000,
+        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

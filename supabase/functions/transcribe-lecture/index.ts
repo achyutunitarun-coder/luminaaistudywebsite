@@ -45,8 +45,10 @@ async function processTranscription(jobId: string, base64Audio: string, mimeType
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        models: ["openrouter/healer-alpha", "openrouter/hunter-alpha"],
+        model: "openrouter/healer-alpha",
         max_tokens: 8000,
+        include_reasoning: false,
         temperature: 0.1,
         messages: [
           {
@@ -99,7 +101,9 @@ Rules:
       } catch {}
 
       if (response.status === 429) errorMessage = "Rate limited — please retry in a moment.";
-      if (response.status === 402) errorMessage = "OpenRouter credits exhausted. Please top up your OpenRouter account.";
+      if (response.status === 402 && !errorMessage.toLowerCase().includes("free")) {
+        errorMessage = "No free model route was available right now. Please retry in a moment.";
+      }
 
       throw new Error(errorMessage);
     }
