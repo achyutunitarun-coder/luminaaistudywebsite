@@ -21,16 +21,22 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        max_tokens: 4096,
+        max_tokens: 6000,
         messages: [
-          { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You create 10-minute quick study lessons." },
-          { role: "user", content: `Create a quick 10-minute lesson on "${topic}". Include key concepts and 5 practice questions.` },
+          {
+            role: "system",
+            content: `You are Lumina AI, an expert tutor. Create comprehensive quick study lessons that are detailed enough for real exam preparation. Each concept explanation should be 3-5 sentences minimum, covering the what, why, how, and real-world applications. Include formulas, examples, and connections between concepts. Generate 8-10 key concepts (not just 4-5) and 8 practice questions with thorough explanations.`,
+          },
+          {
+            role: "user",
+            content: `Create a comprehensive study lesson on "${topic}". Include 8-10 detailed key concepts with thorough explanations (3-5 sentences each, with examples and applications) and 8 practice questions with detailed answer explanations.`,
+          },
         ],
         tools: [{
           type: "function",
           function: {
             name: "generate_lesson",
-            description: "Generate a quick study lesson",
+            description: "Generate a comprehensive quick study lesson with detailed concepts and questions",
             parameters: {
               type: "object",
               properties: {
@@ -40,8 +46,8 @@ serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      concept: { type: "string" },
-                      explanation: { type: "string" },
+                      concept: { type: "string", description: "The concept name or title" },
+                      explanation: { type: "string", description: "Detailed explanation with examples, 3-5 sentences minimum" },
                     },
                     required: ["concept", "explanation"],
                     additionalProperties: false,
@@ -55,7 +61,7 @@ serve(async (req) => {
                       question: { type: "string" },
                       options: { type: "array", items: { type: "string" } },
                       correct: { type: "number" },
-                      explanation: { type: "string" },
+                      explanation: { type: "string", description: "Detailed explanation of why this answer is correct and why others are wrong" },
                     },
                     required: ["question", "options", "correct", "explanation"],
                     additionalProperties: false,

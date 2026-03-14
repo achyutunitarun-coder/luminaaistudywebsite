@@ -4,6 +4,7 @@ import { Plus, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Loader2, ArrowLef
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +16,7 @@ const Flashcards = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [cardCount, setCardCount] = useState(20);
   const [generating, setGenerating] = useState(false);
   const [activeDeck, setActiveDeck] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
@@ -49,7 +51,7 @@ const Flashcards = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ content, title }),
+        body: JSON.stringify({ content, title, cardCount }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
@@ -66,7 +68,8 @@ const Flashcards = () => {
         setShowCreate(false);
         setTitle('');
         setContent('');
-        toast.success('Flashcard deck created!');
+        setCardCount(20);
+        toast.success(`Flashcard deck created with ${data.cards.length} cards!`);
       }
     } catch {
       toast.error('Failed to generate flashcards');
@@ -82,7 +85,6 @@ const Flashcards = () => {
 
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Top bar */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => { setActiveDeck(null); setCardIndex(0); setFlipped(false); }} className="rounded-xl">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
@@ -91,7 +93,6 @@ const Flashcards = () => {
           <span className="text-sm font-bold text-primary">{cardIndex + 1}/{cards.length}</span>
         </div>
 
-        {/* Progress bar */}
         <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-primary to-secondary"
@@ -102,7 +103,6 @@ const Flashcards = () => {
 
         {card && (
           <div className="flex flex-col items-center pt-4">
-            {/* Card with perspective flip */}
             <div className="w-full perspective-[1200px]">
               <motion.div
                 className="relative w-full aspect-[4/3] cursor-pointer"
@@ -111,7 +111,6 @@ const Flashcards = () => {
                 animate={{ rotateY: flipped ? 180 : 0 }}
                 transition={{ duration: 0.5, type: 'spring', stiffness: 80 }}
               >
-                {/* Front */}
                 <div
                   className="absolute inset-0 rounded-[2rem] border border-border/30 bg-gradient-to-br from-card via-card/90 to-muted/20 backdrop-blur-2xl flex flex-col items-center justify-center p-10 shadow-2xl shadow-primary/5"
                   style={{ backfaceVisibility: 'hidden' }}
@@ -120,8 +119,6 @@ const Flashcards = () => {
                   <p className="text-xl md:text-2xl text-foreground font-display font-semibold text-center leading-relaxed">{card.front}</p>
                   <p className="text-xs text-muted-foreground mt-8">Tap to reveal answer</p>
                 </div>
-
-                {/* Back */}
                 <div
                   className="absolute inset-0 rounded-[2rem] border border-success/20 bg-gradient-to-br from-success/5 via-card/90 to-card flex flex-col items-center justify-center p-10 shadow-2xl shadow-success/5"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
@@ -132,32 +129,18 @@ const Flashcards = () => {
               </motion.div>
             </div>
 
-            {/* Navigation */}
             <div className="flex items-center gap-3 mt-8">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => { setCardIndex(Math.max(0, cardIndex - 1)); setFlipped(false); }}
-                disabled={cardIndex === 0}
-                className="rounded-2xl h-12 w-12"
-              >
+              <Button variant="outline" size="lg" onClick={() => { setCardIndex(Math.max(0, cardIndex - 1)); setFlipped(false); }} disabled={cardIndex === 0} className="rounded-2xl h-12 w-12">
                 <ChevronLeft className="w-5 h-5" />
               </Button>
               <Button variant="outline" size="lg" onClick={() => setFlipped(false)} className="rounded-2xl h-12 w-12">
                 <RotateCcw className="w-4 h-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => { setCardIndex(Math.min(cards.length - 1, cardIndex + 1)); setFlipped(false); }}
-                disabled={cardIndex === cards.length - 1}
-                className="rounded-2xl h-12 w-12"
-              >
+              <Button variant="outline" size="lg" onClick={() => { setCardIndex(Math.min(cards.length - 1, cardIndex + 1)); setFlipped(false); }} disabled={cardIndex === cards.length - 1} className="rounded-2xl h-12 w-12">
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
 
-            {/* Dot indicators */}
             <div className="flex gap-1.5 mt-6 flex-wrap justify-center max-w-md">
               {cards.map((_, i) => (
                 <button
@@ -175,10 +158,8 @@ const Flashcards = () => {
     );
   }
 
-  // ── Deck List ──
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -190,24 +171,15 @@ const Flashcards = () => {
               <p className="text-muted-foreground text-sm mt-0.5">AI-generated decks for active recall</p>
             </div>
           </div>
-          <Button
-            onClick={() => setShowCreate(!showCreate)}
-            className="gradient-primary text-primary-foreground rounded-2xl h-12 px-6 shadow-lg shadow-primary/20"
-          >
+          <Button onClick={() => setShowCreate(!showCreate)} className="gradient-primary text-primary-foreground rounded-2xl h-12 px-6 shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4 mr-2" /> New Deck
           </Button>
         </div>
       </motion.div>
 
-      {/* Create Deck Panel */}
       <AnimatePresence>
         {showCreate && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-xl p-8 space-y-5">
               <Input
                 placeholder="Deck title — e.g., Biology Chapter 5"
@@ -221,6 +193,30 @@ const Flashcards = () => {
                 onChange={e => setContent(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
               />
+              
+              {/* Card count selector */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-foreground">Number of flashcards</label>
+                  <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{cardCount} cards</span>
+                </div>
+                <Slider
+                  value={[cardCount]}
+                  onValueChange={(v) => setCardCount(v[0])}
+                  min={5}
+                  max={80}
+                  step={5}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>5</span>
+                  <span>20</span>
+                  <span>40</span>
+                  <span>60</span>
+                  <span>80</span>
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <Button
                   onClick={generateDeck}
@@ -228,7 +224,7 @@ const Flashcards = () => {
                   className="gradient-primary text-primary-foreground h-12 px-8 rounded-2xl shadow-lg shadow-primary/20"
                 >
                   {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Generate Cards
+                  Generate {cardCount} Cards
                 </Button>
                 <Button variant="ghost" onClick={() => setShowCreate(false)} className="rounded-2xl h-12">Cancel</Button>
               </div>
@@ -237,7 +233,6 @@ const Flashcards = () => {
         )}
       </AnimatePresence>
 
-      {/* Deck Grid — Bento style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {decks?.map((deck, i) => (
           <motion.button
