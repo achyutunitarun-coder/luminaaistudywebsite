@@ -102,7 +102,7 @@ const NotesGenerator = () => {
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Notes Generator</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes like NotebookLM
+            <PenTool className="w-3.5 h-3.5" /> AI-powered premium study notes
           </p>
         </div>
       </motion.div>
