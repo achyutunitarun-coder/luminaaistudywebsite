@@ -9,9 +9,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { notes, type } = await req.json(); // type: "flashcards" | "quiz" | "summary"
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const { notes, type } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
     const prompts: Record<string, string> = {
       flashcards: `From these lecture notes, generate 10-15 flashcards. Return valid JSON array: [{"front": "question", "back": "answer"}]. Only return the JSON, no other text.\n\nNotes:\n${notes}`,
       quiz: `From these lecture notes, generate 8-10 multiple choice quiz questions. Return valid JSON array: [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}] where correct is the 0-based index. Only return the JSON.\n\nNotes:\n${notes}`,
@@ -19,22 +19,19 @@ serve(async (req) => {
     };
 
     const systemPrompt = type === "summary"
-      ? "You are Lumina AI's exam revision expert (built by Tarun Kartikeya; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni). Create focused, exam-ready study material."
-      : "You are Lumina AI's study tool generator (built by Tarun Kartikeya; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni). Generate structured study materials from lecture notes.";
+      ? "You are an exam revision expert. Create focused, exam-ready study material."
+      : "You are a study tool generator. Generate structured study materials from lecture notes.";
 
     const isStreaming = type === "summary";
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 4096,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompts[type] || prompts.summary },
@@ -45,7 +42,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const status = response.status;
-      return new Response(JSON.stringify({ error: status === 429 ? "Rate limited" : status === 402 ? "Payment required" : "AI error" }), {
+      return new Response(JSON.stringify({ error: status === 429 ? "Rate limited" : status === 402 ? "Credits required" : "AI error" }), {
         status: status === 429 ? 429 : status === 402 ? 402 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -10,60 +10,49 @@ serve(async (req) => {
 
   try {
     const { syllabus, subject, numQuestions } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 4096,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash-lite",
         messages: [
-          {
-            role: "system",
-            content: "You are Lumina AI's test generator, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Generate multiple choice questions based on the given syllabus.",
-          },
-          {
-            role: "user",
-            content: `Generate ${numQuestions || 5} multiple choice questions for subject "${subject || 'General'}" based on this syllabus:\n\n${syllabus}`,
-          },
+          { role: "system", content: "You are a test generator. Generate multiple choice questions based on the given syllabus." },
+          { role: "user", content: `Generate ${numQuestions || 5} multiple choice questions for "${subject || 'General'}" based on:\n\n${syllabus}` },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_questions",
-              description: "Generate multiple choice test questions",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        options: { type: "array", items: { type: "string" } },
-                        correct: { type: "number", description: "Index of correct option (0-based)" },
-                        explanation: { type: "string" },
-                      },
-                      required: ["question", "options", "correct", "explanation"],
-                      additionalProperties: false,
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_questions",
+            description: "Generate multiple choice test questions",
+            parameters: {
+              type: "object",
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      question: { type: "string" },
+                      options: { type: "array", items: { type: "string" } },
+                      correct: { type: "number" },
+                      explanation: { type: "string" },
                     },
+                    required: ["question", "options", "correct", "explanation"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["questions"],
-                additionalProperties: false,
               },
+              required: ["questions"],
+              additionalProperties: false,
             },
           },
-        ],
+        }],
         tool_choice: { type: "function", function: { name: "generate_questions" } },
       }),
     });

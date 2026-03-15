@@ -17,7 +17,6 @@ const STYLE_PROMPTS: Record<string, string> = {
 - Connections between different concepts
 - A detailed summary section at the end
 - Memory aids, mnemonics, and visualization tips
-- At least 2000-3000 words of content
 Be exhaustive — a student should be able to study ONLY from these notes.`,
 
   exam: `Create exam-focused study notes optimized for test preparation. Include:
@@ -29,8 +28,7 @@ Be exhaustive — a student should be able to study ONLY from these notes.`,
 - Common exam traps and how to avoid them
 - Step-by-step problem-solving frameworks
 - Summary tables and comparison charts
-- Practice question hints at the end
-- At least 2000 words of focused content`,
+- Practice question hints at the end`,
 
   simple: `Create clear, beginner-friendly study notes. Include:
 - Simple language — explain like teaching a friend
@@ -41,25 +39,35 @@ Be exhaustive — a student should be able to study ONLY from these notes.`,
 - Short paragraphs with plenty of whitespace
 - Step-by-step breakdowns of processes
 - "In simple terms..." summaries after complex sections
-- Recap at the end with the 5 most important points
-- At least 1800 words of content`,
+- Recap at the end with the 5 most important points`,
 
-  cornell: `Create notes in Cornell Method format. Structure:
-## Main Topic
+  cornell: `Create notes using the Cornell Method. Use this EXACT format for each major section:
 
-| Cues / Questions | Notes |
-|---|---|
-| Key question 1 | Detailed answer with examples |
-| Key question 2 | Detailed answer with examples |
+## [Section Title]
 
-### Summary
-Concise summary paragraph.
+### Cues & Questions
+- **Q: [Key question about this section]**
+- **Q: [Another important question]**
+- **Q: [Testing question]**
 
-Follow this format for EVERY major section. Include:
-- Thoughtful cue questions that test understanding
-- Detailed notes with examples and connections
-- Comprehensive summaries
-- At least 2000 words of content`,
+### Notes
+[Detailed notes with examples, bullet points, and explanations. Each note should be 2-3 sentences with supporting details.]
+
+- **Key Point 1:** Detailed explanation with example
+- **Key Point 2:** Detailed explanation with example
+- **Key Point 3:** Detailed explanation with example
+
+### Section Summary
+> [2-3 sentence concise summary of this section's key ideas]
+
+---
+
+Repeat this structure for EVERY major topic. At the very end, include:
+
+## 📋 Master Summary
+> [Comprehensive summary of ALL sections in one paragraph]
+
+IMPORTANT: Use proper spacing between sections. Each section must have Cues, Notes, AND Summary. Do NOT pack everything into one block.`,
 };
 
 serve(async (req) => {
@@ -67,39 +75,38 @@ serve(async (req) => {
 
   try {
     const { topic, sourceText, style, isRefinement } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
     const stylePrompt = STYLE_PROMPTS[style || "detailed"] || STYLE_PROMPTS.detailed;
 
     const systemPrompt = isRefinement
-      ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
-      : `You are Lumina AI's premium study notes generator. Your job is to create the most comprehensive, well-organized, and pedagogically effective study notes possible.
+      ? `You are a study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
+      : `You are a premium study notes generator. Create the most comprehensive, well-organized, and pedagogically effective study notes possible.
 
 ${stylePrompt}
 
 CRITICAL RULES:
-- Be THOROUGH. Cover every concept mentioned in the source material.
-- Use markdown formatting extensively.
-- Never skip details — if something is mentioned, explain it fully.
+- Be THOROUGH. Cover every concept mentioned.
+- Use markdown formatting extensively with proper spacing.
+- Never skip details.
 - Include transitions between sections for reading flow.
-- Add "Key Insight" callouts for particularly important points.
-- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original lecture.`;
+- Add "💡 Key Insight" callouts for important points.
+- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original source.
+- Use clean formatting with proper line breaks between sections.
+- Do NOT reference NotebookLM or any other product.`;
 
     const userContent = sourceText
       ? sourceText
       : `Create comprehensive study notes on "${topic}".`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 6000,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -109,8 +116,11 @@ CRITICAL RULES:
     });
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: "Failed to generate notes" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+      const status = response.status;
+      const errText = await response.text();
+      console.error("generate-notes error:", status, errText);
+      return new Response(JSON.stringify({ error: status === 429 ? "Rate limited, try again." : status === 402 ? "Credits required." : "Failed to generate notes" }), {
+        status: status === 429 ? 429 : status === 402 ? 402 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

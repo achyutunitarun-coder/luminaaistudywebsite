@@ -10,22 +10,19 @@ serve(async (req) => {
 
   try {
     const { userData } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 4096,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash-lite",
         messages: [
-          { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate detailed monthly study reports for students. Be encouraging but honest about weaknesses." },
+          { role: "system", content: "You generate detailed monthly study reports. Be encouraging but honest about weaknesses." },
           { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },
         ],
         tools: [{
@@ -36,7 +33,7 @@ serve(async (req) => {
             parameters: {
               type: "object",
               properties: {
-                headline: { type: "string", description: "A motivational headline like 'Great Progress!' or 'Time to Push Harder'" },
+                headline: { type: "string" },
                 total_study_minutes: { type: "number" },
                 total_study_hours: { type: "number" },
                 average_test_score: { type: "number" },
@@ -45,7 +42,7 @@ serve(async (req) => {
                 strengths: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
                 weaknesses: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
                 recommendations: { type: "array", items: { type: "string" } },
-                overall_grade: { type: "string", description: "A, B, C, D, or F" },
+                overall_grade: { type: "string" },
               },
               required: ["headline", "total_study_minutes", "total_study_hours", "average_test_score", "tests_taken", "xp_earned", "strengths", "weaknesses", "recommendations", "overall_grade"],
               additionalProperties: false,

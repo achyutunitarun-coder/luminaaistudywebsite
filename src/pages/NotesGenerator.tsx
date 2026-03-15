@@ -81,15 +81,46 @@ const NotesGenerator = () => {
     toast.success('Copied to clipboard');
   };
 
-  const downloadNotes = () => {
-    const blob = new Blob([notes], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${topic || 'notes'}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Notes downloaded!');
+  const downloadNotes = async () => {
+    // Try PDF export using browser print
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html><head><title>${topic || 'Notes'}</title>
+        <style>
+          body { font-family: Georgia, serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.8; color: #1a1a1a; }
+          h1 { font-size: 28px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+          h2 { font-size: 22px; margin-top: 32px; color: #2a2a2a; }
+          h3 { font-size: 18px; margin-top: 24px; color: #3a3a3a; }
+          blockquote { border-left: 4px solid #6366f1; background: #f0f0ff; padding: 12px 20px; margin: 16px 0; border-radius: 0 8px 8px 0; }
+          code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+          ul, ol { padding-left: 24px; }
+          li { margin-bottom: 6px; }
+          table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+          th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+          th { background: #f8f9fa; font-weight: 600; }
+          hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+          @media print { body { padding: 20px; } }
+        </style></head><body>
+      `);
+      // Simple markdown to HTML conversion
+      let html = notes
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
+        .replace(/^- (.*$)/gm, '<li>$1</li>')
+        .replace(/^---$/gm, '<hr>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      printWindow.document.write(`<p>${html}</p></body></html>`);
+      printWindow.document.close();
+      printWindow.print();
+    }
+    toast.success('PDF export opened!');
   };
 
   return (
@@ -102,7 +133,7 @@ const NotesGenerator = () => {
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Notes Generator</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes like NotebookLM
+            <PenTool className="w-3.5 h-3.5" /> AI-powered premium study notes
           </p>
         </div>
       </motion.div>

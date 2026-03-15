@@ -10,35 +10,32 @@ serve(async (req) => {
 
   try {
     const { topic } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 6000,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
-            content: `You are Lumina AI, an expert tutor. Create comprehensive quick study lessons that are detailed enough for real exam preparation. Each concept explanation should be 3-5 sentences minimum, covering the what, why, how, and real-world applications. Include formulas, examples, and connections between concepts. Generate 8-10 key concepts (not just 4-5) and 8 practice questions with thorough explanations.`,
+            content: `You are an expert tutor. Create a quick study lesson. Generate 8-10 key concepts with detailed explanations (3-5 sentences each) and 8 practice questions with thorough explanations.`,
           },
           {
             role: "user",
-            content: `Create a comprehensive study lesson on "${topic}". Include 8-10 detailed key concepts with thorough explanations (3-5 sentences each, with examples and applications) and 8 practice questions with detailed answer explanations.`,
+            content: `Create a study lesson on "${topic}". Include 8-10 detailed key concepts and 8 practice questions.`,
           },
         ],
         tools: [{
           type: "function",
           function: {
             name: "generate_lesson",
-            description: "Generate a comprehensive quick study lesson with detailed concepts and questions",
+            description: "Generate a quick study lesson",
             parameters: {
               type: "object",
               properties: {
@@ -48,8 +45,8 @@ serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      concept: { type: "string", description: "The concept name or title" },
-                      explanation: { type: "string", description: "Detailed explanation with examples, 3-5 sentences minimum" },
+                      concept: { type: "string" },
+                      explanation: { type: "string" },
                     },
                     required: ["concept", "explanation"],
                     additionalProperties: false,
@@ -63,7 +60,7 @@ serve(async (req) => {
                       question: { type: "string" },
                       options: { type: "array", items: { type: "string" } },
                       correct: { type: "number" },
-                      explanation: { type: "string", description: "Detailed explanation of why this answer is correct and why others are wrong" },
+                      explanation: { type: "string" },
                     },
                     required: ["question", "options", "correct", "explanation"],
                     additionalProperties: false,
@@ -80,8 +77,11 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: "Failed to generate lesson" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+      const status = response.status;
+      const errText = await response.text();
+      console.error("Quick study error:", status, errText);
+      return new Response(JSON.stringify({ error: status === 429 ? "Rate limited, try again." : status === 402 ? "Credits required." : "Failed to generate lesson" }), {
+        status: status === 429 ? 429 : status === 402 ? 402 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
