@@ -31,9 +31,7 @@ async function fetchTranscriptFromInnerTube(videoId: string): Promise<{ title: s
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        context: {
-          client: { clientName: "WEB", clientVersion: "2.20240101.00.00", hl: "en" },
-        },
+        context: { client: { clientName: "WEB", clientVersion: "2.20240101.00.00", hl: "en" } },
         videoId,
       }),
     });
@@ -50,34 +48,24 @@ async function fetchTranscriptFromInnerTube(videoId: string): Promise<{ title: s
           || captionTracks[0];
 
         if (enTrack?.baseUrl) {
-          const capUrl = enTrack.baseUrl + "&fmt=srv3";
-          const capRes = await fetch(capUrl);
+          const capRes = await fetch(enTrack.baseUrl + "&fmt=srv3");
           if (capRes.ok) {
             const capXml = await capRes.text();
             const textParts = capXml.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
             transcript = textParts
-              .map((t: string) =>
-                t.replace(/<[^>]+>/g, "")
-                  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-                  .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " ")
-              )
+              .map((t: string) => t.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " "))
               .join(" ").replace(/\s+/g, " ").trim();
           }
         }
       }
     }
-  } catch (e) {
-    console.error("InnerTube error:", e);
-  }
+  } catch (e) { console.error("InnerTube error:", e); }
 
   // Method 2: HTML scrape fallback
   if (!transcript) {
     try {
       const watchRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept-Language": "en-US,en;q=0.9" },
       });
       const html = await watchRes.text();
 
@@ -86,17 +74,12 @@ async function fetchTranscriptFromInnerTube(videoId: string): Promise<{ title: s
         const tracks = JSON.parse(captionMatch[1]);
         if (tracks.length > 0) {
           const enTrack = tracks.find((t: any) => t.languageCode === "en") || tracks[0];
-          const capUrl = enTrack.baseUrl.replace(/\\u0026/g, "&");
-          const capRes = await fetch(capUrl);
+          const capRes = await fetch(enTrack.baseUrl.replace(/\\u0026/g, "&"));
           if (capRes.ok) {
             const capXml = await capRes.text();
             const textParts = capXml.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
             transcript = textParts
-              .map((t: string) =>
-                t.replace(/<[^>]+>/g, "")
-                  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-                  .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " ")
-              )
+              .map((t: string) => t.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, " "))
               .join(" ").replace(/\s+/g, " ").trim();
           }
         }
@@ -110,19 +93,13 @@ async function fetchTranscriptFromInnerTube(videoId: string): Promise<{ title: s
         const descMatch = html.match(/property="og:description"\s+content="([^"]*)/);
         if (descMatch) description = descMatch[1];
       }
-    } catch (e) {
-      console.error("HTML scrape error:", e);
-    }
+    } catch (e) { console.error("HTML scrape error:", e); }
   }
 
-  // Method 3: oEmbed for title fallback
   if (title === "Unknown") {
     try {
       const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-      if (oembedRes.ok) {
-        const oembed = await oembedRes.json();
-        title = oembed.title || title;
-      }
+      if (oembedRes.ok) { const oembed = await oembedRes.json(); title = oembed.title || title; }
     } catch {}
   }
 
@@ -139,70 +116,60 @@ serve(async (req) => {
     const videoId = extractVideoId(url);
     if (!videoId) throw new Error("Invalid YouTube URL");
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const { title, description, transcript } = await fetchTranscriptFromInnerTube(videoId);
+    console.log("Video:", title, "| Transcript length:", transcript.length);
 
-    console.log("Video:", title, "| Transcript length:", transcript.length, "| Description length:", description.length);
-
-    // Build the content to send to AI — prioritize transcript
     let content = `Video Title: ${title}\n\n`;
     let hasFullContent = false;
 
     if (transcript && transcript.length > 100) {
-      // Use full transcript, split into chunks if very long
       const maxChars = 60000;
-      const trimmedTranscript = transcript.length > maxChars ? transcript.substring(0, maxChars) + "\n\n[Transcript truncated due to length]" : transcript;
-      content += `Full Video Transcript:\n${trimmedTranscript}`;
+      content += `Full Video Transcript:\n${transcript.length > maxChars ? transcript.substring(0, maxChars) + "\n[Truncated]" : transcript}`;
       hasFullContent = true;
-      console.log("Using full transcript for analysis");
     } else if (description && description.length > 50) {
-      content += `Video Description:\n${description}\n\n⚠️ Note: No captions/transcript available for this video. This summary is based on the video description only, not the actual spoken content.`;
-      console.log("Using description only — no transcript available");
+      content += `Video Description:\n${description}\n\n⚠️ No captions available. Summary based on description only.`;
     } else {
-      content += `⚠️ No transcript or description available for this video. Only the title is known. The summary will be very limited.`;
-      console.log("No transcript or description — title only");
+      content += `⚠️ No transcript or description available. Only the title is known.`;
     }
 
     const systemPrompt = hasFullContent
-      ? `You are Lumina AI's video analyzer. You have the FULL TRANSCRIPT of this video. Create an extremely thorough, detailed summary:
+      ? `You are a video analyzer. You have the FULL TRANSCRIPT. Create a thorough, detailed summary:
 
 ## 📺 Video Overview
-2-3 sentence summary of what the video covers.
+2-3 sentence summary.
 
 ## 🎯 Key Points
-- Bullet points of every major idea discussed (aim for 10-15 points)
+- 10-15 major ideas discussed
 
 ## 📝 Detailed Summary
-Organize by topics/sections as they appear in the video. Be thorough — cover every important concept discussed. Use sub-headings for each section.
+Organize by topics/sections. Be thorough.
 
 ## 💡 Key Takeaways
-The 5-7 most important lessons, facts, or insights from this video.
+5-7 most important lessons.
 
 ## 📌 Notable Quotes
-Any memorable or impactful quotes from the video.
+Memorable quotes from the video.
 
 ## 🔗 Topics Mentioned
-List all specific topics, people, books, or resources mentioned.
+All specific topics, people, books mentioned.
 
-Use markdown formatting. Be comprehensive — the user should not need to watch the video after reading this summary.`
-      : `You are Lumina AI's video analyzer. Unfortunately, no transcript was available for this video. Summarize based on the available metadata (title and description). Be transparent about this limitation and provide what analysis you can. Suggest the user try a video with captions enabled for better results.`;
+Use markdown. Be comprehensive.`
+      : `You are a video analyzer. No transcript available. Summarize based on metadata. Be transparent about limitations.`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: 6000,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze and summarize this YouTube video thoroughly:\n\n${content}` },
+          { role: "user", content: `Analyze and summarize this YouTube video:\n\n${content}` },
         ],
         stream: true,
       }),
@@ -210,8 +177,10 @@ Use markdown formatting. Be comprehensive — the user should not need to watch 
 
     if (!response.ok) {
       const status = response.status;
+      const errText = await response.text();
+      console.error("yt-summary error:", status, errText);
       return new Response(
-        JSON.stringify({ error: status === 429 ? "Rate limit exceeded, try again later." : status === 402 ? "Payment required." : "Failed to generate summary" }),
+        JSON.stringify({ error: status === 429 ? "Rate limited, try again." : status === 402 ? "Credits required." : "Failed to generate summary" }),
         { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
