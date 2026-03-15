@@ -10,25 +10,29 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        model: "openrouter/hunter-alpha",
+        max_tokens: 4096,
+        include_reasoning: false,
         messages: [
           {
             role: "system",
-            content: `You are Lumina AI Doubt Solver. When a student asks a question:
+            content: `You are Lumina AI Doubt Solver, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. When a student asks a question:
 1. Give a clear, concise explanation
 2. Provide relevant examples
 3. Show step-by-step solutions for math/science
 4. End with 1-2 follow-up practice questions
+
 Use markdown for formatting. Be encouraging and supportive.`,
           },
           ...messages,

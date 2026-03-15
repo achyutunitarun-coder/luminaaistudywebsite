@@ -10,13 +10,13 @@ serve(async (req) => {
 
   try {
     const { fileContent, fileName, mode, language } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
     let systemPrompt = "";
     let userPrompt = "";
 
     if (mode === "notes") {
-      systemPrompt = `You are a study notes generator. Create detailed, well-organized notes from the provided file content with:
+      systemPrompt = `You are Lumina AI's study notes generator (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), inspired by NotebookLM. Create detailed, well-organized notes from the provided file content with:
 - Clear headings and subheadings using markdown
 - Key concepts highlighted in **bold**
 - Bullet points for easy scanning
@@ -26,7 +26,7 @@ serve(async (req) => {
 Be thorough but concise. Use markdown formatting.`;
       userPrompt = `Create comprehensive study notes from this file "${fileName}":\n\n${fileContent}`;
     } else if (mode === "flowchart") {
-      systemPrompt = `You are an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart.
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), an expert at analyzing documents and creating structured flowcharts. Analyze the content and produce a JSON flowchart representing the key concepts, their relationships, and logical flow.
 
 Return ONLY valid JSON in this exact format (no markdown, no code fences):
 {
@@ -41,21 +41,23 @@ Return ONLY valid JSON in this exact format (no markdown, no code fences):
 Rules:
 - Use type "start" for the first/main concept
 - Use type "end" for conclusions/outcomes
-- Use type "decision" for branching points
+- Use type "decision" for branching points or questions
 - Use type "process" for regular concepts
 - Use type "milestone" for key takeaways
+- Set status to "active" for the most important nodes, "completed" for foundational ones, "upcoming" for advanced ones
 - Keep labels under 5 words
-- Create 6-12 nodes maximum`;
+- Create 6-12 nodes maximum
+- Ensure all edges connect valid node ids`;
       userPrompt = `Analyze this document "${fileName}" and create a concept flowchart:\n\n${fileContent}`;
     } else if (mode === "overview") {
       const targetLang = language || "Spanish";
-      systemPrompt = `You are a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
+      systemPrompt = `You are Lumina AI (built by Tarun Kartikeya, founder of Lumina; his proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni), a multilingual study assistant. Create a comprehensive overview/summary of the document in ${targetLang}. 
 Include:
 - A title in ${targetLang}
 - Key concepts and definitions translated and explained
 - Important points as bullet lists
 - A brief conclusion
-Use markdown formatting.`;
+Use markdown formatting. Keep technical terms in their original language in parentheses where helpful.`;
       userPrompt = `Create a detailed overview in ${targetLang} of this document "${fileName}":\n\n${fileContent}`;
     } else {
       throw new Error("Invalid mode");
@@ -63,14 +65,17 @@ Use markdown formatting.`;
 
     const isStream = mode !== "flowchart";
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        model: "openrouter/hunter-alpha",
+        max_tokens: 5000,
+        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

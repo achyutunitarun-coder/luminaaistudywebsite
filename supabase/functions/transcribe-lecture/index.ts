@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
@@ -28,56 +29,95 @@ const extractUserId = (authHeader: string | null): string => {
   return crypto.randomUUID();
 };
 
-async function processTranscription(jobId: string, audioBytes: Uint8Array, mimeType: string) {
-  const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
+async function processTranscription(jobId: string, base64Audio: string, mimeType: string) {
+  const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    if (!DEEPGRAM_API_KEY) throw new Error("DEEPGRAM_API_KEY is not configured");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    // Use Deepgram's speech-to-text API
-    const response = await fetch("https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&diarize=true&utterances=true&language=en", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Token ${DEEPGRAM_API_KEY}`,
-        "Content-Type": mimeType,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
       },
-      body: audioBytes,
+      body: JSON.stringify({
+        models: ["openrouter/healer-alpha", "openrouter/hunter-alpha"],
+        model: "openrouter/healer-alpha",
+        max_tokens: 8000,
+        include_reasoning: false,
+        temperature: 0.1,
+        messages: [
+          {
+            role: "system",
+            content: `You are a high-accuracy audio transcription engine.
+Return ONLY valid JSON in this exact shape:
+{
+  "text": "full transcript text",
+  "words": [
+    {"text": "phrase", "start": 0.0, "end": 2.4, "speaker": "A"}
+  ]
+}
+Rules:
+1. Capture all intelligible speech, including quiet parts.
+2. Keep punctuation and sentence boundaries natural.
+3. Use speaker labels "A", "B", etc. when distinguishable.
+4. Provide timestamped phrase chunks (roughly 8-20 words each).
+5. If uncertain, make your best estimate and continue.
+6. No markdown, no code fences, no commentary.`,
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: base64Audio,
+                  format: mimeType === "audio/wav" ? "wav" : "mp3",
+                },
+              },
+              {
+                type: "text",
+                text: "Transcribe this audio completely. The speaker may be quiet - capture everything.",
+              },
+            ],
+          },
+        ],
+      }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Deepgram API error:", response.status, errText);
+      console.error("Transcription API error:", response.status, errText);
+
+      // Parse the actual error from the provider
       let errorMessage = `Transcription failed (${response.status})`;
       try {
         const parsed = JSON.parse(errText);
-        errorMessage = parsed?.err_msg || parsed?.error || errorMessage;
+        errorMessage = parsed?.error?.message || parsed?.error || errorMessage;
       } catch {}
+
+      if (response.status === 429) errorMessage = "Rate limited — please retry in a moment.";
+      if (response.status === 402 && !errorMessage.toLowerCase().includes("free")) {
+        errorMessage = "No free model route was available right now. Please retry in a moment.";
+      }
+
       throw new Error(errorMessage);
     }
 
     const data = await response.json();
-    const channel = data.results?.channels?.[0];
-    const alternative = channel?.alternatives?.[0];
+    const content = data.choices?.[0]?.message?.content || "";
 
-    if (!alternative || !alternative.transcript) {
-      throw new Error("Deepgram returned no transcript. Audio may be silent or too short.");
+    let transcript;
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      transcript = jsonMatch ? JSON.parse(jsonMatch[0]) : { text: content, words: [] };
+    } catch {
+      transcript = { text: content, words: [] };
     }
-
-    // Build words array from Deepgram response
-    const words = (alternative.words || []).map((w: any) => ({
-      text: w.punctuated_word || w.word,
-      start: w.start,
-      end: w.end,
-      speaker: w.speaker !== undefined ? String.fromCharCode(65 + w.speaker) : "A",
-    }));
-
-    const transcript = {
-      text: alternative.transcript,
-      words,
-    };
 
     await supabase
       .from("transcription_jobs")
@@ -96,9 +136,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
-    if (!DEEPGRAM_API_KEY) throw new Error("DEEPGRAM_API_KEY is not configured. Please add your Deepgram API key.");
-
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured. Please add your OpenRouter API key.");
+    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -119,10 +159,10 @@ serve(async (req) => {
     }
 
     const contentLength = Number(req.headers.get("content-length") ?? 0);
-    const maxRequestBytes = 25 * 1024 * 1024; // Deepgram supports larger files
+    const maxRequestBytes = 6 * 1024 * 1024;
     if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
       return new Response(
-        JSON.stringify({ error: "Audio chunk too large (max 25MB per chunk)." }),
+        JSON.stringify({ error: "Audio chunk too large. The app will auto-split long files." }),
         { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -135,7 +175,7 @@ serve(async (req) => {
     const userId = extractUserId(req.headers.get("authorization"));
 
     const arrayBuffer = await audioFile.arrayBuffer();
-    const audioBytes = new Uint8Array(arrayBuffer);
+    const base64Audio = base64Encode(new Uint8Array(arrayBuffer));
 
     const fileType = (audioFile.type || "").toLowerCase();
     const name = audioFile.name.toLowerCase();
@@ -144,8 +184,6 @@ serve(async (req) => {
     if (fileType.includes("wav") || name.endsWith(".wav")) mimeType = "audio/wav";
     else if (fileType.includes("mpeg") || name.endsWith(".mp3")) mimeType = "audio/mpeg";
     else if (fileType.includes("mp4") || name.endsWith(".m4a")) mimeType = "audio/mp4";
-    else if (fileType.includes("ogg") || name.endsWith(".ogg")) mimeType = "audio/ogg";
-    else if (fileType.includes("flac") || name.endsWith(".flac")) mimeType = "audio/flac";
 
     const { data: job, error: insertError } = await supabase
       .from("transcription_jobs")
@@ -157,7 +195,7 @@ serve(async (req) => {
       throw new Error(`Failed to create job: ${insertError?.message ?? "Unknown insert error"}`);
     }
 
-    EdgeRuntime.waitUntil(processTranscription(job.id, audioBytes, mimeType));
+    EdgeRuntime.waitUntil(processTranscription(job.id, base64Audio, mimeType));
 
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
