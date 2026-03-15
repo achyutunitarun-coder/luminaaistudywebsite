@@ -11,24 +11,21 @@ serve(async (req) => {
   try {
     const { content, title, cardCount = 20 } = await req.json();
     const count = Math.min(Math.max(Number(cardCount) || 20, 5), 80);
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
-        max_tokens: count > 40 ? 8000 : 4096,
-        include_reasoning: false,
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
-            content: `You are Lumina AI's flashcard generator. Create exactly ${count} concise, effective flashcards for studying. Each card should test a different concept. Make questions clear and answers thorough but concise.`,
+            content: `You are a flashcard generator. Create exactly ${count} concise, effective flashcards. Each card should test a different concept.`,
           },
           {
             role: "user",
@@ -40,7 +37,7 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "generate_flashcards",
-              description: `Generate exactly ${count} study flashcards with front (question) and back (answer)`,
+              description: `Generate exactly ${count} study flashcards`,
               parameters: {
                 type: "object",
                 properties: {
@@ -49,8 +46,8 @@ serve(async (req) => {
                     items: {
                       type: "object",
                       properties: {
-                        front: { type: "string", description: "Question or concept" },
-                        back: { type: "string", description: "Answer or explanation" },
+                        front: { type: "string" },
+                        back: { type: "string" },
                       },
                       required: ["front", "back"],
                       additionalProperties: false,
