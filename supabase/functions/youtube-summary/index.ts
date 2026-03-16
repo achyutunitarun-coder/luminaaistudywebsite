@@ -197,7 +197,7 @@ Use markdown formatting. Be comprehensive — the user should not need to watch 
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-r1:free", "deepseek/deepseek-chat-v3-0324:free"],
+        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
         max_tokens: 6000,
         messages: [
           { role: "system", content: systemPrompt },
