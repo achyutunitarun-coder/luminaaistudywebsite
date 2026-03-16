@@ -21,10 +21,8 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
+        model: "deepseek/deepseek-r1:free",
         max_tokens: count > 40 ? 8000 : 4096,
-        include_reasoning: false,
         messages: [
           {
             role: "system",

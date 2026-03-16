@@ -196,10 +196,8 @@ Use markdown formatting. Be comprehensive — the user should not need to watch 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
+        model: "deepseek/deepseek-r1:free",
         max_tokens: 6000,
-        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Analyze and summarize this YouTube video thoroughly:\n\n${content}` },
