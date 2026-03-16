@@ -38,10 +38,9 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        models: ["openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        model: "openrouter/hunter-alpha",
+        model: "deepseek/deepseek-r1-0528:free",
+        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
         max_tokens: 4096,
-        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
