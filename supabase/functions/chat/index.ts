@@ -38,7 +38,7 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1:free",
+        model: "deepseek/deepseek-r1-0528:free",
         max_tokens: 4096,
         messages: [
           { role: "system", content: systemPrompt },
