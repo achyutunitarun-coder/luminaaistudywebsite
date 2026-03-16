@@ -21,6 +21,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-r1:free", "deepseek/deepseek-chat-v3-0324:free"],
         max_tokens: 4096,
         messages: [
           { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You create educational boss battle questions for a gamified study app." },

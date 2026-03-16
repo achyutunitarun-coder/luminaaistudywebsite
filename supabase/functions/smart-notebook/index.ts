@@ -73,6 +73,7 @@ Use markdown formatting. Keep technical terms in their original language in pare
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-r1:free", "deepseek/deepseek-chat-v3-0324:free"],
         max_tokens: 5000,
         messages: [
           { role: "system", content: systemPrompt },

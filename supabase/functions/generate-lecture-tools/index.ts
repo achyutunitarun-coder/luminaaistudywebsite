@@ -32,6 +32,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-r1:free", "deepseek/deepseek-chat-v3-0324:free"],
         max_tokens: 4096,
         messages: [
           { role: "system", content: systemPrompt },
