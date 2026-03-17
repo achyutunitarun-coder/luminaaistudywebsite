@@ -7,13 +7,13 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 1. WIKIPEDIA — encyclopedic content
+// 1. WIKIPEDIA — encyclopedic + current events
 // ─────────────────────────────────────────────────────────────
 async function searchWikipedia(query: string): Promise<string> {
   try {
     const searchUrl =
       `https://en.wikipedia.org/w/api.php?action=query&list=search` +
-      `&srsearch=${encodeURIComponent(query)}&srlimit=4&format=json&origin=*`;
+      `&srsearch=${encodeURIComponent(query)}&srlimit=5&format=json&origin=*`;
     const searchRes = await fetch(searchUrl);
     if (!searchRes.ok) return "";
 
@@ -35,7 +35,7 @@ async function searchWikipedia(query: string): Promise<string> {
     let context = "";
     for (const page of Object.values(pages) as any[]) {
       if (page.extract && !page.missing) {
-        context += `\n### [Wikipedia] ${page.title}\n${page.extract.slice(0, 2000)}\n`;
+        context += `\n### [Wikipedia] ${page.title}\n${page.extract.slice(0, 2500)}\n`;
       }
     }
     return context;
@@ -46,7 +46,7 @@ async function searchWikipedia(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. DUCKDUCKGO INSTANT ANSWERS — quick facts, definitions
+// 2. DUCKDUCKGO INSTANT ANSWERS
 // ─────────────────────────────────────────────────────────────
 async function searchDuckDuckGo(query: string): Promise<string> {
   try {
@@ -87,7 +87,7 @@ async function searchDuckDuckGo(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3. WIKTIONARY — definitions, etymology, word meanings
+// 3. WIKTIONARY — definitions, etymology
 // ─────────────────────────────────────────────────────────────
 async function searchWiktionary(query: string): Promise<string> {
   try {
@@ -118,7 +118,7 @@ async function searchWiktionary(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. HACKERNEWS (Algolia API) — tech, science, startup news
+// 4. HACKERNEWS — tech & science news
 // ─────────────────────────────────────────────────────────────
 async function searchHackerNews(query: string): Promise<string> {
   try {
@@ -148,7 +148,7 @@ async function searchHackerNews(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. OPEN LIBRARY — book summaries for academic/literary topics
+// 5. OPEN LIBRARY — books
 // ─────────────────────────────────────────────────────────────
 async function searchOpenLibrary(query: string): Promise<string> {
   try {
@@ -180,7 +180,7 @@ async function searchOpenLibrary(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 6. ARXIV — cutting-edge research papers (science/math/CS/AI)
+// 6. ARXIV — research papers
 // ─────────────────────────────────────────────────────────────
 async function searchArxiv(query: string): Promise<string> {
   try {
@@ -218,7 +218,7 @@ async function searchArxiv(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 7. REST COUNTRIES — geography & country data
+// 7. REST COUNTRIES — geography data
 // ─────────────────────────────────────────────────────────────
 async function searchRestCountries(query: string): Promise<string> {
   try {
@@ -252,7 +252,7 @@ async function searchRestCountries(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 8. NUMBERS API — math/number trivia
+// 8. NUMBERS API — math trivia
 // ─────────────────────────────────────────────────────────────
 async function searchNumbersApi(query: string): Promise<string> {
   try {
@@ -277,12 +277,12 @@ async function searchNumbersApi(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 9. FREE DICTIONARY API — word definitions & phonetics
+// 9. FREE DICTIONARY API
 // ─────────────────────────────────────────────────────────────
 async function searchFreeDictionary(query: string): Promise<string> {
   try {
     const words = query.trim().split(/\s+/);
-    if (words.length > 3) return ""; // only for short term lookups
+    if (words.length > 3) return "";
 
     const term = words[0];
     const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(term)}`;
@@ -312,11 +312,10 @@ async function searchFreeDictionary(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 10. NASA APOD / Open APIs — space & science facts
+// 10. NASA IMAGES API
 // ─────────────────────────────────────────────────────────────
 async function searchNasaNews(query: string): Promise<string> {
   try {
-    // NASA TechTransfer — publicly available, no key needed for search
     const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image&year_start=2020`;
     const res = await fetch(url);
     if (!res.ok) return "";
@@ -325,7 +324,7 @@ async function searchNasaNews(query: string): Promise<string> {
     const items: any[] = data.collection?.items ?? [];
     if (items.length === 0) return "";
 
-    let context = `\n### [NASA] Images & Media on "${query}"\n`;
+    let context = `\n### [NASA] on "${query}"\n`;
     for (const item of items.slice(0, 3)) {
       const d = item.data?.[0];
       if (d?.title) {
@@ -341,10 +340,54 @@ async function searchNasaNews(query: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ROUTER — decide which sources to query based on message
+// 11. WIKIPEDIA "IN THE NEWS" — current events, awards, sports
+//     Fetches the Wikipedia portal for recent events
+// ─────────────────────────────────────────────────────────────
+async function fetchWikipediaCurrentEvents(query: string): Promise<string> {
+  try {
+    // Search Wikipedia specifically with "2025" appended for recency
+    const currentQuery = `${query} 2025`;
+    const searchUrl =
+      `https://en.wikipedia.org/w/api.php?action=query&list=search` +
+      `&srsearch=${encodeURIComponent(currentQuery)}&srlimit=4&format=json&origin=*`;
+
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) return "";
+
+    const searchData = await searchRes.json();
+    const titles: string[] = searchData.query?.search?.map((r: any) => r.title) ?? [];
+    if (titles.length === 0) return "";
+
+    // Get full extract of top result
+    const extractUrl =
+      `https://en.wikipedia.org/w/api.php?action=query` +
+      `&titles=${encodeURIComponent(titles[0])}` +
+      `&prop=extracts&explaintext=true&exlimit=1&format=json&origin=*`;
+
+    const extractRes = await fetch(extractUrl);
+    if (!extractRes.ok) return "";
+
+    const extractData = await extractRes.json();
+    const pages = extractData.query?.pages ?? {};
+
+    for (const page of Object.values(pages) as any[]) {
+      if (page.extract && !page.missing) {
+        return `\n### [Wikipedia – Current/2025] ${page.title}\n${page.extract.slice(0, 3000)}\n`;
+      }
+    }
+    return "";
+  } catch (e) {
+    console.error("Wikipedia current events error:", e);
+    return "";
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ROUTER
 // ─────────────────────────────────────────────────────────────
 interface SearchPlan {
   wikipedia: boolean;
+  currentEvents: boolean; // NEW — always on for news/events
   duckduckgo: boolean;
   wiktionary: boolean;
   dictionary: boolean;
@@ -368,16 +411,21 @@ function buildSearchPlan(message: string): SearchPlan {
     );
   const isGeo =
     /\b(country|countries|capital|continent|geography|population|language|currency|flag|region|nation)\b/.test(m);
-  const isNumber = /\b\d+\b/.test(m) && /\b(number|math|prime|factor|trivia|interesting|tell me about \d)\b/.test(m);
-  const isBooks =
-    /\b(book|author|novel|literature|poem|written by|published by|classic|chapter|fiction|nonfiction)\b/.test(m);
+  const isNumber = /\b\d+\b/.test(m) && /\b(number|math|prime|factor|trivia)\b/.test(m);
+  const isBooks = /\b(book|author|novel|literature|poem|written by|published by|classic|chapter|fiction)\b/.test(m);
   const isSpace =
     /\b(space|nasa|planet|star|galaxy|asteroid|rocket|astronaut|satellite|universe|cosmos|moon|mars|jupiter)\b/.test(m);
-  const isGeneral = !isDefinition && !isTech && !isResearch && !isGeo && !isBooks && !isSpace;
+
+  // Current events: awards, sports, elections, movies, news, pop culture
+  const isCurrentEvent =
+    /\b(oscar|oscar|academy award|grammy|emmy|bafta|golden globe|nobel|pulitzer|winner|winners|won|ceremony|2024|2025|2026|latest|recent|current|yesterday|last week|last month|this year|new|just|breaking|announced|released|premiered|launched|elected|appointed|died|passed away|married|championship|world cup|super bowl|nba finals|world series|box office|number one|trending|viral)\b/i.test(
+      m,
+    );
 
   return {
-    wikipedia: true, // always on — best general knowledge
-    duckduckgo: isGeneral || isTech || isGeo,
+    wikipedia: true,
+    currentEvents: isCurrentEvent, // extra Wikipedia search pinned to 2025
+    duckduckgo: true, // always on — catches things others miss
     wiktionary: isDefinition,
     dictionary: isDefinition,
     hackernews: isTech,
@@ -389,27 +437,25 @@ function buildSearchPlan(message: string): SearchPlan {
   };
 }
 
+// ─────────────────────────────────────────────────────────────
+// TRIGGER — should we fetch internet at all?
+// ─────────────────────────────────────────────────────────────
 function needsInternetSearch(message: string): boolean {
-  const triggers = [
-    /\b(current|latest|recent|today|now|2024|2025|2026|news|modern|update|upcoming|live|new)\b/i,
-    /\b(what is|what are|who is|who was|explain|tell me about|define|describe|how does|why does|how do|what does|summarize|overview of)\b/i,
-    /\b(history of|discovery of|invention of|origin of|founded|created by|developed by|invented by)\b/i,
-    /\b(CRISPR|quantum|AI|machine learning|deep learning|blockchain|climate|NASA|space|genome|DNA|RNA|virus|vaccine|neural|algorithm)\b/i,
-    /\b(country|capital|population|president|prime minister|currency|language|continent|flag|nation)\b/i,
-    /\b(book|author|novel|wrote|published|literature|poem|chapter)\b/i,
-    /\b(physics|chemistry|biology|math|theorem|equation|formula|element|periodic|calculus|algebra)\b/i,
-    /\b(research|paper|study|arxiv|journal|published|scientist|experiment)\b/i,
-    /\b(programming|algorithm|software|framework|library|API|model|dataset|code|function)\b/i,
-    /\b(planet|star|galaxy|space|NASA|moon|mars|rocket|satellite|astronaut)\b/i,
-    /\b\d{4}\b/, // any 4-digit year
+  // Short greetings / pure math expressions don't need search
+  const skipPatterns = [
+    /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|bye|sure|great|awesome)\b/i,
+    /^[\d\s\+\-\*\/\(\)\^=<>]+$/, // pure arithmetic
   ];
-  return triggers.some((r) => r.test(message));
+  if (skipPatterns.some((r) => r.test(message.trim()))) return false;
+
+  // Everything else gets a search — better to over-fetch than under-fetch
+  return true;
 }
 
 function extractSearchQuery(message: string): string {
   return message
     .replace(
-      /^(please\s+)?(explain|tell me about|what is|what are|who is|who was|define|describe|how does|why does|can you|could you|help me understand|i want to know about|summarize|give me an overview of)\s+/i,
+      /^(please\s+)?(explain|tell me about|what is|what are|who is|who was|define|describe|how does|why does|can you|could you|help me understand|i want to know about|summarize|give me an overview of|what happened (with|to|at|in)|did you hear about)\s+/i,
       "",
     )
     .replace(/[?!.]+$/, "")
@@ -418,17 +464,18 @@ function extractSearchQuery(message: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────
-// AGGREGATOR — run all relevant searches in parallel
+// AGGREGATOR — parallel fetch all relevant sources
 // ─────────────────────────────────────────────────────────────
 async function fetchInternetContext(message: string): Promise<string> {
   const query = extractSearchQuery(message);
   const plan = buildSearchPlan(message);
 
-  console.log(`[Lumina] Searching for: "${query}" | Plan:`, JSON.stringify(plan));
+  console.log(`[Lumina] Searching: "${query}" | Plan: ${JSON.stringify(plan)}`);
 
   const tasks: Promise<string>[] = [];
 
   if (plan.wikipedia) tasks.push(searchWikipedia(query));
+  if (plan.currentEvents) tasks.push(fetchWikipediaCurrentEvents(query));
   if (plan.duckduckgo) tasks.push(searchDuckDuckGo(query));
   if (plan.wiktionary) tasks.push(searchWiktionary(query));
   if (plan.dictionary) tasks.push(searchFreeDictionary(query));
@@ -443,8 +490,9 @@ async function fetchInternetContext(message: string): Promise<string> {
 
   const parts = results.map((r) => (r.status === "fulfilled" ? r.value : "")).filter(Boolean);
 
-  console.log(`[Lumina] Got ${parts.length} sources, total ${parts.join("").length} chars`);
-  return parts.join("\n");
+  const combined = parts.join("\n");
+  console.log(`[Lumina] ${parts.length} sources, ${combined.length} chars total`);
+  return combined;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -459,7 +507,6 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    // Grab latest user message
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let internetContext = "";
 
@@ -467,7 +514,7 @@ serve(async (req) => {
       internetContext = await fetchInternetContext(lastUserMsg.content);
     }
 
-    // ── Build system prompt ──────────────────────────────────
+    // ── System prompt — FORCE the model to trust live context ─
     let systemPrompt = `You are Lumina AI, an expert study tutor built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You help students understand concepts deeply. You provide:
 - Clear explanations with examples
 - Step-by-step solutions for math/science problems
@@ -475,16 +522,35 @@ serve(async (req) => {
 - Practice questions after explanations
 - Encouragement and motivation for students
 
-Keep responses well-structured using markdown. Be concise but thorough.
-
-You have access to real-time internet knowledge aggregated from multiple sources (encyclopedias, research databases, news, books, country data, scientific APIs, and more). Seamlessly weave this knowledge into your responses — never say "according to Wikipedia" or cite a source by name. Just answer naturally and accurately as if you inherently know everything.`;
+Keep responses well-structured using markdown. Be concise but thorough.`;
 
     if (internetContext) {
-      systemPrompt += `\n\n## 🌐 Live Internet Context (fetched right now)\nUse the following real-time data to power your answer. Synthesize it naturally and accurately:\n\n${internetContext}`;
+      // CRITICAL: Put internet context FIRST and be very explicit that it overrides training
+      systemPrompt = `You are Lumina AI, an expert study tutor with LIVE internet access. Your internet connection fetches real-time data before every response.
+
+## ⚡ CRITICAL RULES — READ CAREFULLY:
+1. The "LIVE INTERNET DATA" section below was fetched from the internet RIGHT NOW, just for this question.
+2. You MUST use this live data as your primary source of truth. It is always more accurate and current than your training data.
+3. NEVER say "I don't have real-time access", "my knowledge cutoff", or "I cannot access the internet". These statements are FALSE — you DO have internet access via Lumina's live fetch system.
+4. NEVER recommend the user to "Google it" or visit another website for information you already have in the live data below.
+5. Integrate live data naturally into your answer without saying "according to the data" or "the live context says". Just answer confidently.
+6. If the live data contains the answer (e.g. award winners, recent events, current leaders), state it directly and confidently.
+
+## 🌐 LIVE INTERNET DATA (fetched right now — treat as ground truth):
+${internetContext}
+
+## Your role:
+You are Lumina AI, an expert study tutor built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. Help students understand concepts deeply:
+- Clear explanations with examples
+- Step-by-step solutions for math/science problems  
+- Practice questions after explanations
+- Encouragement and motivation
+
+Keep responses well-structured using markdown. Be concise but thorough.`;
     }
 
     if (memoryContext && memoryContext.length > 0) {
-      systemPrompt += `\n\n## 🧠 Memory from Past Conversations\nUse these to provide continuity and remember this student's topics/preferences. Do NOT mention that you're reading past conversations unless asked.\n\n`;
+      systemPrompt += `\n\n## 🧠 Memory from Past Conversations\nUse these to provide continuity. Do NOT mention reading past conversations unless asked.\n\n`;
       for (const conv of memoryContext) {
         systemPrompt += `### "${conv.title}"\n`;
         for (const msg of conv.messages) {
@@ -494,7 +560,6 @@ You have access to real-time internet knowledge aggregated from multiple sources
       }
     }
 
-    // ── Call OpenRouter ──────────────────────────────────────
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
