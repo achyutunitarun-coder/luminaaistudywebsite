@@ -9,7 +9,7 @@ export type UploadedFile = {
   size: number;
 };
 
-const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml';
+const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml,.xlsx,.xls';
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 const getFileIcon = (type: string) => {
@@ -60,6 +60,26 @@ const extractText = async (file: globalThis.File): Promise<string> => {
   // PDFs → pdf.js extraction
   if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
     return extractPdfText(file);
+  }
+  
+  // Excel/CSV → SheetJS
+  const excelExts = ['.xlsx', '.xls', '.csv'];
+  if (excelExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
+    try {
+      const XLSX = await import('xlsx');
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      let result = '';
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        result += `\n--- Sheet: ${sheetName} ---\n${csv}`;
+      }
+      return result.trim() || `[Excel: ${file.name} - no data found]`;
+    } catch (e) {
+      console.error('Excel parsing error:', e);
+      return `[Excel: ${file.name} - could not parse]`;
+    }
   }
   
   // Text-based files
