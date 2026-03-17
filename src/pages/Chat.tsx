@@ -357,12 +357,34 @@ const ChatPage = () => {
             </SheetContent>
           </Sheet>
         )}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
           <span className="text-sm font-medium text-foreground/80 truncate">
             {activeChatTitle || 'New Chat'}
           </span>
         </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => {
+              const md = messages.map(m => 
+                `## ${m.role === 'user' ? '📝 You' : '✨ Lumina'}\n\n${m.content}`
+              ).join('\n\n---\n\n');
+              const header = `# Study Notes: ${activeChatTitle || 'Chat'}\n_Exported from Lumina AI on ${new Date().toLocaleDateString()}_\n\n---\n\n`;
+              const blob = new Blob([header + md], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `lumina-notes-${(activeChatTitle || 'chat').slice(0, 30).replace(/\s+/g, '-')}.md`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success('Study notes exported!');
+            }}
+            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            title="Export as study notes"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Messages */}
