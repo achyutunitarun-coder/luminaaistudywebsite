@@ -9,7 +9,7 @@ export type UploadedFile = {
   size: number;
 };
 
-const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml';
+const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml,.xlsx,.xls';
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 const getFileIcon = (type: string) => {
