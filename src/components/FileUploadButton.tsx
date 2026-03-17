@@ -62,6 +62,26 @@ const extractText = async (file: globalThis.File): Promise<string> => {
     return extractPdfText(file);
   }
   
+  // Excel/CSV → SheetJS
+  const excelExts = ['.xlsx', '.xls', '.csv'];
+  if (excelExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
+    try {
+      const XLSX = await import('xlsx');
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      let result = '';
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        result += `\n--- Sheet: ${sheetName} ---\n${csv}`;
+      }
+      return result.trim() || `[Excel: ${file.name} - no data found]`;
+    } catch (e) {
+      console.error('Excel parsing error:', e);
+      return `[Excel: ${file.name} - could not parse]`;
+    }
+  }
+  
   // Text-based files
   const textExtensions = ['.txt', '.md', '.csv', '.json', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.xml', '.yaml', '.yml', '.doc', '.docx'];
   const isText = file.type.startsWith('text/') || textExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
