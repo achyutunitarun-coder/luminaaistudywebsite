@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Paperclip, X, FileText, Image, File } from 'lucide-react';
+import { Paperclip, X, FileText, Image, File, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export type UploadedFile = {
@@ -9,8 +9,8 @@ export type UploadedFile = {
   size: number;
 };
 
-const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp';
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml';
+const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 const getFileIcon = (type: string) => {
   if (type.startsWith('image/')) return <Image className="w-3.5 h-3.5 text-primary" />;
@@ -18,7 +18,37 @@ const getFileIcon = (type: string) => {
   return <File className="w-3.5 h-3.5 text-muted-foreground" />;
 };
 
+const extractPdfText = async (file: globalThis.File): Promise<string> => {
+  try {
+    const pdfjsLib = await import('pdfjs-dist');
+    
+    // Set worker source
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    const totalPages = pdf.numPages;
+    
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += `\n--- Page ${i} ---\n${pageText}`;
+    }
+    
+    return fullText.trim() || `[PDF: ${file.name} - ${totalPages} pages - no extractable text found. This may be a scanned document.]`;
+  } catch (e) {
+    console.error('PDF extraction error:', e);
+    return `[PDF: ${file.name} - could not extract text. Error: ${e instanceof Error ? e.message : 'unknown'}]`;
+  }
+};
+
 const extractText = async (file: globalThis.File): Promise<string> => {
+  // Images → base64
   if (file.type.startsWith('image/')) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -26,11 +56,21 @@ const extractText = async (file: globalThis.File): Promise<string> => {
       reader.readAsDataURL(file);
     });
   }
-  // For text-based files
-  if (file.type.startsWith('text/') || file.name.endsWith('.md') || file.name.endsWith('.csv') || file.name.endsWith('.json') || file.name.endsWith('.txt')) {
+  
+  // PDFs → pdf.js extraction
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    return extractPdfText(file);
+  }
+  
+  // Text-based files
+  const textExtensions = ['.txt', '.md', '.csv', '.json', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.xml', '.yaml', '.yml', '.doc', '.docx'];
+  const isText = file.type.startsWith('text/') || textExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+  
+  if (isText) {
     return file.text();
   }
-  // For other files, read as text (best effort)
+  
+  // Best effort for unknown types
   try {
     return await file.text();
   } catch {
@@ -45,9 +85,10 @@ type Props = {
   compact?: boolean;
 };
 
-export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact = false }: Props) => {
+export const FileUploadButton = ({ files, onFilesChange, maxFiles = 5, compact = false }: Props) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
+  const [processingName, setProcessingName] = useState('');
 
   const handleFiles = async (fileList: FileList) => {
     setProcessing(true);
@@ -57,10 +98,11 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
       const file = fileList[i];
       if (file.size > MAX_SIZE) continue;
 
+      setProcessingName(file.name);
       const content = await extractText(file);
       newFiles.push({
         name: file.name,
-        type: file.type,
+        type: file.type || 'application/octet-stream',
         content,
         size: file.size,
       });
@@ -68,6 +110,7 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
 
     onFilesChange([...files, ...newFiles]);
     setProcessing(false);
+    setProcessingName('');
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -77,7 +120,6 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* File chips */}
       <AnimatePresence>
         {files.length > 0 && (
           <motion.div
@@ -96,6 +138,9 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
               >
                 {getFileIcon(f.type)}
                 <span className="text-foreground/80 truncate max-w-[120px]">{f.name}</span>
+                <span className="text-muted-foreground text-[10px]">
+                  {f.type.includes('pdf') ? `PDF` : (f.size / 1024).toFixed(0) + 'KB'}
+                </span>
                 <button onClick={() => removeFile(i)} className="text-muted-foreground hover:text-destructive transition-colors ml-0.5">
                   <X className="w-3 h-3" />
                 </button>
@@ -105,7 +150,6 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
         )}
       </AnimatePresence>
 
-      {/* Upload button */}
       <input
         ref={inputRef}
         type="file"
@@ -120,10 +164,14 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 3, compact =
           onClick={() => inputRef.current?.click()}
           disabled={processing}
           className={`flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors ${compact ? '' : 'text-xs'}`}
-          title="Attach file"
+          title="Attach file (PDF, images, code, text)"
         >
-          <Paperclip className={`${compact ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
-          {!compact && <span>{processing ? 'Processing...' : 'Attach'}</span>}
+          {processing ? (
+            <Loader2 className={`${compact ? 'w-4 h-4' : 'w-3.5 h-3.5'} animate-spin`} />
+          ) : (
+            <Paperclip className={`${compact ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+          )}
+          {!compact && <span>{processing ? `Processing ${processingName}...` : 'Attach'}</span>}
         </button>
       )}
     </div>
@@ -138,7 +186,7 @@ export const buildFileContext = (files: UploadedFile[]): string => {
     if (f.type.startsWith('image/')) {
       context += `\n[Image: ${f.name}]\n`;
     } else {
-      context += `\n### File: ${f.name}\n\`\`\`\n${f.content.slice(0, 15000)}\n\`\`\`\n`;
+      context += `\n### File: ${f.name}\n\`\`\`\n${f.content.slice(0, 20000)}\n\`\`\`\n`;
     }
   }
   return context;
