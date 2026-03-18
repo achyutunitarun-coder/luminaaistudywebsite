@@ -41,8 +41,8 @@ serve(async (req) => {
         model: "google/gemini-2.0-flash-exp:free",
         models: [
           "google/gemini-2.0-flash-exp:free",
-          "google/gemini-2.5-flash-preview-05-20",
           "deepseek/deepseek-chat-v3-0324:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
         ],
         max_tokens: 6000,
         response_format: { type: "json_object" },
