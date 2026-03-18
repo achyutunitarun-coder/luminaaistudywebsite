@@ -88,7 +88,7 @@ const App = () => (
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
               <Route path="/lecture-ai" element={<LectureAI />} />
-              <Route path="/youtube-summary" element={<YouTubeSummary />} />
+              
               
               <Route path="/smart-notebook" element={<SmartNotebook />} />
             </Route>
