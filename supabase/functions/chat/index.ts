@@ -137,6 +137,31 @@ async function searchDuckDuckGo(query: string): Promise<string> {
   return "";
 }
 
+async function searchGoogleNews(query: string): Promise<string> {
+  try {
+    const res = await withTimeout(
+      `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`,
+      { headers: { "User-Agent": "LuminaAI/1.0" } },
+    );
+
+    if (!res.ok) return "";
+
+    const rss = await res.text();
+    const titleMatches = [...rss.matchAll(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g)]
+      .map((match) => (match[1] || match[2] || "").trim())
+      .filter((title) => title && title.toLowerCase() !== "google news")
+      .slice(0, 4);
+
+    if (titleMatches.length > 0) {
+      return `[News] ${clampText(titleMatches.join(" | "), 520)}`;
+    }
+  } catch {
+    // Ignore web fetch errors for speed/resilience
+  }
+
+  return "";
+}
+
 async function getWebContext(query: string): Promise<string> {
   cleanupWebCache();
 
@@ -144,14 +169,16 @@ async function getWebContext(query: string): Promise<string> {
   const cached = webCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.context;
 
-  const [wikiResult, duckResult] = await Promise.allSettled([
+  const [wikiResult, duckResult, newsResult] = await Promise.allSettled([
     searchWikipedia(query),
     searchDuckDuckGo(query),
+    searchGoogleNews(query),
   ]);
 
   const snippets = [
     wikiResult.status === "fulfilled" ? wikiResult.value : "",
     duckResult.status === "fulfilled" ? duckResult.value : "",
+    newsResult.status === "fulfilled" ? newsResult.value : "",
   ].filter(Boolean);
 
   const context = snippets.join("\n\n");
