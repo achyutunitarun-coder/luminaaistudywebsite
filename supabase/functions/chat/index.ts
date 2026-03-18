@@ -283,8 +283,8 @@ Keep responses clear, concise, and useful.`;
         model: "google/gemini-2.0-flash-exp:free",
         models: [
           "google/gemini-2.0-flash-exp:free",
-          "mistralai/mistral-small-3.1-24b:free",
           "deepseek/deepseek-chat-v3-0324:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
         ],
         route: "fallback",
         temperature: 0.3,
