@@ -71,9 +71,8 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
         // Fallbacks in order if free quota is exhausted
         model: "google/gemini-2.0-flash-exp:free:online",
         models: [
-          "google/gemini-2.0-flash-exp:free:online", // free, native web search
-          "mistralai/mistral-small-3.1-24b:free:online", // free fallback with web search
-          "google/gemini-2.0-flash:online", // paid fallback, very cheap
+          "google/gemini-2.0-flash-exp:free:online",
+          "google/gemini-2.0-flash:online",
         ],
         // Route preference: always prefer :online variants
         route: "fallback",
