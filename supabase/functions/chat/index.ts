@@ -280,13 +280,7 @@ Keep responses clear, concise, and useful.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
-        models: [
-          "google/gemini-2.0-flash-exp:free",
-          "google/gemini-2.0-flash",
-          "openai/gpt-4o-mini",
-        ],
-        route: "fallback",
+        model: "openrouter/auto",
         temperature: 0.3,
         max_tokens: 1200,
         include_reasoning: false,
