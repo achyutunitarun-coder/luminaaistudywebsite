@@ -15,6 +15,10 @@ type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const MAX_CONTEXT_MESSAGES = 12;
+const MAX_MEMORY_CHATS = 3;
+const MAX_MEMORY_MESSAGES_PER_CHAT = 2;
+const MAX_MEMORY_MESSAGE_CHARS = 180;
 
 /* ─── Chat History Sidebar Content ─── */
 const ChatSidebar = ({
@@ -114,6 +118,7 @@ const ChatPage = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isSendingRef = useRef(false);
 
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
@@ -156,7 +161,7 @@ const ChatPage = () => {
         .select('id, title')
         .neq('id', activeChat || '')
         .order('updated_at', { ascending: false })
-        .limit(10);
+        .limit(MAX_MEMORY_CHATS);
 
       if (!recentChats || recentChats.length === 0) return [];
 
@@ -167,17 +172,18 @@ const ChatPage = () => {
             .select('role, content')
             .eq('chat_id', chat.id)
             .order('created_at', { ascending: false })
-            .limit(4);
+            .limit(MAX_MEMORY_MESSAGES_PER_CHAT);
           if (!msgs || msgs.length === 0) return null;
           return {
             title: chat.title,
             messages: msgs.reverse().map(m => ({
               role: m.role,
-              content: m.content.slice(0, 300),
+              content: m.content.slice(0, MAX_MEMORY_MESSAGE_CHARS),
             })),
           };
         })
       );
+
       return memoryContext.filter(Boolean);
     } catch (err) {
       console.error('Failed to fetch memory context:', err);
@@ -186,37 +192,50 @@ const ChatPage = () => {
   };
 
   const sendMessage = async () => {
-    if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading) return;
-    
-    setIsLoading(true); // FIX: was missing - caused no loading indicator
-    
+    if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
+
+    isSendingRef.current = true;
+    setIsLoading(true);
+
+    const memoryContextPromise = fetchMemoryContext();
     const fileContext = buildFileContext(uploadedFiles);
     const userContent = input.trim() + fileContext;
     setInput('');
     setUploadedFiles([]);
 
-    const { data: userMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent }).select().single();
-    if (userMsg) setMessages(prev => [...prev, userMsg]);
-
-    if (messages.length === 0) {
-      const title = userContent.slice(0, 50) + (userContent.length > 50 ? '...' : '');
-      await supabase.from('chats').update({ title }).eq('id', activeChat);
-      setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
-    }
-
-    const allMessages = [...messages, { role: 'user', content: userContent }].map(m => ({
-      role: m.role as 'user' | 'assistant', content: m.content,
-    }));
-
-    const memoryContext = await fetchMemoryContext();
-
     try {
+      const { data: userMsg } = await supabase
+        .from('chat_messages')
+        .insert({ chat_id: activeChat, role: 'user', content: userContent })
+        .select()
+        .single();
+
+      if (userMsg) setMessages(prev => [...prev, userMsg]);
+
+      if (messages.length === 0) {
+        const title = userContent.slice(0, 50) + (userContent.length > 50 ? '...' : '');
+        await supabase.from('chats').update({ title }).eq('id', activeChat);
+        setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
+      }
+
+      const allMessages = [...messages, { role: 'user', content: userContent }]
+        .slice(-MAX_CONTEXT_MESSAGES)
+        .map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+      const memoryContext = await memoryContextPromise;
+
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
         body: JSON.stringify({ messages: allMessages, memoryContext }),
       });
-      
+
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
         if (resp.status === 429) {
@@ -226,10 +245,9 @@ const ChatPage = () => {
         } else {
           toast.error(errorData.error || 'Failed to get AI response. Please try again.');
         }
-        setIsLoading(false);
         return;
       }
-      
+
       if (!resp.body) throw new Error('No response body');
 
       const reader = resp.body.getReader();
@@ -237,45 +255,103 @@ const ChatPage = () => {
       let textBuffer = '';
       let assistantContent = '';
       let streamDone = false;
+      let renderScheduled = false;
       const tempId = crypto.randomUUID();
+
       setMessages(prev => [...prev, { id: tempId, role: 'assistant', content: '', created_at: new Date().toISOString() }]);
+
+      const flushAssistantUpdate = () => {
+        renderScheduled = false;
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, content: assistantContent } : m));
+      };
+
+      const scheduleRender = () => {
+        if (renderScheduled) return;
+        renderScheduled = true;
+        requestAnimationFrame(flushAssistantUpdate);
+      };
+
+      const processLine = (line: string): boolean => {
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') return true;
+        if (!line.startsWith('data: ')) return true;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === '[DONE]') {
+          streamDone = true;
+          return true;
+        }
+
+        try {
+          const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantContent += content;
+            scheduleRender();
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
+
         textBuffer += decoder.decode(value, { stream: true });
         let newlineIndex: number;
         while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
+          const line = textBuffer.slice(0, newlineIndex);
           textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') { streamDone = true; break; }
-          try {
-            const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content;
-            if (content) {
-              assistantContent += content;
-              setMessages(prev => prev.map(m => m.id === tempId ? { ...m, content: assistantContent } : m));
-            }
-          } catch {}
+
+          const ok = processLine(line);
+          if (!ok) {
+            textBuffer = `${line}\n${textBuffer}`;
+            break;
+          }
+
+          if (streamDone) break;
         }
       }
 
+      if (!streamDone && textBuffer.trim()) {
+        for (const rawLine of textBuffer.split('\n')) {
+          const line = rawLine.trimEnd();
+          if (!line || line.startsWith(':') || !line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          try {
+            const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content as string | undefined;
+            if (content) assistantContent += content;
+          } catch {
+            // Ignore final partial leftovers
+          }
+        }
+      }
+
+      if (renderScheduled) {
+        flushAssistantUpdate();
+      }
+
       if (assistantContent) {
-        const { data: savedMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'assistant', content: assistantContent }).select().single();
+        const { data: savedMsg } = await supabase
+          .from('chat_messages')
+          .insert({ chat_id: activeChat, role: 'assistant', content: assistantContent })
+          .select()
+          .single();
+
         if (savedMsg) setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
       } else {
-        // No content received - remove the empty assistant message
         setMessages(prev => prev.filter(m => m.id !== tempId));
         toast.error('AI returned an empty response. Please try again.');
       }
     } catch (error) {
       console.error('Chat error:', error);
       toast.error('Failed to connect to AI. Please try again.');
+    } finally {
+      isSendingRef.current = false;
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const activeChatTitle = chats.find(c => c.id === activeChat)?.title;
