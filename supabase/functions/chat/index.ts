@@ -6,18 +6,40 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─────────────────────────────────────────────────────────────
-// OpenRouter :online models — these browse the web natively.
-// No injected context needed; the model does real searches itself.
-//
-// Free :online models (as of 2025):
-//   - google/gemini-2.0-flash-exp:free:online   ← best free option
-//   - mistralai/mistral-small-3.1-24b:free:online
-//
-// Paid :online fallbacks (cheap, ~$0.0001/req) if free quota runs out:
-//   - google/gemini-2.0-flash:online
-//   - openai/gpt-4o-mini:online
-// ─────────────────────────────────────────────────────────────
+// Search Wikipedia for real-time context on current topics
+async function searchWikipedia(query: string): Promise<string> {
+  try {
+    const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+    const res = await fetch(searchUrl, { headers: { "User-Agent": "LuminaAI/1.0" } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.extract) return `[Wikipedia: ${data.title}] ${data.extract}`;
+    }
+    // Fallback: search
+    const sRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=3`);
+    if (sRes.ok) {
+      const sData = await sRes.json();
+      const results = sData?.query?.search?.map((r: any) => r.snippet.replace(/<[^>]+>/g, "")).join(" | ");
+      if (results) return `[Wikipedia search: ${query}] ${results}`;
+    }
+  } catch {}
+  return "";
+}
+
+// Detect if user message needs internet context
+function needsWebSearch(text: string): string | null {
+  const triggers = [
+    /(?:latest|current|recent|today|now|2024|2025|2026)\s+(.+)/i,
+    /(?:who won|who is|what happened|news about)\s+(.+)/i,
+    /(?:explain|tell me about)\s+(CRISPR|quantum|AI|blockchain|climate|space|mars|moon|james webb)/i,
+    /(?:stock|market|price of|value of)\s+(.+)/i,
+  ];
+  for (const t of triggers) {
+    const m = text.match(t);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -31,13 +53,13 @@ serve(async (req) => {
     // ── System prompt ────────────────────────────────────────
     let systemPrompt = `You are Lumina AI, an expert study tutor built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
 
-You have LIVE internet access and automatically search the web before answering any question about current events, recent news, people, awards, sports results, science, or anything that changes over time.
+You have access to internet knowledge and can answer questions about current events, recent news, people, awards, sports results, science, or anything that changes over time.
 
 RULES:
-- NEVER say "I don't have real-time access" or "my knowledge cutoff". You have live internet — use it.
+- NEVER say "I don't have real-time access" or "my knowledge cutoff". Use the context provided to give accurate answers.
 - NEVER tell the user to "Google it" or visit another site. You already have the answer.
-- For current events (Oscars, elections, sports, news, new releases, etc.) always search and give the real, up-to-date answer.
-- Seamlessly blend web knowledge with your explanations — don't say "according to my search".
+- For current events, give the real, up-to-date answer using provided context.
+- Seamlessly blend web knowledge with your explanations.
 
 As a study tutor you provide:
 - Clear explanations with examples
@@ -59,7 +81,19 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
       }
     }
 
-    // ── Call OpenRouter with :online model ───────────────────
+    // ── Web search for last user message ─────────────────────
+    const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
+    if (lastUserMsg) {
+      const searchQuery = needsWebSearch(lastUserMsg.content);
+      if (searchQuery) {
+        const wikiContext = await searchWikipedia(searchQuery);
+        if (wikiContext) {
+          systemPrompt += `\n\n## 🌐 Internet Context\n${wikiContext}\n\nUse this information naturally in your response.`;
+        }
+      }
+    }
+
+    // ── Call OpenRouter ──────────────────────────────────────
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -67,10 +101,12 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Primary: Gemini 2.0 Flash with native web search (free)
-        // Fallbacks in order if free quota is exhausted
-        model: "google/gemini-2.0-flash-exp:free:online",
-        // Route preference: always prefer :online variants
+        model: "google/gemini-2.0-flash-exp:free",
+        models: [
+          "google/gemini-2.0-flash-exp:free",
+          "deepseek/deepseek-chat-v3-0324:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
+        ],
         route: "fallback",
         max_tokens: 4096,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
