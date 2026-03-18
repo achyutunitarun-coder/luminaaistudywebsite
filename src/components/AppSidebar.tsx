@@ -15,7 +15,7 @@ import {
   Target,
   ClipboardList,
   FileAudio,
-  Youtube,
+  
   
   NotebookPen,
 } from 'lucide-react';
@@ -46,7 +46,7 @@ const mainItems = [
   { title: 'Quick Study', url: '/quick-study', icon: Zap },
   { title: 'Study Planner', url: '/study-planner', icon: Calendar },
   { title: 'Lecture AI', url: '/lecture-ai', icon: FileAudio },
-  { title: 'YouTube Summary', url: '/youtube-summary', icon: Youtube },
+  
   
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
