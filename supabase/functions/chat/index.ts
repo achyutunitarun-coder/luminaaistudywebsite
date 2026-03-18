@@ -70,10 +70,6 @@ Keep responses well-structured using markdown. Be concise but thorough.`;
         // Primary: Gemini 2.0 Flash with native web search (free)
         // Fallbacks in order if free quota is exhausted
         model: "google/gemini-2.0-flash-exp:free:online",
-        models: [
-          "google/gemini-2.0-flash-exp:free:online",
-          "google/gemini-2.0-flash:online",
-        ],
         // Route preference: always prefer :online variants
         route: "fallback",
         max_tokens: 4096,
