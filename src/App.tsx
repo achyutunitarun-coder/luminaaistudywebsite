@@ -24,7 +24,7 @@ import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
 import LectureAI from "@/pages/LectureAI";
-import YouTubeSummary from "@/pages/YouTubeSummary";
+
 
 import SmartNotebook from "@/pages/SmartNotebook";
 import NotFound from "./pages/NotFound";
