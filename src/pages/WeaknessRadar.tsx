@@ -84,13 +84,8 @@ const WeaknessRadar = () => {
   const runDeepAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('session-analysis', {
+        body: {
           userId: user?.id,
           sessionData: {
             tests_completed: tests?.length || 0,
@@ -98,18 +93,20 @@ const WeaknessRadar = () => {
             top_mistakes: topMistakes,
             test_subjects: tests?.map(t => ({ subject: t.subject, score: t.score })),
           },
-        }),
+        },
       });
-      if (resp.ok) {
-        const data = await resp.json();
-        setDeepAnalysis(data);
-      } else {
-        toast.error('Analysis failed. Try again.');
+
+      if (error) {
+        toast.error(error.message || 'Analysis failed. Try again.');
+        return;
       }
+
+      setDeepAnalysis(data as DeepAnalysis);
     } catch {
       toast.error('Failed to run analysis');
+    } finally {
+      setAnalyzing(false);
     }
-    setAnalyzing(false);
   };
 
   return (
