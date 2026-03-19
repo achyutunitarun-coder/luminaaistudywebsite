@@ -6,60 +6,38 @@ const corsHeaders = {
 };
 
 const STYLE_PROMPTS: Record<string, string> = {
-  detailed: `Create extremely thorough and detailed study notes. Include:
-- Multiple levels of headings (H1, H2, H3) for clear hierarchy
-- Every key concept explained in depth with 2-3 sentences minimum
-- Bold key terms and italicize supporting details
-- Bullet points AND numbered lists where appropriate
-- Important formulas, definitions, and theorems in blockquotes
-- Real-world examples and analogies for complex concepts
-- "Common Mistakes" or "Watch Out" sections
-- Connections between different concepts
-- A detailed summary section at the end
-- Memory aids, mnemonics, and visualization tips
-- At least 2000-3000 words of content
-Be exhaustive — a student should be able to study ONLY from these notes.`,
+  bullet: `Format the notes with clear bullet-point structure. Include:
+- Major sections as headings
+- Nested bullet points for concepts and sub-concepts
+- Short, scannable explanations per bullet
+- A final bullet-point recap section
+- Clean markdown formatting optimized for quick revision`,
 
-  exam: `Create exam-focused study notes optimized for test preparation. Include:
-- Key definitions in blockquotes with precise wording
-- All formulas with variable explanations
-- "Likely Exam Questions" sections after each topic
-- Quick-recall tables for comparing concepts
-- Highlighted "Must Remember" points in bold
-- Common exam traps and how to avoid them
-- Step-by-step problem-solving frameworks
-- Summary tables and comparison charts
-- Practice question hints at the end
-- At least 2000 words of focused content`,
+  hyphen: `Format the notes as a hyphen-style outline. Include:
+- Main topics and subtopics using hyphen-led outline lines
+- Progressive indentation for hierarchy
+- Concise, logical flow from basics to advanced points
+- A final hyphenated revision checklist`,
 
-  simple: `Create clear, beginner-friendly study notes. Include:
-- Simple language — explain like teaching a friend
-- Lots of real-world analogies and examples
-- Visual descriptions (describe diagrams in words)
-- "Think of it this way..." sections for hard concepts
-- Key takeaways in bold
-- Short paragraphs with plenty of whitespace
-- Step-by-step breakdowns of processes
-- "In simple terms..." summaries after complex sections
-- Recap at the end with the 5 most important points
-- At least 1800 words of content`,
+  paragraph: `Format the notes in rich paragraph style. Include:
+- Well-written, connected paragraphs under each heading
+- Strong transitions between sections
+- Examples embedded naturally in prose
+- A concise paragraph summary at the end`,
 
-  cornell: `Create notes in Cornell Method format. Structure:
-## Main Topic
+  mindmap: `Format the notes as a text-based mind map in markdown. Include:
+- A central topic heading
+- Branches for major ideas
+- Sub-branches for key facts, formulas, and examples
+- Visual hierarchy using indentation and symbols
+- A short "how to revise this mind map" section`,
 
-| Cues / Questions | Notes |
-|---|---|
-| Key question 1 | Detailed answer with examples |
-| Key question 2 | Detailed answer with examples |
-
-### Summary
-Concise summary paragraph.
-
-Follow this format for EVERY major section. Include:
-- Thoughtful cue questions that test understanding
-- Detailed notes with examples and connections
-- Comprehensive summaries
-- At least 2000 words of content`,
+  root_cause: `Format the notes as deep root-cause analysis notes. Include:
+- Core concepts first, then common errors and why they happen
+- "Root Cause" sections for each difficult sub-topic
+- Diagnostic cues to identify misunderstanding
+- Step-by-step correction plans and drills
+- A "Fix Plan" summary for rapid improvement`,
 };
 
 serve(async (req) => {
@@ -69,7 +47,7 @@ serve(async (req) => {
     const { topic, sourceText, style, isRefinement } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
-    const stylePrompt = STYLE_PROMPTS[style || "detailed"] || STYLE_PROMPTS.detailed;
+    const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
 
     const systemPrompt = isRefinement
       ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
@@ -97,8 +75,8 @@ CRITICAL RULES:
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        max_tokens: 6000,
+        models: ["deepseek/deepseek-r1-0528:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"],
+        max_tokens: 3200,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },

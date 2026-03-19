@@ -159,20 +159,17 @@ const StudySession = () => {
     }
 
     try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('session-analysis', {
+        body: {
           sessionData: { duration_minutes: duration, tools_used: toolsUsed, uploaded_materials: buildFileContext(uploadedFiles) },
           userId: user.id,
-        }),
+        },
       });
-      if (resp.ok) {
-        const data = await resp.json();
-        setAnalysis(data);
+
+      if (error) {
+        console.error('Failed to get analysis:', error.message);
+      } else if (data) {
+        setAnalysis(data as SessionAnalysis);
         await supabase.from('study_sessions').update({ analysis: data }).eq('id', sessionId);
       }
     } catch {
