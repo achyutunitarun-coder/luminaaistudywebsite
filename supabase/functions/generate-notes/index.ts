@@ -47,7 +47,7 @@ serve(async (req) => {
     const { topic, sourceText, style, isRefinement } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
-    const stylePrompt = STYLE_PROMPTS[style || "detailed"] || STYLE_PROMPTS.detailed;
+    const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
 
     const systemPrompt = isRefinement
       ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
