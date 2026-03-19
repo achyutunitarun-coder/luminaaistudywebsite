@@ -7,6 +7,39 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// FREE MODEL POOLS — large fallback lists so rate limits on one
+// model automatically roll over to the next free one
+// ─────────────────────────────────────────────────────────────
+const FREE_SEARCH_MODELS = [
+  "google/gemini-2.0-flash-exp:free:online",
+  "mistralai/mistral-small-3.1-24b:free:online",
+  "google/gemini-2.5-pro-exp-03-25:free", // very capable, free
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-235b-a22b:free",
+  "deepseek/deepseek-r1-0528:free",
+];
+
+const FREE_MATH_MODELS = [
+  "deepseek/deepseek-r1-0528:free",
+  "google/gemini-2.5-pro-exp-03-25:free",
+  "qwen/qwen3-235b-a22b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemini-2.0-flash-exp:free",
+  "mistralai/mistral-small-3.1-24b:free",
+];
+
+const FREE_GENERAL_MODELS = [
+  "google/gemini-2.0-flash-exp:free",
+  "google/gemini-2.5-pro-exp-03-25:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-235b-a22b:free",
+  "deepseek/deepseek-r1-0528:free",
+  "mistralai/mistral-small-3.1-24b:free",
+  "microsoft/phi-4:free",
+  "tngtech/deepseek-r1t-chimera:free",
+];
+
+// ─────────────────────────────────────────────────────────────
 // SYSTEM PROMPT
 // ─────────────────────────────────────────────────────────────
 function buildSystemPrompt(memoryContext: any[]): string {
@@ -33,7 +66,7 @@ When a student shares an exam topic, proactively tell them the most likely exam 
 After explaining something, always end with one of these — a quick check question, a mini challenge, or a prediction prompt — written naturally as the last sentence of your response. For example: "Before I explain further, what do you think happens to the pressure if the volume doubles?" or "Try solving this variation and let me know what you get." If the student got something right, explain why they're right. If they got something wrong, never say "wrong" — say "you're close, here's the twist."
 
 ### SUBJECT EXPERTISE
-For maths, show all working in paragraph form and state final answers clearly. For physics, use real-world examples like rockets, sports, or everyday objects. For chemistry, walk through reaction mechanisms step by step in prose. For biology, use city analogies — the cell is a city, the mitochondria is the power plant, the nucleus is the control centre. For history, explain events as cause → what happened → effect chains with the motivations of key people. For English and literature, help with themes, techniques, essay structure like PEEL or TEEL, and write model paragraphs. For computer science, explain logic in plain English first then show code. For economics, always use a real-world example like rising pizza prices to explain inflation.
+For maths, show all working in paragraph form and state final answers clearly. For physics, use real-world examples like rockets, sports, or everyday objects. For chemistry, walk through reaction mechanisms step by step in prose. For biology, use city analogies — the cell is a city, the mitochondria is the power plant, the nucleus is the control centre. For history, explain events as cause then what happened then effect, with the motivations of key people. For English and literature, help with themes, techniques, essay structure like PEEL or TEEL, and write model paragraphs. For computer science, explain logic in plain English first then show code. For economics, always use a real-world example like rising pizza prices to explain inflation.
 
 ### EMOTIONAL INTELLIGENCE
 If a student says they're stressed, overwhelmed, or want to give up — first acknowledge the feeling genuinely, then reframe it calmly, then give one small actionable step to get them moving again. If their exam is tomorrow and they haven't studied, give them the highest-yield topics to prioritize and nothing else — no judgment, just maximum help. If they say things like "I'm bad at maths" or "I don't understand anything", challenge that belief with something encouraging and specific.
@@ -62,23 +95,23 @@ Never use bullet points or numbered lists. Never say "Great question!", "Certain
 }
 
 // ─────────────────────────────────────────────────────────────
-// INTENT CLASSIFIER — pick fastest right model for the job
+// INTENT CLASSIFIER
 // ─────────────────────────────────────────────────────────────
 function classifyMessage(message: string): {
   needsSearch: boolean;
   isMath: boolean;
-  isCode: boolean;
 } {
   const needsSearch =
-    /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|nobel|election|score|breaking|just announced|new release|weather|price)\b/i.test(message);
+    /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|nobel|election|score|breaking|just announced|new release|weather|price|recently)\b/i.test(
+      message,
+    );
 
   const isMath =
-    /\b(solve|calculate|integrate|differentiate|equation|algebra|geometry|trigonometry|calculus|probability|statistics|matrix|vector|proof|derive|\d+[\+\-\*\/\^]\d+)\b/i.test(message);
+    /\b(solve|calculate|integrate|differentiate|equation|algebra|geometry|trigonometry|calculus|probability|statistics|matrix|vector|proof|derive|code|program|algorithm|debug|\d+[\+\-\*\/\^]\d+)\b/i.test(
+      message,
+    );
 
-  const isCode =
-    /\b(code|program|function|algorithm|debug|python|javascript|java|c\+\+|sql|pseudocode|loop|array|sort|recursion|output|syntax|error)\b/i.test(message);
-
-  return { needsSearch, isMath, isCode };
+  return { needsSearch, isMath };
 }
 
 function selectModels(intent: ReturnType<typeof classifyMessage>): {
@@ -87,31 +120,19 @@ function selectModels(intent: ReturnType<typeof classifyMessage>): {
 } {
   if (intent.needsSearch) {
     return {
-      primary: "google/gemini-2.0-flash-exp:free:online",
-      fallbacks: [
-        "mistralai/mistral-small-3.1-24b:free:online",
-        "google/gemini-2.0-flash:online",
-      ],
+      primary: FREE_SEARCH_MODELS[0],
+      fallbacks: FREE_SEARCH_MODELS.slice(1),
     };
   }
-
-  if (intent.isMath || intent.isCode) {
+  if (intent.isMath) {
     return {
-      primary: "deepseek/deepseek-r1-0528:free",
-      fallbacks: [
-        "google/gemini-2.0-flash-exp:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-      ],
+      primary: FREE_MATH_MODELS[0],
+      fallbacks: FREE_MATH_MODELS.slice(1),
     };
   }
-
-  // Default — Gemini Flash is fastest for general study questions
   return {
-    primary: "google/gemini-2.0-flash-exp:free",
-    fallbacks: [
-      "deepseek/deepseek-r1-0528:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-    ],
+    primary: FREE_GENERAL_MODELS[0],
+    fallbacks: FREE_GENERAL_MODELS.slice(1),
   };
 }
 
@@ -131,7 +152,7 @@ serve(async (req) => {
     const intent = classifyMessage(lastUserMsg?.content ?? "");
     const { primary, fallbacks } = selectModels(intent);
 
-    console.log(`[Lumina] Model: ${primary} | Intent: ${JSON.stringify(intent)}`);
+    console.log(`[Lumina] Primary: ${primary} | Fallbacks: ${fallbacks.length} available`);
 
     const systemPrompt = buildSystemPrompt(memoryContext ?? []);
 
@@ -145,7 +166,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: primary,
-        models: [primary, ...fallbacks],
+        models: [primary, ...fallbacks], // OpenRouter tries each in order if one is rate limited
         route: "fallback",
         max_tokens: 4096,
         temperature: 0.7,
@@ -153,10 +174,7 @@ serve(async (req) => {
         frequency_penalty: 0.3,
         presence_penalty: 0.2,
         stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
       }),
     });
 
@@ -173,22 +191,22 @@ serve(async (req) => {
       console.error(`[Lumina] Error ${response.status}:`, providerMessage);
 
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: providerMessage || "Too many requests — please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Too many requests — please wait a moment and try again." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: providerMessage || "OpenRouter credits needed. Please check your balance." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: providerMessage || "OpenRouter credits needed." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(
-        JSON.stringify({ error: providerMessage || "AI service error — please try again." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: providerMessage || "AI service error — please try again." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(response.body, {
@@ -199,12 +217,11 @@ serve(async (req) => {
         "X-Accel-Buffering": "no",
       },
     });
-
   } catch (e) {
     console.error("[Lumina] chat error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
