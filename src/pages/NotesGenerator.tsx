@@ -23,7 +23,7 @@ const NotesGenerator = () => {
   const [generating, setGenerating] = useState(false);
   const [notes, setNotes] = useState('');
   const [copied, setCopied] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState('detailed');
+  const [selectedStyle, setSelectedStyle] = useState('bullet');
 
   const generate = async () => {
     if (!topic.trim() && !sourceText.trim()) return;
