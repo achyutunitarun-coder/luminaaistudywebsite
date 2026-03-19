@@ -37,207 +37,250 @@ type ScoreArea = {
   comment: string;
 };
 
-type AnalysisResponse = {
-  summary: string;
-  strengths: Strength[];
-  weaknesses: Weakness[];
-  recommendations: Recommendation[];
-  score_breakdown: ScoreArea[];
+type SessionPayload = {
+  tests_completed?: number;
+  average_score?: number;
+  top_mistakes?: [string, number][];
+  test_subjects?: { subject: string | null; score: number | null }[];
+  duration_minutes?: number;
+  tools_used?: string[];
+  uploaded_materials?: string;
 };
 
-function extractJsonObject(text: string): string {
-  const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-  const first = cleaned.indexOf("{");
-  const last = cleaned.lastIndexOf("}");
-  if (first === -1 || last === -1 || last <= first) return cleaned;
-  return cleaned.slice(first, last + 1);
+const clampScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+function buildStrengths(avgScore: number, testsCompleted: number, durationMinutes: number): Strength[] {
+  const strengths: Strength[] = [];
+
+  if (avgScore >= 75) {
+    strengths.push({
+      topic: "Accuracy in solved work",
+      subject: "Overall",
+      detail: `Your recent average score is ${Math.round(avgScore)}%, which indicates strong concept retention and good execution under test conditions.`,
+      confidence_level: "high",
+      maintenance_tip: "Preserve this edge by doing one timed mixed set daily and reviewing only the 2 toughest questions.",
+    });
+  }
+
+  if (testsCompleted >= 3) {
+    strengths.push({
+      topic: "Practice consistency",
+      subject: "Study habits",
+      detail: `You completed ${testsCompleted} recent tests, showing steady effort and repeat exposure, which is the biggest predictor of score stability.`,
+      confidence_level: testsCompleted >= 6 ? "high" : "medium",
+      maintenance_tip: "Keep the cadence: short frequent tests beat occasional marathon sessions.",
+    });
+  }
+
+  if (durationMinutes >= 30) {
+    strengths.push({
+      topic: "Focused study stamina",
+      subject: "Session discipline",
+      detail: `This session ran for ${durationMinutes} minutes, suggesting you can sustain attention long enough for deeper learning cycles.`,
+      confidence_level: "medium",
+      maintenance_tip: "Use 25–35 minute blocks with quick reflection at the end of each block.",
+    });
+  }
+
+  if (strengths.length < 2) {
+    strengths.push(
+      {
+        topic: "Learning momentum",
+        subject: "Overall",
+        detail: "You are actively generating data (sessions, mistakes, tests), which is exactly how high performers improve over time.",
+        confidence_level: "medium",
+        maintenance_tip: "Continue logging attempts and reflect on one improvement point per session.",
+      },
+      {
+        topic: "Tool engagement",
+        subject: "Study workflow",
+        detail: "Using multiple study tools creates better retention through varied practice and context switching.",
+        confidence_level: "medium",
+        maintenance_tip: "Pair one recall-heavy tool with one explanation-heavy tool in each session.",
+      }
+    );
+  }
+
+  return strengths.slice(0, 4);
 }
 
-function normalizeAnalysis(raw: any): AnalysisResponse {
-  const safeScore = (v: unknown) => {
-    const n = Number(v);
-    if (Number.isNaN(n)) return 0;
-    return Math.max(0, Math.min(100, Math.round(n)));
-  };
+function buildWeaknesses(topMistakes: [string, number][], avgScore: number): Weakness[] {
+  const weaknesses: Weakness[] = topMistakes.slice(0, 4).map(([topic, count]) => {
+    const severity: "critical" | "moderate" | "minor" = count >= 4 || avgScore < 50
+      ? "critical"
+      : count >= 2 || avgScore < 70
+      ? "moderate"
+      : "minor";
 
-  return {
-    summary: typeof raw?.summary === "string" ? raw.summary : "Session analysis generated successfully.",
-    strengths: Array.isArray(raw?.strengths)
-      ? raw.strengths.slice(0, 5).map((s: any) => ({
-          topic: String(s?.topic ?? "Untitled strength"),
-          subject: String(s?.subject ?? "General"),
-          detail: String(s?.detail ?? "Good progress observed."),
-          confidence_level: s?.confidence_level === "high" ? "high" : "medium",
-          maintenance_tip: String(s?.maintenance_tip ?? "Keep practicing consistently."),
-        }))
-      : [],
-    weaknesses: Array.isArray(raw?.weaknesses)
-      ? raw.weaknesses.slice(0, 6).map((w: any) => ({
-          topic: String(w?.topic ?? "Untitled weakness"),
-          subject: String(w?.subject ?? "General"),
-          root_cause: String(w?.root_cause ?? "Conceptual gap needs reinforcement."),
-          severity: w?.severity === "critical" || w?.severity === "moderate" || w?.severity === "minor" ? w.severity : "moderate",
-          fix_suggestion: String(w?.fix_suggestion ?? "Revise fundamentals and practice targeted questions."),
-          prerequisite_gaps: String(w?.prerequisite_gaps ?? "Core basics"),
-        }))
-      : [],
-    recommendations: Array.isArray(raw?.recommendations)
-      ? raw.recommendations.slice(0, 6).map((r: any) => ({
-          action: String(r?.action ?? "Revise weak topics and solve timed questions daily."),
-          priority: r?.priority === "high" || r?.priority === "medium" || r?.priority === "low" ? r.priority : "medium",
-          estimated_time: String(r?.estimated_time ?? "45 minutes"),
-          subjects_to_cover: String(r?.subjects_to_cover ?? "Core weak topics"),
-          study_method: String(r?.study_method ?? "Active recall"),
-        }))
-      : [],
-    score_breakdown: Array.isArray(raw?.score_breakdown)
-      ? raw.score_breakdown.slice(0, 6).map((s: any) => ({
-          area: String(s?.area ?? "Overall"),
-          score: safeScore(s?.score),
-          comment: String(s?.comment ?? "Steady progress with room for improvement."),
-        }))
-      : [],
-  };
+    return {
+      topic,
+      subject: "Detected from errors",
+      root_cause: `This topic appears repeatedly (${count} recent mistakes), which usually signals a foundation gap plus rushed answer execution under pressure.`,
+      severity,
+      fix_suggestion: "Revisit core theory for 20 minutes, then solve 8 targeted questions in increasing difficulty, and end with a 5-minute error log of why each miss happened.",
+      prerequisite_gaps: "Definitions, base formulas, and step order",
+    };
+  });
+
+  if (weaknesses.length < 2) {
+    weaknesses.push(
+      {
+        topic: "Error review discipline",
+        subject: "Meta-learning",
+        root_cause: "Performance dips are often caused by not converting mistakes into explicit rules for future attempts.",
+        severity: avgScore < 60 ? "critical" : "moderate",
+        fix_suggestion: "After each test, write three 'if-this-then-that' correction rules and apply them in the next practice set.",
+        prerequisite_gaps: "Self-review structure",
+      },
+      {
+        topic: "Timed execution",
+        subject: "Exam technique",
+        root_cause: "Even with concept knowledge, timing pressure can reduce accuracy in the final third of a test.",
+        severity: "moderate",
+        fix_suggestion: "Practice in short timed bursts and checkpoint accuracy every 10 minutes to prevent late-session collapse.",
+        prerequisite_gaps: "Pacing strategy",
+      }
+    );
+  }
+
+  return weaknesses.slice(0, 5);
+}
+
+function buildRecommendations(weaknesses: Weakness[], testsCompleted: number): Recommendation[] {
+  const recs: Recommendation[] = [];
+
+  if (weaknesses[0]) {
+    recs.push({
+      action: `Run a focused repair sprint on ${weaknesses[0].topic}: 20 minutes concept rebuild, 25 minutes targeted drills, 10 minutes correction notes, then retest the same sub-topic tomorrow.`,
+      priority: "high",
+      estimated_time: "55 minutes",
+      subjects_to_cover: weaknesses[0].topic,
+      study_method: "Active recall + error log",
+    });
+  }
+
+  recs.push({
+    action: "Adopt a two-pass test routine: first pass solves high-confidence questions quickly, second pass handles medium and hard items with strict step checks to reduce avoidable errors.",
+    priority: "high",
+    estimated_time: "Per test session",
+    subjects_to_cover: weaknesses.map((w) => w.topic).join(", ") || "Core weak areas",
+    study_method: "Timed practice",
+  });
+
+  recs.push({
+    action: "Schedule micro-revision loops on alternate days: one short formula/concept revision block plus one short mixed problem block to stabilize memory without burnout.",
+    priority: testsCompleted < 3 ? "high" : "medium",
+    estimated_time: "35 minutes",
+    subjects_to_cover: "Core fundamentals",
+    study_method: "Spaced repetition",
+  });
+
+  if (recs.length < 3) {
+    recs.push({
+      action: "Close each study session with a 5-minute reflection: what improved, what failed, and the next smallest actionable fix.",
+      priority: "medium",
+      estimated_time: "5 minutes",
+      subjects_to_cover: "All subjects",
+      study_method: "Metacognitive review",
+    });
+  }
+
+  return recs.slice(0, 4);
+}
+
+function buildScoreBreakdown(avgScore: number, testsCompleted: number, topMistakes: [string, number][], toolsUsed: string[]): ScoreArea[] {
+  const repetitionPenalty = Math.min(35, topMistakes.reduce((acc, [, count]) => acc + count, 0) * 3);
+  const consistencyScore = clampScore(Math.min(100, testsCompleted * 18 + 20));
+  const errorControlScore = clampScore(100 - repetitionPenalty);
+  const workflowScore = clampScore(Math.min(100, toolsUsed.length * 16 + 40));
+
+  return [
+    {
+      area: "Concept Accuracy",
+      score: clampScore(avgScore),
+      comment: "Reflects correctness level in recent attempts and conceptual command under test conditions.",
+    },
+    {
+      area: "Consistency",
+      score: consistencyScore,
+      comment: "Measures regularity of test practice; higher frequency usually correlates with stable exam performance.",
+    },
+    {
+      area: "Error Control",
+      score: errorControlScore,
+      comment: "Tracks how concentrated repeat mistakes are across topics; repeated errors reduce this score.",
+    },
+    {
+      area: "Study Workflow",
+      score: workflowScore,
+      comment: "Indicates how effectively tools and routines are being combined for active learning.",
+    },
+  ];
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { sessionData, userId } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const { sessionData, userId } = (await req.json()) as { sessionData?: SessionPayload; userId?: string };
+    const payload = sessionData || {};
 
-    let mistakesData: any[] = [];
-    let testsData: any[] = [];
+    const testsCompleted = Number(payload.tests_completed || 0);
+    const avgScore = Number(payload.average_score || 0);
+    const durationMinutes = Number(payload.duration_minutes || 0);
+    const toolsUsed = Array.isArray(payload.tools_used) ? payload.tools_used : [];
 
-    if (userId) {
+    let topMistakes: [string, number][] = Array.isArray(payload.top_mistakes)
+      ? payload.top_mistakes.filter((item): item is [string, number] => Array.isArray(item) && typeof item[0] === "string" && typeof item[1] === "number")
+      : [];
+
+    if (userId && topMistakes.length === 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      const [mistakes, tests] = await Promise.all([
-        supabase
-          .from("mistakes")
-          .select("topic, subject, mistake_type, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(30),
-        supabase
-          .from("tests")
-          .select("subject, score, correct_answers, total_questions, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(12),
-      ]);
+      const { data: mistakes } = await supabase
+        .from("mistakes")
+        .select("topic")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(30);
 
-      mistakesData = mistakes.data || [];
-      testsData = tests.data || [];
-    }
-
-    const mistakeCounts = Object.entries(
-      mistakesData.reduce((acc: Record<string, number>, m: any) => {
-        const key = String(m?.topic || "General");
-        acc[key] = (acc[key] || 0) + 1;
+      const counts = (mistakes || []).reduce((acc: Record<string, number>, row: any) => {
+        const topic = String(row?.topic || "General");
+        acc[topic] = (acc[topic] || 0) + 1;
         return acc;
-      }, {})
-    )
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([topic, count]) => ({ topic, count }));
+      }, {});
 
-    const compactInput = {
-      current_session: sessionData,
-      top_mistake_topics: mistakeCounts,
-      recent_tests: testsData,
-      totals: {
-        mistakes_tracked: mistakesData.length,
-        tests_tracked: testsData.length,
-      },
-    };
+      topMistakes = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([topic, count]) => [topic, count]);
+    }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 18000);
+    const strengths = buildStrengths(avgScore, testsCompleted, durationMinutes);
+    const weaknesses = buildWeaknesses(topMistakes, avgScore);
+    const recommendations = buildRecommendations(weaknesses, testsCompleted);
+    const score_breakdown = buildScoreBreakdown(avgScore, testsCompleted, topMistakes, toolsUsed);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        models: ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1-0528:free", "nvidia/nemotron-3-super-120b-a12b:free"],
-        route: "fallback",
-        max_tokens: 2200,
-        temperature: 0.3,
-        messages: [
-          {
-            role: "system",
-            content: `You are Lumina AI's educational analyst. Return ONLY a valid JSON object with this schema:
-{
-  "summary": "4-6 sentence comprehensive assessment",
-  "strengths": [{ "topic": "", "subject": "", "detail": "", "confidence_level": "high|medium", "maintenance_tip": "" }],
-  "weaknesses": [{ "topic": "", "subject": "", "root_cause": "", "severity": "critical|moderate|minor", "fix_suggestion": "", "prerequisite_gaps": "" }],
-  "recommendations": [{ "action": "", "priority": "high|medium|low", "estimated_time": "", "subjects_to_cover": "", "study_method": "" }],
-  "score_breakdown": [{ "area": "", "score": 0, "comment": "" }]
-}
-Rules:
-- Always include at least 2 strengths, 2 weaknesses, 3 recommendations, and 4 score areas.
-- Make content specific, concise, actionable, and student-friendly.
-- Return JSON only.`,
-          },
-          {
-            role: "user",
-            content: `Analyze this student performance data and generate deep analysis:\n${JSON.stringify(compactInput)}`,
-          },
-        ],
+    const summary = `You completed ${testsCompleted} recent tests with an average score of ${Math.round(avgScore)}%, and your current pattern shows clear progress potential with targeted correction. The strongest signal is in your learning momentum, while the main drag comes from repeated mistakes in a small set of topics. If you convert those repeat errors into a daily correction routine, your score should improve quickly over the next 7–10 days. Prioritize one weak topic at a time, keep sessions structured, and use short timed drills to improve both speed and accuracy.`;
+
+    return new Response(
+      JSON.stringify({
+        summary,
+        strengths,
+        weaknesses,
+        recommendations,
+        score_breakdown,
       }),
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("session-analysis AI error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "Failed to analyze session" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+      {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return new Response(JSON.stringify({ error: "No analysis generated" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(extractJsonObject(content));
-    } catch (parseErr) {
-      console.error("session-analysis JSON parse error:", parseErr, content.slice(0, 500));
-      return new Response(JSON.stringify({ error: "Failed to parse analysis" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const normalized = normalizeAnalysis(parsed);
-
-    return new Response(JSON.stringify(normalized), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      }
+    );
   } catch (e) {
     console.error("session-analysis error:", e);
-    const isAbort = e instanceof DOMException && e.name === "AbortError";
-    return new Response(JSON.stringify({ error: isAbort ? "Analysis timed out, please retry" : e instanceof Error ? e.message : "Unknown error" }), {
-      status: isAbort ? 504 : 500,
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
