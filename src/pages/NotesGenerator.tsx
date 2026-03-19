@@ -10,10 +10,11 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
 const noteStyles = [
-  { id: 'detailed', label: 'Detailed', icon: BookOpen, desc: 'Comprehensive, in-depth notes' },
-  { id: 'exam', label: 'Exam-Ready', icon: GraduationCap, desc: 'Focused on test preparation' },
-  { id: 'simple', label: 'Simple', icon: Lightbulb, desc: 'Easy-to-understand format' },
-  { id: 'cornell', label: 'Cornell', icon: ListChecks, desc: 'Structured Cornell method' },
+  { id: 'bullet', label: 'Bullet Points', icon: ListChecks, desc: 'Fast, scannable revision bullets' },
+  { id: 'hyphen', label: 'Hyphen Outline', icon: FileText, desc: 'Hierarchical outline with hyphens' },
+  { id: 'paragraph', label: 'Paragraph', icon: BookOpen, desc: 'Connected, narrative explanations' },
+  { id: 'mindmap', label: 'Mind Map', icon: Brain, desc: 'Text-based branching concept map' },
+  { id: 'root_cause', label: 'Deep Root Analysis', icon: Lightbulb, desc: 'Root causes + corrective study plan' },
 ];
 
 const NotesGenerator = () => {
