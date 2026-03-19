@@ -167,10 +167,11 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
+        model: "meta-llama/llama-3.3-70b-instruct:free",
+        models: ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1-0528:free", "nvidia/nemotron-3-super-120b-a12b:free"],
+        route: "fallback",
         max_tokens: 2200,
-        temperature: 0.35,
-        response_format: { type: "json_object" },
+        temperature: 0.3,
         messages: [
           {
             role: "system",

@@ -74,8 +74,8 @@ CRITICAL RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
-        models: ["google/gemini-2.0-flash-exp:free", "deepseek/deepseek-r1-0528:free", "meta-llama/llama-3.3-70b-instruct:free"],
+        model: "deepseek/deepseek-r1-0528:free",
+        models: ["deepseek/deepseek-r1-0528:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"],
         max_tokens: 3200,
         messages: [
           { role: "system", content: systemPrompt },
