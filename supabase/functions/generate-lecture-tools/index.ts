@@ -5,6 +5,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function searchSerper(query: string, apiKey: string): Promise<string> {
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 3, gl: "us", hl: "en" }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    let ctx = "";
+    for (const r of (data.organic ?? []).slice(0, 3)) {
+      ctx += `${r.title}: ${r.snippet ?? ""}\n`;
+    }
+    return ctx;
+  } catch { return ""; }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -12,10 +29,20 @@ serve(async (req) => {
     const { notes, type } = await req.json(); // type: "flashcards" | "quiz" | "summary"
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+
+    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
+    let searchContext = "";
+    if (SERPER_API_KEY && notes) {
+      const topicSnippet = notes.slice(0, 200).replace(/[^a-zA-Z0-9 ]/g, " ").trim();
+      searchContext = await searchSerper(`${topicSnippet} key facts`, SERPER_API_KEY);
+    }
+
+    const searchSuffix = searchContext ? `\n\nAdditional reference data for accuracy:\n${searchContext}` : "";
+
     const prompts: Record<string, string> = {
-      flashcards: `From these lecture notes, generate 10-15 flashcards. Return valid JSON array: [{"front": "question", "back": "answer"}]. Only return the JSON, no other text.\n\nNotes:\n${notes}`,
-      quiz: `From these lecture notes, generate 8-10 multiple choice quiz questions. Return valid JSON array: [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}] where correct is the 0-based index. Only return the JSON.\n\nNotes:\n${notes}`,
-      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, and keep it under 500 words. Focus on what's most likely to appear on an exam.\n\nNotes:\n${notes}`,
+      flashcards: `From these lecture notes, generate 10-15 flashcards. Return valid JSON array: [{"front": "question", "back": "answer"}]. Only return the JSON, no other text.\n\nNotes:\n${notes}${searchSuffix}`,
+      quiz: `From these lecture notes, generate 8-10 multiple choice quiz questions. Return valid JSON array: [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}] where correct is the 0-based index. Only return the JSON.\n\nNotes:\n${notes}${searchSuffix}`,
+      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, and keep it under 500 words. Focus on what's most likely to appear on an exam.\n\nNotes:\n${notes}${searchSuffix}`,
     };
 
     const systemPrompt = type === "summary"
@@ -32,8 +59,10 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+        route: "fallback",
         max_tokens: 4096,
+        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompts[type] || prompts.summary },
