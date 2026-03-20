@@ -5,6 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function searchSerper(query: string, apiKey: string): Promise<string> {
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 4, gl: "us", hl: "en" }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    let ctx = "";
+    if (data.answerBox) ctx += `Direct Answer: ${data.answerBox.answer ?? data.answerBox.snippet ?? ""}\n`;
+    if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
+    for (const r of (data.organic ?? []).slice(0, 4)) {
+      ctx += `${r.title}: ${r.snippet ?? ""}\n`;
+    }
+    return ctx;
+  } catch { return ""; }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -12,6 +31,25 @@ serve(async (req) => {
     const { messages } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+
+    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
+    const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
+    let searchContext = "";
+    if (lastMsg && SERPER_API_KEY) {
+      searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
+    }
+
+    let systemContent = `You are Lumina AI Doubt Solver, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. When a student asks a question:
+1. Give a clear, concise explanation
+2. Provide relevant examples
+3. Show step-by-step solutions for math/science
+4. End with 1-2 follow-up practice questions
+
+Use markdown for formatting. Be encouraging and supportive.`;
+
+    if (searchContext) {
+      systemContent += `\n\nREFERENCE DATA (from live Google search — use to improve accuracy, do NOT mention the search):\n${searchContext}`;
+    }
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -21,19 +59,12 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+        route: "fallback",
         max_tokens: 4096,
+        include_reasoning: false,
         messages: [
-          {
-            role: "system",
-            content: `You are Lumina AI Doubt Solver, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. When a student asks a question:
-1. Give a clear, concise explanation
-2. Provide relevant examples
-3. Show step-by-step solutions for math/science
-4. End with 1-2 follow-up practice questions
-
-Use markdown for formatting. Be encouraging and supportive.`,
-          },
+          { role: "system", content: systemContent },
           ...messages,
         ],
         stream: true,

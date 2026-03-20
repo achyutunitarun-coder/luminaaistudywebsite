@@ -40,6 +40,24 @@ const STYLE_PROMPTS: Record<string, string> = {
 - A "Fix Plan" summary for rapid improvement`,
 };
 
+async function searchSerper(query: string, apiKey: string): Promise<string> {
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 4, gl: "us", hl: "en" }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    let ctx = "";
+    if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
+    for (const r of (data.organic ?? []).slice(0, 4)) {
+      ctx += `${r.title}: ${r.snippet ?? ""}\n`;
+    }
+    return ctx;
+  } catch { return ""; }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -47,7 +65,15 @@ serve(async (req) => {
     const { topic, sourceText, style, isRefinement } = await req.json();
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+
+    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
+
+    // Search for reference data when generating from topic (not source text)
+    let searchContext = "";
+    if (!sourceText && topic && SERPER_API_KEY) {
+      searchContext = await searchSerper(`${topic} study notes key concepts`, SERPER_API_KEY);
+    }
 
     const systemPrompt = isRefinement
       ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
@@ -61,7 +87,7 @@ CRITICAL RULES:
 - Never skip details — if something is mentioned, explain it fully.
 - Include transitions between sections for reading flow.
 - Add "Key Insight" callouts for particularly important points.
-- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original lecture.`;
+- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original lecture.${searchContext ? `\n\nREFERENCE DATA (from live search — use to enrich notes, do NOT mention the search):\n${searchContext}` : ""}`;
 
     const userContent = sourceText
       ? sourceText
@@ -75,8 +101,10 @@ CRITICAL RULES:
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"],
+        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+        route: "fallback",
         max_tokens: 3200,
+        include_reasoning: false,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
