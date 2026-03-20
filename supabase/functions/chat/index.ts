@@ -8,21 +8,19 @@ const corsHeaders = {
 
 // ─────────────────────────────────────────────────────────────
 // MODEL LIST
-// DeepSeek first, then broad free fallbacks so something
-// always responds even if DeepSeek endpoints are down
+// openrouter/free is first — it auto-picks the best available
+// free model so you never get "no endpoints found" again.
+// DeepSeek R1 and others listed as named fallbacks.
 // ─────────────────────────────────────────────────────────────
 const MODELS = [
-  "deepseek/deepseek-r1-0528:free",              // DeepSeek R1 (latest, best reasoning)
-  "deepseek/deepseek-r1:free",                   // DeepSeek R1 (stable)
-  "deepseek/deepseek-chat:free",                 // DeepSeek V3 (fast)
-  "deepseek/deepseek-r1-distill-llama-70b:free", // DeepSeek R1 distilled (fast)
-  "deepseek/deepseek-r1-distill-qwen-32b:free",  // DeepSeek R1 Qwen distilled
-  "google/gemini-2.0-flash-exp:free",            // Gemini Flash (very fast fallback)
-  "meta-llama/llama-3.3-70b-instruct:free",      // Llama 3.3 70B
-  "google/gemini-2.5-pro-exp-03-25:free",        // Gemini 2.5 Pro
-  "qwen/qwen3-235b-a22b:free",                   // Qwen3 235B
-  "microsoft/phi-4:free",                        // Phi-4
-  "openrouter/free",                             // Auto-picks any available free model
+  "openrouter/free",                              // Auto-picks best available free model
+  "deepseek/deepseek-r1:free",                    // DeepSeek R1 — best reasoning
+  "deepseek/deepseek-r1-distill-llama-70b:free",  // DeepSeek R1 distilled — fast
+  "deepseek/deepseek-r1-distill-qwen-32b:free",   // DeepSeek R1 Qwen — fast
+  "google/gemini-2.0-flash-exp:free",             // Gemini Flash — very fast
+  "meta-llama/llama-3.3-70b-instruct:free",       // Llama 3.3 70B — reliable
+  "qwen/qwen3-235b-a22b:free",                    // Qwen3 235B — powerful
+  "microsoft/phi-4:free",                         // Phi-4 — solid fallback
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -96,7 +94,7 @@ function buildSystemPrompt(internetContext: string, memoryContext: any[]): strin
 Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things. Never start lines with hyphens or dashes. Always write in paragraphs.
 
 ## SPEED — CRITICAL
-Get to the answer immediately. No preamble, no "Great question!", no "Certainly!". First sentence must be useful content. Keep responses focused and concise — don't pad or repeat yourself.
+Get to the answer immediately. No preamble, no "Great question!", no "Certainly!". First sentence must be useful content. Keep responses focused and concise — do not pad or repeat yourself.
 
 ## PERSONALITY
 Warm, encouraging, direct — like a brilliant older sibling who genuinely cares. Celebrate wins, normalize struggle. Light humour when it fits. Never condescending or robotic.
@@ -155,7 +153,6 @@ serve(async (req) => {
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
 
-    // Run search in parallel with prompt building for speed
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let internetContext = "";
 
@@ -166,8 +163,6 @@ serve(async (req) => {
     }
 
     const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
-
-    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models available`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -182,7 +177,7 @@ serve(async (req) => {
         models: MODELS,
         route: "fallback",
         max_tokens: 4096,
-        temperature: 0.6,       // slightly lower = faster, more focused responses
+        temperature: 0.6,
         top_p: 0.85,
         frequency_penalty: 0.3,
         presence_penalty: 0.1,
