@@ -27,3 +27,27 @@ verify_jwt = false
 
 [functions.transcribe-lecture]
 verify_jwt = false
+
+[functions.session-analysis]
+verify_jwt = false
+
+[functions.generate-notes]
+verify_jwt = false
+
+[functions.generate-study-plan]
+verify_jwt = false
+
+[functions.note-to-quiz]
+verify_jwt = false
+
+[functions.quick-study]
+verify_jwt = false
+
+[functions.smart-notebook]
+verify_jwt = false
+
+[functions.monthly-report]
+verify_jwt = false
+
+[functions.generate-boss]
+verify_jwt = false
