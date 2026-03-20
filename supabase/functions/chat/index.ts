@@ -7,20 +7,18 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// MODEL LIST
-// openrouter/free is first — it auto-picks the best available
-// free model so you never get "no endpoints found" again.
-// DeepSeek R1 and others listed as named fallbacks.
+// MODEL LIST — researched March 2026
+// Primary: best free models for a study AI (reasoning, explanations, math)
+// Fallback: DeepSeek R1 + openrouter/free as last resort
 // ─────────────────────────────────────────────────────────────
 const MODELS = [
-  "openrouter/free",                              // Auto-picks best available free model
-  "deepseek/deepseek-r1:free",                    // DeepSeek R1 — best reasoning
-  "deepseek/deepseek-r1-distill-llama-70b:free",  // DeepSeek R1 distilled — fast
-  "deepseek/deepseek-r1-distill-qwen-32b:free",   // DeepSeek R1 Qwen — fast
-  "google/gemini-2.0-flash-exp:free",             // Gemini Flash — very fast
-  "meta-llama/llama-3.3-70b-instruct:free",       // Llama 3.3 70B — reliable
-  "qwen/qwen3-235b-a22b:free",                    // Qwen3 235B — powerful
-  "microsoft/phi-4:free",                         // Phi-4 — solid fallback
+  "google/gemini-2.5-pro-exp-03-25:free",        // #1 — best reasoning & explanations, 1M context
+  "meta-llama/llama-3.3-70b-instruct:free",       // #2 — most reliable, GPT-4 level, always online
+  "qwen/qwen3-235b-a22b:free",                    // #3 — excellent at math & science
+  "mistralai/mistral-small-3.1-24b-instruct:free",// #4 — fast, great for general study questions
+  "deepseek/deepseek-r1-distill-llama-70b:free",  // #5 — fast DeepSeek distilled
+  "deepseek/deepseek-r1:free",                    // #6 — DeepSeek R1 fallback
+  "openrouter/free",                              // #7 — last resort: picks any available free model
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -91,7 +89,7 @@ function buildSystemPrompt(internetContext: string, memoryContext: any[]): strin
   let prompt = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
 
 ## RESPONSE FORMAT — CRITICAL
-Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things. Never start lines with hyphens or dashes. Always write in paragraphs.
+Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things side by side. Never start lines with hyphens or dashes. Always write in paragraphs.
 
 ## SPEED — CRITICAL
 Get to the answer immediately. No preamble, no "Great question!", no "Certainly!". First sentence must be useful content. Keep responses focused and concise — do not pad or repeat yourself.
@@ -163,6 +161,8 @@ serve(async (req) => {
     }
 
     const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
+
+    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models in fallback chain`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
