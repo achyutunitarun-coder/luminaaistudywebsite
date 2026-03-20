@@ -7,23 +7,19 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// MODEL LIST — researched March 2026
-// Primary: best free models for a study AI (reasoning, explanations, math)
-// Fallback: DeepSeek R1 + openrouter/free as last resort
+// MODEL LIST — no DeepSeek, best free models only
 // ─────────────────────────────────────────────────────────────
 const MODELS = [
-  "google/gemini-2.5-pro-exp-03-25:free",        // #1 — best reasoning & explanations, 1M context
-  "meta-llama/llama-3.3-70b-instruct:free",       // #2 — most reliable, GPT-4 level, always online
-  "qwen/qwen3-235b-a22b:free",                    // #3 — excellent at math & science
-  "mistralai/mistral-small-3.1-24b-instruct:free",// #4 — fast, great for general study questions
-  "deepseek/deepseek-r1-distill-llama-70b:free",  // #5 — fast DeepSeek distilled
-  "deepseek/deepseek-r1:free",                    // #6 — DeepSeek R1 fallback
-  "openrouter/free",                              // #7 — last resort: picks any available free model
+  "google/gemini-2.5-pro-exp-03-25:free",         // #1 best reasoning & explanations
+  "meta-llama/llama-3.3-70b-instruct:free",        // #2 most reliable, always online
+  "qwen/qwen3-235b-a22b:free",                     // #3 excellent math & science
+  "mistralai/mistral-small-3.1-24b-instruct:free", // #4 fast general questions
+  "microsoft/phi-4:free",                          // #5 solid all-rounder
+  "openrouter/free",                               // #6 last resort — picks anything available
 ];
 
 // ─────────────────────────────────────────────────────────────
 // LIVE INTERNET SEARCH via Serper.dev (2,500 free/month)
-// Sign up free at serper.dev → add key as SERPER_API_KEY secret
 // ─────────────────────────────────────────────────────────────
 async function searchInternet(query: string, apiKey: string): Promise<string> {
   try {
@@ -162,7 +158,7 @@ serve(async (req) => {
 
     const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
 
-    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models in fallback chain`);
+    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models in chain`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
