@@ -18,12 +18,7 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
         "X-API-KEY": apiKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        q: query,
-        num: 5,
-        gl: "us",
-        hl: "en",
-      }),
+      body: JSON.stringify({ q: query, num: 5, gl: "us", hl: "en" }),
     });
 
     if (!res.ok) {
@@ -34,14 +29,12 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
     const data = await res.json();
     let context = "";
 
-    // Answer box (instant answer like a calculator or fact)
     if (data.answerBox) {
       const ab = data.answerBox;
       context += `\n**Direct Answer:** ${ab.answer ?? ab.snippet ?? ""}\n`;
       if (ab.title) context += `Source: ${ab.title}\n`;
     }
 
-    // Knowledge graph (structured info about a person/place/thing)
     if (data.knowledgeGraph) {
       const kg = data.knowledgeGraph;
       context += `\n**${kg.title ?? ""}** ${kg.type ? `(${kg.type})` : ""}\n`;
@@ -53,7 +46,6 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
       }
     }
 
-    // Top organic results
     const results: any[] = data.organic ?? [];
     if (results.length > 0) {
       context += `\n**Search Results for "${query}":**\n`;
@@ -64,7 +56,6 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
       }
     }
 
-    // People also ask
     const paa: any[] = data.peopleAlsoAsk ?? [];
     if (paa.length > 0) {
       context += `\n**Related Questions:**\n`;
@@ -80,11 +71,8 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// DETECT if the message needs live internet search
-// ─────────────────────────────────────────────────────────────
 function needsSearch(message: string): boolean {
-  return /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|emmy|bafta|golden globe|nobel|election|score|match|game|winner|winners|announced|released|launched|premiered|broke|breaking|just|yesterday|last week|last month|this year|price|weather|stock|crypto|bitcoin)\b/i.test(message);
+  return /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|emmy|bafta|golden globe|nobel|election|score|match|game|winner|winners|announced|released|launched|premiered|breaking|just|yesterday|last week|last month|this year|price|weather|stock|crypto)\b/i.test(message);
 }
 
 function extractQuery(message: string): string {
@@ -129,8 +117,8 @@ If a student says they are stressed, overwhelmed, or want to give up — first a
 Never use bullet points or numbered lists. Never say Great question, Certainly, or Of course. Never make a student feel stupid. Never give up on a struggling student — always try a new angle. Never tell a student to Google something you can already answer.`;
 
   if (internetContext) {
-    prompt += `\n\n## ⚡ LIVE INTERNET DATA — USE THIS AS GROUND TRUTH
-The following was fetched from Google right now for this exact question. This is more accurate than your training data. Use it confidently and naturally — do NOT say "according to my search" or "based on the data". Just answer directly as if you already know this:\n\n${internetContext}`;
+    prompt += `\n\n## LIVE INTERNET DATA — USE THIS AS GROUND TRUTH
+The following was fetched from Google right now. This is more accurate than your training data. Use it confidently and naturally — do NOT say "according to my search". Just answer directly:\n\n${internetContext}`;
   }
 
   if (memoryContext && memoryContext.length > 0) {
@@ -161,20 +149,16 @@ serve(async (req) => {
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
 
-    // Run internet search if needed
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let internetContext = "";
 
     if (lastUserMsg && SERPER_API_KEY && needsSearch(lastUserMsg.content)) {
       const query = extractQuery(lastUserMsg.content);
-      console.log(`[Lumina] Searching internet for: "${query}"`);
+      console.log(`[Lumina] Searching: "${query}"`);
       internetContext = await searchInternet(query, SERPER_API_KEY);
-      console.log(`[Lumina] Got ${internetContext.length} chars of internet context`);
     }
 
     const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
-
-    console.log(`[Lumina] Calling DeepSeek R1 | hasSearch: ${!!internetContext}`);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -185,11 +169,12 @@ serve(async (req) => {
         "X-Title": "Lumina Study AI",
       },
       body: JSON.stringify({
-        // DeepSeek R1 first (best reasoning), DeepSeek V3 as fallback
-        model: "deepseek/deepseek-r1-0528:free",
+        // Valid free DeepSeek model IDs on OpenRouter
+        model: "deepseek/deepseek-r1:free",
         models: [
-          "deepseek/deepseek-r1-0528:free",
-          "deepseek/deepseek-chat-v3-0324:free",
+          "deepseek/deepseek-r1:free",           // DeepSeek R1 — best reasoning
+          "deepseek/deepseek-chat:free",           // DeepSeek V3 Chat — fast fallback
+          "deepseek/deepseek-r1-0528:free",        // DeepSeek R1 May 2025 update
         ],
         route: "fallback",
         max_tokens: 4096,
