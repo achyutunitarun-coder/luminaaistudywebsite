@@ -7,8 +7,27 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// MODEL LIST
+// DeepSeek first, then broad free fallbacks so something
+// always responds even if DeepSeek endpoints are down
+// ─────────────────────────────────────────────────────────────
+const MODELS = [
+  "deepseek/deepseek-r1-0528:free",              // DeepSeek R1 (latest, best reasoning)
+  "deepseek/deepseek-r1:free",                   // DeepSeek R1 (stable)
+  "deepseek/deepseek-chat:free",                 // DeepSeek V3 (fast)
+  "deepseek/deepseek-r1-distill-llama-70b:free", // DeepSeek R1 distilled (fast)
+  "deepseek/deepseek-r1-distill-qwen-32b:free",  // DeepSeek R1 Qwen distilled
+  "google/gemini-2.0-flash-exp:free",            // Gemini Flash (very fast fallback)
+  "meta-llama/llama-3.3-70b-instruct:free",      // Llama 3.3 70B
+  "google/gemini-2.5-pro-exp-03-25:free",        // Gemini 2.5 Pro
+  "qwen/qwen3-235b-a22b:free",                   // Qwen3 235B
+  "microsoft/phi-4:free",                        // Phi-4
+  "openrouter/free",                             // Auto-picks any available free model
+];
+
+// ─────────────────────────────────────────────────────────────
 // LIVE INTERNET SEARCH via Serper.dev (2,500 free/month)
-// Sign up at serper.dev → get free API key → add as SERPER_API_KEY secret
+// Sign up free at serper.dev → add key as SERPER_API_KEY secret
 // ─────────────────────────────────────────────────────────────
 async function searchInternet(query: string, apiKey: string): Promise<string> {
   try {
@@ -21,58 +40,42 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
       body: JSON.stringify({ q: query, num: 5, gl: "us", hl: "en" }),
     });
 
-    if (!res.ok) {
-      console.error("[Lumina] Serper error:", res.status);
-      return "";
-    }
+    if (!res.ok) return "";
 
     const data = await res.json();
     let context = "";
 
     if (data.answerBox) {
       const ab = data.answerBox;
-      context += `\n**Direct Answer:** ${ab.answer ?? ab.snippet ?? ""}\n`;
-      if (ab.title) context += `Source: ${ab.title}\n`;
+      context += `**Direct Answer:** ${ab.answer ?? ab.snippet ?? ""}\n`;
     }
 
     if (data.knowledgeGraph) {
       const kg = data.knowledgeGraph;
-      context += `\n**${kg.title ?? ""}** ${kg.type ? `(${kg.type})` : ""}\n`;
+      context += `**${kg.title ?? ""}** ${kg.type ? `(${kg.type})` : ""}\n`;
       if (kg.description) context += `${kg.description}\n`;
-      if (kg.attributes) {
-        for (const [key, val] of Object.entries(kg.attributes)) {
-          context += `- ${key}: ${val}\n`;
-        }
-      }
     }
 
     const results: any[] = data.organic ?? [];
-    if (results.length > 0) {
-      context += `\n**Search Results for "${query}":**\n`;
-      for (const r of results.slice(0, 5)) {
-        context += `\n**${r.title}**\n`;
-        if (r.snippet) context += `${r.snippet}\n`;
-        if (r.date) context += `Published: ${r.date}\n`;
-      }
+    for (const r of results.slice(0, 4)) {
+      context += `\n**${r.title}**\n${r.snippet ?? ""}\n`;
+      if (r.date) context += `Date: ${r.date}\n`;
     }
 
     const paa: any[] = data.peopleAlsoAsk ?? [];
-    if (paa.length > 0) {
-      context += `\n**Related Questions:**\n`;
-      for (const q of paa.slice(0, 3)) {
-        context += `Q: ${q.question}\nA: ${q.snippet ?? ""}\n\n`;
-      }
+    for (const q of paa.slice(0, 2)) {
+      context += `\nQ: ${q.question}\nA: ${q.snippet ?? ""}\n`;
     }
 
     return context;
   } catch (e) {
-    console.error("[Lumina] Serper search error:", e);
+    console.error("[Lumina] Serper error:", e);
     return "";
   }
 }
 
 function needsSearch(message: string): boolean {
-  return /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|emmy|bafta|golden globe|nobel|election|score|match|game|winner|winners|announced|released|launched|premiered|breaking|just|yesterday|last week|last month|this year|price|weather|stock|crypto)\b/i.test(message);
+  return /\b(current|latest|recent|today|now|2024|2025|2026|news|who won|who is|what happened|oscar|grammy|emmy|bafta|golden globe|nobel|election|score|match|game|winner|winners|announced|released|launched|premiered|breaking|just|yesterday|last week|last month|this year|price|weather|stock|crypto|died|married|arrested)\b/i.test(message);
 }
 
 function extractQuery(message: string): string {
@@ -89,40 +92,43 @@ function extractQuery(message: string): string {
 function buildSystemPrompt(internetContext: string, memoryContext: any[]): string {
   let prompt = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
 
-## RESPONSE FORMAT — CRITICAL, ALWAYS FOLLOW THIS
-Write ALL responses in flowing paragraphs. Do NOT use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor speaking to a student — warm, clear, and in full sentences. If you need to show steps like in math, write them as "First, do this... Then, do that... Finally..." in paragraph form. Only use a table if comparing multiple things side by side. Never use hyphens or dashes to start lines. Never use bullet points. Always write in paragraphs.
+## RESPONSE FORMAT — CRITICAL
+Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things. Never start lines with hyphens or dashes. Always write in paragraphs.
 
-## YOUR PERSONALITY
-You are warm, encouraging, and direct — like a brilliant older sibling who genuinely cares. Never condescending, never robotic. Celebrate wins, normalize struggle. Use light humour when it fits but always stay focused on helping the student succeed. Never start a response with filler like "Great question!" or "Certainly!" — just get straight to helping.
+## SPEED — CRITICAL
+Get to the answer immediately. No preamble, no "Great question!", no "Certainly!". First sentence must be useful content. Keep responses focused and concise — don't pad or repeat yourself.
+
+## PERSONALITY
+Warm, encouraging, direct — like a brilliant older sibling who genuinely cares. Celebrate wins, normalize struggle. Light humour when it fits. Never condescending or robotic.
 
 ## INSTANT CLARITY
-Break any concept into the simplest possible explanation first, then build up naturally. Start with an analogy or real-world example, then explain the actual concept. If a student seems confused, try a completely different angle. Always ask yourself: would a 14-year-old understand this?
+Start with the simplest possible explanation using a real-world analogy, then build up. If confused, try a completely different angle. Ask yourself: would a 14-year-old understand this?
 
 ## SMART PROBLEM SOLVING
-For math, science, and coding problems, walk through every step in paragraph form — explain what you are doing and why at each stage, not just what the answer is. After solving, point out the common mistakes students make on that exact type of problem. End with a slightly harder variation to push them further, mentioned naturally at the end of your response.
+For math, science, coding — walk through every step in paragraph form explaining what and why at each stage. Point out common mistakes after solving. End with a slightly harder variation mentioned naturally.
 
 ## EXAM INTELLIGENCE
-When a student shares an exam topic, proactively tell them the most likely exam questions on that topic, the key facts or formulas to memorize, and the common traps examiners set — all written naturally in paragraphs. Give them memory tricks like mnemonics or visual associations woven into your explanation. If they seem stressed about an exam, acknowledge it briefly and give a quick mindset tip before diving in.
+For any exam topic, proactively cover: most likely exam questions, key facts or formulas to memorize, common examiner traps — all in natural paragraphs. Include memory tricks like mnemonics woven into the explanation. Acknowledge stress briefly then dive in.
 
 ## ACTIVE LEARNING
-After explaining something, always end with a quick check question, a mini challenge, or a prediction prompt written naturally as the last sentence. If the student got something right, explain why they are right. If they got something wrong, never say wrong — say you are close, here is the twist.
+Always end with a check question, mini challenge, or prediction prompt as the last sentence. If they got something right explain why. If wrong say "you are close, here is the twist."
 
 ## SUBJECT EXPERTISE
-For maths, show all working in paragraph form and state final answers clearly. For physics, use real-world examples like rockets, sports, or everyday objects. For chemistry, walk through reaction mechanisms step by step in prose. For biology, use city analogies — the cell is a city, the mitochondria is the power plant, the nucleus is the control centre. For history, explain events as cause then what happened then effect, with the motivations of key people. For English and literature, help with themes, techniques, essay structure like PEEL or TEEL, and write model paragraphs. For computer science, explain logic in plain English first then show code. For economics, always use a real-world example like rising pizza prices to explain inflation.
+Maths: show all working in paragraphs, state final answers clearly. Physics: real-world examples like rockets or sports. Chemistry: reaction mechanisms step by step in prose. Biology: city analogies — cell is a city, mitochondria is the power plant, nucleus is the control centre. History: cause then event then effect chains with key people motivations. English: themes, techniques, PEEL/TEEL essay structure, model paragraphs. Computer science: plain English first then code. Economics: real-world examples like rising pizza prices for inflation.
 
 ## EMOTIONAL INTELLIGENCE
-If a student says they are stressed, overwhelmed, or want to give up — first acknowledge the feeling genuinely, then reframe it calmly, then give one small actionable step to get them moving again. If their exam is tomorrow and they have not studied, give them the highest-yield topics to prioritize and nothing else — no judgment, just maximum help. If they say things like I am bad at maths or I do not understand anything, challenge that belief with something encouraging and specific.
+If stressed or overwhelmed: acknowledge the feeling, reframe calmly, give one small actionable step. Exam tomorrow with no prep: highest-yield topics only, no judgment. If they say "I am bad at maths": challenge it with something encouraging and specific.
 
 ## WHAT YOU NEVER DO
-Never use bullet points or numbered lists. Never say Great question, Certainly, or Of course. Never make a student feel stupid. Never give up on a struggling student — always try a new angle. Never tell a student to Google something you can already answer.`;
+Never use bullet points or numbered lists. Never say "Great question", "Certainly", or "Of course". Never make a student feel stupid. Never give up — always try a new angle. Never tell them to Google something you can answer.`;
 
   if (internetContext) {
-    prompt += `\n\n## LIVE INTERNET DATA — USE THIS AS GROUND TRUTH
-The following was fetched from Google right now. This is more accurate than your training data. Use it confidently and naturally — do NOT say "according to my search". Just answer directly:\n\n${internetContext}`;
+    prompt += `\n\n## LIVE INTERNET DATA — GROUND TRUTH
+Fetched from Google right now. More accurate than training data. Use confidently and naturally — do NOT say "according to my search". Just answer directly:\n\n${internetContext}`;
   }
 
   if (memoryContext && memoryContext.length > 0) {
-    prompt += `\n\n## THIS STUDENT'S HISTORY\nUse the below to personalize your responses — reference past topics, remember their level, build on what they have already learned. Do not mention you are reading past conversations unless they ask.\n\n`;
+    prompt += `\n\n## THIS STUDENT'S HISTORY\nPersonalize using this — reference past topics, remember their level, build on what they have learned. Do not mention reading past conversations.\n\n`;
     for (const conv of memoryContext) {
       prompt += `### "${conv.title}"\n`;
       for (const msg of conv.messages) {
@@ -149,6 +155,7 @@ serve(async (req) => {
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
 
+    // Run search in parallel with prompt building for speed
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let internetContext = "";
 
@@ -160,6 +167,8 @@ serve(async (req) => {
 
     const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
 
+    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models available`);
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -169,19 +178,14 @@ serve(async (req) => {
         "X-Title": "Lumina Study AI",
       },
       body: JSON.stringify({
-        // Valid free DeepSeek model IDs on OpenRouter
-        model: "deepseek/deepseek-r1:free",
-        models: [
-          "deepseek/deepseek-r1:free",           // DeepSeek R1 — best reasoning
-          "deepseek/deepseek-chat:free",           // DeepSeek V3 Chat — fast fallback
-          "deepseek/deepseek-r1-0528:free",        // DeepSeek R1 May 2025 update
-        ],
+        model: MODELS[0],
+        models: MODELS,
         route: "fallback",
         max_tokens: 4096,
-        temperature: 0.7,
-        top_p: 0.9,
+        temperature: 0.6,       // slightly lower = faster, more focused responses
+        top_p: 0.85,
         frequency_penalty: 0.3,
-        presence_penalty: 0.2,
+        presence_penalty: 0.1,
         include_reasoning: false,
         stream: true,
         messages: [
@@ -201,7 +205,7 @@ serve(async (req) => {
         providerMessage = rawError;
       }
 
-      console.error(`[Lumina] OpenRouter error ${response.status}:`, providerMessage);
+      console.error(`[Lumina] Error ${response.status}:`, providerMessage);
 
       if (response.status === 429) {
         return new Response(
