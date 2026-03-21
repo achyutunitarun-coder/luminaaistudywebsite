@@ -189,7 +189,8 @@ serve(async (req) => {
     }
 
     // Process in background
-    EdgeRuntime.waitUntil(processTranscription(job.id, audioBytes, mimeType));
+    // Process in background (fire-and-forget)
+    processTranscription(job.id, audioBytes, mimeType).catch(console.error);
 
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
