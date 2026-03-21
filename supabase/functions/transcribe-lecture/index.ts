@@ -46,7 +46,7 @@ async function processTranscription(jobId: string, audioBytes: Uint8Array, mimeT
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
         "Content-Type": mimeType,
       },
-      body: audioBytes,
+      body: audioBytes as unknown as BodyInit,
     });
 
     if (!response.ok) {
@@ -189,7 +189,8 @@ serve(async (req) => {
     }
 
     // Process in background
-    EdgeRuntime.waitUntil(processTranscription(job.id, audioBytes, mimeType));
+    // Process in background (fire-and-forget)
+    processTranscription(job.id, audioBytes, mimeType).catch(console.error);
 
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
