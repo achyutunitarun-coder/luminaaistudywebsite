@@ -6,59 +6,40 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─────────────────────────────────────────────────────────────
-// MODEL LIST — researched March 2026
-// Primary: best free models for a study AI (reasoning, explanations, math)
-// Fallback: DeepSeek R1 + openrouter/free as last resort
-// ─────────────────────────────────────────────────────────────
 const MODELS = [
-  "google/gemini-2.5-pro-exp-03-25:free",        // #1 — best reasoning & explanations, 1M context
-  "meta-llama/llama-3.3-70b-instruct:free",       // #2 — most reliable, GPT-4 level, always online
-  "qwen/qwen3-235b-a22b:free",                    // #3 — excellent at math & science
+  "google/gemini-2.5-pro-exp-03-25:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-235b-a22b:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "deepseek/deepseek-r1-distill-llama-70b:free",
 ];
 
-// ─────────────────────────────────────────────────────────────
-// LIVE INTERNET SEARCH via Serper.dev (2,500 free/month)
-// Sign up free at serper.dev → add key as SERPER_API_KEY secret
-// ─────────────────────────────────────────────────────────────
 async function searchInternet(query: string, apiKey: string): Promise<string> {
   try {
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ q: query, num: 5, gl: "us", hl: "en" }),
     });
-
     if (!res.ok) return "";
-
     const data = await res.json();
     let context = "";
-
     if (data.answerBox) {
       const ab = data.answerBox;
       context += `**Direct Answer:** ${ab.answer ?? ab.snippet ?? ""}\n`;
     }
-
     if (data.knowledgeGraph) {
       const kg = data.knowledgeGraph;
       context += `**${kg.title ?? ""}** ${kg.type ? `(${kg.type})` : ""}\n`;
       if (kg.description) context += `${kg.description}\n`;
     }
-
-    const results: any[] = data.organic ?? [];
-    for (const r of results.slice(0, 4)) {
+    for (const r of (data.organic ?? []).slice(0, 4)) {
       context += `\n**${r.title}**\n${r.snippet ?? ""}\n`;
       if (r.date) context += `Date: ${r.date}\n`;
     }
-
-    const paa: any[] = data.peopleAlsoAsk ?? [];
-    for (const q of paa.slice(0, 2)) {
+    for (const q of (data.peopleAlsoAsk ?? []).slice(0, 2)) {
       context += `\nQ: ${q.question}\nA: ${q.snippet ?? ""}\n`;
     }
-
     return context;
   } catch (e) {
     console.error("[Lumina] Serper error:", e);
@@ -78,9 +59,6 @@ function extractQuery(message: string): string {
     .slice(0, 120);
 }
 
-// ─────────────────────────────────────────────────────────────
-// SYSTEM PROMPT
-// ─────────────────────────────────────────────────────────────
 function buildSystemPrompt(internetContext: string, memoryContext: any[]): string {
   let prompt = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
 
@@ -133,45 +111,23 @@ Fetched from Google right now. More accurate than training data. Use confidently
   return prompt;
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAIN HANDLER
-// ─────────────────────────────────────────────────────────────
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+async function tryModel(
+  model: string,
+  apiKey: string,
+  systemPrompt: string,
+  messages: any[]
+): Promise<Response | null> {
   try {
-    const { messages, memoryContext } = await req.json();
-
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
-
-    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
-
-    const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
-    let internetContext = "";
-
-    if (lastUserMsg && SERPER_API_KEY && needsSearch(lastUserMsg.content)) {
-      const query = extractQuery(lastUserMsg.content);
-      console.log(`[Lumina] Searching: "${query}"`);
-      internetContext = await searchInternet(query, SERPER_API_KEY);
-    }
-
-    const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
-
-    console.log(`[Lumina] Primary: ${MODELS[0]} | ${MODELS.length} models in fallback chain`);
-
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://lumina.study",
         "X-Title": "Lumina Study AI",
       },
       body: JSON.stringify({
-        model: MODELS[0],
-        models: MODELS,
-        route: "fallback",
+        model,
         max_tokens: 4096,
         temperature: 0.6,
         top_p: 0.85,
@@ -186,34 +142,69 @@ serve(async (req) => {
       }),
     });
 
-    if (!response.ok) {
-      const rawError = await response.text();
-      let providerMessage = "";
+    if (response.ok) return response;
+    
+    const status = response.status;
+    console.error(`[Lumina] ${model} returned ${status}`);
+    
+    // Only retry on rate limit or temporary errors
+    if (status === 429 || status === 502 || status === 503) return null;
+    
+    // For 402 or other errors, don't retry
+    if (status === 402) {
+      return response; // pass through payment error
+    }
+    
+    return null;
+  } catch (e) {
+    console.error(`[Lumina] ${model} fetch error:`, e);
+    return null;
+  }
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { messages, memoryContext } = await req.json();
+
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+
+    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
+    const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
+    let internetContext = "";
+
+    if (lastUserMsg && SERPER_API_KEY && needsSearch(lastUserMsg.content)) {
+      const query = extractQuery(lastUserMsg.content);
+      console.log(`[Lumina] Searching: "${query}"`);
+      internetContext = await searchInternet(query, SERPER_API_KEY);
+    }
+
+    const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
+
+    // Try each model sequentially until one works (avoids 429 blocking all)
+    let response: Response | null = null;
+    for (const model of MODELS) {
+      console.log(`[Lumina] Trying: ${model}`);
+      response = await tryModel(model, OPENROUTER_API_KEY, systemPrompt, messages);
+      if (response) break;
+      // Small delay before trying next model
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : "All models rate-limited";
+      let providerMessage = errorText;
       try {
-        const parsed = JSON.parse(rawError);
-        providerMessage = parsed?.error?.message ?? parsed?.error ?? "";
-      } catch {
-        providerMessage = rawError;
-      }
+        const parsed = JSON.parse(errorText);
+        providerMessage = parsed?.error?.message ?? parsed?.error ?? errorText;
+      } catch {}
 
-      console.error(`[Lumina] Error ${response.status}:`, providerMessage);
-
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Too many requests — please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: providerMessage || "OpenRouter credits needed." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+      console.error(`[Lumina] All models failed:`, providerMessage);
       return new Response(
-        JSON.stringify({ error: providerMessage || "AI service error — please try again." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "AI is busy right now — please try again in a few seconds." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
