@@ -15,10 +15,6 @@ const MODELS = [
   "google/gemini-2.5-pro-exp-03-25:free",        // #1 — best reasoning & explanations, 1M context
   "meta-llama/llama-3.3-70b-instruct:free",       // #2 — most reliable, GPT-4 level, always online
   "qwen/qwen3-235b-a22b:free",                    // #3 — excellent at math & science
-  "mistralai/mistral-small-3.1-24b-instruct:free",// #4 — fast, great for general study questions
-  "deepseek/deepseek-r1-distill-llama-70b:free",  // #5 — fast DeepSeek distilled
-  "deepseek/deepseek-r1:free",                    // #6 — DeepSeek R1 fallback
-  "openrouter/free",                              // #7 — last resort: picks any available free model
 ];
 
 // ─────────────────────────────────────────────────────────────
