@@ -46,7 +46,7 @@ async function processTranscription(jobId: string, audioBytes: Uint8Array, mimeT
         Authorization: `Token ${DEEPGRAM_API_KEY}`,
         "Content-Type": mimeType,
       },
-      body: audioBytes,
+      body: audioBytes as unknown as BodyInit,
     });
 
     if (!response.ok) {
