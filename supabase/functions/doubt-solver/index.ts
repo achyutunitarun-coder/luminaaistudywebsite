@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
+
 async function searchSerper(query: string, apiKey: string): Promise<string> {
   try {
     const res = await fetch("https://google.serper.dev/search", {
@@ -24,13 +26,32 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
+function createSSEStream(text: string): ReadableStream {
+  const encoder = new TextEncoder();
+  const words = text.split(/(\s+)/);
+  let index = 0;
+  return new ReadableStream({
+    async pull(controller) {
+      if (index >= words.length) {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+        return;
+      }
+      const chunk = words.slice(index, index + 4).join("");
+      index += 4;
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`));
+      await new Promise((r) => setTimeout(r, 15));
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { messages } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -39,58 +60,49 @@ serve(async (req) => {
       searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
     }
 
-    let systemContent = `You are Lumina AI Doubt Solver, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. When a student asks a question:
+    let systemContent = `You are Lumina AI Doubt Solver, built by Tarun Kartikeya. When a student asks a question:
 1. Give a clear, concise explanation
 2. Provide relevant examples
 3. Show step-by-step solutions for math/science
 4. End with 1-2 follow-up practice questions
-
 Use markdown for formatting. Be encouraging and supportive.`;
 
     if (searchContext) {
-      systemContent += `\n\nREFERENCE DATA (from live Google search — use to improve accuracy, do NOT mention the search):\n${searchContext}`;
+      systemContent += `\n\nREFERENCE DATA:\n${searchContext}`;
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    let prompt = `System: ${systemContent}\n\n`;
+    for (const msg of messages) {
+      prompt += `${msg.role === "user" ? "Student" : "Lumina"}: ${msg.content}\n`;
+    }
+    prompt += "Lumina:";
+
+    const response = await fetch(HF_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${HF_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
-        route: "fallback",
-        max_tokens: 4096,
-        include_reasoning: false,
-        messages: [
-          { role: "system", content: systemContent },
-          ...messages,
-        ],
-        stream: true,
+        inputs: prompt,
+        parameters: { max_new_tokens: 2048, temperature: 0.7, top_p: 0.9, repetition_penalty: 1.2, return_full_text: false },
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Usage limit reached." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const status = response.status;
+      const errText = await response.text();
+      console.error("HF error:", status, errText);
+      return new Response(JSON.stringify({ error: status === 503 ? "Model loading, try again shortly." : "AI service error" }), {
+        status: status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const data = await response.json();
+    const text = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
+
+    return new Response(createSSEStream(text.trim()), {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (e) {
     console.error("doubt-solver error:", e);

@@ -6,13 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MODELS = [
-  "google/gemini-2.5-pro-exp-03-25:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-235b-a22b:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "deepseek/deepseek-r1-distill-llama-70b:free",
-];
+const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
 
 async function searchInternet(query: string, apiKey: string): Promise<string> {
   try {
@@ -35,7 +29,6 @@ async function searchInternet(query: string, apiKey: string): Promise<string> {
     }
     for (const r of (data.organic ?? []).slice(0, 4)) {
       context += `\n**${r.title}**\n${r.snippet ?? ""}\n`;
-      if (r.date) context += `Date: ${r.date}\n`;
     }
     for (const q of (data.peopleAlsoAsk ?? []).slice(0, 2)) {
       context += `\nQ: ${q.question}\nA: ${q.snippet ?? ""}\n`;
@@ -59,107 +52,75 @@ function extractQuery(message: string): string {
     .slice(0, 120);
 }
 
-function buildSystemPrompt(internetContext: string, memoryContext: any[]): string {
-  let prompt = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
+function buildPrompt(messages: any[], internetContext: string, memoryContext: any[]): string {
+  let systemPart = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni.
 
 ## RESPONSE FORMAT — CRITICAL
-Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things side by side. Never start lines with hyphens or dashes. Always write in paragraphs.
+Write ALL responses in flowing paragraphs. Never use bullet points, numbered lists, or excessive headers. Write naturally like a knowledgeable tutor — warm, clear, full sentences. For steps like in math write "First... Then... Finally..." in paragraph form. Only use a table when comparing multiple things side by side.
 
 ## SPEED — CRITICAL
-Get to the answer immediately. No preamble, no "Great question!", no "Certainly!". First sentence must be useful content. Keep responses focused and concise — do not pad or repeat yourself.
+Get to the answer immediately. No preamble. First sentence must be useful content. Keep responses focused and concise.
 
 ## PERSONALITY
-Warm, encouraging, direct — like a brilliant older sibling who genuinely cares. Celebrate wins, normalize struggle. Light humour when it fits. Never condescending or robotic.
+Warm, encouraging, direct — like a brilliant older sibling who genuinely cares. Never condescending or robotic.
 
 ## INSTANT CLARITY
-Start with the simplest possible explanation using a real-world analogy, then build up. If confused, try a completely different angle. Ask yourself: would a 14-year-old understand this?
+Start with the simplest possible explanation using a real-world analogy, then build up.
 
 ## SMART PROBLEM SOLVING
-For math, science, coding — walk through every step in paragraph form explaining what and why at each stage. Point out common mistakes after solving. End with a slightly harder variation mentioned naturally.
-
-## EXAM INTELLIGENCE
-For any exam topic, proactively cover: most likely exam questions, key facts or formulas to memorize, common examiner traps — all in natural paragraphs. Include memory tricks like mnemonics woven into the explanation. Acknowledge stress briefly then dive in.
+For math, science, coding — walk through every step in paragraph form explaining what and why. Point out common mistakes after solving.
 
 ## ACTIVE LEARNING
-Always end with a check question, mini challenge, or prediction prompt as the last sentence. If they got something right explain why. If wrong say "you are close, here is the twist."
-
-## SUBJECT EXPERTISE
-Maths: show all working in paragraphs, state final answers clearly. Physics: real-world examples like rockets or sports. Chemistry: reaction mechanisms step by step in prose. Biology: city analogies — cell is a city, mitochondria is the power plant, nucleus is the control centre. History: cause then event then effect chains with key people motivations. English: themes, techniques, PEEL/TEEL essay structure, model paragraphs. Computer science: plain English first then code. Economics: real-world examples like rising pizza prices for inflation.
-
-## EMOTIONAL INTELLIGENCE
-If stressed or overwhelmed: acknowledge the feeling, reframe calmly, give one small actionable step. Exam tomorrow with no prep: highest-yield topics only, no judgment. If they say "I am bad at maths": challenge it with something encouraging and specific.
-
-## WHAT YOU NEVER DO
-Never use bullet points or numbered lists. Never say "Great question", "Certainly", or "Of course". Never make a student feel stupid. Never give up — always try a new angle. Never tell them to Google something you can answer.`;
+Always end with a check question or mini challenge as the last sentence.`;
 
   if (internetContext) {
-    prompt += `\n\n## LIVE INTERNET DATA — GROUND TRUTH
-Fetched from Google right now. More accurate than training data. Use confidently and naturally — do NOT say "according to my search". Just answer directly:\n\n${internetContext}`;
+    systemPart += `\n\n## LIVE INTERNET DATA\n${internetContext}`;
   }
 
   if (memoryContext && memoryContext.length > 0) {
-    prompt += `\n\n## THIS STUDENT'S HISTORY\nPersonalize using this — reference past topics, remember their level, build on what they have learned. Do not mention reading past conversations.\n\n`;
+    systemPart += `\n\n## STUDENT HISTORY\n`;
     for (const conv of memoryContext) {
-      prompt += `### "${conv.title}"\n`;
+      systemPart += `Topic: "${conv.title}"\n`;
       for (const msg of conv.messages) {
-        prompt += `${msg.role === "user" ? "Student" : "Lumina"}: ${msg.content}\n`;
+        systemPart += `${msg.role === "user" ? "Student" : "Lumina"}: ${msg.content}\n`;
       }
-      prompt += "\n";
     }
   }
+
+  // Build conversation as a text prompt
+  let prompt = `System: ${systemPart}\n\n`;
+  for (const msg of messages) {
+    const role = msg.role === "user" ? "Student" : "Lumina";
+    prompt += `${role}: ${msg.content}\n`;
+  }
+  prompt += "Lumina:";
 
   return prompt;
 }
 
-async function tryModel(
-  model: string,
-  apiKey: string,
-  systemPrompt: string,
-  messages: any[]
-): Promise<Response | null> {
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://lumina.study",
-        "X-Title": "Lumina Study AI",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        temperature: 0.6,
-        top_p: 0.85,
-        frequency_penalty: 0.3,
-        presence_penalty: 0.1,
-        include_reasoning: false,
-        stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-      }),
-    });
+function createSSEStream(text: string): ReadableStream {
+  const encoder = new TextEncoder();
+  const words = text.split(/(\s+)/);
+  let index = 0;
 
-    if (response.ok) return response;
-    
-    const status = response.status;
-    console.error(`[Lumina] ${model} returned ${status}`);
-    
-    // Only retry on rate limit or temporary errors
-    if (status === 429 || status === 502 || status === 503) return null;
-    
-    // For 402 or other errors, don't retry
-    if (status === 402) {
-      return response; // pass through payment error
-    }
-    
-    return null;
-  } catch (e) {
-    console.error(`[Lumina] ${model} fetch error:`, e);
-    return null;
-  }
+  return new ReadableStream({
+    async pull(controller) {
+      if (index >= words.length) {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+        return;
+      }
+      // Send 3-5 words at a time for natural streaming feel
+      const chunk = words.slice(index, index + 4).join("");
+      index += 4;
+      const sseData = JSON.stringify({
+        choices: [{ delta: { content: chunk } }],
+      });
+      controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+      // Small delay for streaming effect
+      await new Promise((r) => setTimeout(r, 15));
+    },
+  });
 }
 
 serve(async (req) => {
@@ -168,8 +129,8 @@ serve(async (req) => {
   try {
     const { messages, memoryContext } = await req.json();
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -181,34 +142,67 @@ serve(async (req) => {
       internetContext = await searchInternet(query, SERPER_API_KEY);
     }
 
-    const systemPrompt = buildSystemPrompt(internetContext, memoryContext ?? []);
+    const prompt = buildPrompt(messages, internetContext, memoryContext ?? []);
 
-    // Try each model sequentially until one works (avoids 429 blocking all)
-    let response: Response | null = null;
-    for (const model of MODELS) {
-      console.log(`[Lumina] Trying: ${model}`);
-      response = await tryModel(model, OPENROUTER_API_KEY, systemPrompt, messages);
-      if (response) break;
-      // Small delay before trying next model
-      await new Promise(r => setTimeout(r, 300));
-    }
+    console.log(`[Lumina] Calling Lumina-Ultimate HF model`);
 
-    if (!response || !response.ok) {
-      const errorText = response ? await response.text() : "All models rate-limited";
-      let providerMessage = errorText;
-      try {
-        const parsed = JSON.parse(errorText);
-        providerMessage = parsed?.error?.message ?? parsed?.error ?? errorText;
-      } catch {}
+    const response = await fetch(HF_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 2048,
+          temperature: 0.7,
+          top_p: 0.9,
+          repetition_penalty: 1.2,
+          return_full_text: false,
+        },
+      }),
+    });
 
-      console.error(`[Lumina] All models failed:`, providerMessage);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`[Lumina] HF error ${response.status}:`, errText);
+
+      if (response.status === 503) {
+        return new Response(
+          JSON.stringify({ error: "Model is loading, please try again in a few seconds." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded — please wait a moment." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "AI is busy right now — please try again in a few seconds." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "AI service error — please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
+    const data = await response.json();
+    const generatedText = Array.isArray(data)
+      ? data[0]?.generated_text || ""
+      : data?.generated_text || "";
+
+    if (!generatedText) {
+      return new Response(
+        JSON.stringify({ error: "No response generated — please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Stream the response as SSE for frontend compatibility
+    const stream = createSSEStream(generatedText.trim());
+
+    return new Response(stream, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
@@ -216,7 +210,6 @@ serve(async (req) => {
         "X-Accel-Buffering": "no",
       },
     });
-
   } catch (e) {
     console.error("[Lumina] chat error:", e);
     return new Response(
