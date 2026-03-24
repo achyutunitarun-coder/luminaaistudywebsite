@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://api-inference.huggingface.co/models/iamdago/Lumina-Ultimate";
+const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
 
 async function searchInternet(query: string, apiKey: string): Promise<string> {
   try {

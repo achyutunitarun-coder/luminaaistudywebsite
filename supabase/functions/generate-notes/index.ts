@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://api-inference.huggingface.co/models/iamdago/Lumina-Ultimate";
+const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
 
 const STYLE_PROMPTS: Record<string, string> = {
   bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
