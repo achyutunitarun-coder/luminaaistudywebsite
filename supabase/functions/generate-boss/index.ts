@@ -5,73 +5,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HF_API_URL = "https://api-inference.huggingface.co/models/iamdago/Lumina-Ultimate";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { topic } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const prompt = `System: You create educational boss battle questions. Return ONLY valid JSON with no other text, in this exact format: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A", "B", "C", "D"], "correct": 0}]}
+
+User: Create a boss battle for "${topic}" with a boss name, emoji icon, and 5 challenging questions with 4 options each.
+
+JSON:`;
+
+    const response = await fetch(HF_API_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        max_tokens: 4096,
-        messages: [
-          { role: "system", content: "You are Lumina AI, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You create educational boss battle questions for a gamified study app." },
-          { role: "user", content: `Create a boss battle for the topic "${topic}". Generate a boss name, emoji icon, and 5 challenging questions with 4 options each.` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "generate_boss",
-            description: "Generate a boss battle with questions",
-            parameters: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                icon: { type: "string" },
-                questions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      q: { type: "string" },
-                      options: { type: "array", items: { type: "string" } },
-                      correct: { type: "number" },
-                    },
-                    required: ["q", "options", "correct"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-              required: ["name", "icon", "questions"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "generate_boss" } },
+        inputs: prompt,
+        parameters: { max_new_tokens: 2048, temperature: 0.5, top_p: 0.9, repetition_penalty: 1.1, return_full_text: false },
       }),
     });
 
     if (!response.ok) {
       return new Response(JSON.stringify({ error: "Failed to generate boss" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+        status: response.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall) {
-      const boss = JSON.parse(toolCall.function.arguments);
-      return new Response(JSON.stringify(boss), {
+    const rawText = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
+
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

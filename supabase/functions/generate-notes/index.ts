@@ -5,39 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HF_API_URL = "https://api-inference.huggingface.co/models/iamdago/Lumina-Ultimate";
+
 const STYLE_PROMPTS: Record<string, string> = {
-  bullet: `Format the notes with clear bullet-point structure. Include:
-- Major sections as headings
-- Nested bullet points for concepts and sub-concepts
-- Short, scannable explanations per bullet
-- A final bullet-point recap section
-- Clean markdown formatting optimized for quick revision`,
-
-  hyphen: `Format the notes as a hyphen-style outline. Include:
-- Main topics and subtopics using hyphen-led outline lines
-- Progressive indentation for hierarchy
-- Concise, logical flow from basics to advanced points
-- A final hyphenated revision checklist`,
-
-  paragraph: `Format the notes in rich paragraph style. Include:
-- Well-written, connected paragraphs under each heading
-- Strong transitions between sections
-- Examples embedded naturally in prose
-- A concise paragraph summary at the end`,
-
-  mindmap: `Format the notes as a text-based mind map in markdown. Include:
-- A central topic heading
-- Branches for major ideas
-- Sub-branches for key facts, formulas, and examples
-- Visual hierarchy using indentation and symbols
-- A short "how to revise this mind map" section`,
-
-  root_cause: `Format the notes as deep root-cause analysis notes. Include:
-- Core concepts first, then common errors and why they happen
-- "Root Cause" sections for each difficult sub-topic
-- Diagnostic cues to identify misunderstanding
-- Step-by-step correction plans and drills
-- A "Fix Plan" summary for rapid improvement`,
+  bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
+  hyphen: `Format the notes as a hyphen-style outline with main topics and subtopics using hyphen-led lines, progressive indentation, and a revision checklist.`,
+  paragraph: `Format the notes in rich paragraph style with well-written connected paragraphs, strong transitions, embedded examples, and a summary at the end.`,
+  mindmap: `Format the notes as a text-based mind map with a central topic, branches for major ideas, sub-branches for key facts and formulas, and visual hierarchy using indentation.`,
+  root_cause: `Format as deep root-cause analysis notes with core concepts first, then common errors and why they happen, diagnostic cues, step-by-step correction plans, and a "Fix Plan" summary.`,
 };
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
@@ -51,11 +26,28 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
     const data = await res.json();
     let ctx = "";
     if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
-    for (const r of (data.organic ?? []).slice(0, 4)) {
-      ctx += `${r.title}: ${r.snippet ?? ""}\n`;
-    }
+    for (const r of (data.organic ?? []).slice(0, 4)) ctx += `${r.title}: ${r.snippet ?? ""}\n`;
     return ctx;
   } catch { return ""; }
+}
+
+function createSSEStream(text: string): ReadableStream {
+  const encoder = new TextEncoder();
+  const words = text.split(/(\s+)/);
+  let index = 0;
+  return new ReadableStream({
+    async pull(controller) {
+      if (index >= words.length) {
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+        return;
+      }
+      const chunk = words.slice(index, index + 4).join("");
+      index += 4;
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`));
+      await new Promise((r) => setTimeout(r, 15));
+    },
+  });
 }
 
 serve(async (req) => {
@@ -63,71 +55,50 @@ serve(async (req) => {
 
   try {
     const { topic, sourceText, style, isRefinement } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
 
-    // Search for reference data when generating from topic (not source text)
     let searchContext = "";
     if (!sourceText && topic && SERPER_API_KEY) {
       searchContext = await searchSerper(`${topic} study notes key concepts`, SERPER_API_KEY);
     }
 
     const systemPrompt = isRefinement
-      ? `You are Lumina AI's study notes assistant. The user wants to refine their existing notes. Follow their instructions precisely. Maintain the same style and format but apply the requested changes. Output the COMPLETE updated notes, not just the changes. Use markdown formatting.`
-      : `You are Lumina AI's premium study notes generator. Your job is to create the most comprehensive, well-organized, and pedagogically effective study notes possible.
+      ? `You are Lumina AI's study notes assistant. Refine the existing notes per user instructions. Output the COMPLETE updated notes.`
+      : `You are Lumina AI's premium study notes generator.\n\n${stylePrompt}\n\nBe THOROUGH. Cover every concept. Use markdown. Never skip details.${searchContext ? `\n\nREFERENCE DATA:\n${searchContext}` : ""}`;
 
-${stylePrompt}
+    const userContent = sourceText || `Create comprehensive study notes on "${topic}".`;
+    const prompt = `System: ${systemPrompt}\n\nStudent: ${userContent}\n\nLumina:`;
 
-CRITICAL RULES:
-- Be THOROUGH. Cover every concept mentioned in the source material.
-- Use markdown formatting extensively.
-- Never skip details — if something is mentioned, explain it fully.
-- Include transitions between sections for reading flow.
-- Add "Key Insight" callouts for particularly important points.
-- The notes should be LONG and DETAILED enough that a student never needs to refer back to the original lecture.${searchContext ? `\n\nREFERENCE DATA (from live search — use to enrich notes, do NOT mention the search):\n${searchContext}` : ""}`;
-
-    const userContent = sourceText
-      ? sourceText
-      : `Create comprehensive study notes on "${topic}".`;
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch(HF_API_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
-        route: "fallback",
-        max_tokens: 3200,
-        include_reasoning: false,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        stream: true,
+        inputs: prompt,
+        parameters: { max_new_tokens: 2048, temperature: 0.7, top_p: 0.9, repetition_penalty: 1.2, return_full_text: false },
       }),
     });
 
     if (!response.ok) {
       return new Response(JSON.stringify({ error: "Failed to generate notes" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+        status: response.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const data = await response.json();
+    const text = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
+
+    return new Response(createSSEStream(text.trim()), {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (e) {
     console.error("generate-notes error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

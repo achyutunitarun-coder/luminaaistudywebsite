@@ -5,96 +5,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HF_API_URL = "https://api-inference.huggingface.co/models/iamdago/Lumina-Ultimate";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { notes } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const prompt = `System: You generate quiz questions from student notes. Return ONLY valid JSON with no other text, in this exact format: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}
+
+User: Generate quiz questions from these notes:
+
+${notes}
+
+JSON:`;
+
+    const response = await fetch(HF_API_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1-0528:free",
-        models: ["deepseek/deepseek-r1-0528:free", "openrouter/hunter-alpha", "nvidia/nemotron-3-super-120b-a12b:free"],
-        max_tokens: 4096,
-        messages: [
-          { role: "system", content: "You are Lumina AI's quiz generator, built by Tarun Kartikeya (founder of Lumina). Tarun's proud parents are Ms. Syamala Achyutuni and Mr. Subu Achyutuni. You generate quiz questions from student notes." },
-          { role: "user", content: `Generate quiz questions from these notes:\n\n${notes}` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "generate_quiz",
-            description: "Generate quiz questions from notes",
-            parameters: {
-              type: "object",
-              properties: {
-                mcq: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      question: { type: "string" },
-                      options: { type: "array", items: { type: "string" } },
-                      correct: { type: "number" },
-                      explanation: { type: "string" },
-                    },
-                    required: ["question", "options", "correct", "explanation"],
-                    additionalProperties: false,
-                  },
-                },
-                short_answer: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      question: { type: "string" },
-                      answer: { type: "string" },
-                    },
-                    required: ["question", "answer"],
-                    additionalProperties: false,
-                  },
-                },
-                conceptual: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      question: { type: "string" },
-                      answer: { type: "string" },
-                    },
-                    required: ["question", "answer"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-              required: ["mcq", "short_answer", "conceptual"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "generate_quiz" } },
+        inputs: prompt,
+        parameters: { max_new_tokens: 4096, temperature: 0.5, top_p: 0.9, repetition_penalty: 1.1, return_full_text: false },
       }),
     });
 
     if (!response.ok) {
       return new Response(JSON.stringify({ error: "Failed to generate quiz" }), {
-        status: response.status === 429 ? 429 : response.status === 402 ? 402 : 500,
+        status: response.status === 429 ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall) {
-      const quiz = JSON.parse(toolCall.function.arguments);
-      return new Response(JSON.stringify(quiz), {
+    const rawText = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
+
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
