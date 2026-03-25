@@ -5,45 +5,56 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { topic } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `System: You are an expert tutor. Create a comprehensive quick study lesson. Return ONLY valid JSON with no other text, in this exact format: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation 3-5 sentences"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}
-
-User: Create a study lesson on "${topic}" with 8-10 key concepts and 8 practice questions.
-
-JSON:`;
-
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 4096, temperature: 0.5, top_p: 0.9, repetition_penalty: 1.1, return_full_text: false },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: `You are an expert tutor. Create a comprehensive quick study lesson. Return ONLY valid JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation 3-5 sentences"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}` },
+          { role: "user", content: `Create a study lesson on "${topic}" with 8-10 key concepts and 8 practice questions.` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "create_lesson",
+            description: "Create a study lesson",
+            parameters: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                key_concepts: { type: "array", items: { type: "object", properties: { concept: { type: "string" }, explanation: { type: "string" } }, required: ["concept", "explanation"], additionalProperties: false } },
+                practice_questions: { type: "array", items: { type: "object", properties: { question: { type: "string" }, options: { type: "array", items: { type: "string" } }, correct: { type: "number" }, explanation: { type: "string" } }, required: ["question", "options", "correct", "explanation"], additionalProperties: false } },
+              },
+              required: ["title", "key_concepts", "practice_questions"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "create_lesson" } },
       }),
     });
 
     if (!response.ok) {
       return new Response(JSON.stringify({ error: "Failed to generate lesson" }), {
-        status: response.status === 429 ? 429 : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: response.status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const rawText = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
-
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return new Response(JSON.stringify(parsed), {
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall) {
+      return new Response(JSON.stringify(JSON.parse(toolCall.function.arguments)), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

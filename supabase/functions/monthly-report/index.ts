@@ -5,46 +5,63 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { userData } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `System: You generate monthly study reports. Return ONLY valid JSON with no other text, in this exact format: {"headline": "motivational headline", "total_study_minutes": 0, "total_study_hours": 0, "average_test_score": 0, "tests_taken": 0, "xp_earned": 0, "strengths": [{"topic": "...", "detail": "..."}], "weaknesses": [{"topic": "...", "detail": "..."}], "recommendations": ["recommendation1"], "overall_grade": "A"}
-
-User: Generate a monthly report for this student data:
-${JSON.stringify(userData)}
-
-JSON:`;
-
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 2048, temperature: 0.5, top_p: 0.9, repetition_penalty: 1.1, return_full_text: false },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: `You generate monthly study reports. Return structured data about student performance.` },
+          { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_report",
+            description: "Generate monthly report",
+            parameters: {
+              type: "object",
+              properties: {
+                headline: { type: "string" },
+                total_study_minutes: { type: "number" },
+                total_study_hours: { type: "number" },
+                average_test_score: { type: "number" },
+                tests_taken: { type: "number" },
+                xp_earned: { type: "number" },
+                strengths: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
+                weaknesses: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
+                recommendations: { type: "array", items: { type: "string" } },
+                overall_grade: { type: "string" },
+              },
+              required: ["headline", "total_study_minutes", "total_study_hours", "average_test_score", "tests_taken", "xp_earned", "strengths", "weaknesses", "recommendations", "overall_grade"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "generate_report" } },
       }),
     });
 
     if (!response.ok) {
       return new Response(JSON.stringify({ error: "Failed" }), {
-        status: response.status === 429 ? 429 : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: response.status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const rawText = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
-
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return new Response(JSON.stringify(parsed), {
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall) {
+      return new Response(JSON.stringify(JSON.parse(toolCall.function.arguments)), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

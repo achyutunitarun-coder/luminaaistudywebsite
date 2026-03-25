@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -13,41 +13,66 @@ serve(async (req) => {
   try {
     const { content, title, cardCount = 20 } = await req.json();
     const count = Math.min(Math.max(Number(cardCount) || 20, 5), 80);
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `System: You are a flashcard generator. Create exactly ${count} flashcards. Return ONLY valid JSON with no other text, in this exact format: {"cards": [{"front": "question", "back": "answer"}]}
-
-User: Create exactly ${count} flashcards for "${title}" from this content:
-
-${content}
-
-JSON:`;
-
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 4096, temperature: 0.5, top_p: 0.9, repetition_penalty: 1.1, return_full_text: false },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: `You are a flashcard generator. Create exactly ${count} flashcards. Return ONLY valid JSON with no other text, in this exact format: {"cards": [{"front": "question", "back": "answer"}]}` },
+          { role: "user", content: `Create exactly ${count} flashcards for "${title}" from this content:\n\n${content}` },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "generate_flashcards",
+            description: "Generate flashcards from content",
+            parameters: {
+              type: "object",
+              properties: {
+                cards: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: { front: { type: "string" }, back: { type: "string" } },
+                    required: ["front", "back"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["cards"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "generate_flashcards" } },
       }),
     });
 
     if (!response.ok) {
-      console.error("HF error:", response.status, await response.text());
+      console.error("AI error:", response.status, await response.text());
       return new Response(JSON.stringify({ error: "Failed to generate flashcards" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-    const rawText = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
-
-    // Extract JSON from response
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall) {
+      const parsed = JSON.parse(toolCall.function.arguments);
       return new Response(JSON.stringify(parsed), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fallback: try parsing content directly
+    const content_text = data.choices?.[0]?.message?.content || "";
+    const jsonMatch = content_text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

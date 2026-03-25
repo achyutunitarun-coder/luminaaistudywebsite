@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/iamdago/Lumina-Ultimate";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const STYLE_PROMPTS: Record<string, string> = {
   bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
@@ -31,32 +31,13 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
-function createSSEStream(text: string): ReadableStream {
-  const encoder = new TextEncoder();
-  const words = text.split(/(\s+)/);
-  let index = 0;
-  return new ReadableStream({
-    async pull(controller) {
-      if (index >= words.length) {
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
-        return;
-      }
-      const chunk = words.slice(index, index + 4).join("");
-      index += 4;
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`));
-      await new Promise((r) => setTimeout(r, 15));
-    },
-  });
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { topic, sourceText, style, isRefinement } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
@@ -71,14 +52,17 @@ serve(async (req) => {
       : `You are Lumina AI's premium study notes generator.\n\n${stylePrompt}\n\nBe THOROUGH. Cover every concept. Use markdown. Never skip details.${searchContext ? `\n\nREFERENCE DATA:\n${searchContext}` : ""}`;
 
     const userContent = sourceText || `Create comprehensive study notes on "${topic}".`;
-    const prompt = `System: ${systemPrompt}\n\nStudent: ${userContent}\n\nLumina:`;
 
-    const response = await fetch(HF_API_URL, {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 2048, temperature: 0.7, top_p: 0.9, repetition_penalty: 1.2, return_full_text: false },
+        model: "google/gemini-2.5-flash",
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
       }),
     });
 
@@ -89,10 +73,7 @@ serve(async (req) => {
       });
     }
 
-    const data = await response.json();
-    const text = (Array.isArray(data) ? data[0]?.generated_text : data?.generated_text) || "";
-
-    return new Response(createSSEStream(text.trim()), {
+    return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (e) {
