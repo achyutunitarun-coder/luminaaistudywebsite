@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type PlanDay = {
   day: number;
@@ -64,6 +66,7 @@ const StudyPlanner = () => {
   const [generating, setGenerating] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [showFlowchart, setShowFlowchart] = useState<string | null>(null);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const { data: plans } = useQuery({
     queryKey: ['study_plans', user?.id],
@@ -77,6 +80,8 @@ const StudyPlanner = () => {
   const generatePlan = async () => {
     const filteredSubjects = subjects.filter(s => s.trim());
     if (!filteredSubjects.length || !examDate || !user) return;
+    const allowed = await checkAndIncrement('study_planners');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-study-plan`, {
@@ -104,6 +109,8 @@ const StudyPlanner = () => {
   const daysUntilExam = examDate ? Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000) : null;
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -307,6 +314,7 @@ const StudyPlanner = () => {
         );
       })}
     </div>
+    </>
   );
 };
 

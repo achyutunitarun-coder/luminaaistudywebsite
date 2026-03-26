@@ -4,6 +4,8 @@ import { FileText, Sparkles, Loader2, CheckCircle, ArrowLeft } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type MCQ = { question: string; options: string[]; correct: number; explanation: string };
 type ShortAnswer = { question: string; answer: string };
@@ -15,9 +17,12 @@ const NoteToQuiz = () => {
   const [mcqAnswers, setMcqAnswers] = useState<Record<number, number>>({});
   const [showAnswers, setShowAnswers] = useState(false);
   const [activeTab, setActiveTab] = useState<'mcq' | 'short' | 'conceptual'>('mcq');
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const generate = async () => {
     if (!notes.trim()) return;
+    const allowed = await checkAndIncrement('note_to_quiz');
+    if (!allowed) return;
     setGenerating(true);
     setQuiz(null);
     setMcqAnswers({});
@@ -42,6 +47,8 @@ const NoteToQuiz = () => {
   };
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-4">
@@ -152,6 +159,7 @@ const NoteToQuiz = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Lesson = {
   title: string;
@@ -22,9 +24,12 @@ const QuickStudy = () => {
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'quiz'>('concepts');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const generate = async () => {
     if (!topic.trim()) return;
+    const allowed = await checkAndIncrement('quick_study');
+    if (!allowed) return;
     setGenerating(true);
     setLesson(null);
     setAnswers({});
@@ -55,6 +60,8 @@ const QuickStudy = () => {
   const total = lesson?.practice_questions?.length || 0;
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -258,6 +265,7 @@ const QuickStudy = () => {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 };
 

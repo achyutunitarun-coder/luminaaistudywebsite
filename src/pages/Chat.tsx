@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { toast } from 'sonner';
@@ -107,6 +109,7 @@ const ChatSidebar = ({
 const ChatPage = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -193,6 +196,9 @@ const ChatPage = () => {
 
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
+
+    const allowed = await checkAndIncrement('chat_messages');
+    if (!allowed) return;
 
     isSendingRef.current = true;
     setIsLoading(true);
@@ -562,31 +568,37 @@ const ChatPage = () => {
   /* ─── Mobile Layout: show list OR chat ─── */
   if (isMobile) {
     return (
-      <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
-        {activeChat ? (
-          activeChatView
-        ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ChatSidebar {...sidebarProps} />
-            <div className="border-t border-border/10">
-              {welcomeView}
+      <>
+        <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+        <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
+          {activeChat ? (
+            activeChatView
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <ChatSidebar {...sidebarProps} />
+              <div className="border-t border-border/10">
+                {welcomeView}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </>
     );
   }
 
   /* ─── Desktop Layout: sidebar + chat ─── */
   return (
-    <div className="flex fixed inset-0 top-12 z-10 bg-background">
-      <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
-        <ChatSidebar {...sidebarProps} />
+    <>
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      <div className="flex fixed inset-0 top-12 z-10 bg-background">
+        <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
+          <ChatSidebar {...sidebarProps} />
+        </div>
+        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+          {activeChat ? activeChatView : welcomeView}
+        </div>
       </div>
-      <div className="flex-1 flex flex-col bg-background overflow-hidden">
-        {activeChat ? activeChatView : welcomeView}
-      </div>
-    </div>
+    </>
   );
 };
 

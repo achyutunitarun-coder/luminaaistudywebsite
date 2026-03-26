@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
 type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
@@ -29,6 +31,7 @@ const severityColors: Record<string, string> = {
 const StudySession = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [active, setActive] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
@@ -60,6 +63,8 @@ const StudySession = () => {
 
   const startSession = async () => {
     if (!user) return;
+    const allowed = await checkAndIncrement('study_sessions');
+    if (!allowed) return;
     const { data } = await supabase.from('study_sessions').insert({
       user_id: user.id,
       status: 'active',
@@ -301,6 +306,8 @@ const StudySession = () => {
   }
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
@@ -381,6 +388,7 @@ const StudySession = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

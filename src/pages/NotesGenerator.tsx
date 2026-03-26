@@ -6,6 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
@@ -24,9 +26,12 @@ const NotesGenerator = () => {
   const [notes, setNotes] = useState('');
   const [copied, setCopied] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('bullet');
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const generate = async () => {
     if (!topic.trim() && !sourceText.trim()) return;
+    const allowed = await checkAndIncrement('notes_generations');
+    if (!allowed) return;
     setGenerating(true);
     setNotes('');
 
@@ -94,6 +99,8 @@ const NotesGenerator = () => {
   };
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
@@ -265,6 +272,7 @@ const NotesGenerator = () => {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 };
 

@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type DeepAnalysis = {
   summary: string;
@@ -21,6 +23,7 @@ const WeaknessRadar = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
   const [showFlow, setShowFlow] = useState(false);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const { data: tests } = useQuery({
     queryKey: ['tests', user?.id],
@@ -82,6 +85,8 @@ const WeaknessRadar = () => {
   ];
 
   const runDeepAnalysis = async () => {
+    const allowed = await checkAndIncrement('weakness_radar');
+    if (!allowed) return;
     setAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke('session-analysis', {
@@ -110,6 +115,8 @@ const WeaknessRadar = () => {
   };
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-4">
@@ -306,6 +313,7 @@ const WeaknessRadar = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

@@ -9,10 +9,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 const Flashcards = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -43,6 +46,8 @@ const Flashcards = () => {
 
   const generateDeck = async () => {
     if (!content.trim() || !title.trim() || !user) return;
+    const allowed = await checkAndIncrement('flashcard_sets');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
@@ -159,6 +164,8 @@ const Flashcards = () => {
   }
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-5xl mx-auto space-y-8">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
@@ -272,6 +279,7 @@ const Flashcards = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

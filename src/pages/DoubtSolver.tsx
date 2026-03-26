@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -20,6 +22,7 @@ const DoubtSolver = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState('simple');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +31,8 @@ const DoubtSolver = () => {
 
   const ask = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
+    const allowed = await checkAndIncrement('doubt_messages');
+    if (!allowed) return;
     const fileContext = buildFileContext(uploadedFiles);
     const question = input.trim() + fileContext;
     setInput('');
@@ -91,6 +96,7 @@ const DoubtSolver = () => {
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-5rem)] -m-6 p-6">
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <div className="mb-4">
         <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">AI Doubt Solver</h1>
         <p className="text-muted-foreground text-sm">Get step-by-step explanations for any topic</p>

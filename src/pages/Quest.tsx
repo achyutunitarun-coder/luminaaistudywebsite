@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Boss = {
   name: string;
@@ -24,6 +26,7 @@ const dailyQuests = [
 
 const Quest = () => {
   const { profile } = useProfile();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [boss, setBoss] = useState<Boss | null>(null);
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -35,6 +38,8 @@ const Quest = () => {
 
   const generateBoss = async () => {
     if (!topic.trim()) return;
+    const allowed = await checkAndIncrement('quest_games');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-boss`, {
@@ -81,6 +86,8 @@ const Quest = () => {
   };
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-4">
@@ -225,6 +232,7 @@ const Quest = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

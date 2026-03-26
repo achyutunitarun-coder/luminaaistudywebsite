@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Question = {
   question: string;
@@ -20,6 +22,7 @@ type Question = {
 const Tests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [syllabus, setSyllabus] = useState('');
   const [subject, setSubject] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
@@ -33,6 +36,8 @@ const Tests = () => {
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
+    const allowed = await checkAndIncrement('test_generations');
+    if (!allowed) return;
     setGenerating(true);
     setQuestions([]);
     setAnswers({});
@@ -378,6 +383,8 @@ const Tests = () => {
 
   // ── Generator Input ──
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-3xl mx-auto space-y-8">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-secondary/20">
@@ -458,6 +465,7 @@ const Tests = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

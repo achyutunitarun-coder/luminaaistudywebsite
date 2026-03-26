@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
@@ -27,6 +28,7 @@ import LectureAI from "@/pages/LectureAI";
 
 
 import SmartNotebook from "@/pages/SmartNotebook";
+import Upgrade from "@/pages/Upgrade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,12 +47,14 @@ const ProtectedLayout = () => {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <StudyTimerProvider>
-      <MonthlyReportModal />
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
-    </StudyTimerProvider>
+    <SubscriptionProvider>
+      <StudyTimerProvider>
+        <MonthlyReportModal />
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
+      </StudyTimerProvider>
+    </SubscriptionProvider>
   );
 };
 
@@ -91,6 +95,7 @@ const App = () => (
               
               
               <Route path="/smart-notebook" element={<SmartNotebook />} />
+              <Route path="/upgrade" element={<Upgrade />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
