@@ -306,6 +306,8 @@ const StudySession = () => {
   }
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
