@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
