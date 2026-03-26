@@ -26,6 +26,7 @@ const dailyQuests = [
 
 const Quest = () => {
   const { profile } = useProfile();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [boss, setBoss] = useState<Boss | null>(null);
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
