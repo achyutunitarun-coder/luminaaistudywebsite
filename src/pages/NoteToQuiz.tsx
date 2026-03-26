@@ -47,6 +47,8 @@ const NoteToQuiz = () => {
   };
 
   return (
+    <>
+    <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-4">
