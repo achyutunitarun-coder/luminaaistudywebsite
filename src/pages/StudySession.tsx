@@ -388,6 +388,7 @@ const StudySession = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
