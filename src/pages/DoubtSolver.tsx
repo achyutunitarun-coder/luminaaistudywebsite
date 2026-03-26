@@ -31,6 +31,8 @@ const DoubtSolver = () => {
 
   const ask = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
+    const allowed = await checkAndIncrement('doubt_messages');
+    if (!allowed) return;
     const fileContext = buildFileContext(uploadedFiles);
     const question = input.trim() + fileContext;
     setInput('');
