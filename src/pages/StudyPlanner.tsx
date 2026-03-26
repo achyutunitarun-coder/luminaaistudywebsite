@@ -80,6 +80,8 @@ const StudyPlanner = () => {
   const generatePlan = async () => {
     const filteredSubjects = subjects.filter(s => s.trim());
     if (!filteredSubjects.length || !examDate || !user) return;
+    const allowed = await checkAndIncrement('study_planners');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-study-plan`, {
