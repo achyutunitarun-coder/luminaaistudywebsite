@@ -85,6 +85,8 @@ const WeaknessRadar = () => {
   ];
 
   const runDeepAnalysis = async () => {
+    const allowed = await checkAndIncrement('weakness_radar');
+    if (!allowed) return;
     setAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke('session-analysis', {

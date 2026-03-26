@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type PlanDay = {
   day: number;

@@ -28,6 +28,8 @@ const QuickStudy = () => {
 
   const generate = async () => {
     if (!topic.trim()) return;
+    const allowed = await checkAndIncrement('quick_study');
+    if (!allowed) return;
     setGenerating(true);
     setLesson(null);
     setAnswers({});

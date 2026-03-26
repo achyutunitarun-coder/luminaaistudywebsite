@@ -21,6 +21,8 @@ const NoteToQuiz = () => {
 
   const generate = async () => {
     if (!notes.trim()) return;
+    const allowed = await checkAndIncrement('note_to_quiz');
+    if (!allowed) return;
     setGenerating(true);
     setQuiz(null);
     setMcqAnswers({});
