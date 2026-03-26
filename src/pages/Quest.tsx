@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Boss = {
   name: string;
