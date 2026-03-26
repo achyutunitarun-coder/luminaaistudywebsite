@@ -23,6 +23,7 @@ const WeaknessRadar = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
   const [showFlow, setShowFlow] = useState(false);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const { data: tests } = useQuery({
     queryKey: ['tests', user?.id],
