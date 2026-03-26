@@ -96,6 +96,7 @@ const DoubtSolver = () => {
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-5rem)] -m-6 p-6">
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <div className="mb-4">
         <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">AI Doubt Solver</h1>
         <p className="text-muted-foreground text-sm">Get step-by-step explanations for any topic</p>

@@ -568,18 +568,21 @@ const ChatPage = () => {
   /* ─── Mobile Layout: show list OR chat ─── */
   if (isMobile) {
     return (
-      <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
-        {activeChat ? (
-          activeChatView
-        ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ChatSidebar {...sidebarProps} />
-            <div className="border-t border-border/10">
-              {welcomeView}
+      <>
+        <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+        <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
+          {activeChat ? (
+            activeChatView
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <ChatSidebar {...sidebarProps} />
+              <div className="border-t border-border/10">
+                {welcomeView}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </>
     );
   }
 
