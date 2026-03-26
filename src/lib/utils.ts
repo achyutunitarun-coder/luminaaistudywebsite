@@ -1,6 +1,6 @@
+// arc/lib/utils.ts
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-// Primary + free fallback models
 const MODELS = [
   "deepseek/deepseek-r1:free",
   "deepseek/deepseek-chat-v3.1:free",
@@ -8,9 +8,6 @@ const MODELS = [
   "qwen/qwen3-235b:free"
 ];
 
-/**
- * Call OpenRouter AI with fallback models
- */
 export async function callStudyAI(prompt: string): Promise<string> {
   for (const model of MODELS) {
     try {
@@ -18,7 +15,7 @@ export async function callStudyAI(prompt: string): Promise<string> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`
         },
         body: JSON.stringify({
           model,
@@ -31,19 +28,15 @@ export async function callStudyAI(prompt: string): Promise<string> {
         })
       });
 
-      if (!res.ok) {
-        console.warn(`Model ${model} failed: ${res.statusText}`);
-        continue;
-      }
+      if (!res.ok) continue;
 
       const data = await res.json();
       if (data.choices && data.choices.length > 0) {
         return data.choices[0].message.content;
       }
-    } catch (err) {
-      console.warn(`Error with model ${model}, trying next...`, err);
+    } catch {
+      continue;
     }
   }
-
   throw new Error("All OpenRouter models failed!");
 }
