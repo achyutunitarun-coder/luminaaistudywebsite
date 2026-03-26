@@ -22,6 +22,7 @@ type Question = {
 const Tests = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [syllabus, setSyllabus] = useState('');
   const [subject, setSubject] = useState('');
   const [numQuestions, setNumQuestions] = useState(5);
