@@ -95,6 +95,7 @@ const App = () => (
               
               
               <Route path="/smart-notebook" element={<SmartNotebook />} />
+              <Route path="/upgrade" element={<Upgrade />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
