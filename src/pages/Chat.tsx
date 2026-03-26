@@ -585,14 +585,17 @@ const ChatPage = () => {
 
   /* ─── Desktop Layout: sidebar + chat ─── */
   return (
-    <div className="flex fixed inset-0 top-12 z-10 bg-background">
-      <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
-        <ChatSidebar {...sidebarProps} />
+    <>
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      <div className="flex fixed inset-0 top-12 z-10 bg-background">
+        <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
+          <ChatSidebar {...sidebarProps} />
+        </div>
+        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+          {activeChat ? activeChatView : welcomeView}
+        </div>
       </div>
-      <div className="flex-1 flex flex-col bg-background overflow-hidden">
-        {activeChat ? activeChatView : welcomeView}
-      </div>
-    </div>
+    </>
   );
 };
 
