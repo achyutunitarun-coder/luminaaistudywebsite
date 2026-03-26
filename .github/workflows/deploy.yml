@@ -1,46 +1,26 @@
 name: Deploy to Lovable
 
+# Trigger on pushes to the main branch (or whatever branch you connected to Lovable)
 on:
   push:
     branches:
-      - main  # Change if your connected branch is different
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout repository
+      # Step 1: Check out the repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js (if your app uses Node, adjust version as needed)
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'  # Use your app's Node version
-          cache: 'npm'
+      # Step 2: Optional build step if your app requires building (e.g., npm build)
+      - name: Build app
+        run: |
+          npm install
+          npm run build
 
-      # Step 3: Install dependencies
-      - name: Install dependencies
-        run: npm ci
-
-      # Step 4: Build the app (skip if no build step needed)
-      - name: Build application
-        run: npm run build
-
-      # Step 5: Optional: run tests before deployment
-      - name: Run tests
-        run: npm test || echo "Tests failed, but continuing deployment"
-
-      # Step 6: Notify that deployment will happen via Lovable
+      # Step 3: Deployment is handled automatically by Lovable via GitHub integration
       - name: Notify deployment
-        run: echo "Code pushed to main — Lovable will deploy automatically!"
-
-      # Step 7: Optional: Slack or email notification (if you want)
-      # - name: Notify team
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     channel-id: ${{ secrets.SLACK_CHANNEL }}
-      #     slack-token: ${{ secrets.SLACK_TOKEN }}
-      #     text: "New deployment triggered for Lovable app"
+        run: echo "Changes pushed to main — Lovable will deploy automatically!"
