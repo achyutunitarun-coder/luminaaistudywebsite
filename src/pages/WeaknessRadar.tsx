@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type DeepAnalysis = {
   summary: string;
