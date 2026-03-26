@@ -66,6 +66,7 @@ const StudyPlanner = () => {
   const [generating, setGenerating] = useState(false);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [showFlowchart, setShowFlowchart] = useState<string | null>(null);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const { data: plans } = useQuery({
     queryKey: ['study_plans', user?.id],
