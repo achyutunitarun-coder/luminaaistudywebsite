@@ -6,6 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
