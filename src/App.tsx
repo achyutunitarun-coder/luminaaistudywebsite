@@ -28,6 +28,7 @@ import LectureAI from "@/pages/LectureAI";
 
 
 import SmartNotebook from "@/pages/SmartNotebook";
+import Upgrade from "@/pages/Upgrade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
