@@ -1,20 +1,26 @@
-name: Deploy Supabase Edge Functions
+name: Deploy to Lovable
 
+# Trigger on pushes to the main branch (or whatever branch you connected to Lovable)
 on:
   push:
     branches:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      # Step 1: Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
+      # Step 2: Optional build step if your app requires building (e.g., npm build)
+      - name: Build app
+        run: |
+          npm install
+          npm run build
 
-      - run: supabase functions deploy chat --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Step 3: Deployment is handled automatically by Lovable via GitHub integration
+      - name: Notify deployment
+        run: echo "Changes pushed to main — Lovable will deploy automatically!"
