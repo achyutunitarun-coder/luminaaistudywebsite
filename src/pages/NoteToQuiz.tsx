@@ -17,6 +17,7 @@ const NoteToQuiz = () => {
   const [mcqAnswers, setMcqAnswers] = useState<Record<number, number>>({});
   const [showAnswers, setShowAnswers] = useState(false);
   const [activeTab, setActiveTab] = useState<'mcq' | 'short' | 'conceptual'>('mcq');
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const generate = async () => {
     if (!notes.trim()) return;
