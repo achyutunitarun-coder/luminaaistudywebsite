@@ -30,6 +30,8 @@ const NotesGenerator = () => {
 
   const generate = async () => {
     if (!topic.trim() && !sourceText.trim()) return;
+    const allowed = await checkAndIncrement('notes_generations');
+    if (!allowed) return;
     setGenerating(true);
     setNotes('');
 

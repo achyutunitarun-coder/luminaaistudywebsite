@@ -46,6 +46,8 @@ const Flashcards = () => {
 
   const generateDeck = async () => {
     if (!content.trim() || !title.trim() || !user) return;
+    const allowed = await checkAndIncrement('flashcard_sets');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {

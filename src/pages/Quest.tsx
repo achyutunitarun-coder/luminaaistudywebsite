@@ -38,6 +38,8 @@ const Quest = () => {
 
   const generateBoss = async () => {
     if (!topic.trim()) return;
+    const allowed = await checkAndIncrement('quest_games');
+    if (!allowed) return;
     setGenerating(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-boss`, {

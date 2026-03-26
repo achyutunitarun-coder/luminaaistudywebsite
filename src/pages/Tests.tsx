@@ -36,6 +36,8 @@ const Tests = () => {
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
+    const allowed = await checkAndIncrement('test_generations');
+    if (!allowed) return;
     setGenerating(true);
     setQuestions([]);
     setAnswers({});
