@@ -232,6 +232,7 @@ const Quest = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

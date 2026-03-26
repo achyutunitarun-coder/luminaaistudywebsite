@@ -272,6 +272,7 @@ const NotesGenerator = () => {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 };
 

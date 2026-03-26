@@ -279,6 +279,7 @@ const Flashcards = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
