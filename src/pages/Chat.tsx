@@ -197,6 +197,9 @@ const ChatPage = () => {
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
 
+    const allowed = await checkAndIncrement('chat_messages');
+    if (!allowed) return;
+
     isSendingRef.current = true;
     setIsLoading(true);
 
