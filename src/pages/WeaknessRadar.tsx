@@ -313,6 +313,7 @@ const WeaknessRadar = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

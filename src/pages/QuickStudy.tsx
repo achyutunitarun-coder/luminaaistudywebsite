@@ -265,6 +265,7 @@ const QuickStudy = () => {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 };
 

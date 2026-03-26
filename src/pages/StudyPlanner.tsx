@@ -314,6 +314,7 @@ const StudyPlanner = () => {
         );
       })}
     </div>
+    </>
   );
 };
 
