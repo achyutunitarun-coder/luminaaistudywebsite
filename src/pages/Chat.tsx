@@ -109,6 +109,7 @@ const ChatSidebar = ({
 const ChatPage = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
