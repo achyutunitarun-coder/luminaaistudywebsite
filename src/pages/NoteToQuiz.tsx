@@ -159,6 +159,7 @@ const NoteToQuiz = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
