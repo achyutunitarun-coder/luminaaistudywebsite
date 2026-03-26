@@ -22,6 +22,7 @@ const DoubtSolver = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState('simple');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
