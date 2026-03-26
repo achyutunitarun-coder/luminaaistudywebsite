@@ -31,6 +31,7 @@ const severityColors: Record<string, string> = {
 const StudySession = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [active, setActive] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
