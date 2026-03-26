@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Strength = { topic: string; subject: string; detail: string; confidence_level: string; maintenance_tip?: string };
 type Weakness = { topic: string; subject: string; root_cause: string; severity: string; fix_suggestion: string; prerequisite_gaps?: string };
