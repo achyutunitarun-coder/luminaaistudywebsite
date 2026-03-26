@@ -4,6 +4,8 @@ import { FileText, Sparkles, Loader2, CheckCircle, ArrowLeft } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type MCQ = { question: string; options: string[]; correct: number; explanation: string };
 type ShortAnswer = { question: string; answer: string };
