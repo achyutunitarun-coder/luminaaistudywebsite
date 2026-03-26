@@ -47,12 +47,14 @@ const ProtectedLayout = () => {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <StudyTimerProvider>
-      <MonthlyReportModal />
-      <AppLayout>
-        <Outlet />
-      </AppLayout>
-    </StudyTimerProvider>
+    <SubscriptionProvider>
+      <StudyTimerProvider>
+        <MonthlyReportModal />
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
+      </StudyTimerProvider>
+    </SubscriptionProvider>
   );
 };
 
