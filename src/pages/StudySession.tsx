@@ -63,6 +63,8 @@ const StudySession = () => {
 
   const startSession = async () => {
     if (!user) return;
+    const allowed = await checkAndIncrement('study_sessions');
+    if (!allowed) return;
     const { data } = await supabase.from('study_sessions').insert({
       user_id: user.id,
       status: 'active',
