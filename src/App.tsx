@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
