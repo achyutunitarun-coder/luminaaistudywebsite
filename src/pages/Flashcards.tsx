@@ -15,6 +15,7 @@ import { UpgradePopup } from '@/components/UpgradePopup';
 const Flashcards = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
