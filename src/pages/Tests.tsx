@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type Question = {
   question: string;
