@@ -24,6 +24,7 @@ const QuickStudy = () => {
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'quiz'>('concepts');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
 
   const generate = async () => {
     if (!topic.trim()) return;
