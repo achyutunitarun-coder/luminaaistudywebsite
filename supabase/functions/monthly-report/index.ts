@@ -5,68 +5,53 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "deepseek/deepseek-r1:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { userData } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
 
-    const response = await fetch(AI_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: `You generate monthly study reports. Return structured data about student performance.` },
-          { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "generate_report",
-            description: "Generate monthly report",
-            parameters: {
-              type: "object",
-              properties: {
-                headline: { type: "string" },
-                total_study_minutes: { type: "number" },
-                total_study_hours: { type: "number" },
-                average_test_score: { type: "number" },
-                tests_taken: { type: "number" },
-                xp_earned: { type: "number" },
-                strengths: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
-                weaknesses: { type: "array", items: { type: "object", properties: { topic: { type: "string" }, detail: { type: "string" } }, required: ["topic", "detail"], additionalProperties: false } },
-                recommendations: { type: "array", items: { type: "string" } },
-                overall_grade: { type: "string" },
-              },
-              required: ["headline", "total_study_minutes", "total_study_hours", "average_test_score", "tests_taken", "xp_earned", "strengths", "weaknesses", "recommendations", "overall_grade"],
-              additionalProperties: false,
-            },
+    for (const model of MODELS) {
+      try {
+        const response = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
           },
-        }],
-        tool_choice: { type: "function", function: { name: "generate_report" } },
-      }),
-    });
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: `You generate monthly study reports. Return ONLY valid JSON with no markdown fences: {"headline": "...", "total_study_minutes": 0, "total_study_hours": 0, "average_test_score": 0, "tests_taken": 0, "xp_earned": 0, "strengths": [{"topic": "...", "detail": "..."}], "weaknesses": [{"topic": "...", "detail": "..."}], "recommendations": ["..."], "overall_grade": "A/B/C/D"}` },
+              { role: "user", content: `Generate a monthly report for this student data:\n${JSON.stringify(userData)}` },
+            ],
+          }),
+        });
 
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: "Failed" }), {
-        status: response.status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        if (!response.ok) { console.error(`Model ${model} failed:`, response.status); continue; }
+
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content || "";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        continue;
+      } catch (e) { console.error(`Model ${model} error:`, e); continue; }
     }
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall) {
-      return new Response(JSON.stringify(JSON.parse(toolCall.function.arguments)), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "No report" }), {
+    return new Response(JSON.stringify({ error: "All models failed" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
