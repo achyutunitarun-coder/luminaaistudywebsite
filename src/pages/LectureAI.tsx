@@ -290,7 +290,6 @@ const LectureAI = () => {
                     }}
                   />
                 </TabsContent>
-                </TabsContent>
               </div>
             </Tabs>
           </div>
