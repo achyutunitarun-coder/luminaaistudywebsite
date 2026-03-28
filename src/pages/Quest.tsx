@@ -166,7 +166,7 @@ const Quest = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/20 bg-muted/5 p-5">
+            <div className="rounded-2xl liquid-glass p-5">
               <p className="text-primary text-xs font-bold mb-2">Question {questionIdx + 1}</p>
               <p className="text-foreground font-medium mb-4 text-sm">{boss.questions[questionIdx].q}</p>
               <div className="grid grid-cols-2 gap-2">
