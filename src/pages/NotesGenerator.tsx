@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Sparkles, Loader2, Copy, Check, FileText, PenTool, ArrowLeft, Download, GraduationCap, Brain, Lightbulb, ListChecks } from 'lucide-react';
+import { BookOpen, Sparkles, Loader2, Copy, Check, FileText, PenTool, ArrowLeft, Download, Brain, Lightbulb, ListChecks, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
@@ -20,13 +22,51 @@ const noteStyles = [
 ];
 
 const NotesGenerator = () => {
+  const { user } = useAuth();
   const [topic, setTopic] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [generating, setGenerating] = useState(false);
   const [notes, setNotes] = useState('');
   const [copied, setCopied] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('bullet');
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [autoSaved, setAutoSaved] = useState(false);
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save notes after generation completes
+  useEffect(() => {
+    if (!notes || generating || !user) return;
+    
+    // Debounce auto-save by 2 seconds after last content update
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const payload = {
+          user_id: user.id,
+          title: topic || 'Generated Notes',
+          notes: notes,
+          source_type: 'notes_generator',
+          transcript_text: sourceText || null,
+        };
+
+        if (savedId) {
+          await supabase.from('saved_lectures').update({ notes, title: topic || 'Generated Notes' }).eq('id', savedId);
+        } else {
+          const { data } = await supabase.from('saved_lectures').insert(payload).select('id').single();
+          if (data) setSavedId(data.id);
+        }
+        setAutoSaved(true);
+        setTimeout(() => setAutoSaved(false), 2000);
+      } catch (e) {
+        console.error('Auto-save failed:', e);
+      }
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [notes, generating, user, topic, sourceText, savedId]);
 
   const generate = async () => {
     if (!topic.trim() && !sourceText.trim()) return;
@@ -34,6 +74,8 @@ const NotesGenerator = () => {
     if (!allowed) return;
     setGenerating(true);
     setNotes('');
+    setSavedId(null);
+    setAutoSaved(false);
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
@@ -47,7 +89,6 @@ const NotesGenerator = () => {
 
       if (!resp.ok) throw new Error('Failed');
 
-      // Handle SSE streaming
       const reader = resp.body?.getReader();
       if (!reader) throw new Error('No stream');
 
@@ -74,7 +115,7 @@ const NotesGenerator = () => {
         }
       }
 
-      toast.success('Notes generated!');
+      toast.success('Notes generated & auto-saved!');
     } catch {
       toast.error('Failed to generate notes');
     }
@@ -111,7 +152,7 @@ const NotesGenerator = () => {
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Notes Generator</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes like NotebookLM
+            <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes • Auto-saves automatically
           </p>
         </div>
       </motion.div>
@@ -238,6 +279,11 @@ const NotesGenerator = () => {
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-success" />
                       {noteStyles.find(s => s.id === selectedStyle)?.label} style • AI-generated
+                      {autoSaved && (
+                        <span className="flex items-center gap-1 text-success ml-2">
+                          <Save className="w-3 h-3" /> Saved
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -262,7 +308,7 @@ const NotesGenerator = () => {
 
             <div className="flex gap-3">
               <Button
-                onClick={() => { setNotes(''); setTopic(''); setSourceText(''); }}
+                onClick={() => { setNotes(''); setTopic(''); setSourceText(''); setSavedId(null); }}
                 variant="outline"
                 className="h-12 px-8 rounded-2xl"
               >

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, HelpCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -45,11 +47,13 @@ async function readStream(resp: Response, onChunk: (text: string) => void): Prom
 }
 
 const DoubtSolver = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState('simple');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -57,18 +61,51 @@ const DoubtSolver = () => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-save message to DB
+  const saveMessage = useCallback(async (role: string, content: string, existingChatId: string | null) => {
+    if (!user || !content) return existingChatId;
+    try {
+      let cId = existingChatId;
+      if (!cId) {
+        const title = content.slice(0, 60) + (content.length > 60 ? '...' : '');
+        const { data } = await supabase.from('chats').insert({
+          user_id: user.id,
+          title,
+          chat_type: 'doubt_solver',
+        }).select('id').single();
+        cId = data?.id || null;
+        if (cId) setChatId(cId);
+      }
+      if (cId) {
+        await supabase.from('chat_messages').insert({
+          chat_id: cId,
+          role,
+          content,
+        });
+      }
+      return cId;
+    } catch (e) {
+      console.error('Failed to save message:', e);
+      return existingChatId;
+    }
+  }, [user]);
+
   const ask = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
     const allowed = await checkAndIncrement('doubt_messages');
     if (!allowed) return;
     const fileContext = buildFileContext(uploadedFiles);
     const question = input.trim() + fileContext;
+    const displayContent = input.trim() || `[Uploaded ${uploadedFiles.length} file(s)]`;
     setInput('');
     setUploadedFiles([]);
     const userMsg: Msg = { role: 'user', content: `[${mode.toUpperCase()} MODE] ${question}` };
     const updatedMessages = [...messages, userMsg];
-    setMessages(prev => [...prev, { role: 'user', content: input.trim() || `[Uploaded ${uploadedFiles.length} file(s)]` }]);
+    setMessages(prev => [...prev, { role: 'user', content: displayContent }]);
     setIsLoading(true);
+
+    // Auto-save user message
+    const currentChatId = await saveMessage('user', displayContent, chatId);
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/doubt-solver`, {
@@ -82,7 +119,6 @@ const DoubtSolver = () => {
 
       if (!resp.ok) throw new Error('Failed');
 
-      // Add placeholder for streaming
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       const fullContent = await readStream(resp, (text) => {
@@ -93,7 +129,9 @@ const DoubtSolver = () => {
         });
       });
 
-      if (!fullContent) {
+      if (fullContent) {
+        await saveMessage('assistant', fullContent, currentChatId);
+      } else {
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' };
@@ -111,7 +149,7 @@ const DoubtSolver = () => {
       <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <div className="mb-4">
         <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">AI Doubt Solver</h1>
-        <p className="text-muted-foreground text-sm">Get step-by-step explanations for any topic</p>
+        <p className="text-muted-foreground text-sm">Get step-by-step explanations • Auto-saves conversations</p>
 
         <div className="flex gap-2 mt-3">
           {modes.map(m => (

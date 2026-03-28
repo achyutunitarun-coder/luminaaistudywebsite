@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Upload, FileText, Sparkles, Loader2, Copy, Check, ArrowLeft,
   BookOpen, GitBranch, Globe, X, File, Languages
@@ -13,6 +15,7 @@ import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart'
 const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 'Japanese', 'Portuguese', 'Korean', 'Italian'];
 
 const SmartNotebook = () => {
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -106,7 +109,19 @@ const SmartNotebook = () => {
         { fileContent, fileName: file?.name || 'document', mode: 'notes' }
       );
       setNotes(content);
-      toast.success('Notes generated!');
+      // Auto-save to database
+      if (user && content) {
+        try {
+          await supabase.from('saved_lectures').insert({
+            user_id: user.id,
+            title: `Smart Notebook: ${file?.name || 'Document'}`,
+            notes: content,
+            transcript_text: fileContent.slice(0, 5000),
+            source_type: 'smart_notebook',
+          });
+        } catch (e) { console.error('Auto-save failed:', e); }
+      }
+      toast.success('Notes generated & saved!');
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate notes');
     }
