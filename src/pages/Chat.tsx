@@ -534,14 +534,17 @@ const ChatPage = () => {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border/10 p-3 md:p-4">
+      <div className="border-t border-border/10 bg-background/80 backdrop-blur-sm p-3 md:p-4">
         <div className="max-w-3xl mx-auto">
           {uploadedFiles.length > 0 && (
             <div className="mb-2">
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             </div>
           )}
-          <div className="flex items-center gap-2 bg-muted/15 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 focus-within:border-primary/30 focus-within:bg-muted/25 transition-all duration-200">
+          <motion.div
+            className="flex items-center gap-2 bg-muted/10 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 transition-all duration-300 focus-within:border-primary/30 focus-within:bg-muted/20 focus-within:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.15)]"
+            whileFocus={{ scale: 1.01 }}
+          >
             {uploadedFiles.length === 0 && (
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             )}
@@ -550,19 +553,21 @@ const ChatPage = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Message Lumina..."
-              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/40 px-0"
+              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/35 px-0"
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
             />
-            <Button
-              onClick={sendMessage}
-              disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
-              size="icon"
-              className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-30 transition-opacity"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground/30 text-center mt-2 hidden md:block">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={sendMessage}
+                disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
+                size="icon"
+                className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-20 transition-all duration-200 shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </motion.div>
+          </motion.div>
+          <p className="text-[10px] text-muted-foreground/25 text-center mt-2.5 hidden md:block">
             Lumina can make mistakes. Verify important information.
           </p>
         </div>
