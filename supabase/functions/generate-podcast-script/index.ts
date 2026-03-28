@@ -74,9 +74,12 @@ RULES:
         });
 
         if (!res.ok) {
-          console.error(`${model} error ${res.status}`);
+          const errText = await res.text();
+          console.error(`${model} error ${res.status}: ${errText}`);
           continue;
         }
+
+        console.log(`[generate-podcast-script] Success: ${model}`);
 
         return new Response(res.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },

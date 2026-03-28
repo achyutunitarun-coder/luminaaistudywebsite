@@ -101,7 +101,9 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
           }),
         });
 
-        if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+        if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
+
+        console.log(`[doubt-solver] Success: ${model}`);
 
         return new Response(res.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
