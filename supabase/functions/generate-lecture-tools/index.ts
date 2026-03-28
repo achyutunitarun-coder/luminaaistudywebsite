@@ -6,48 +6,53 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_MODEL = "iamdago/Lumina-Ultimate";
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
+
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }),
+      });
+      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) { console.error(`${model} exception:`, e); }
+  }
+  throw new Error("All models failed");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { notes, type } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const prompts: Record<string, string> = {
-      flashcards: `From these lecture notes, generate 10-15 flashcards. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.\n\nNotes:\n${notes}\n\nJSON:`,
-      quiz: `From these lecture notes, generate 8-10 MCQ quiz questions. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. No other text.\n\nNotes:\n${notes}\n\nJSON:`,
-      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, keep under 500 words.\n\nNotes:\n${notes}\n\nSummary:`,
+    const systemPrompts: Record<string, string> = {
+      flashcards: `From lecture notes, generate 10-15 flashcards. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.`,
+      quiz: `From lecture notes, generate 8-10 MCQ quiz questions. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. No other text.`,
+      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, keep under 500 words.`,
     };
 
-    const prompt = prompts[type] || prompts.summary;
+    const aiMessages = [
+      { role: "system", content: systemPrompts[type] || systemPrompts.summary },
+      { role: "user", content: `Notes:\n${notes}` },
+    ];
 
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 2000, temperature: 0.5, return_full_text: false },
-      }),
-    });
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
 
-    if (!response.ok) {
-      const err = await response.text();
-      return new Response(JSON.stringify({ error: err }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const text = data?.[0]?.generated_text || "";
-
-    // For flashcards and quiz, try to parse JSON array or object
     if (type === "flashcards" || type === "quiz") {
       const arrayMatch = text.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
@@ -57,7 +62,6 @@ serve(async (req) => {
       }
     }
 
-    // For summary or fallback
     return new Response(JSON.stringify({ content: text.trim() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -6,69 +6,63 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_MODEL = "iamdago/Lumina-Ultimate";
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
+
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.6 }),
+      });
+      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) { console.error(`${model} exception:`, e); }
+  }
+  throw new Error("All models failed");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { fileContent, fileName, mode, language } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    let prompt = "";
+    let systemPrompt = "";
+    let userContent = "";
 
     if (mode === "notes") {
-      prompt = `You are Lumina AI's study notes generator. Create detailed, well-organized notes with clear headings, key concepts in bold, bullet points, and a concise summary. Use markdown formatting.
-
-Create comprehensive study notes from this file "${fileName}":
-
-${fileContent}
-
-Notes:`;
+      systemPrompt = `You are Lumina AI's study notes generator. Create detailed, well-organized notes with clear headings, key concepts in bold, bullet points, and a concise summary. Use markdown formatting.`;
+      userContent = `Create comprehensive study notes from this file "${fileName}":\n\n${fileContent}`;
     } else if (mode === "flowchart") {
-      prompt = `Analyze the content and produce a JSON flowchart. Return ONLY valid JSON (no markdown, no code fences): {"nodes": [{"id": "1", "label": "Short Title", "description": "Brief description", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. Use types: start, process, decision, end, milestone. Create 6-12 nodes.
-
-Analyze "${fileName}" and create a concept flowchart:
-
-${fileContent}
-
-JSON:`;
+      systemPrompt = `Analyze the content and produce a JSON flowchart. Return ONLY valid JSON (no markdown, no code fences): {"nodes": [{"id": "1", "label": "Short Title", "description": "Brief description", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. Use types: start, process, decision, end, milestone. Create 6-12 nodes.`;
+      userContent = `Analyze "${fileName}" and create a concept flowchart:\n\n${fileContent}`;
     } else if (mode === "overview") {
       const targetLang = language || "Spanish";
-      prompt = `Create a comprehensive overview/summary in ${targetLang}. Include key concepts, important points as bullet lists, and a conclusion. Use markdown. Keep technical terms in original language in parentheses.
-
-Create a detailed overview in ${targetLang} of "${fileName}":
-
-${fileContent}
-
-Overview:`;
+      systemPrompt = `Create a comprehensive overview/summary in ${targetLang}. Include key concepts, important points as bullet lists, and a conclusion. Use markdown. Keep technical terms in original language in parentheses.`;
+      userContent = `Create a detailed overview in ${targetLang} of "${fileName}":\n\n${fileContent}`;
     } else {
       throw new Error("Invalid mode");
     }
 
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 2000, temperature: 0.6, return_full_text: false },
-      }),
-    });
+    const aiMessages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
+    ];
 
-    if (!response.ok) {
-      const err = await response.text();
-      return new Response(JSON.stringify({ error: err }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const text = data?.[0]?.generated_text || "";
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
 
     if (mode === "flowchart") {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -82,7 +76,6 @@ Overview:`;
       });
     }
 
-    // For notes and overview, return OpenAI-compatible format
     return new Response(
       JSON.stringify({ choices: [{ message: { content: text.trim() } }] }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -6,8 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_MODEL = "iamdago/Lumina-Ultimate";
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
   try {
@@ -26,13 +32,44 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 500): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        console.error(`[Lumina] ${model} error ${res.status}: ${err}`);
+        continue;
+      }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) {
+      console.error(`[Lumina] ${model} exception:`, e);
+    }
+  }
+  throw new Error("All models failed");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { messages } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -50,35 +87,12 @@ Always end with a short check question.`;
 
     if (searchContext) systemPrompt += `\n\nREFERENCE DATA:\n${searchContext}`;
 
-    let prompt = systemPrompt + "\n\n";
-    for (const msg of messages) {
-      if (msg.role === "user") prompt += `User: ${msg.content}\n`;
-      else if (msg.role === "assistant") prompt += `Lumina: ${msg.content}\n`;
-    }
-    prompt += "Lumina:";
+    const aiMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
 
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 500, temperature: 0.7, return_full_text: false },
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("HF API error:", err);
-      return new Response(JSON.stringify({ error: `HF API error: ${err}` }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const output = data?.[0]?.generated_text || "I couldn't generate a response. Please try again.";
+    const output = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 500);
 
     return new Response(
       JSON.stringify({ choices: [{ message: { content: output.trim() } }] }),
