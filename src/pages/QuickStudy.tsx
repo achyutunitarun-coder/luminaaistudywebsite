@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Sparkles, Loader2, CheckCircle, Clock, BookOpen, RotateCcw, Trophy, Lightbulb } from 'lucide-react';
+import { SavedItemsPanel } from '@/components/SavedItemsPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
