@@ -422,56 +422,109 @@ const ChatPage = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
-          <AnimatePresence>
-            {messages.map(msg => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="flex gap-2.5 md:gap-3"
-              >
-                <div className={`w-6 h-6 md:w-7 md:h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  msg.role === 'user' ? 'bg-primary/15 text-primary' : 'bg-secondary/15 text-secondary'
-                }`}>
-                  {msg.role === 'user' ? <User className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/50 mb-1 block">
-                    {msg.role === 'user' ? 'You' : 'Lumina'}
-                  </span>
-                  <div className={`text-[13px] md:text-[14px] leading-relaxed ${msg.role === 'user' ? 'text-foreground/90' : 'text-foreground/80'}`}>
-                    <div className="prose prose-sm prose-invert max-w-none
-                      prose-p:my-2 prose-p:leading-relaxed
-                      prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-5 prose-headings:mb-2
-                      prose-strong:text-foreground prose-strong:font-semibold
-                      prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-[12px] md:prose-code:text-[13px] prose-code:before:content-none prose-code:after:content-none
-                      prose-pre:bg-muted/30 prose-pre:border prose-pre:border-border/10 prose-pre:rounded-xl prose-pre:p-3 md:prose-pre:p-4 prose-pre:overflow-x-auto
-                      prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
-                      prose-blockquote:border-primary/30 prose-blockquote:text-muted-foreground
-                    ">
-                      <MarkdownRenderer>{msg.content}</MarkdownRenderer>
+      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-border/20 scrollbar-track-transparent">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-4 md:space-y-5">
+          <AnimatePresence initial={false}>
+            {messages.map((msg, idx) => {
+              const isUser = msg.role === 'user';
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94], delay: idx === messages.length - 1 ? 0.05 : 0 }}
+                  className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  {/* Avatar */}
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
+                    className={`w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-sm ${
+                      isUser
+                        ? 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
+                        : 'bg-gradient-to-br from-secondary/20 to-accent/20 text-secondary border border-border/10'
+                    }`}
+                  >
+                    {isUser ? <User className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  </motion.div>
+
+                  {/* Message Bubble */}
+                  <div className={`max-w-[85%] md:max-w-[80%] min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
+                    <span className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 block ${
+                      isUser ? 'text-right text-primary/50' : 'text-left text-secondary/50'
+                    }`}>
+                      {isUser ? 'You' : 'Lumina'}
+                    </span>
+                    <div className={`rounded-2xl px-4 py-3 transition-all duration-200 ${
+                      isUser
+                        ? 'bg-primary/10 border border-primary/15 rounded-tr-md'
+                        : 'bg-muted/20 border border-border/10 rounded-tl-md shadow-sm'
+                    }`}>
+                      <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? 'text-foreground' : 'text-foreground/85'}`}>
+                        <div className="prose prose-sm prose-invert max-w-none
+                          prose-p:my-2 prose-p:leading-[1.75]
+                          prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-5 prose-headings:mb-2
+                          prose-strong:text-foreground prose-strong:font-semibold
+                          prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-[12px] md:prose-code:text-[13px] prose-code:before:content-none prose-code:after:content-none
+                          prose-pre:bg-card/50 prose-pre:border prose-pre:border-border/10 prose-pre:rounded-xl prose-pre:p-3 md:prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:shadow-inner
+                          prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
+                          prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground prose-blockquote:py-1
+                          prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                        ">
+                          <MarkdownRenderer>{msg.content}</MarkdownRenderer>
+                        </div>
+                      </div>
                     </div>
+                    <span className={`text-[9px] text-muted-foreground/25 mt-1 block ${isUser ? 'text-right' : 'text-left'}`}>
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
 
+          {/* Typing Indicator */}
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5 md:gap-3">
-              <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5" />
-              </div>
-              <div className="pt-1">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/50 mb-2 block">Lumina</span>
-                <div className="flex items-center gap-1.5">
-                  {[0, 1, 2].map(i => (
-                    <motion.span key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30"
-                      animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />
-                  ))}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="flex gap-3"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-secondary/20 to-accent/20 text-secondary border border-border/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </motion.div>
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-secondary/50 mb-1.5 block">Lumina</span>
+                <div className="rounded-2xl rounded-tl-md bg-muted/20 border border-border/10 px-5 py-3.5 shadow-sm">
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2].map(i => (
+                      <motion.span
+                        key={i}
+                        className="w-2 h-2 rounded-full bg-secondary/50"
+                        animate={{
+                          y: [0, -6, 0],
+                          opacity: [0.4, 1, 0.4],
+                          scale: [1, 1.2, 1],
+                        }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          delay: i * 0.15,
+                          ease: 'easeInOut',
+                        }}
+                      />
+                    ))}
+                    <span className="text-[11px] text-muted-foreground/40 ml-2 italic">thinking...</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -481,14 +534,17 @@ const ChatPage = () => {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border/10 p-3 md:p-4">
+      <div className="border-t border-border/10 bg-background/80 backdrop-blur-sm p-3 md:p-4">
         <div className="max-w-3xl mx-auto">
           {uploadedFiles.length > 0 && (
             <div className="mb-2">
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             </div>
           )}
-          <div className="flex items-center gap-2 bg-muted/15 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 focus-within:border-primary/30 focus-within:bg-muted/25 transition-all duration-200">
+          <motion.div
+            className="flex items-center gap-2 bg-muted/10 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 transition-all duration-300 focus-within:border-primary/30 focus-within:bg-muted/20 focus-within:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.15)]"
+            whileFocus={{ scale: 1.01 }}
+          >
             {uploadedFiles.length === 0 && (
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             )}
@@ -497,19 +553,21 @@ const ChatPage = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Message Lumina..."
-              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/40 px-0"
+              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/35 px-0"
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
             />
-            <Button
-              onClick={sendMessage}
-              disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
-              size="icon"
-              className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-30 transition-opacity"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground/30 text-center mt-2 hidden md:block">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={sendMessage}
+                disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
+                size="icon"
+                className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-20 transition-all duration-200 shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </motion.div>
+          </motion.div>
+          <p className="text-[10px] text-muted-foreground/25 text-center mt-2.5 hidden md:block">
             Lumina can make mistakes. Verify important information.
           </p>
         </div>
