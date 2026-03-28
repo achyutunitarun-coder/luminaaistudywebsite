@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 interface Props {
   notes: string;
   onScriptChange?: (script: string) => void;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 interface ScriptLine {
@@ -40,7 +41,7 @@ const getVoicePair = (): { alex: SpeechSynthesisVoice | null; sam: SpeechSynthes
   return { alex: alexVoice, sam: samVoice };
 };
 
-const LecturePodcast = ({ notes, onScriptChange }: Props) => {
+const LecturePodcast = ({ notes, onScriptChange, onBeforeGenerate }: Props) => {
   const [script, setScript] = useState('');
   const [parsedScript, setParsedScript] = useState<ScriptLine[]>([]);
   const [generatingScript, setGeneratingScript] = useState(false);
@@ -75,6 +76,11 @@ const LecturePodcast = ({ notes, onScriptChange }: Props) => {
   };
 
   const generateScript = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
+
     setGeneratingScript(true);
     setScript('');
     setParsedScript([]);

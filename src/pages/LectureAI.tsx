@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 interface SavedLecture {
   id: string;
@@ -27,6 +29,7 @@ interface SavedLecture {
 
 const LectureAI = () => {
   const { user } = useAuth();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [transcript, setTranscript] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState('');
@@ -276,13 +279,16 @@ const LectureAI = () => {
                   <LectureQuiz notes={notes} />
                 </TabsContent>
                 <TabsContent value="podcast" className="mt-0">
-                  <LecturePodcast notes={notes} onScriptChange={(script) => {
-                    setPodcastScript(script);
-                    // Auto-save podcast script
-                    if (script && user && currentLectureId) {
-                      supabase.from('saved_lectures').update({ podcast_script: script }).eq('id', currentLectureId).then(() => {});
-                    }
-                  }} />
+                  <LecturePodcast
+                    notes={notes}
+                    onBeforeGenerate={() => checkAndIncrement('podcast_generation')}
+                    onScriptChange={(script) => {
+                      setPodcastScript(script);
+                      if (script && user && currentLectureId) {
+                        supabase.from('saved_lectures').update({ podcast_script: script }).eq('id', currentLectureId).then(() => {});
+                      }
+                    }}
+                  />
                 </TabsContent>
               </div>
             </Tabs>
@@ -293,6 +299,7 @@ const LectureAI = () => {
           </Button>
         </motion.div>
       )}
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 };

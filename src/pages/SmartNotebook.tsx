@@ -10,12 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 'Japanese', 'Portuguese', 'Korean', 'Italian'];
 
 const SmartNotebook = () => {
   const { user } = useAuth();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -102,6 +105,8 @@ const SmartNotebook = () => {
 
   const generateNotes = async () => {
     if (!fileContent) return;
+    const allowed = await checkAndIncrement('smart_notebook');
+    if (!allowed) return;
     setNotesLoading(true);
     setNotes('');
     try {
@@ -470,6 +475,7 @@ const SmartNotebook = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 };

@@ -4,10 +4,13 @@ import { Mic, MicOff, Loader2, BookOpen, Copy, Check, ArrowLeft, Radio, FileAudi
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
 const AudioAnalysis = () => {
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [state, setState] = useState<TranscriptionState>('idle');
   const [transcript, setTranscript] = useState('');
   const [notes, setNotes] = useState('');
@@ -16,7 +19,10 @@ const AudioAnalysis = () => {
   const recognitionRef = useRef<any>(null);
   const fullTranscriptRef = useRef('');
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
+    const allowed = await checkAndIncrement('audio_analysis');
+    if (!allowed) return;
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error('Speech recognition is not supported in this browser. Try Chrome or Edge.');
@@ -346,6 +352,7 @@ const AudioAnalysis = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 };
