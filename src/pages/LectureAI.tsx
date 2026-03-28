@@ -266,7 +266,7 @@ const LectureAI = () => {
                     notes={notes}
                     setNotes={handleSetNotes}
                     notesGenerated={notesGenerated}
-                    setNotesGenerated={handleSetNotesGenerated}
+                    setNotesGenerated={setNotesGenerated}
                   />
                 </TabsContent>
                 <TabsContent value="flashcards" className="mt-0">
