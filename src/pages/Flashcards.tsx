@@ -248,7 +248,7 @@ const Flashcards = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
             onClick={() => { setActiveDeck(deck.id); setCardIndex(0); setFlipped(false); }}
-            className="group relative rounded-2xl border border-border/30 bg-card/40 hover:bg-card/70 backdrop-blur-xl p-6 text-left transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+            className="group relative rounded-2xl liquid-glass hover:border-primary/30 p-6 text-left transition-all hover:shadow-lg hover:shadow-primary/5"
           >
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/5 blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="relative z-10">
