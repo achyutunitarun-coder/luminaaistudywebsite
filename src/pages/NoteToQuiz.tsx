@@ -124,7 +124,7 @@ const NoteToQuiz = () => {
           {/* MCQ */}
           {activeTab === 'mcq' && quiz.mcq?.map((q, qi) => (
             <motion.div key={qi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: qi * 0.04 }}
-              className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5"
+              className="rounded-2xl liquid-glass p-5"
             >
               <p className="text-xs text-primary font-bold mb-2">Question {qi + 1}</p>
               <p className="text-foreground font-medium mb-3 text-sm">{q.question}</p>
