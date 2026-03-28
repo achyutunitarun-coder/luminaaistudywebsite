@@ -167,7 +167,7 @@ const Tests = () => {
             animate={{ opacity: 1, x: 0 }}
             className="hidden lg:block w-64 flex-shrink-0"
           >
-            <div className="sticky top-6 rounded-2xl border border-border/30 bg-card/40 backdrop-blur-xl p-5 space-y-4">
+            <div className="sticky top-6 rounded-2xl liquid-glass p-5 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <Brain className="w-4 h-4 text-secondary" />
                 <span className="text-sm font-bold text-foreground">{subject || 'Test'}</span>
