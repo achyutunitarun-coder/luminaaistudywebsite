@@ -270,13 +270,14 @@ const LectureAI = () => {
                     setNotes={handleSetNotes}
                     notesGenerated={notesGenerated}
                     setNotesGenerated={setNotesGenerated}
+                    onBeforeGenerate={() => checkAndIncrement('lecture_notes')}
                   />
                 </TabsContent>
                 <TabsContent value="flashcards" className="mt-0">
-                  <LectureFlashcards notes={notes} />
+                  <LectureFlashcards notes={notes} onBeforeGenerate={() => checkAndIncrement('lecture_flashcards')} />
                 </TabsContent>
                 <TabsContent value="quiz" className="mt-0">
-                  <LectureQuiz notes={notes} />
+                  <LectureQuiz notes={notes} onBeforeGenerate={() => checkAndIncrement('lecture_quiz')} />
                 </TabsContent>
                 <TabsContent value="podcast" className="mt-0">
                   <LecturePodcast

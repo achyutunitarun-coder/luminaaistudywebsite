@@ -13,15 +13,20 @@ interface Question {
 
 interface Props {
   notes: string;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
-const LectureQuiz = ({ notes }: Props) => {
+const LectureQuiz = ({ notes, onBeforeGenerate }: Props) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState(false);
 
   const generate = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     setLoading(true);
     setAnswers({});
     setShowResults(false);

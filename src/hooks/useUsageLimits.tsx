@@ -18,6 +18,9 @@ const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   study_planners:     { limit: 15,  period: 'daily' },
   smart_notebook:     { limit: 5,   period: 'daily' },
   audio_analysis:     { limit: 5,   period: 'daily' },
+  lecture_notes:      { limit: 6,   period: 'daily' },
+  lecture_flashcards: { limit: 6,   period: 'daily' },
+  lecture_quiz:       { limit: 6,   period: 'daily' },
   podcast_generation: { limit: 1,   period: 'weekly' },
   weakness_radar:     { limit: 1,   period: 'weekly' },
 };

@@ -11,14 +11,19 @@ interface Flashcard {
 
 interface Props {
   notes: string;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
-const LectureFlashcards = ({ notes }: Props) => {
+const LectureFlashcards = ({ notes, onBeforeGenerate }: Props) => {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(false);
   const [flippedIdx, setFlippedIdx] = useState<number | null>(null);
 
   const generate = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     setLoading(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lecture-tools`, {

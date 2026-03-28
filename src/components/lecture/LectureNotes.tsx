@@ -11,6 +11,7 @@ interface Props {
   setNotes: (n: string) => void;
   notesGenerated: boolean;
   setNotesGenerated: (v: boolean) => void;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 const STYLE_PRESETS = [
@@ -20,7 +21,7 @@ const STYLE_PRESETS = [
   { label: 'Cornell Method', value: 'cornell', description: 'Cues, notes, and summary sections in Cornell note-taking format' },
 ];
 
-const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGenerated }: Props) => {
+const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGenerated, onBeforeGenerate }: Props) => {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('detailed');
@@ -30,6 +31,10 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
 
   const generateNotes = useCallback(async (additionalInstruction?: string) => {
     const isRefine = !!additionalInstruction && notesGenerated;
+    if (!isRefine && onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     if (isRefine) {
       setIsRefining(true);
     } else {
