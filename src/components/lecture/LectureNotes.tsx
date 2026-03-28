@@ -11,6 +11,7 @@ interface Props {
   setNotes: (n: string) => void;
   notesGenerated: boolean;
   setNotesGenerated: (v: boolean) => void;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 const STYLE_PRESETS = [
