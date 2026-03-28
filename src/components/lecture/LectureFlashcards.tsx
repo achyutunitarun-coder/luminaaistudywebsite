@@ -14,7 +14,7 @@ interface Props {
   onBeforeGenerate?: () => Promise<boolean>;
 }
 
-const LectureFlashcards = ({ notes }: Props) => {
+const LectureFlashcards = ({ notes, onBeforeGenerate }: Props) => {
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(false);
   const [flippedIdx, setFlippedIdx] = useState<number | null>(null);
