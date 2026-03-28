@@ -264,7 +264,7 @@ const NotesGenerator = () => {
             className="space-y-4"
           >
             {/* Notes Output Card */}
-            <div className="relative rounded-3xl border border-border/40 bg-card/50 backdrop-blur-xl overflow-hidden">
+            <div className="relative rounded-3xl liquid-glass-intense overflow-hidden">
               <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-success/5 blur-[80px]" />
               <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-primary/5 blur-[60px]" />
 
