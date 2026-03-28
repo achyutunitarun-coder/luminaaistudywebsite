@@ -125,7 +125,7 @@ const Flashcards = () => {
                   <p className="text-xs text-muted-foreground mt-8">Tap to reveal answer</p>
                 </div>
                 <div
-                  className="absolute inset-0 rounded-[2rem] border border-success/20 bg-gradient-to-br from-success/5 via-card/90 to-card flex flex-col items-center justify-center p-10 shadow-2xl shadow-success/5"
+                  className="absolute inset-0 rounded-[2rem] liquid-glass-intense border-success/20 flex flex-col items-center justify-center p-10"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
                   <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em] mb-6 bg-success/10 px-3 py-1 rounded-full">Answer</span>
