@@ -42,7 +42,25 @@ const NoteToQuiz = () => {
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
       setQuiz(data);
-      toast.success('Quiz generated!');
+      // Auto-save quiz to tests table
+      if (user && data) {
+        try {
+          const questions = [
+            ...(data.mcq || []).map((q: MCQ) => ({ ...q, type: 'mcq' })),
+            ...(data.short_answer || []).map((q: ShortAnswer) => ({ ...q, type: 'short_answer' })),
+            ...(data.conceptual || []).map((q: ShortAnswer) => ({ ...q, type: 'conceptual' })),
+          ];
+          await supabase.from('tests').insert({
+            user_id: user.id,
+            title: `Quiz from Notes (${new Date().toLocaleDateString()})`,
+            questions: questions as any,
+            total_questions: questions.length,
+            status: 'pending',
+            subject: 'Note-to-Quiz',
+          });
+        } catch (e) { console.error('Auto-save quiz failed:', e); }
+      }
+      toast.success('Quiz generated & saved!');
     } catch {
       toast.error('Failed to generate quiz');
     }
