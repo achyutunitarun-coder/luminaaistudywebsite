@@ -310,10 +310,15 @@ const StudySession = () => {
     <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-          <Target className="w-7 h-7 text-primary" /> Study Session
-        </h1>
-        <p className="text-muted-foreground mt-1">Comprehensive study workspace with deep AI analysis</p>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-xl shadow-primary/20">
+            <Target className="w-7 h-7 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Study Session</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Comprehensive workspace with deep AI analysis</p>
+          </div>
+        </div>
       </motion.div>
 
       {!active ? (
