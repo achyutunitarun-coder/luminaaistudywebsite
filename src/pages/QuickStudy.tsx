@@ -189,7 +189,7 @@ const QuickStudy = () => {
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
                     activeTab === tab
-                      ? 'bg-card text-foreground shadow-sm border border-border/20'
+                      ? 'liquid-glass-intense text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
