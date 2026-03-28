@@ -71,13 +71,14 @@ const Dashboard = () => {
       >
         <div className="absolute inset-0 bg-gradient-to-b from-primary/4 via-transparent to-secondary/4 z-[2]" />
         <div className="ambient-orb w-[600px] h-[600px] bg-primary/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <div className="relative z-10">
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, ease }}
             className="text-4xl md:text-5xl lg:text-[3.5rem] font-display font-bold text-foreground leading-[1.08] max-w-3xl mx-auto"
           >
-            An AI that finds your weak subjects and helps you fix them.
+            An AI that finds your weak subjects and <span className="text-gradient-animated">helps you fix them.</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
