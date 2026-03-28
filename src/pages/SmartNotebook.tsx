@@ -15,6 +15,7 @@ import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart'
 const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 'Japanese', 'Portuguese', 'Korean', 'Italian'];
 
 const SmartNotebook = () => {
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [processing, setProcessing] = useState(false);
