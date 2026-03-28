@@ -244,7 +244,7 @@ const Tests = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-border/30 bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-xl p-6 flex items-center gap-5"
+                className="rounded-2xl liquid-glass p-6 flex items-center gap-5"
               >
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
                   scoreCount === questions.length ? 'bg-success/10' : scoreCount >= questions.length / 2 ? 'bg-warning/10' : 'bg-destructive/10'
