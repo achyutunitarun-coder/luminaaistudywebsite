@@ -104,6 +104,18 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                         </NavLink>
                       ))}
                       <div className="border-t border-border/15 mt-1.5 pt-1.5">
+                        {!isPro && (
+                          <button
+                            onClick={() => navigate('/upgrade')}
+                            className="w-full text-left px-4 py-2.5 text-[13px] font-semibold bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/15 hover:to-orange-500/15 text-amber-400 transition-all duration-200 flex items-center gap-2"
+                          >
+                            <Crown className="w-3.5 h-3.5" />
+                            <span className="tracking-tight" style={{ fontFamily: "'SF Pro Display', -apple-system, system-ui, sans-serif" }}>
+                              Upgrade to Lumina Ultimate
+                            </span>
+                            <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                          </button>
+                        )}
                         <button
                           onClick={signOut}
                           className="w-full text-left px-4 py-2.5 text-[13px] text-destructive hover:bg-destructive/8 transition-all duration-150"
@@ -195,6 +207,16 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                       <span className="text-xp font-semibold">{profile.coins}</span>
                     </div>
                   </div>
+                )}
+                {!isPro && (
+                  <button
+                    onClick={() => { navigate('/upgrade'); setMobileOpen(false); }}
+                    className="w-full text-left px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-400 rounded-xl flex items-center gap-2 transition-all duration-200"
+                  >
+                    <Crown className="w-4 h-4" />
+                    <span style={{ fontFamily: "'SF Pro Display', -apple-system, system-ui, sans-serif" }}>Upgrade to Lumina Ultimate</span>
+                    <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                  </button>
                 )}
                 <button
                   onClick={signOut}
