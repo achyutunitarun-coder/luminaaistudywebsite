@@ -240,7 +240,7 @@ const QuickStudy = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: qi * 0.06 }}
-                    className="rounded-2xl border border-border/20 bg-card/40 p-5"
+                    className="rounded-2xl liquid-glass p-5"
                   >
                     <p className="text-sm font-medium text-foreground mb-3">
                       <span className="text-primary font-bold mr-2">Q{qi + 1}.</span>{q.question}
