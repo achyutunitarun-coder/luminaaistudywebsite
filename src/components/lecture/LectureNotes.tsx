@@ -179,7 +179,7 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
               {copied ? 'Copied' : 'Copy'}
             </Button>
           </div>
-          <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground max-h-[500px] overflow-y-auto pr-2">
+          <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-headings:tracking-tight prose-headings:border-b prose-headings:border-border/20 prose-headings:pb-2 prose-p:text-muted-foreground prose-p:leading-[1.85] prose-strong:text-foreground prose-strong:font-semibold prose-li:text-muted-foreground prose-li:leading-[1.75] prose-blockquote:border-l-success/50 prose-blockquote:bg-success/5 prose-blockquote:rounded-r-xl prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:text-foreground/80 prose-blockquote:not-italic prose-h2:mt-8 prose-h2:mb-4 prose-h3:mt-6 prose-h3:mb-2 prose-h3:border-none prose-hr:border-border/20 prose-hr:my-6 prose-table:text-sm prose-th:text-foreground prose-th:font-semibold prose-th:bg-muted/20 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-1.5 prose-td:border-border/20 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:border [&_table]:border-border/20 [&_ul]:space-y-1 [&_input[type=checkbox]]:mr-2 [&_input[type=checkbox]]:accent-success max-h-[500px] overflow-y-auto pr-2">
             <MarkdownRenderer>{notes}</MarkdownRenderer>
           </div>
           {(loading || isRefining) && (
