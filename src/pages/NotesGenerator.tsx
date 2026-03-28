@@ -47,10 +47,32 @@ const NotesGenerator = () => {
 
       if (!resp.ok) throw new Error('Failed');
 
-      const data = await resp.json();
-      const content = data?.choices?.[0]?.message?.content || '';
-      if (content) setNotes(content);
-      else throw new Error('Empty response');
+      // Handle SSE streaming
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error('No stream');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let idx: number;
+        while ((idx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try {
+            const c = JSON.parse(json).choices?.[0]?.delta?.content;
+            if (c) setNotes(prev => prev + c);
+          } catch {}
+        }
+      }
 
       toast.success('Notes generated!');
     } catch {

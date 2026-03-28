@@ -33,6 +33,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { profile } = useProfile();
   const { signOut } = useAuth();
   const { seconds } = useStudyTimer();
+  const { isPro } = useSubscription();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
