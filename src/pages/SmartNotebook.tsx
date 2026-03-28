@@ -105,6 +105,8 @@ const SmartNotebook = () => {
 
   const generateNotes = async () => {
     if (!fileContent) return;
+    const allowed = await checkAndIncrement('smart_notebook');
+    if (!allowed) return;
     setNotesLoading(true);
     setNotes('');
     try {
