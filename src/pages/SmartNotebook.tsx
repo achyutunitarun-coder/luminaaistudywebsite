@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Upload, FileText, Sparkles, Loader2, Copy, Check, ArrowLeft,
   BookOpen, GitBranch, Globe, X, File, Languages
