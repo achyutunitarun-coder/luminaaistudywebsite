@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 type Lesson = {
   title: string;
@@ -17,6 +19,7 @@ type Lesson = {
 const quickTopics = ['Photosynthesis', 'Quadratic Equations', 'Newton\'s Laws', 'Cell Division', 'Thermodynamics', 'Organic Chemistry'];
 
 const QuickStudy = () => {
+  const { user } = useAuth();
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -25,6 +28,28 @@ const QuickStudy = () => {
   const [activeTab, setActiveTab] = useState<'concepts' | 'quiz'>('concepts');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
+
+  const autoSaveLesson = async (lessonData: Lesson) => {
+    if (!user) return;
+    try {
+      const notesContent = `# ${lessonData.title}\n\n## Key Concepts\n\n${
+        lessonData.key_concepts?.map(c => `### ${c.concept}\n${c.explanation}`).join('\n\n') || ''
+      }\n\n## Practice Questions\n\n${
+        lessonData.practice_questions?.map((q, i) => 
+          `**Q${i+1}.** ${q.question}\n${q.options.map((o, j) => `${j === q.correct ? '✅' : '  '} ${String.fromCharCode(65+j)}. ${o}`).join('\n')}\n💡 ${q.explanation}`
+        ).join('\n\n') || ''
+      }`;
+
+      await supabase.from('saved_lectures').insert({
+        user_id: user.id,
+        title: `Quick Study: ${lessonData.title}`,
+        notes: notesContent,
+        source_type: 'quick_study',
+      });
+    } catch (e) {
+      console.error('Auto-save failed:', e);
+    }
+  };
 
   const generate = async () => {
     if (!topic.trim()) return;
@@ -47,7 +72,10 @@ const QuickStudy = () => {
         body: JSON.stringify({ topic: fullTopic }),
       });
       if (!resp.ok) throw new Error('Failed');
-      setLesson(await resp.json());
+      const data = await resp.json();
+      setLesson(data);
+      await autoSaveLesson(data);
+      toast.success('Lesson generated & saved!');
     } catch {
       toast.error('Failed to generate lesson');
     }
@@ -72,7 +100,7 @@ const QuickStudy = () => {
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Quick Study</h1>
             <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-              <Clock className="w-3.5 h-3.5" /> 10-minute rapid revision lessons
+              <Clock className="w-3.5 h-3.5" /> 10-minute rapid revision • Auto-saves lessons
             </p>
           </div>
         </div>

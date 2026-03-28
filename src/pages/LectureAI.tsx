@@ -69,11 +69,39 @@ const LectureAI = () => {
 
   const handleSetNotes = useCallback((content: string) => {
     setNotes(content);
-  }, []);
+    // Trigger auto-save when notes change
+    if (content && user && transcript) {
+      autoSaveDebounced(content);
+    }
+  }, [user, transcript]);
 
-  const handleSetNotesGenerated = useCallback((v: boolean) => {
-    setNotesGenerated(v);
-  }, []);
+  const autoSaveDebounced = useCallback((() => {
+    let timer: NodeJS.Timeout | null = null;
+    return (notesContent: string) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        if (!user || !transcript) return;
+        try {
+          const payload = {
+            user_id: user.id,
+            title: lectureTitle || 'Untitled Lecture',
+            transcript_text: transcript?.text || null,
+            notes: notesContent || null,
+            podcast_script: podcastScript || null,
+            source_type: isDocumentSource ? 'document' : 'audio',
+          };
+          if (currentLectureId) {
+            await supabase.from('saved_lectures').update(payload).eq('id', currentLectureId);
+          } else {
+            const { data } = await supabase.from('saved_lectures').insert(payload).select('id').single();
+            if (data) setCurrentLectureId(data.id);
+          }
+        } catch (e) {
+          console.error('Auto-save failed:', e);
+        }
+      }, 3000);
+    };
+  })(), [user, transcript, lectureTitle, podcastScript, currentLectureId, isDocumentSource]);
 
   const saveLecture = useCallback(async () => {
     if (!user || !transcript) return;
