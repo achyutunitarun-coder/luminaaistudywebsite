@@ -181,7 +181,7 @@ const Pulse = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.05 }}
-            className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5 text-center"
+            className="rounded-2xl liquid-glass p-5 text-center"
           >
             <stat.icon className={`w-4 h-4 ${stat.color} mx-auto mb-2`} />
             <p className="text-2xl font-display font-bold text-foreground">{stat.value}</p>
