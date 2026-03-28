@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, HelpCircle, Loader2, Sparkles, User, MessageSquare } from 'lucide-react';
+import { SavedItemsPanel } from '@/components/SavedItemsPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
