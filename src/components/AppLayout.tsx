@@ -208,6 +208,16 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                     </div>
                   </div>
                 )}
+                {!isPro && (
+                  <button
+                    onClick={() => { navigate('/upgrade'); setMobileOpen(false); }}
+                    className="w-full text-left px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-400 rounded-xl flex items-center gap-2 transition-all duration-200"
+                  >
+                    <Crown className="w-4 h-4" />
+                    <span style={{ fontFamily: "'SF Pro Display', -apple-system, system-ui, sans-serif" }}>Upgrade to Lumina Ultimate</span>
+                    <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                  </button>
+                )}
                 <button
                   onClick={signOut}
                   className="w-full text-left px-3 py-2.5 text-sm text-destructive hover:bg-destructive/8 transition-all duration-150 rounded-xl"
