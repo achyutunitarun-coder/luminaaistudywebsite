@@ -387,15 +387,33 @@ const Tests = () => {
     <>
     <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-3xl mx-auto space-y-8">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-secondary/20">
-          <Brain className="w-7 h-7 text-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">AI Test Generator</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            <Target className="w-3.5 h-3.5 inline mr-1" /> Adaptive tests from your syllabus
-          </p>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-secondary/20">
+              <Brain className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">AI Test Generator</h1>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                <Target className="w-3.5 h-3.5 inline mr-1" /> Adaptive tests from your syllabus
+              </p>
+            </div>
+          </div>
+          <SavedItemsPanel
+            label="Past Tests"
+            table="tests"
+            select="id, title, created_at, score, status, total_questions, correct_answers"
+            onLoad={(item) => {
+              toast.info(`${item.title} — Score: ${item.score != null ? `${Number(item.score).toFixed(0)}%` : 'Not submitted'}`);
+            }}
+            renderMeta={(item) => (
+              <>
+                {item.status === 'completed' && <span className="text-success">• {Number(item.score).toFixed(0)}%</span>}
+                {item.status === 'in_progress' && <span className="text-warning">• In progress</span>}
+              </>
+            )}
+          />
         </div>
       </motion.div>
 

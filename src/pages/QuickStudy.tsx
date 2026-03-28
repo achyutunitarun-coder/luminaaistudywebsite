@@ -94,16 +94,30 @@ const QuickStudy = () => {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--warning))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-warning/20">
-            <Zap className="w-7 h-7 text-primary-foreground" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(var(--warning))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-warning/20">
+              <Zap className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Quick Study</h1>
+              <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
+                <Clock className="w-3.5 h-3.5" /> 10-minute rapid revision • Auto-saves lessons
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Quick Study</h1>
-            <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-              <Clock className="w-3.5 h-3.5" /> 10-minute rapid revision • Auto-saves lessons
-            </p>
-          </div>
+          <SavedItemsPanel
+            label="Saved Sessions"
+            table="saved_lectures"
+            filters={{ source_type: 'quick_study' }}
+            select="id, title, created_at, notes"
+            onLoad={(item) => {
+              if (item.notes) {
+                toast.info('Loaded saved session — view in Notes Generator for full content');
+              }
+            }}
+            renderMeta={(item) => item.notes ? <span className="text-primary">• Has content</span> : null}
+          />
         </div>
       </motion.div>
 

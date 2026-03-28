@@ -146,15 +146,31 @@ const NotesGenerator = () => {
     <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center shadow-lg shadow-success/10">
-          <BookOpen className="w-7 h-7 text-success" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Notes Generator</h1>
-          <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes • Auto-saves automatically
-          </p>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center shadow-lg shadow-success/10">
+              <BookOpen className="w-7 h-7 text-success" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Notes Generator</h1>
+              <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
+                <PenTool className="w-3.5 h-3.5" /> AI-powered smart notes • Auto-saves automatically
+              </p>
+            </div>
+          </div>
+          <SavedItemsPanel
+            label="Saved Notes"
+            table="saved_lectures"
+            filters={{ source_type: 'notes_generator' }}
+            select="id, title, created_at, notes"
+            onLoad={(item) => {
+              setNotes(item.notes || '');
+              setTopic(item.title || '');
+              setSavedId(item.id);
+            }}
+            renderMeta={(item) => item.notes ? <span className="text-primary">• Has notes</span> : null}
+          />
         </div>
       </motion.div>
 
