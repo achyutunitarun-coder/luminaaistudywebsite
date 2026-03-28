@@ -103,7 +103,7 @@ const Quest = () => {
 
       {/* Boss Battle Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-[2rem] border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-[2rem] liquid-glass-intense p-6"
       >
         {!boss && !battleActive && (
           <div className="text-center py-12 space-y-4">
@@ -166,7 +166,7 @@ const Quest = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/20 bg-muted/5 p-5">
+            <div className="rounded-2xl liquid-glass p-5">
               <p className="text-primary text-xs font-bold mb-2">Question {questionIdx + 1}</p>
               <p className="text-foreground font-medium mb-4 text-sm">{boss.questions[questionIdx].q}</p>
               <div className="grid grid-cols-2 gap-2">
@@ -204,7 +204,7 @@ const Quest = () => {
         <h2 className="text-base font-display font-semibold text-foreground mb-4">Daily Quests</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {dailyQuests.map((quest, i) => (
-            <div key={i} className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-4 flex items-center gap-4">
+            <div key={i} className="rounded-2xl liquid-glass p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <quest.icon className="w-5 h-5 text-primary" />
               </div>
@@ -224,7 +224,7 @@ const Quest = () => {
       {/* Leaderboard */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <h2 className="text-base font-display font-semibold text-foreground mb-4">Leaderboard</h2>
-        <div className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6">
+        <div className="rounded-2xl liquid-glass p-6">
           <div className="text-center py-8 text-muted-foreground">
             <Trophy className="w-10 h-10 mx-auto mb-2 opacity-15" />
             <p className="text-sm">Leaderboard updates weekly. Keep studying!</p>

@@ -137,7 +137,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden"
+        className="relative rounded-[2rem] liquid-glass-intense overflow-hidden"
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.06),transparent_60%)]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-primary/3 blur-[100px]" />
@@ -181,7 +181,7 @@ const Pulse = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.05 }}
-            className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5 text-center"
+            className="rounded-2xl liquid-glass p-5 text-center"
           >
             <stat.icon className={`w-4 h-4 ${stat.color} mx-auto mb-2`} />
             <p className="text-2xl font-display font-bold text-foreground">{stat.value}</p>
@@ -195,7 +195,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ const Pulse = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+          className="rounded-2xl liquid-glass p-6"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -322,7 +322,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-display font-semibold text-foreground">This Week</h2>
@@ -355,7 +355,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
         <h2 className="text-base font-display font-semibold text-foreground mb-5">XP Rewards</h2>
         <div className="space-y-1">

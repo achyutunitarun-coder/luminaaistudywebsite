@@ -8,21 +8,22 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Ambient glow */}
-      <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] rounded-full bg-primary/4 blur-[120px]" />
-      <div className="absolute bottom-1/3 right-1/3 w-[400px] h-[400px] rounded-full bg-secondary/4 blur-[120px]" />
+      {/* Ambient glows */}
+      <div className="ambient-orb w-[600px] h-[600px] bg-primary/4 top-1/4 left-1/4" />
+      <div className="ambient-orb w-[500px] h-[500px] bg-secondary/4 bottom-1/4 right-1/4" />
+      <div className="ambient-orb w-[300px] h-[300px] bg-xp/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
 
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-        className="glass rounded-3xl p-12 max-w-md w-full mx-4 text-center relative z-10"
+        className="liquid-glass-elevated rounded-[2rem] p-14 max-w-md w-full mx-4 text-center relative z-10 noise-overlay"
       >
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5, ease: [0.175, 0.885, 0.32, 1.275] }}
-          className="w-20 h-20 mx-auto mb-8 rounded-[1.25rem] gradient-primary flex items-center justify-center glow-primary"
+          className="w-20 h-20 mx-auto mb-8 rounded-[1.5rem] gradient-primary flex items-center justify-center shadow-xl shadow-primary/25"
         >
           <Sparkles className="w-10 h-10 text-primary-foreground" />
         </motion.div>
@@ -31,9 +32,9 @@ const Auth = () => {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-3xl font-display font-bold text-foreground mb-2.5 tracking-tight"
+          className="text-4xl font-display font-bold text-foreground mb-2 tracking-tight"
         >
-          LUMINA
+          <span className="text-gradient">LUMINA</span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 8 }}
@@ -52,7 +53,7 @@ const Auth = () => {
           <Button
             onClick={signInWithGoogle}
             size="lg"
-            className="w-full bg-foreground text-background hover:bg-foreground/90 font-semibold text-[15px] h-[52px] rounded-2xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+            className="w-full bg-foreground text-background hover:bg-foreground/90 font-semibold text-[15px] h-[52px] rounded-2xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shadow-lg"
           >
             <svg className="w-5 h-5 mr-2.5" viewBox="0 0 24 24">
               <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -64,7 +65,7 @@ const Auth = () => {
           </Button>
         </motion.div>
 
-        <p className="text-xs text-muted-foreground/50 mt-8">
+        <p className="text-[11px] text-muted-foreground/40 mt-8">
           By signing in, you agree to our Terms of Service
         </p>
       </motion.div>
