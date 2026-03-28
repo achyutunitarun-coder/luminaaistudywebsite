@@ -213,13 +213,42 @@
 
   /* Liquid Glass — Navigation bar variant */
   .liquid-glass-nav {
-    background: hsl(230 22% 8% / 0.6);
+    background: hsl(230 22% 8% / 0.7);
     backdrop-filter: blur(48px) saturate(2);
     -webkit-backdrop-filter: blur(48px) saturate(2);
     border-bottom: 1px solid hsl(0 0% 100% / 0.06);
     box-shadow:
       0 4px 24px hsl(0 0% 0% / 0.3),
       inset 0 -1px 0 hsl(0 0% 0% / 0.15);
+  }
+
+  /* Liquid Glass — Elevated card with color tint */
+  .liquid-glass-elevated {
+    background: hsl(230 20% 13% / 0.5);
+    backdrop-filter: blur(50px) saturate(1.8);
+    -webkit-backdrop-filter: blur(50px) saturate(1.8);
+    border: 1px solid hsl(0 0% 100% / 0.1);
+    box-shadow:
+      0 16px 64px hsl(0 0% 0% / 0.4),
+      0 4px 16px hsl(0 0% 0% / 0.3),
+      inset 0 1px 0 hsl(0 0% 100% / 0.12),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .liquid-glass-elevated::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      145deg,
+      hsl(174 72% 56% / 0.04) 0%,
+      hsl(264 67% 60% / 0.03) 50%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* Legacy compat */
@@ -233,8 +262,17 @@
   .gradient-primary {
     background: linear-gradient(135deg, hsl(174 72% 56%), hsl(200 80% 50%), hsl(264 67% 60%));
   }
+  .gradient-primary-subtle {
+    background: linear-gradient(135deg, hsl(174 72% 56% / 0.15), hsl(264 67% 60% / 0.15));
+  }
   .gradient-xp {
     background: linear-gradient(90deg, hsl(47 100% 62%), hsl(38 92% 50%));
+  }
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(142 71% 45%), hsl(160 60% 50%));
+  }
+  .gradient-warning {
+    background: linear-gradient(135deg, hsl(38 92% 50%), hsl(25 95% 55%));
   }
   .font-display {
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
@@ -254,6 +292,50 @@
     box-shadow:
       0 16px 48px -8px hsl(0 0% 0% / 0.35),
       inset 0 1px 0 hsl(0 0% 100% / 0.12);
+  }
+
+  /* Premium shimmer effect for special cards */
+  .shimmer-border {
+    position: relative;
+  }
+  .shimmer-border::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      hsl(174 72% 56% / 0.3),
+      transparent 30%,
+      transparent 70%,
+      hsl(264 67% 60% / 0.3)
+    );
+    z-index: -1;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+    padding: 1px;
+  }
+
+  /* Ambient orb — reusable decorative glow */
+  .ambient-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Noise texture overlay */
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 2;
   }
 }
 
@@ -276,4 +358,26 @@
 ::selection {
   background: hsl(174 72% 56% / 0.25);
   color: hsl(210 20% 95%);
+}
+
+/* Animated gradient text */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.text-gradient-animated {
+  background: linear-gradient(135deg, hsl(174 72% 56%), hsl(200 80% 50%), hsl(264 67% 60%), hsl(174 72% 56%));
+  background-size: 300% 300%;
+  animation: gradient-shift 6s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, hsl(174 72% 56%), hsl(264 67% 60%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
