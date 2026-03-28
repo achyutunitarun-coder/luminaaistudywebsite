@@ -13,6 +13,7 @@ interface Question {
 
 interface Props {
   notes: string;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 const LectureQuiz = ({ notes }: Props) => {
