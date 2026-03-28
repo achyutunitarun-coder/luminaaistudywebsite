@@ -38,7 +38,7 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    for (const model of MODELS) {
+    for (const model of ALL_MODELS) {
       try {
         const res = await fetch(OPENROUTER_URL, {
           method: "POST",
