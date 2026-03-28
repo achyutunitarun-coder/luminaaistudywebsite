@@ -2,68 +2,64 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = [
-  "deepseek/deepseek-r1:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-coder:free",
-];
+const HF_MODEL = "iamdago/Lumina-Ultimate";
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { notes, type } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
 
     const prompts: Record<string, string> = {
-      flashcards: `From these lecture notes, generate 10-15 flashcards. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.\n\nNotes:\n${notes}`,
-      quiz: `From these lecture notes, generate 8-10 MCQ quiz questions. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. No other text.\n\nNotes:\n${notes}`,
-      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, keep under 500 words.\n\nNotes:\n${notes}`,
+      flashcards: `From these lecture notes, generate 10-15 flashcards. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.\n\nNotes:\n${notes}\n\nJSON:`,
+      quiz: `From these lecture notes, generate 8-10 MCQ quiz questions. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. No other text.\n\nNotes:\n${notes}\n\nJSON:`,
+      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, keep under 500 words.\n\nNotes:\n${notes}\n\nSummary:`,
     };
 
-    const isStreaming = type === "summary";
+    const prompt = prompts[type] || prompts.summary;
 
-    for (const model of MODELS) {
-      try {
-        const response = await fetch(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            stream: isStreaming,
-            messages: [
-              { role: "system", content: "You are Lumina AI's study tool generator." },
-              { role: "user", content: prompts[type] || prompts.summary },
-            ],
-          }),
-        });
+    const response = await fetch(HF_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: { max_new_tokens: 2000, temperature: 0.5, return_full_text: false },
+      }),
+    });
 
-        if (!response.ok) { console.error(`Model ${model} failed:`, response.status); continue; }
-
-        if (isStreaming) {
-          return new Response(response.body, {
-            headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-          });
-        }
-
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content || "";
-        return new Response(JSON.stringify({ content: text.trim() }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (e) { console.error(`Model ${model} error:`, e); continue; }
+    if (!response.ok) {
+      const err = await response.text();
+      return new Response(JSON.stringify({ error: err }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(JSON.stringify({ error: "All models failed" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const data = await response.json();
+    const text = data?.[0]?.generated_text || "";
+
+    // For flashcards and quiz, try to parse JSON array or object
+    if (type === "flashcards" || type === "quiz") {
+      const arrayMatch = text.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        return new Response(JSON.stringify({ content: arrayMatch[0] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // For summary or fallback
+    return new Response(JSON.stringify({ content: text.trim() }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("generate-lecture-tools error:", e);
