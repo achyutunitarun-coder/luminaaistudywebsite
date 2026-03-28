@@ -18,6 +18,7 @@ const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 
 
 const SmartNotebook = () => {
   const { user } = useAuth();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [processing, setProcessing] = useState(false);
