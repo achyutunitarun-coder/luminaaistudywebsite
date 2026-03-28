@@ -279,13 +279,17 @@ const LectureAI = () => {
                   <LectureQuiz notes={notes} />
                 </TabsContent>
                 <TabsContent value="podcast" className="mt-0">
-                  <LecturePodcast notes={notes} onScriptChange={(script) => {
-                    setPodcastScript(script);
-                    // Auto-save podcast script
-                    if (script && user && currentLectureId) {
-                      supabase.from('saved_lectures').update({ podcast_script: script }).eq('id', currentLectureId).then(() => {});
-                    }
-                  }} />
+                  <LecturePodcast
+                    notes={notes}
+                    onBeforeGenerate={() => checkAndIncrement('podcast_generation')}
+                    onScriptChange={(script) => {
+                      setPodcastScript(script);
+                      if (script && user && currentLectureId) {
+                        supabase.from('saved_lectures').update({ podcast_script: script }).eq('id', currentLectureId).then(() => {});
+                      }
+                    }}
+                  />
+                </TabsContent>
                 </TabsContent>
               </div>
             </Tabs>
