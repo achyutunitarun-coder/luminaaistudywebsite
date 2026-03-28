@@ -206,7 +206,7 @@ const QuickStudy = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5 hover:border-primary/20 transition-all group"
+                    className="rounded-2xl liquid-glass p-5 hover:border-primary/20 transition-all group"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-primary/20 transition-colors">
