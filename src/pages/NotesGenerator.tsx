@@ -226,8 +226,8 @@ const NotesGenerator = () => {
                     onClick={() => setSelectedStyle(style.id)}
                     className={`relative rounded-2xl border p-4 text-left transition-all duration-200 ${
                       active
-                        ? 'border-success/40 bg-success/8 shadow-lg shadow-success/10'
-                        : 'border-border/30 bg-card/30 hover:border-success/20 hover:bg-card/50'
+                        ? 'liquid-glass-intense border-success/30 shadow-lg shadow-success/10'
+                        : 'liquid-glass-subtle border-transparent hover:border-success/20'
                     }`}
                   >
                     {active && (
