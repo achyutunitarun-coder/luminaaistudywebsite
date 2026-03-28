@@ -15,7 +15,7 @@ const MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
   for (const model of MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -42,11 +42,19 @@ serve(async (req) => {
 
     const num = numQuestions || 5;
     const aiMessages = [
-      { role: "system", content: `You are a test question generator. Generate ${num} multiple choice questions. Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.` },
-      { role: "user", content: `Subject: ${subject || 'General'}\n\nSyllabus:\n${syllabus}` },
+      { role: "system", content: `You are an expert exam question setter. Generate ${num} challenging multiple choice questions that test deep understanding, not just surface recall.
+
+Rules:
+- Mix difficulty: 30% easy, 50% medium, 20% hard
+- Include application-based and analytical questions, not just factual recall
+- Each wrong option should be a plausible distractor (common misconception)
+- Explanations should teach WHY the answer is correct AND why each wrong option fails
+
+Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.` },
+      { role: "user", content: `Subject: ${subject || 'General'}\n\nSyllabus/Topic:\n${syllabus}` },
     ];
 
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {

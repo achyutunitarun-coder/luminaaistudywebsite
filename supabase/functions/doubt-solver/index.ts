@@ -32,26 +32,6 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 600): Promise<string> {
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 }),
-      });
-      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch (e) { console.error(`${model} exception:`, e); }
-  }
-  throw new Error("All models failed");
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -67,22 +47,53 @@ serve(async (req) => {
       searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
     }
 
-    let systemPrompt = `You are Lumina AI Doubt Solver, built by Tarun Kartikeya. When a student asks a question:
-1. Give a clear, concise explanation
-2. Provide relevant examples
-3. Show step-by-step solutions for math/science
-4. End with 1-2 follow-up practice questions
-Use markdown for formatting. Be encouraging and supportive.`;
+    let systemPrompt = `You are Lumina AI Doubt Solver — a world-class tutor who makes even the hardest concepts feel intuitive. Built by Tarun Kartikeya.
+
+Your approach:
+- First, acknowledge what the student might be struggling with — show you understand the confusion
+- Give a crystal-clear explanation using everyday analogies and vivid mental models
+- For math/science: show complete step-by-step solutions with reasoning at EACH step, not just the answer
+- For conceptual subjects: build understanding through stories, examples, and connections
+- Use markdown formatting: **bold** for key terms, headers for sections, code blocks for formulas
+- Include relevant diagrams described in text when helpful
+- End with 1-2 targeted practice questions that reinforce the exact concept
+- Be encouraging — treat every question as worthy of a thorough answer
+
+Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust depth accordingly:
+- SIMPLE: Use the simplest possible language, lots of analogies, minimal jargon
+- EXAM: Focus on exam-relevant patterns, common mistakes, scoring tips, and model answers
+- DEEP: Go into theoretical depth, proofs, edge cases, and advanced implications`;
 
     if (searchContext) systemPrompt += `\n\nREFERENCE DATA:\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
-    const output = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 600);
 
-    return new Response(
-      JSON.stringify({ choices: [{ message: { content: output.trim() } }] }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: aiMessages,
+            max_tokens: 1500,
+            temperature: 0.7,
+            stream: true,
+          }),
+        });
+
+        if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+
+        return new Response(res.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        });
+      } catch (e) { console.error(`${model} exception:`, e); }
+    }
+
+    throw new Error("All models failed");
   } catch (e) {
     console.error("doubt-solver error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {

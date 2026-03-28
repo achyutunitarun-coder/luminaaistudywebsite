@@ -16,11 +16,11 @@ const MODELS = [
 ];
 
 const STYLE_PROMPTS: Record<string, string> = {
-  bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
-  hyphen: `Format the notes as a hyphen-style outline with main topics and subtopics using hyphen-led lines, progressive indentation, and a revision checklist.`,
-  paragraph: `Format the notes in rich paragraph style with well-written connected paragraphs, strong transitions, embedded examples, and a summary at the end.`,
-  mindmap: `Format the notes as a text-based mind map with a central topic, branches for major ideas, sub-branches for key facts and formulas, and visual hierarchy using indentation.`,
-  root_cause: `Format as deep root-cause analysis notes with core concepts first, then common errors and why they happen, diagnostic cues, step-by-step correction plans, and a "Fix Plan" summary.`,
+  bullet: `Format with clear hierarchical bullet-point structure. Use ## for major sections, ### for subsections. Include key formulas, definitions in bold, mnemonics where helpful, and a final "Quick Revision" recap section.`,
+  hyphen: `Format as a professional hyphen-style outline. Main topics as headers, subtopics with hyphen-led lines, progressive indentation for details. Include a revision checklist at the end.`,
+  paragraph: `Format in rich, flowing paragraph style. Well-crafted connected paragraphs with strong transitions, embedded examples, real-world applications, and an executive summary at the end.`,
+  mindmap: `Format as a text-based mind map. Central topic at top, branches using indentation and symbols (├── ├── └──). Sub-branches for key facts, formulas, and connections between ideas.`,
+  root_cause: `Format as deep root-cause analysis. Start with core principles, then map common misconceptions and WHY they happen, diagnostic patterns to identify gaps, step-by-step correction plans, and a "Master Plan" summary.`,
 };
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
@@ -37,23 +37,6 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
     for (const r of (data.organic ?? []).slice(0, 4)) ctx += `${r.title}: ${r.snippet ?? ""}\n`;
     return ctx;
   } catch { return ""; }
-}
-
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 1500): Promise<string> {
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 }),
-      });
-      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch (e) { console.error(`${model} exception:`, e); }
-  }
-  throw new Error("All models failed");
 }
 
 serve(async (req) => {
@@ -74,20 +57,54 @@ serve(async (req) => {
 
     const systemPrompt = isRefinement
       ? `You are Lumina AI's study notes assistant. Refine the existing notes per user instructions. Output the COMPLETE updated notes.`
-      : `You are Lumina AI's premium study notes generator.\n\n${stylePrompt}\n\nBe THOROUGH. Cover every concept. Use markdown. Never skip details.${searchContext ? `\n\nREFERENCE DATA:\n${searchContext}` : ""}`;
+      : `You are Lumina AI's premium study notes generator — create the kind of notes that make students say "I wish I had these before the exam."
 
-    const userContent = sourceText || `Create comprehensive study notes on "${topic}".`;
+${stylePrompt}
+
+Rules:
+- Be EXHAUSTIVE. Cover every major concept, sub-concept, formula, definition, and edge case
+- Use **bold** for key terms, *italics* for emphasis
+- Include real-world examples and exam-relevant tips
+- Add "⚠️ Common Mistake" callouts where students typically go wrong
+- Include mnemonics or memory tricks where applicable
+- Make it feel like the best study resource ever created for this topic
+${searchContext ? `\nREFERENCE DATA (enhance your notes with this):\n${searchContext}` : ""}`;
+
+    const userContent = sourceText
+      ? `Create comprehensive study notes from this material:\n\n${sourceText}`
+      : `Create the most thorough, exam-ready study notes possible on "${topic}".`;
+
     const aiMessages = [
       { role: "system", content: systemPrompt },
       { role: "user", content: userContent },
     ];
 
-    const output = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 1500);
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: aiMessages,
+            max_tokens: 3000,
+            temperature: 0.7,
+            stream: true,
+          }),
+        });
 
-    return new Response(
-      JSON.stringify({ choices: [{ message: { content: output.trim() } }] }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+        if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+
+        return new Response(res.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        });
+      } catch (e) { console.error(`${model} exception:`, e); }
+    }
+
+    throw new Error("All models failed");
   } catch (e) {
     console.error("generate-notes error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
