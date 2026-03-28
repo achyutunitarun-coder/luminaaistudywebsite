@@ -103,7 +103,7 @@ const Quest = () => {
 
       {/* Boss Battle Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-[2rem] border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-[2rem] liquid-glass-intense p-6"
       >
         {!boss && !battleActive && (
           <div className="text-center py-12 space-y-4">
