@@ -109,7 +109,19 @@ const SmartNotebook = () => {
         { fileContent, fileName: file?.name || 'document', mode: 'notes' }
       );
       setNotes(content);
-      toast.success('Notes generated!');
+      // Auto-save to database
+      if (user && content) {
+        try {
+          await supabase.from('saved_lectures').insert({
+            user_id: user.id,
+            title: `Smart Notebook: ${file?.name || 'Document'}`,
+            notes: content,
+            transcript_text: fileContent.slice(0, 5000),
+            source_type: 'smart_notebook',
+          });
+        } catch (e) { console.error('Auto-save failed:', e); }
+      }
+      toast.success('Notes generated & saved!');
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate notes');
     }
