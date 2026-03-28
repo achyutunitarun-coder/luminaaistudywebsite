@@ -2,7 +2,8 @@ import { ReactNode, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
-import { Flame, Coins, Sparkles, LogOut, Menu, X, ChevronDown, Clock } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Flame, Coins, Sparkles, LogOut, Menu, X, ChevronDown, Clock, Crown } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,11 +22,9 @@ const moreNav = [
   { title: 'Quest', url: '/quest' },
   { title: 'Doubt Solver', url: '/doubt-solver' },
   { title: 'Lecture AI', url: '/lecture-ai' },
-  { title: 'YouTube Summary', url: '/youtube-summary' },
   { title: 'Note to Quiz', url: '/note-to-quiz' },
   { title: 'Quick Study', url: '/quick-study' },
   { title: 'Study Planner', url: '/study-planner' },
-  
   { title: 'Weakness Radar', url: '/weakness-radar' },
   { title: 'Settings', url: '/settings' },
 ];
