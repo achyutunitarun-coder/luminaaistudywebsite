@@ -13,6 +13,7 @@ type MCQ = { question: string; options: string[]; correct: number; explanation: 
 type ShortAnswer = { question: string; answer: string };
 
 const NoteToQuiz = () => {
+  const { user } = useAuth();
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [quiz, setQuiz] = useState<{ mcq: MCQ[]; short_answer: ShortAnswer[]; conceptual: ShortAnswer[] } | null>(null);
