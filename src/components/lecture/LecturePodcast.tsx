@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 interface Props {
   notes: string;
   onScriptChange?: (script: string) => void;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 interface ScriptLine {
