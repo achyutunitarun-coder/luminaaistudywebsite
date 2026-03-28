@@ -21,7 +21,7 @@ const STYLE_PRESETS = [
   { label: 'Cornell Method', value: 'cornell', description: 'Cues, notes, and summary sections in Cornell note-taking format' },
 ];
 
-const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGenerated }: Props) => {
+const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGenerated, onBeforeGenerate }: Props) => {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('detailed');
