@@ -225,7 +225,7 @@ const QuickStudy = () => {
             {activeTab === 'quiz' && (
               <div className="space-y-4">
                 {submitted && (
-                  <div className="rounded-2xl border border-border/30 bg-card/40 p-5 flex items-center gap-4">
+                  <div className="rounded-2xl liquid-glass p-5 flex items-center gap-4">
                     <Trophy className={`w-8 h-8 ${score === total ? 'text-success' : score >= total / 2 ? 'text-warning' : 'text-destructive'}`} />
                     <div>
                       <p className="text-2xl font-display font-bold text-foreground">{score}/{total}</p>
