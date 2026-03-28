@@ -23,6 +23,10 @@ const LectureQuiz = ({ notes, onBeforeGenerate }: Props) => {
   const [showResults, setShowResults] = useState(false);
 
   const generate = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     setLoading(true);
     setAnswers({});
     setShowResults(false);

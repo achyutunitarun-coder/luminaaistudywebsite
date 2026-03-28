@@ -20,6 +20,10 @@ const LectureFlashcards = ({ notes, onBeforeGenerate }: Props) => {
   const [flippedIdx, setFlippedIdx] = useState<number | null>(null);
 
   const generate = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     setLoading(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lecture-tools`, {

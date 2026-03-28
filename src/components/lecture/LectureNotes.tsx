@@ -31,6 +31,10 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
 
   const generateNotes = useCallback(async (additionalInstruction?: string) => {
     const isRefine = !!additionalInstruction && notesGenerated;
+    if (!isRefine && onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
     if (isRefine) {
       setIsRefining(true);
     } else {
