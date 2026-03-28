@@ -104,7 +104,7 @@ const NoteToQuiz = () => {
       ) : (
         <div className="space-y-4">
           {/* Tabs */}
-          <div className="flex gap-1 p-1 rounded-2xl bg-muted/10 border border-border/20">
+          <div className="flex gap-1 p-1 rounded-2xl liquid-glass-subtle">
             {(['mcq', 'short', 'conceptual'] as const).map(tab => (
               <button
                 key={tab}
