@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Sparkles, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { SavedItemsPanel } from '@/components/SavedItemsPanel';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
