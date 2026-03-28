@@ -136,16 +136,18 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             {/* Right Side */}
             <div className="flex items-center gap-3">
               {/* Live Timer Pill */}
-              <button
+              <motion.button
                 onClick={() => navigate('/pulse')}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/6 border border-primary/12 hover:bg-primary/10 transition-all duration-250"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass-subtle hover:border-primary/20 transition-all duration-250"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                 <Clock className="w-3 h-3 text-primary" />
                 <span className="text-xs font-medium text-primary tabular-nums tracking-tight">
                   {timerMins}:{String(timerSecs).padStart(2, '0')}
                 </span>
-              </button>
+              </motion.button>
 
               {profile && (
                 <div className="hidden sm:flex items-center gap-3">
