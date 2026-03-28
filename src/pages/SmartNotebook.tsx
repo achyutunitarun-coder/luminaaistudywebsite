@@ -475,6 +475,7 @@ const SmartNotebook = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 };
