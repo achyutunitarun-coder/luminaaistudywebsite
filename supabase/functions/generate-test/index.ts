@@ -8,8 +8,10 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODELS = [
-  "deepseek/deepseek-r1:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
   "qwen/qwen3-coder:free",
 ];
 
