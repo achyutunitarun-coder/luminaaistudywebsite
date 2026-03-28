@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = [
+
+const PRIMARY_MODELS = [
   "nousresearch/hermes-3-llama-3.1-405b:free",
   "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
@@ -15,12 +16,46 @@ const MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
+const AUTO_ROUTER = "openrouter/auto";
+
+const FALLBACK_MODELS = [
+  "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek/deepseek-r1-0528:free",
+  "qwen/qwq-32b:free",
+  "qwen/qwen-2.5-coder-32b-instruct:free",
+  "deepseek/deepseek-r1:free",
+  "microsoft/phi-4-reasoning-plus:free",
+  "microsoft/phi-4-reasoning:free",
+  "microsoft/mai-ds-r1:free",
+  "rekaai/reka-flash-3:free",
+  "moonshotai/kimi-vl-a3b-thinking:free",
+  "nvidia/llama-3.1-nemotron-ultra-253b:free",
+  "open-r1/olympiccoder-32b:free",
+  "allenai/olmo-2-0325-32b-instruct:free",
+  "google/gemma-3-4b-it:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-1b-it:free",
+];
+
+function getModelsToTry(): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const m of [...PRIMARY_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS]) {
+    if (!seen.has(m)) { seen.add(m); result.push(m); }
+  }
+  return result;
+}
+
 const STYLE_PROMPTS: Record<string, string> = {
   bullet: `Format with clear hierarchical bullet-point structure. Use ## for major sections, ### for subsections. Include key formulas, definitions in bold, mnemonics where helpful, and a final "Quick Revision" recap section.`,
   hyphen: `Format as a professional hyphen-style outline. Main topics as headers, subtopics with hyphen-led lines, progressive indentation for details. Include a revision checklist at the end.`,
   paragraph: `Format in rich, flowing paragraph style. Well-crafted connected paragraphs with strong transitions, embedded examples, real-world applications, and an executive summary at the end.`,
   mindmap: `Format as a text-based mind map. Central topic at top, branches using indentation and symbols (├── ├── └──). Sub-branches for key facts, formulas, and connections between ideas.`,
   root_cause: `Format as deep root-cause analysis. Start with core principles, then map common misconceptions and WHY they happen, diagnostic patterns to identify gaps, step-by-step correction plans, and a "Master Plan" summary.`,
+  detailed: `Format with comprehensive headings, subheadings, and deep explanations. Use ## for major sections, ### for subsections. Include key formulas, definitions in bold, examples, and a final summary.`,
+  exam: `Focus on key facts, definitions, formulas, and potential exam questions. Use clear headers and bullet points. Include "⚠️ Common Mistake" callouts and a quick revision checklist.`,
+  simple: `Use easy-to-understand language with examples and analogies. Keep explanations clear and concise. Include real-world comparisons to aid understanding.`,
+  cornell: `Format in Cornell note-taking style with three sections: Cues (key questions/terms on the left), Notes (detailed explanations on the right), and Summary (brief recap at the bottom).`,
 };
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
@@ -79,7 +114,10 @@ ${searchContext ? `\nREFERENCE DATA (enhance your notes with this):\n${searchCon
       { role: "user", content: userContent },
     ];
 
-    for (const model of MODELS) {
+    const models = getModelsToTry();
+    console.log(`[generate-notes] Trying ${models.length} models`);
+
+    for (const model of models) {
       try {
         const res = await fetch(OPENROUTER_URL, {
           method: "POST",
@@ -96,12 +134,17 @@ ${searchContext ? `\nREFERENCE DATA (enhance your notes with this):\n${searchCon
           }),
         });
 
-        if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[generate-notes] ${model} error ${res.status}: ${errText}`);
+          continue;
+        }
 
+        console.log(`[generate-notes] Success with model: ${model}`);
         return new Response(res.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
         });
-      } catch (e) { console.error(`${model} exception:`, e); }
+      } catch (e) { console.error(`[generate-notes] ${model} exception:`, e); }
     }
 
     throw new Error("All models failed");
