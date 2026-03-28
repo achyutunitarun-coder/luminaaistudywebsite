@@ -522,7 +522,7 @@ ${searchContext ? `\nREFERENCE DATA (use this to enhance accuracy and depth):\n$
           body: JSON.stringify({
             model,
             messages: aiMessages,
-            max_tokens: 3000,
+            max_tokens: 4500,
             temperature: 0.7,
             stream: true,
           }),
