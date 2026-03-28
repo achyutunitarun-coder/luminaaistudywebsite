@@ -51,10 +51,14 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <div className="h-12 flex items-center justify-between">
             {/* Logo */}
             <NavLink to="/" end className="flex items-center gap-2.5 flex-shrink-0 group" activeClassName="">
-              <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
-              </div>
-              <span className="font-display font-semibold text-sm text-foreground tracking-tight hidden sm:inline">
+              <motion.div
+                whileHover={{ scale: 1.08, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20"
+              >
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </motion.div>
+              <span className="font-display font-bold text-sm text-gradient tracking-tight hidden sm:inline">
                 Lumina
               </span>
             </NavLink>
