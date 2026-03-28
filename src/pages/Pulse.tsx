@@ -355,7 +355,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
         <h2 className="text-base font-display font-semibold text-foreground mb-5">XP Rewards</h2>
         <div className="space-y-1">
