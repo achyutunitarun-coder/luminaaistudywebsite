@@ -11,6 +11,7 @@ interface Flashcard {
 
 interface Props {
   notes: string;
+  onBeforeGenerate?: () => Promise<boolean>;
 }
 
 const LectureFlashcards = ({ notes }: Props) => {
