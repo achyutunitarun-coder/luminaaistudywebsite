@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { toast } from 'sonner';
 
 const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   chat_messages:      { limit: 50,  period: 'daily' },
@@ -15,6 +16,8 @@ const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   note_to_quiz:       { limit: 10,  period: 'daily' },
   quick_study:        { limit: 10,  period: 'daily' },
   study_planners:     { limit: 15,  period: 'daily' },
+  smart_notebook:     { limit: 5,   period: 'daily' },
+  audio_analysis:     { limit: 5,   period: 'daily' },
   podcast_generation: { limit: 1,   period: 'weekly' },
   weakness_radar:     { limit: 1,   period: 'weekly' },
 };
@@ -25,13 +28,16 @@ export const useUsageLimits = () => {
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   const checkAndIncrement = useCallback(async (feature: string): Promise<boolean> => {
-    if (isPro || !user) return true;
+    if (isPro) return true;
+    if (!user) {
+      toast.error('Please sign in to use this feature.');
+      return false;
+    }
 
     const config = LIMITS[feature];
     if (!config) return true;
 
     try {
-      // Get current count
       const { data: currentCount } = await supabase.rpc('get_usage_count', {
         p_user_id: user.id,
         p_feature: feature,
@@ -39,27 +45,28 @@ export const useUsageLimits = () => {
       });
 
       if ((currentCount ?? 0) >= config.limit) {
+        const periodLabel = config.period === 'weekly' ? 'weekly' : 'daily';
+        toast.error(`You've reached your ${periodLabel} limit of ${config.limit} for this feature. Upgrade to Pro for unlimited access!`);
         setShowUpgrade(true);
         return false;
       }
 
-      // Increment
       await supabase.rpc('increment_usage', {
         p_user_id: user.id,
         p_feature: feature,
         p_period_type: config.period,
       });
 
-      // Show warning at 80%
       const newCount = (currentCount ?? 0) + 1;
       if (newCount >= Math.floor(config.limit * 0.8) && newCount < config.limit) {
-        // Could show a toast warning here
+        const remaining = config.limit - newCount;
+        toast.warning(`You have ${remaining} use${remaining === 1 ? '' : 's'} left for this feature today.`);
       }
 
       return true;
     } catch (err) {
       console.error('Usage check failed:', err);
-      return true; // Allow on error
+      return true;
     }
   }, [user, isPro]);
 

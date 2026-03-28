@@ -76,6 +76,11 @@ const LecturePodcast = ({ notes, onScriptChange, onBeforeGenerate }: Props) => {
   };
 
   const generateScript = useCallback(async () => {
+    if (onBeforeGenerate) {
+      const allowed = await onBeforeGenerate();
+      if (!allowed) return;
+    }
+
     setGeneratingScript(true);
     setScript('');
     setParsedScript([]);
