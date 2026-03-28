@@ -252,20 +252,56 @@ const ChatPage = () => {
         return;
       }
 
-      const data = await resp.json();
-      const assistantContent = data?.choices?.[0]?.message?.content || '';
+      // Handle SSE streaming
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        toast.error('Failed to get AI response stream.');
+        return;
+      }
 
-      if (assistantContent) {
+      const placeholderId = crypto.randomUUID();
+      setMessages(prev => [...prev, { id: placeholderId, role: 'assistant', content: '', created_at: new Date().toISOString() }]);
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullContent += content;
+              setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: fullContent } : m));
+            }
+          } catch {}
+        }
+      }
+
+      if (fullContent) {
         const { data: savedMsg } = await supabase
           .from('chat_messages')
-          .insert({ chat_id: activeChat, role: 'assistant', content: assistantContent })
+          .insert({ chat_id: activeChat, role: 'assistant', content: fullContent })
           .select()
           .single();
 
-        if (savedMsg) setMessages(prev => [...prev, savedMsg]);
-        else setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: assistantContent, created_at: new Date().toISOString() }]);
+        if (savedMsg) setMessages(prev => prev.map(m => m.id === placeholderId ? savedMsg : m));
       } else {
         toast.error('AI returned an empty response. Please try again.');
+        setMessages(prev => prev.filter(m => m.id !== placeholderId));
       }
     } catch (error) {
       console.error('Chat error:', error);
