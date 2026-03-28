@@ -4,6 +4,8 @@ import { Mic, MicOff, Loader2, BookOpen, Copy, Check, ArrowLeft, Radio, FileAudi
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
