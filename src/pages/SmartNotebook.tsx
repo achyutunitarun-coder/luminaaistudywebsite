@@ -116,7 +116,7 @@ const SmartNotebook = () => {
   const generateOverview = async (lang: string) => {
     if (!fileContent || overviews[lang]) return;
     setLoadingLang(lang);
-    let text = '';
+    
     try {
       const content = await fetchResponse(
         { fileContent, fileName: file?.name || 'document', mode: 'overview', language: lang }
