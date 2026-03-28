@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, HelpCircle, Loader2, Sparkles, User, MessageSquare } from 'lucide-react';
+import { SavedItemsPanel } from '@/components/SavedItemsPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -9,6 +10,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -142,14 +144,25 @@ const DoubtSolver = () => {
       
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-secondary/20">
-            <HelpCircle className="w-6 h-6 text-primary-foreground" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-xl shadow-secondary/20">
+              <HelpCircle className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">AI Doubt Solver</h1>
+              <p className="text-muted-foreground text-xs">Step-by-step explanations • Auto-saves conversations</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">AI Doubt Solver</h1>
-            <p className="text-muted-foreground text-xs">Step-by-step explanations • Auto-saves conversations</p>
-          </div>
+          <SavedItemsPanel
+            label="Past Doubts"
+            table="chats"
+            filters={{ chat_type: 'doubt_solver' }}
+            select="id, title, created_at"
+            onLoad={(item) => {
+              toast.info(`Loaded: ${item.title}`);
+            }}
+          />
         </div>
 
         <div className="flex gap-2">

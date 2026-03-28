@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Sparkles, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
+import { SavedItemsPanel } from '@/components/SavedItemsPanel';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -72,14 +73,26 @@ const NoteToQuiz = () => {
     <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     <div className="max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-lg shadow-secondary/20">
-            <FileText className="w-6 h-6 text-primary-foreground" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] flex items-center justify-center shadow-lg shadow-secondary/20">
+              <FileText className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Note-to-Quiz</h1>
+              <p className="text-muted-foreground text-sm mt-0.5">Paste your notes and get instant quiz questions</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Note-to-Quiz</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">Paste your notes and get instant quiz questions</p>
-          </div>
+          <SavedItemsPanel
+            label="Past Quizzes"
+            table="tests"
+            filters={{ subject: 'Note-to-Quiz' }}
+            select="id, title, created_at, status, total_questions"
+            onLoad={(item) => {
+              toast.info(`${item.title} — ${item.total_questions} questions`);
+            }}
+            renderMeta={(item) => <span className="text-secondary">• {item.total_questions} questions</span>}
+          />
         </div>
       </motion.div>
 
