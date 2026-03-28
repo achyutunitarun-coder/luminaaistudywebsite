@@ -32,6 +32,21 @@ async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000)
   throw new Error("All models failed");
 }
 
+async function streamOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<Response> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.6, stream: true }),
+      });
+      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+      return res;
+    } catch (e) { console.error(`${model} exception:`, e); }
+  }
+  throw new Error("All models failed");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -44,7 +59,7 @@ serve(async (req) => {
     let userContent = "";
 
     if (mode === "notes") {
-      systemPrompt = `You are Lumina AI's study notes generator. Create detailed, well-organized notes with clear headings, key concepts in bold, bullet points, and a concise summary. Use markdown formatting.`;
+      systemPrompt = `You are Lumina AI's study notes generator. Create incredibly detailed, well-organized notes with clear headings, key concepts in **bold**, formulas highlighted, real-world examples, and a concise "Quick Review" summary at the end. Use markdown formatting. Be thorough — cover every concept in the document.`;
       userContent = `Create comprehensive study notes from this file "${fileName}":\n\n${fileContent}`;
     } else if (mode === "flowchart") {
       systemPrompt = `Analyze the content and produce a JSON flowchart. Return ONLY valid JSON (no markdown, no code fences): {"nodes": [{"id": "1", "label": "Short Title", "description": "Brief description", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. Use types: start, process, decision, end, milestone. Create 6-12 nodes.`;
@@ -62,9 +77,9 @@ serve(async (req) => {
       { role: "user", content: userContent },
     ];
 
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
-
+    // Flowchart needs JSON parsing, so no streaming
     if (mode === "flowchart") {
+      const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return new Response(JSON.stringify({ content: jsonMatch[0] }), {
@@ -76,10 +91,11 @@ serve(async (req) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({ choices: [{ message: { content: text.trim() } }] }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Notes and overview can stream
+    const streamRes = await streamOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
+    return new Response(streamRes.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+    });
   } catch (e) {
     console.error("smart-notebook error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {

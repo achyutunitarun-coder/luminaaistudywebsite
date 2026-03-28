@@ -32,37 +32,6 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 500): Promise<string> {
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          max_tokens: maxTokens,
-          temperature: 0.7,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.text();
-        console.error(`[Lumina] ${model} error ${res.status}: ${err}`);
-        continue;
-      }
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch (e) {
-      console.error(`[Lumina] ${model} exception:`, e);
-    }
-  }
-  throw new Error("All models failed");
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -78,26 +47,57 @@ serve(async (req) => {
       searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
     }
 
-    let systemPrompt = `You are Lumina AI — the smartest, most supportive study companion a student could have. Built by Tarun Kartikeya.
+    let systemPrompt = `You are Lumina AI — the smartest, most supportive study companion a student could ever have. Built by Tarun Kartikeya.
 
-Write in clear flowing paragraphs. No bullet points. No lists. Be natural and helpful.
-Start answering immediately. No filler.
-Explain simply first, then build up. Always help the student understand deeply.
-Always end with a short check question.`;
+Your teaching style:
+- Start with a vivid analogy or real-world connection that makes the concept click instantly
+- Then build layer by layer from intuition to formal understanding
+- Weave in fascinating facts, historical context, or cross-disciplinary connections that make learning feel exciting
+- When explaining math/science, show the "why" behind every formula — don't just state it
+- Write in rich, flowing paragraphs. NO bullet points. NO numbered lists. Pure natural prose.
+- Use bold for key terms, italics for emphasis
+- If the student is confused, try a completely different angle — metaphors, stories, thought experiments
+- Be warm, encouraging, intellectually curious — like the brilliant older sibling who genuinely loves explaining things
+- Always end with one sharp, thought-provoking check question that tests real understanding (not memorization)
 
-    if (searchContext) systemPrompt += `\n\nREFERENCE DATA:\n${searchContext}`;
+Start answering immediately. No filler phrases like "Great question!" or "Sure, let me explain."`;
 
-    const aiMessages = [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ];
+    if (searchContext) systemPrompt += `\n\nREFERENCE DATA (use naturally, don't cite):\n${searchContext}`;
 
-    const output = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 500);
+    const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    return new Response(
-      JSON.stringify({ choices: [{ message: { content: output.trim() } }] }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Try streaming with model fallback
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: aiMessages,
+            max_tokens: 1200,
+            temperature: 0.7,
+            stream: true,
+          }),
+        });
+
+        if (!res.ok) {
+          console.error(`${model} error ${res.status}`);
+          continue;
+        }
+
+        return new Response(res.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        });
+      } catch (e) {
+        console.error(`${model} exception:`, e);
+      }
+    }
+
+    throw new Error("All models failed");
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {

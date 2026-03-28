@@ -41,9 +41,9 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const systemPrompts: Record<string, string> = {
-      flashcards: `From lecture notes, generate 10-15 flashcards. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.`,
-      quiz: `From lecture notes, generate 8-10 MCQ quiz questions. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. No other text.`,
-      summary: `Create a condensed "Exam Revision" summary from these notes. Use bullet points, bold key terms, keep under 500 words.`,
+      flashcards: `From lecture notes, generate 10-15 high-quality flashcards that test understanding. Mix definitions, applications, and "why" questions. Return ONLY valid JSON array with no markdown fences: [{"front": "question", "back": "answer"}]. No other text.`,
+      quiz: `From lecture notes, generate 8-10 challenging MCQ questions. Include application-based questions, not just recall. Return ONLY valid JSON array with no markdown fences: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "detailed explanation"}]. No other text.`,
+      summary: `Create a powerful "Exam Revision" summary from these notes. Use clear headers, bold key terms, bullet points for quick scanning. Include formulas, mnemonics, and a "Top 5 Things to Remember" section. Keep under 600 words but make every word count.`,
     };
 
     const aiMessages = [

@@ -15,7 +15,7 @@ const MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
   for (const model of MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -42,11 +42,20 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const aiMessages = [
-      { role: "system", content: `You are a flashcard generator. Create exactly ${count} flashcards. Return ONLY valid JSON with no markdown fences, in this exact format: {"cards": [{"front": "question", "back": "answer"}]}` },
-      { role: "user", content: `Create flashcards for "${title}" from this content:\n\n${content}` },
+      { role: "system", content: `You are an expert flashcard creator for students. Create exactly ${count} high-quality flashcards that test UNDERSTANDING, not just memorization.
+
+Rules:
+- Front: Ask clear, specific questions that test comprehension (not just "What is X?")
+- Back: Give concise but complete answers with key details
+- Include a mix: definitions, applications, comparisons, "why" questions, edge cases
+- For math/science: include formula cards AND conceptual understanding cards
+- Order cards from fundamental to advanced
+
+Return ONLY valid JSON with no markdown fences: {"cards": [{"front": "question", "back": "answer"}]}` },
+      { role: "user", content: `Create ${count} flashcards for "${title}" from this content:\n\n${content}` },
     ];
 
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {

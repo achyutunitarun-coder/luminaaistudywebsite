@@ -15,7 +15,7 @@ const MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 3000): Promise<string> {
   for (const model of MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -41,11 +41,13 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const aiMessages = [
-      { role: "system", content: `You are an expert tutor. Create a comprehensive quick study lesson with 8-10 key concepts and 8 practice questions. Return ONLY valid JSON with no markdown fences: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation 3-5 sentences"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}` },
-      { role: "user", content: `Create a quick study lesson on "${topic}"` },
+      { role: "system", content: `You are an expert tutor creating a comprehensive quick study lesson. Create 8-10 key concepts with DETAILED explanations (4-6 sentences each, with examples and real-world connections) and 8 practice questions with thorough explanations.
+
+Return ONLY valid JSON with no markdown fences: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation with examples"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "why this is correct and why others aren't"}]}` },
+      { role: "user", content: `Create an incredibly thorough quick study lesson on "${topic}" — make it so good that a student could ace an exam just from this.` },
     ];
 
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 3000);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {

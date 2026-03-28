@@ -16,6 +16,34 @@ const modes = [
   { value: 'deep', label: '🧠 Deep Concept', desc: 'In-depth explanation' },
 ];
 
+async function readStream(resp: Response, onChunk: (text: string) => void): Promise<string> {
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let idx: number;
+    while ((idx = buffer.indexOf('\n')) !== -1) {
+      let line = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 1);
+      if (line.endsWith('\r')) line = line.slice(0, -1);
+      if (!line.startsWith('data: ')) continue;
+      const json = line.slice(6).trim();
+      if (json === '[DONE]') break;
+      try {
+        const c = JSON.parse(json).choices?.[0]?.delta?.content;
+        if (c) { full += c; onChunk(full); }
+      } catch {}
+    }
+  }
+  return full;
+}
+
 const DoubtSolver = () => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -54,9 +82,24 @@ const DoubtSolver = () => {
 
       if (!resp.ok) throw new Error('Failed');
 
-      const data = await resp.json();
-      const assistantContent = data?.choices?.[0]?.message?.content || 'Sorry, something went wrong. Please try again.';
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
+      // Add placeholder for streaming
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      const fullContent = await readStream(resp, (text) => {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: text };
+          return updated;
+        });
+      });
+
+      if (!fullContent) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' };
+          return updated;
+        });
+      }
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
     }
