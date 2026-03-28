@@ -10,6 +10,7 @@ import { UpgradePopup } from '@/components/UpgradePopup';
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
 const AudioAnalysis = () => {
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [state, setState] = useState<TranscriptionState>('idle');
   const [transcript, setTranscript] = useState('');
   const [notes, setNotes] = useState('');
