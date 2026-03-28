@@ -71,10 +71,10 @@ const SmartNotebook = () => {
     setNotesLoading(true);
     setNotes('');
     try {
-      await streamResponse(
-        { fileContent, fileName: file?.name || 'document', mode: 'notes' },
-        (chunk) => setNotes(prev => prev + chunk)
+      const content = await fetchResponse(
+        { fileContent, fileName: file?.name || 'document', mode: 'notes' }
       );
+      setNotes(content);
       toast.success('Notes generated!');
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate notes');
