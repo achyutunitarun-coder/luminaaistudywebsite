@@ -176,7 +176,7 @@ const QuickStudy = () => {
             className="space-y-6"
           >
             {/* Lesson Title */}
-            <div className="rounded-2xl border border-border/30 bg-card/40 backdrop-blur-xl p-6">
+            <div className="rounded-2xl liquid-glass p-6">
               <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] bg-primary/10 px-3 py-1 rounded-full">Quick Lesson</span>
               <h2 className="text-2xl font-display font-bold text-foreground mt-3">{lesson.title}</h2>
             </div>
