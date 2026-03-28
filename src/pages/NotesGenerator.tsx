@@ -45,33 +45,12 @@ const NotesGenerator = () => {
         body: JSON.stringify({ topic, sourceText, style: selectedStyle }),
       });
 
-      if (!resp.ok || !resp.body) throw new Error('Failed');
+      if (!resp.ok) throw new Error('Failed');
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, newlineIndex);
-          buffer = buffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) setNotes(prev => prev + content);
-          } catch {}
-        }
-      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content || '';
+      if (content) setNotes(content);
+      else throw new Error('Empty response');
 
       toast.success('Notes generated!');
     } catch {

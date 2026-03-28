@@ -52,42 +52,11 @@ const DoubtSolver = () => {
         body: JSON.stringify({ messages: updatedMessages }),
       });
 
-      if (!resp.ok || !resp.body) throw new Error('Failed');
+      if (!resp.ok) throw new Error('Failed');
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let assistantContent = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      let streamDone = false;
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') { streamDone = true; break; }
-          try {
-            const c = JSON.parse(json).choices?.[0]?.delta?.content;
-            if (c) {
-              assistantContent += c;
-              setMessages(prev => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: 'assistant', content: assistantContent };
-                return copy;
-              });
-            }
-          } catch {}
-        }
-      }
+      const data = await resp.json();
+      const assistantContent = data?.choices?.[0]?.message?.content || 'Sorry, something went wrong. Please try again.';
+      setMessages(prev => [...prev, { role: 'assistant', content: assistantContent }]);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
     }

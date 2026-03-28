@@ -246,98 +246,14 @@ const ChatPage = () => {
         const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
         if (resp.status === 429) {
           toast.error('Rate limit exceeded. Please wait a moment and try again.');
-        } else if (resp.status === 402) {
-          toast.error(errorData.error || 'This AI request exceeded your available provider credit/token limit.');
         } else {
           toast.error(errorData.error || 'Failed to get AI response. Please try again.');
         }
         return;
       }
 
-      if (!resp.body) throw new Error('No response body');
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '';
-      let assistantContent = '';
-      let streamDone = false;
-      let renderScheduled = false;
-      const tempId = crypto.randomUUID();
-
-      setMessages(prev => [...prev, { id: tempId, role: 'assistant', content: '', created_at: new Date().toISOString() }]);
-
-      const flushAssistantUpdate = () => {
-        renderScheduled = false;
-        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, content: assistantContent } : m));
-      };
-
-      const scheduleRender = () => {
-        if (renderScheduled) return;
-        renderScheduled = true;
-        requestAnimationFrame(flushAssistantUpdate);
-      };
-
-      const processLine = (line: string): boolean => {
-        if (line.endsWith('\r')) line = line.slice(0, -1);
-        if (line.startsWith(':') || line.trim() === '') return true;
-        if (!line.startsWith('data: ')) return true;
-
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') {
-          streamDone = true;
-          return true;
-        }
-
-        try {
-          const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content as string | undefined;
-          if (content) {
-            assistantContent += content;
-            scheduleRender();
-          }
-          return true;
-        } catch {
-          return false;
-        }
-      };
-
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          const line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          const ok = processLine(line);
-          if (!ok) {
-            textBuffer = `${line}\n${textBuffer}`;
-            break;
-          }
-
-          if (streamDone) break;
-        }
-      }
-
-      if (!streamDone && textBuffer.trim()) {
-        for (const rawLine of textBuffer.split('\n')) {
-          const line = rawLine.trimEnd();
-          if (!line || line.startsWith(':') || !line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          try {
-            const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content as string | undefined;
-            if (content) assistantContent += content;
-          } catch {
-            // Ignore final partial leftovers
-          }
-        }
-      }
-
-      if (renderScheduled) {
-        flushAssistantUpdate();
-      }
+      const data = await resp.json();
+      const assistantContent = data?.choices?.[0]?.message?.content || '';
 
       if (assistantContent) {
         const { data: savedMsg } = await supabase
@@ -346,9 +262,9 @@ const ChatPage = () => {
           .select()
           .single();
 
-        if (savedMsg) setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
+        if (savedMsg) setMessages(prev => [...prev, savedMsg]);
+        else setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: assistantContent, created_at: new Date().toISOString() }]);
       } else {
-        setMessages(prev => prev.filter(m => m.id !== tempId));
         toast.error('AI returned an empty response. Please try again.');
       }
     } catch (error) {

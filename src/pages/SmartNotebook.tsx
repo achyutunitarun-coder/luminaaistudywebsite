@@ -48,7 +48,7 @@ const SmartNotebook = () => {
     if (f) readFile(f);
   };
 
-  const streamResponse = async (body: Record<string, unknown>, onDelta: (t: string) => void) => {
+  const fetchResponse = async (body: Record<string, unknown>): Promise<string> => {
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
       method: 'POST',
       headers: {
@@ -61,30 +61,9 @@ const SmartNotebook = () => {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error || 'Request failed');
     }
-    if (!resp.body) throw new Error('No response body');
-
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buffer.indexOf('\n')) !== -1) {
-        let line = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 1);
-        if (line.endsWith('\r')) line = line.slice(0, -1);
-        if (line.startsWith(':') || line.trim() === '' || !line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === '[DONE]') return;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) onDelta(content);
-        } catch {}
-      }
-    }
+    const data = await resp.json();
+    // Handle OpenAI-compatible format or direct content
+    return data?.choices?.[0]?.message?.content || data?.content || '';
   };
 
   const generateNotes = async () => {
