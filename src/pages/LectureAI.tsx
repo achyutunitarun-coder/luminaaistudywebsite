@@ -29,6 +29,7 @@ interface SavedLecture {
 
 const LectureAI = () => {
   const { user } = useAuth();
+  const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [transcript, setTranscript] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [notes, setNotes] = useState('');
