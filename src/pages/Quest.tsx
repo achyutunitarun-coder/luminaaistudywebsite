@@ -204,7 +204,7 @@ const Quest = () => {
         <h2 className="text-base font-display font-semibold text-foreground mb-4">Daily Quests</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {dailyQuests.map((quest, i) => (
-            <div key={i} className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-4 flex items-center gap-4">
+            <div key={i} className="rounded-2xl liquid-glass p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <quest.icon className="w-5 h-5 text-primary" />
               </div>
