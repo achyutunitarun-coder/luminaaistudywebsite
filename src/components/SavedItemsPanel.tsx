@@ -43,7 +43,7 @@ export function SavedItemsPanel({ label, table, filters, select, onLoad, renderM
       .select(select || 'id, title, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(30) as any;
 
     if (filters) {
       Object.entries(filters).forEach(([col, val]) => {
