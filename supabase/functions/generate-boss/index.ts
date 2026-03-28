@@ -6,42 +6,44 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HF_MODEL = "iamdago/Lumina-Ultimate";
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS = [
+  "deepseek/deepseek-r1:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
+
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 1500): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.6 }),
+      });
+      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch (e) { console.error(`${model} exception:`, e); }
+  }
+  throw new Error("All models failed");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { topic } = await req.json();
-    const HF_TOKEN = Deno.env.get("HF_TOKEN");
-    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const prompt = `You create educational boss battle questions. Create a boss battle for "${topic}" with a boss name, emoji icon, and 5 challenging questions with 4 options each. Return ONLY valid JSON with no markdown fences: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A", "B", "C", "D"], "correct": 0}]}
+    const aiMessages = [
+      { role: "system", content: `You create educational boss battle questions. Return ONLY valid JSON with no markdown fences: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A", "B", "C", "D"], "correct": 0}]}` },
+      { role: "user", content: `Create a boss battle for "${topic}" with a boss name, emoji icon, and 5 challenging questions with 4 options each.` },
+    ];
 
-JSON:`;
-
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${HF_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 1500, temperature: 0.6, return_full_text: false },
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return new Response(JSON.stringify({ error: err }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
-    const text = data?.[0]?.generated_text || "";
+    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 1500);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
