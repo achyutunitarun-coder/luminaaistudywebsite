@@ -167,7 +167,7 @@ const Tests = () => {
             animate={{ opacity: 1, x: 0 }}
             className="hidden lg:block w-64 flex-shrink-0"
           >
-            <div className="sticky top-6 rounded-2xl border border-border/30 bg-card/40 backdrop-blur-xl p-5 space-y-4">
+            <div className="sticky top-6 rounded-2xl liquid-glass p-5 space-y-4">
               <div className="flex items-center gap-2 mb-1">
                 <Brain className="w-4 h-4 text-secondary" />
                 <span className="text-sm font-bold text-foreground">{subject || 'Test'}</span>
@@ -244,7 +244,7 @@ const Tests = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border border-border/30 bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-xl p-6 flex items-center gap-5"
+                className="rounded-2xl liquid-glass p-6 flex items-center gap-5"
               >
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
                   scoreCount === questions.length ? 'bg-success/10' : scoreCount >= questions.length / 2 ? 'bg-warning/10' : 'bg-destructive/10'
@@ -270,7 +270,7 @@ const Tests = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
-                className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-2xl overflow-hidden"
+                className="rounded-[2rem] liquid-glass-intense overflow-hidden"
               >
                 <div className="p-8">
                   <div className="flex items-start gap-4 mb-8">
@@ -402,7 +402,7 @@ const Tests = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden"
+        className="relative rounded-[2rem] liquid-glass-intense overflow-hidden"
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--secondary)/0.06),transparent_60%)]" />
         <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-primary/5 blur-[80px]" />

@@ -85,7 +85,7 @@ const NoteToQuiz = () => {
 
       {!quiz ? (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden">
+          <div className="relative rounded-[2rem] liquid-glass-intense overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--secondary)/0.06),transparent_60%)]" />
             <div className="relative z-10 p-8 space-y-5">
               <Textarea
@@ -104,13 +104,13 @@ const NoteToQuiz = () => {
       ) : (
         <div className="space-y-4">
           {/* Tabs */}
-          <div className="flex gap-1 p-1 rounded-2xl bg-muted/10 border border-border/20">
+          <div className="flex gap-1 p-1 rounded-2xl liquid-glass-subtle">
             {(['mcq', 'short', 'conceptual'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab ? 'bg-card text-foreground shadow-sm border border-border/20' : 'text-muted-foreground hover:text-foreground'
+                  activeTab === tab ? 'liquid-glass-intense text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {tab === 'mcq' ? 'Multiple Choice' : tab === 'short' ? 'Short Answer' : 'Conceptual'}
@@ -124,7 +124,7 @@ const NoteToQuiz = () => {
           {/* MCQ */}
           {activeTab === 'mcq' && quiz.mcq?.map((q, qi) => (
             <motion.div key={qi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: qi * 0.04 }}
-              className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5"
+              className="rounded-2xl liquid-glass p-5"
             >
               <p className="text-xs text-primary font-bold mb-2">Question {qi + 1}</p>
               <p className="text-foreground font-medium mb-3 text-sm">{q.question}</p>
@@ -154,7 +154,7 @@ const NoteToQuiz = () => {
           {/* Short Answer & Conceptual */}
           {(activeTab === 'short' ? quiz.short_answer : activeTab === 'conceptual' ? quiz.conceptual : [])?.map((q, qi) => (
             <motion.div key={qi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5"
+              className="rounded-2xl liquid-glass p-5"
             >
               <p className="text-xs text-secondary font-bold mb-2">Question {qi + 1}</p>
               <p className="text-foreground font-medium mb-3 text-sm">{q.question}</p>

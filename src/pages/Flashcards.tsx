@@ -117,7 +117,7 @@ const Flashcards = () => {
                 transition={{ duration: 0.5, type: 'spring', stiffness: 80 }}
               >
                 <div
-                  className="absolute inset-0 rounded-[2rem] border border-border/30 bg-gradient-to-br from-card via-card/90 to-muted/20 backdrop-blur-2xl flex flex-col items-center justify-center p-10 shadow-2xl shadow-primary/5"
+                  className="absolute inset-0 rounded-[2rem] liquid-glass-intense flex flex-col items-center justify-center p-10"
                   style={{ backfaceVisibility: 'hidden' }}
                 >
                   <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-6 bg-primary/10 px-3 py-1 rounded-full">Question</span>
@@ -125,7 +125,7 @@ const Flashcards = () => {
                   <p className="text-xs text-muted-foreground mt-8">Tap to reveal answer</p>
                 </div>
                 <div
-                  className="absolute inset-0 rounded-[2rem] border border-success/20 bg-gradient-to-br from-success/5 via-card/90 to-card flex flex-col items-center justify-center p-10 shadow-2xl shadow-success/5"
+                  className="absolute inset-0 rounded-[2rem] liquid-glass-intense border-success/20 flex flex-col items-center justify-center p-10"
                   style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
                   <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em] mb-6 bg-success/10 px-3 py-1 rounded-full">Answer</span>
@@ -187,7 +187,7 @@ const Flashcards = () => {
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-xl p-8 space-y-5">
+            <div className="rounded-[2rem] liquid-glass-intense p-8 space-y-5">
               <Input
                 placeholder="Deck title — e.g., Biology Chapter 5"
                 value={title}
@@ -248,7 +248,7 @@ const Flashcards = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04 }}
             onClick={() => { setActiveDeck(deck.id); setCardIndex(0); setFlipped(false); }}
-            className="group relative rounded-2xl border border-border/30 bg-card/40 hover:bg-card/70 backdrop-blur-xl p-6 text-left transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+            className="group relative rounded-2xl liquid-glass hover:border-primary/30 p-6 text-left transition-all hover:shadow-lg hover:shadow-primary/5"
           >
             <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-primary/5 blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="relative z-10">
@@ -271,7 +271,7 @@ const Flashcards = () => {
 
       {(!decks || decks.length === 0) && !showCreate && (
         <div className="text-center py-20">
-          <div className="w-20 h-20 rounded-3xl bg-muted/20 border border-border/20 flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 rounded-3xl liquid-glass flex items-center justify-center mx-auto mb-4">
             <Layers className="w-8 h-8 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground font-medium">No flashcard decks yet</p>

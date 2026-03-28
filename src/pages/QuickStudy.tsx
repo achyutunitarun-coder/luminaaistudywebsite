@@ -114,7 +114,7 @@ const QuickStudy = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <div className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden">
+            <div className="relative rounded-[2rem] liquid-glass-intense overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--warning)/0.06),transparent_60%)]" />
 
               <div className="relative z-10 p-8 space-y-6">
@@ -176,20 +176,20 @@ const QuickStudy = () => {
             className="space-y-6"
           >
             {/* Lesson Title */}
-            <div className="rounded-2xl border border-border/30 bg-card/40 backdrop-blur-xl p-6">
+            <div className="rounded-2xl liquid-glass p-6">
               <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] bg-primary/10 px-3 py-1 rounded-full">Quick Lesson</span>
               <h2 className="text-2xl font-display font-bold text-foreground mt-3">{lesson.title}</h2>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-2xl bg-muted/10 border border-border/20">
+            <div className="flex gap-1 p-1 rounded-2xl liquid-glass-subtle">
               {(['concepts', 'quiz'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${
                     activeTab === tab
-                      ? 'bg-card text-foreground shadow-sm border border-border/20'
+                      ? 'liquid-glass-intense text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -206,7 +206,7 @@ const QuickStudy = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
-                    className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-5 hover:border-primary/20 transition-all group"
+                    className="rounded-2xl liquid-glass p-5 hover:border-primary/20 transition-all group"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-primary/20 transition-colors">
@@ -225,7 +225,7 @@ const QuickStudy = () => {
             {activeTab === 'quiz' && (
               <div className="space-y-4">
                 {submitted && (
-                  <div className="rounded-2xl border border-border/30 bg-card/40 p-5 flex items-center gap-4">
+                  <div className="rounded-2xl liquid-glass p-5 flex items-center gap-4">
                     <Trophy className={`w-8 h-8 ${score === total ? 'text-success' : score >= total / 2 ? 'text-warning' : 'text-destructive'}`} />
                     <div>
                       <p className="text-2xl font-display font-bold text-foreground">{score}/{total}</p>
@@ -240,7 +240,7 @@ const QuickStudy = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: qi * 0.06 }}
-                    className="rounded-2xl border border-border/20 bg-card/40 p-5"
+                    className="rounded-2xl liquid-glass p-5"
                   >
                     <p className="text-sm font-medium text-foreground mb-3">
                       <span className="text-primary font-bold mr-2">Q{qi + 1}.</span>{q.question}

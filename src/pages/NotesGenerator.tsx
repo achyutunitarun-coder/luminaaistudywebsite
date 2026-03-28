@@ -167,7 +167,7 @@ const NotesGenerator = () => {
             className="space-y-5"
           >
             {/* Main Input Card */}
-            <div className="relative rounded-3xl border border-border/40 bg-card/50 backdrop-blur-xl overflow-hidden">
+            <div className="relative rounded-3xl liquid-glass-intense overflow-hidden">
               <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-success/8 blur-[80px]" />
               <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full bg-primary/8 blur-[60px]" />
 
@@ -226,8 +226,8 @@ const NotesGenerator = () => {
                     onClick={() => setSelectedStyle(style.id)}
                     className={`relative rounded-2xl border p-4 text-left transition-all duration-200 ${
                       active
-                        ? 'border-success/40 bg-success/8 shadow-lg shadow-success/10'
-                        : 'border-border/30 bg-card/30 hover:border-success/20 hover:bg-card/50'
+                        ? 'liquid-glass-intense border-success/30 shadow-lg shadow-success/10'
+                        : 'liquid-glass-subtle border-transparent hover:border-success/20'
                     }`}
                   >
                     {active && (
@@ -264,7 +264,7 @@ const NotesGenerator = () => {
             className="space-y-4"
           >
             {/* Notes Output Card */}
-            <div className="relative rounded-3xl border border-border/40 bg-card/50 backdrop-blur-xl overflow-hidden">
+            <div className="relative rounded-3xl liquid-glass-intense overflow-hidden">
               <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-success/5 blur-[80px]" />
               <div className="absolute bottom-0 left-0 w-40 h-40 rounded-full bg-primary/5 blur-[60px]" />
 
