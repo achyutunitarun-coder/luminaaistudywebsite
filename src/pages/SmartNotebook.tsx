@@ -118,13 +118,10 @@ const SmartNotebook = () => {
     setLoadingLang(lang);
     let text = '';
     try {
-      await streamResponse(
-        { fileContent, fileName: file?.name || 'document', mode: 'overview', language: lang },
-        (chunk) => {
-          text += chunk;
-          setOverviews(prev => ({ ...prev, [lang]: text }));
-        }
+      const content = await fetchResponse(
+        { fileContent, fileName: file?.name || 'document', mode: 'overview', language: lang }
       );
+      setOverviews(prev => ({ ...prev, [lang]: content }));
       toast.success(`${lang} overview ready!`);
     } catch {
       toast.error(`Failed to generate ${lang} overview`);
