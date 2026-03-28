@@ -2,15 +2,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = [
-  "deepseek/deepseek-r1:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-coder:free",
-];
+const HF_MODEL = "iamdago/Lumina-Ultimate";
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
 const STYLE_PROMPTS: Record<string, string> = {
   bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
@@ -41,8 +38,8 @@ serve(async (req) => {
 
   try {
     const { topic, sourceText, style, isRefinement } = await req.json();
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
+    const HF_TOKEN = Deno.env.get("HF_TOKEN");
+    if (!HF_TOKEN) throw new Error("HF_TOKEN not set");
 
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
@@ -57,36 +54,34 @@ serve(async (req) => {
       : `You are Lumina AI's premium study notes generator.\n\n${stylePrompt}\n\nBe THOROUGH. Cover every concept. Use markdown. Never skip details.${searchContext ? `\n\nREFERENCE DATA:\n${searchContext}` : ""}`;
 
     const userContent = sourceText || `Create comprehensive study notes on "${topic}".`;
+    const prompt = `${systemPrompt}\n\nUser: ${userContent}\nLumina:`;
 
-    for (const model of MODELS) {
-      try {
-        const response = await fetch(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            stream: true,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userContent },
-            ],
-          }),
-        });
+    const response = await fetch(HF_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: { max_new_tokens: 1500, temperature: 0.7, return_full_text: false },
+      }),
+    });
 
-        if (!response.ok) { console.error(`Model ${model} failed:`, response.status); continue; }
-
-        return new Response(response.body, {
-          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-        });
-      } catch (e) { console.error(`Model ${model} error:`, e); continue; }
+    if (!response.ok) {
+      const err = await response.text();
+      return new Response(JSON.stringify({ error: err }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    return new Response(JSON.stringify({ error: "All models failed" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const data = await response.json();
+    const output = data?.[0]?.generated_text || "Failed to generate notes.";
+
+    return new Response(
+      JSON.stringify({ choices: [{ message: { content: output.trim() } }] }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e) {
     console.error("generate-notes error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
