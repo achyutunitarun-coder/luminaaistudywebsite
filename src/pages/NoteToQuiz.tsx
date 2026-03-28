@@ -85,7 +85,7 @@ const NoteToQuiz = () => {
 
       {!quiz ? (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="relative rounded-[2rem] border border-border/30 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-2xl overflow-hidden">
+          <div className="relative rounded-[2rem] liquid-glass-intense overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,hsl(var(--secondary)/0.06),transparent_60%)]" />
             <div className="relative z-10 p-8 space-y-5">
               <Textarea
