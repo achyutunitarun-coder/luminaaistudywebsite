@@ -322,7 +322,7 @@ const Pulse = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
-        className="rounded-2xl border border-border/20 bg-card/40 backdrop-blur-xl p-6"
+        className="rounded-2xl liquid-glass p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-display font-semibold text-foreground">This Week</h2>
