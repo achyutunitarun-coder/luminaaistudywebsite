@@ -16,7 +16,7 @@ interface Props {
   onBeforeGenerate?: () => Promise<boolean>;
 }
 
-const LectureQuiz = ({ notes }: Props) => {
+const LectureQuiz = ({ notes, onBeforeGenerate }: Props) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
