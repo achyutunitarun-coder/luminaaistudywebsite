@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 'Japanese', 'Portuguese', 'Korean', 'Italian'];
