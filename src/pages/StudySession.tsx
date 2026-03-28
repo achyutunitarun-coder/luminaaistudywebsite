@@ -334,7 +334,7 @@ const StudySession = () => {
         </motion.div>
       ) : (
         <div className="space-y-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-8 text-center relative overflow-hidden">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="liquid-glass-intense rounded-[2rem] p-8 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
             <div className="relative z-10">
               <div className="flex items-baseline justify-center gap-1 tabular-nums">
