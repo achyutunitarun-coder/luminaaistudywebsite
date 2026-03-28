@@ -14,6 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UpgradePopup } from '@/components/UpgradePopup';
 
 interface SavedLecture {
   id: string;
