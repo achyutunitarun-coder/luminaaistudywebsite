@@ -117,7 +117,7 @@ const Flashcards = () => {
                 transition={{ duration: 0.5, type: 'spring', stiffness: 80 }}
               >
                 <div
-                  className="absolute inset-0 rounded-[2rem] border border-border/30 bg-gradient-to-br from-card via-card/90 to-muted/20 backdrop-blur-2xl flex flex-col items-center justify-center p-10 shadow-2xl shadow-primary/5"
+                  className="absolute inset-0 rounded-[2rem] liquid-glass-intense flex flex-col items-center justify-center p-10"
                   style={{ backfaceVisibility: 'hidden' }}
                 >
                   <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-6 bg-primary/10 px-3 py-1 rounded-full">Question</span>
