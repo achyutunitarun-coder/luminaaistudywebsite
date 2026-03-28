@@ -68,7 +68,9 @@ const Dashboard = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease }}
         className="relative text-center py-16 px-8 rounded-[2.5rem] overflow-hidden liquid-glass-elevated noise-overlay"
-        <div className="relative z-10">
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/4 via-transparent to-secondary/4 z-[2]" />
+        <div className="ambient-orb w-[600px] h-[600px] bg-primary/3 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
