@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const HF_MODEL = "iamdago/Lumina-Ultimate";
-const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
 const STYLE_PROMPTS: Record<string, string> = {
   bullet: `Format the notes with clear bullet-point structure. Include major sections as headings, nested bullet points for concepts, short scannable explanations, and a final recap section.`,
