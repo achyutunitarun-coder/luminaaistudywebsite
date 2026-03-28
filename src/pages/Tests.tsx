@@ -270,7 +270,7 @@ const Tests = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
-                className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-2xl overflow-hidden"
+                className="rounded-[2rem] liquid-glass-intense overflow-hidden"
               >
                 <div className="p-8">
                   <div className="flex items-start gap-4 mb-8">
