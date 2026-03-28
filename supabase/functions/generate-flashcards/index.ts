@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = [
+
+const PRIMARY_MODELS = [
   "nousresearch/hermes-3-llama-3.1-405b:free",
   "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
@@ -15,19 +16,59 @@ const MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
+const AUTO_ROUTER = "openrouter/auto";
+
+const FALLBACK_MODELS = [
+  "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek/deepseek-r1-0528:free",
+  "qwen/qwq-32b:free",
+  "qwen/qwen-2.5-coder-32b-instruct:free",
+  "deepseek/deepseek-r1:free",
+  "microsoft/phi-4-reasoning-plus:free",
+  "microsoft/phi-4-reasoning:free",
+  "microsoft/mai-ds-r1:free",
+  "rekaai/reka-flash-3:free",
+  "moonshotai/kimi-vl-a3b-thinking:free",
+  "nvidia/llama-3.1-nemotron-ultra-253b:free",
+  "open-r1/olympiccoder-32b:free",
+  "allenai/olmo-2-0325-32b-instruct:free",
+  "google/gemma-3-4b-it:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-1b-it:free",
+];
+
+function getModelsToTry(): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const m of [...PRIMARY_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS]) {
+    if (!seen.has(m)) { seen.add(m); result.push(m); }
+  }
+  return result;
+}
+
 async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
-  for (const model of MODELS) {
+  const models = getModelsToTry();
+  console.log(`[generate-flashcards] Trying ${models.length} models`);
+
+  for (const model of models) {
     try {
       const res = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }),
       });
-      if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[generate-flashcards] ${model} error ${res.status}: ${errText}`);
+        continue;
+      }
       const data = await res.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch (e) { console.error(`${model} exception:`, e); }
+      if (content) {
+        console.log(`[generate-flashcards] Success with model: ${model}`);
+        return content;
+      }
+    } catch (e) { console.error(`[generate-flashcards] ${model} exception:`, e); }
   }
   throw new Error("All models failed");
 }

@@ -7,13 +7,29 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = [
+const PRIMARY_MODELS = [
   "nousresearch/hermes-3-llama-3.1-405b:free",
   "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
   "qwen/qwen3-coder:free",
 ];
+const FALLBACK_MODELS = [
+  "openrouter/auto",
+  "deepseek/deepseek-chat-v3-0324:free",
+  "deepseek/deepseek-r1-0528:free",
+  "qwen/qwq-32b:free",
+  "qwen/qwen-2.5-coder-32b-instruct:free",
+  "deepseek/deepseek-r1:free",
+  "microsoft/phi-4-reasoning-plus:free",
+  "microsoft/phi-4-reasoning:free",
+  "microsoft/mai-ds-r1:free",
+  "rekaai/reka-flash-3:free",
+  "nvidia/llama-3.1-nemotron-ultra-253b:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-4b-it:free",
+];
+const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
   try {
@@ -68,7 +84,7 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    for (const model of MODELS) {
+    for (const model of ALL_MODELS) {
       try {
         const res = await fetch(OPENROUTER_URL, {
           method: "POST",
@@ -85,7 +101,9 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
           }),
         });
 
-        if (!res.ok) { console.error(`${model} error ${res.status}`); continue; }
+        if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
+
+        console.log(`[doubt-solver] Success: ${model}`);
 
         return new Response(res.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
