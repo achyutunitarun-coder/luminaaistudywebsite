@@ -187,7 +187,7 @@ const Flashcards = () => {
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="rounded-[2rem] border border-border/30 bg-card/50 backdrop-blur-xl p-8 space-y-5">
+            <div className="rounded-[2rem] liquid-glass-intense p-8 space-y-5">
               <Input
                 placeholder="Deck title — e.g., Biology Chapter 5"
                 value={title}
