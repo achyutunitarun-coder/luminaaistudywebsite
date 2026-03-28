@@ -182,7 +182,7 @@ const QuickStudy = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-2xl bg-muted/10 border border-border/20">
+            <div className="flex gap-1 p-1 rounded-2xl liquid-glass-subtle">
               {(['concepts', 'quiz'] as const).map(tab => (
                 <button
                   key={tab}
