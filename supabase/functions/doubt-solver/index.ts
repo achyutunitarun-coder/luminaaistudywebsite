@@ -84,7 +84,7 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    for (const model of MODELS) {
+    for (const model of ALL_MODELS) {
       try {
         const res = await fetch(OPENROUTER_URL, {
           method: "POST",
