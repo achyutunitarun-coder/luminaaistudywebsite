@@ -299,6 +299,7 @@ const LectureAI = () => {
           </Button>
         </motion.div>
       )}
+      <UpgradePopup open={showUpgrade} onOpenChange={setShowUpgrade} />
     </div>
   );
 };

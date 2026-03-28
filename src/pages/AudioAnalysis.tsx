@@ -19,7 +19,10 @@ const AudioAnalysis = () => {
   const recognitionRef = useRef<any>(null);
   const fullTranscriptRef = useRef('');
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
+    const allowed = await checkAndIncrement('audio_analysis');
+    if (!allowed) return;
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error('Speech recognition is not supported in this browser. Try Chrome or Edge.');
