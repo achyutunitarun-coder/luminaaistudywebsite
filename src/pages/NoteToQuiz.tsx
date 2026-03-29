@@ -23,6 +23,7 @@ const NoteToQuiz = () => {
   const [showAnswers, setShowAnswers] = useState(false);
   const [activeTab, setActiveTab] = useState<'mcq' | 'short' | 'conceptual'>('mcq');
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generate = async () => {
     if (!notes.trim()) return;
