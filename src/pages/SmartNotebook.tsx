@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Upload, FileText, Sparkles, Loader2, Copy, Check, ArrowLeft,
@@ -35,11 +36,20 @@ const SmartNotebook = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
+  const [fileLoading, setFileLoading] = useState(false);
+
   const readFile = useCallback(async (f: File) => {
     setFile(f);
-    const text = await f.text();
-    // Truncate very large files to ~30k chars for the AI
-    setFileContent(text.slice(0, 30000));
+    setFileLoading(true);
+    try {
+      const text = await extractDocumentText(f);
+      // Truncate very large files to ~30k chars for the AI
+      setFileContent(text.slice(0, 30000));
+    } catch (e) {
+      console.error('File extraction error:', e);
+      toast.error('Failed to read file. Try a different format.');
+    }
+    setFileLoading(false);
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -246,7 +256,7 @@ const SmartNotebook = () => {
                     </motion.div>
                     <h2 className="text-2xl font-display font-bold text-foreground mb-2">Upload Your Study Material</h2>
                     <p className="text-muted-foreground text-sm max-w-md text-center mb-8">
-                      Drop a file or click to upload. Supports .txt, .md, .csv, .json, and other text files.
+                      Drop a file or click to upload. Supports PDFs, Excel, images, code files, and text documents.
                     </p>
                     <div className="flex gap-3">
                       <Button
@@ -256,12 +266,12 @@ const SmartNotebook = () => {
                         <File className="w-4 h-4 mr-2" /> Choose File
                       </Button>
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".txt,.md,.csv,.json,.xml,.html,.js,.ts,.py,.java,.c,.cpp,.tex,.log,.rtf"
-                      onChange={handleFileSelect}
-                      className="hidden"
+                     <input
+                       ref={fileInputRef}
+                       type="file"
+                       accept={DOCUMENT_ACCEPT}
+                       onChange={handleFileSelect}
+                       className="hidden"
                     />
                   </>
                 ) : (

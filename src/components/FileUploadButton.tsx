@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Paperclip, X, FileText, Image, File, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 
 export type UploadedFile = {
   name: string;
@@ -8,8 +9,6 @@ export type UploadedFile = {
   content: string; // extracted text or base64 for images
   size: number;
 };
-
-const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml,.xlsx,.xls';
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 const getFileIcon = (type: string) => {
@@ -18,85 +17,8 @@ const getFileIcon = (type: string) => {
   return <File className="w-3.5 h-3.5 text-muted-foreground" />;
 };
 
-const extractPdfText = async (file: globalThis.File): Promise<string> => {
-  try {
-    const pdfjsLib = await import('pdfjs-dist');
-    
-    // Set worker source
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
-    let fullText = '';
-    const totalPages = pdf.numPages;
-    
-    for (let i = 1; i <= totalPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += `\n--- Page ${i} ---\n${pageText}`;
-    }
-    
-    return fullText.trim() || `[PDF: ${file.name} - ${totalPages} pages - no extractable text found. This may be a scanned document.]`;
-  } catch (e) {
-    console.error('PDF extraction error:', e);
-    return `[PDF: ${file.name} - could not extract text. Error: ${e instanceof Error ? e.message : 'unknown'}]`;
-  }
-};
-
-const extractText = async (file: globalThis.File): Promise<string> => {
-  // Images → base64
-  if (file.type.startsWith('image/')) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-  }
-  
-  // PDFs → pdf.js extraction
-  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-    return extractPdfText(file);
-  }
-  
-  // Excel/CSV → SheetJS
-  const excelExts = ['.xlsx', '.xls', '.csv'];
-  if (excelExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
-    try {
-      const XLSX = await import('xlsx');
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      let result = '';
-      for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(sheet);
-        result += `\n--- Sheet: ${sheetName} ---\n${csv}`;
-      }
-      return result.trim() || `[Excel: ${file.name} - no data found]`;
-    } catch (e) {
-      console.error('Excel parsing error:', e);
-      return `[Excel: ${file.name} - could not parse]`;
-    }
-  }
-  
-  // Text-based files
-  const textExtensions = ['.txt', '.md', '.csv', '.json', '.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css', '.xml', '.yaml', '.yml', '.doc', '.docx'];
-  const isText = file.type.startsWith('text/') || textExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
-  
-  if (isText) {
-    return file.text();
-  }
-  
-  // Best effort for unknown types
-  try {
-    return await file.text();
-  } catch {
-    return `[File: ${file.name} - ${(file.size / 1024).toFixed(1)}KB - content could not be extracted]`;
-  }
-};
+// Use the shared extraction utility
+const extractText = (file: globalThis.File): Promise<string> => extractDocumentText(file, true);
 
 type Props = {
   files: UploadedFile[];
@@ -173,7 +95,7 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 5, compact =
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED}
+        accept={DOCUMENT_ACCEPT}
         multiple
         className="hidden"
         onChange={e => e.target.files && handleFiles(e.target.files)}

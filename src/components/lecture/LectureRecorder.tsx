@@ -9,6 +9,7 @@ import {
   prepareAudioChunksForTranscription,
   type PreparedAudioChunk,
 } from '@/components/lecture/audioUtils';
+import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 
 interface Props {
   onTranscriptReady: (transcript: any) => void;
@@ -34,7 +35,7 @@ const BASE_TRANSCRIPTION_CONCURRENCY = 3;
 const POLL_INTERVAL_MS = 1800;
 
 const extractTextFromFile = async (file: File): Promise<string> => {
-  const text = await file.text();
+  const text = await extractDocumentText(file);
   return text.trim();
 };
 
@@ -379,7 +380,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
                   <FileText className="w-4 h-4 mr-2" /> Upload Document
                 </Button>
                 <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
-                <input ref={docInputRef} type="file" accept=".pdf,.txt,.md,.csv,.json,.doc,.docx,.rtf,text/*" onChange={handleDocumentUpload} className="hidden" />
+                <input ref={docInputRef} type="file" accept={DOCUMENT_ACCEPT} onChange={handleDocumentUpload} className="hidden" />
               </div>
             </motion.div>
           )}
