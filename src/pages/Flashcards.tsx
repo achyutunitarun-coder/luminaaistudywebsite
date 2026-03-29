@@ -52,13 +52,15 @@ const Flashcards = () => {
     if (!allowed) return;
     setGenerating(true);
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullContent = content + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ content, title, cardCount }),
+        body: JSON.stringify({ content: fullContent, title, cardCount }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
