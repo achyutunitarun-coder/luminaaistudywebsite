@@ -9,6 +9,7 @@ import {
   prepareAudioChunksForTranscription,
   type PreparedAudioChunk,
 } from '@/components/lecture/audioUtils';
+import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 
 interface Props {
   onTranscriptReady: (transcript: any) => void;
