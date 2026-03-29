@@ -86,8 +86,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const _supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: _claims, error: _claimsErr } = await _supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (_claimsErr || !_claims?.claims?.sub) {
+    const { data: { user: _authUser }, error: _authErr } = await _supabase.auth.getUser();
+    if (_authErr || !_authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
