@@ -115,49 +115,17 @@ const StudySession = () => {
     const coinsEarned = Math.max(2, Math.floor(duration / 15) * 3); // 3 coins per 15 min
     
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('xp, coins, level, streak_days, last_study_date')
-        .eq('user_id', user.id)
-        .single();
+      const { data: result } = await supabase.rpc('award_xp_coins', {
+        p_user_id: user.id,
+        p_xp: xpEarned,
+        p_coins: coinsEarned,
+      });
       
-      if (profile) {
-        const newXp = (profile.xp || 0) + xpEarned;
-        const newCoins = (profile.coins || 0) + coinsEarned;
-        const newLevel = Math.floor(newXp / 100) + 1;
-        
-        // Streak logic
-        const today = new Date().toISOString().split('T')[0];
-        const lastDate = profile.last_study_date;
-        let newStreak = profile.streak_days || 0;
-        
-        if (lastDate !== today) {
-          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-          if (lastDate === yesterday) {
-            newStreak += 1; // Consecutive day
-          } else if (!lastDate) {
-            newStreak = 1; // First study day
-          } else {
-            newStreak = 1; // Streak broken, restart
-          }
-        }
-        
-        await supabase
-          .from('profiles')
-          .update({ 
-            xp: newXp, 
-            coins: newCoins, 
-            level: newLevel,
-            streak_days: newStreak,
-            last_study_date: today,
-          })
-          .eq('user_id', user.id);
-        
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
-        
-        if (newLevel > (profile.level || 1)) {
-          toast.success(`🎉 Level Up! You're now Level ${newLevel}!`);
-        }
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+      
+      const parsed = result as Record<string, unknown> | null;
+      if (parsed?.leveled_up) {
+        toast.success(`🎉 Level Up! You're now Level ${parsed.level}!`);
       }
     } catch (err) {
       console.error('Failed to award XP/coins:', err);
