@@ -34,13 +34,15 @@ const NoteToQuiz = () => {
     setMcqAnswers({});
     setShowAnswers(false);
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullNotes = notes + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/note-to-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ notes: fullNotes }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
