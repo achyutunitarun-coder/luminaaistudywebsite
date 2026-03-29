@@ -119,9 +119,24 @@ const ChatPage = () => {
   const [editTitle, setEditTitle] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [selectedMode, setSelectedMode] = useState<string>('auto');
+  const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [activeModel, setActiveModel] = useState<string | null>(null);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSendingRef = useRef(false);
+
+  const MODE_OPTIONS = [
+    { value: 'auto', label: 'Auto', icon: Zap, desc: 'AI picks best mode' },
+    { value: 'reasoning', label: 'Reasoning', icon: Brain, desc: 'Math & logic' },
+    { value: 'coding', label: 'Coding', icon: Code2, desc: 'Programming' },
+    { value: 'general', label: 'General', icon: MessagesSquare, desc: 'Chat & explain' },
+    { value: 'fast', label: 'Fast', icon: Zap, desc: 'Quick answers' },
+    { value: 'study', label: 'Study', icon: BookOpen, desc: 'Structured learning' },
+    { value: 'long_context', label: 'Long Context', icon: FileText, desc: 'Summaries' },
+    { value: 'creative', label: 'Creative', icon: Palette, desc: 'Writing & stories' },
+  ];
 
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
