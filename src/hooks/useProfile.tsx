@@ -21,12 +21,24 @@ export const useProfile = () => {
     enabled: !!user,
   });
 
+  // Allow-list of safe fields — gamification stats are server-only
+  const SAFE_FIELDS = new Set([
+    'display_name', 'avatar_url', 'study_mode', 'difficulty',
+    'learning_style', 'gamification_mode', 'theme', 'extra_preferences',
+  ]);
+
   const updateProfile = useMutation({
     mutationFn: async (updates: Record<string, unknown>) => {
       if (!user) throw new Error('Not authenticated');
+      // Strip any fields not in the allow-list
+      const safeUpdates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (SAFE_FIELDS.has(key)) safeUpdates[key] = value;
+      }
+      if (Object.keys(safeUpdates).length === 0) throw new Error('No valid fields to update');
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(safeUpdates)
         .eq('user_id', user.id);
       if (error) throw error;
     },
