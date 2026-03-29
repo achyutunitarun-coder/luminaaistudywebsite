@@ -204,6 +204,7 @@ const Flashcards = () => {
                 onChange={e => setContent(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
               />
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
               
               {/* Card count selector */}
               <div className="space-y-3">
