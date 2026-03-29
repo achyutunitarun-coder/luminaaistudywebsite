@@ -32,6 +32,20 @@ const FALLBACK_MODELS = [
 const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
 async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
+
+function cleanAndParseJSON(raw: string): any {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  let jsonStr = match[0];
+  jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
+  try { return JSON.parse(jsonStr); } catch {}
+  jsonStr = jsonStr.replace(/[\x00-\x1f]/g, ' ');
+  try { return JSON.parse(jsonStr); } catch {}
+  return null;
+}
+
   for (const model of ALL_MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
