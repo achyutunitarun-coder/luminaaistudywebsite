@@ -40,6 +40,47 @@ const FALLBACK_MODELS = [
   "google/gemma-3-1b-it:free",
 ];
 
+function cleanAndParseJSON(raw: string): any {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  text = text.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  const start = text.search(/[\[{]/);
+  if (start < 0) return null;
+  const startChar = text[start];
+  const end = text.lastIndexOf(startChar === "[" ? "]" : "}");
+  if (end < 0 || end <= start) return null;
+
+  let jsonStr = text.slice(start, end + 1).trim();
+  jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
+  jsonStr = jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");
+
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    let braces = 0;
+    let brackets = 0;
+    for (const ch of jsonStr) {
+      if (ch === "{") braces++;
+      if (ch === "}") braces--;
+      if (ch === "[") brackets++;
+      if (ch === "]") brackets--;
+    }
+    while (brackets > 0) {
+      jsonStr += "]";
+      brackets--;
+    }
+    while (braces > 0) {
+      jsonStr += "}";
+      braces--;
+    }
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
+  }
+}
+
 function getModelsToTry(): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -50,20 +91,6 @@ function getModelsToTry(): string[] {
 }
 
 async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
-
-function cleanAndParseJSON(raw: string): any {
-  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  let jsonStr = match[0];
-  jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
-  try { return JSON.parse(jsonStr); } catch {}
-  jsonStr = jsonStr.replace(/[\x00-\x1f]/g, ' ');
-  try { return JSON.parse(jsonStr); } catch {}
-  return null;
-}
-
   const models = getModelsToTry();
   console.log(`[generate-flashcards] Trying ${models.length} models`);
 
