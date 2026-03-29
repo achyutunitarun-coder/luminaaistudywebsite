@@ -12,62 +12,69 @@ const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ═══════════════════════════════════════════════════════════
-// MODEL CATEGORY MAPPING — ALL FREE, ORDERED BY PRIORITY
+// MODEL CATEGORY MAPPING — ALL VERIFIED FREE MODELS
 // ═══════════════════════════════════════════════════════════
 
 const CATEGORY_MODELS: Record<string, string[]> = {
   reasoning: [
     "deepseek/deepseek-r1:free",
+    "deepseek/deepseek-r1-0528:free",
+    "microsoft/phi-4-reasoning-plus:free",
     "nvidia/nemotron-nano-9b-v2:free",
   ],
   coding: [
     "qwen/qwen3-coder:free",
-    "deepseek/deepseek-coder-v2-lite:free",
+    "qwen/qwen-2.5-coder-32b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
   ],
   general: [
-    "deepseek/deepseek-chat:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "google/gemma-3-12b-it:free",
+    "rekaai/reka-flash-3:free",
   ],
   fast: [
-    "mistralai/mistral-7b-instruct:free",
-    "google/gemma-2b-it:free",
-    "liquid/lfm2.5-1.2b-instruct:free",
+    "google/gemma-3-4b-it:free",
+    "google/gemma-3-12b-it:free",
+    "rekaai/reka-flash-3:free",
   ],
   study: [
-    "zhipu-ai/glm-4.5-air:free",
-    "stepfun/step-3.5-flash:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "google/gemma-3-12b-it:free",
+    "microsoft/mai-ds-r1:free",
   ],
   long_context: [
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "zhipu-ai/glm-4.5-air:free",
+    "nvidia/llama-3.1-nemotron-ultra-253b:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "deepseek/deepseek-r1:free",
   ],
   creative: [
-    "arcee-ai/trinity-mini:free",
-    "mistralai/mistral-7b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "google/gemma-3-12b-it:free",
+    "rekaai/reka-flash-3:free",
   ],
 };
 
-// Balanced backup layer — tried after category models fail
+// Balanced backup layer
 const BALANCED_BACKUP = [
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "zhipu-ai/glm-4.5-air:free",
+  "microsoft/phi-4-reasoning:free",
+  "qwen/qwq-32b:free",
+  "google/gemma-3-4b-it:free",
 ];
 
-// Final safety net
 const FINAL_FALLBACK = "openrouter/auto";
 
 // ═══════════════════════════════════════════════════════════
-// TIMEOUT CONFIG PER CATEGORY (ms)
+// TIMEOUT CONFIG PER CATEGORY (ms) — generous for streaming
 // ═══════════════════════════════════════════════════════════
 
 const TIMEOUT_MS: Record<string, number> = {
-  fast: 2000,
-  general: 4000,
-  coding: 4000,
-  study: 4000,
-  creative: 4000,
-  long_context: 6000,
-  reasoning: 6000,
+  fast: 8000,
+  general: 12000,
+  coding: 12000,
+  study: 12000,
+  creative: 12000,
+  long_context: 15000,
+  reasoning: 15000,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -136,19 +143,13 @@ function detectCategory(text: string): Category {
   for (const kw of LONG_CONTEXT_KW) if (lower.includes(kw)) scores.long_context++;
   for (const kw of FAST_KW) if (lower.includes(kw)) scores.fast++;
 
-  // Code block boost
   if (text.includes("```") || text.includes("function ") || text.includes("const ") || text.includes("let ")) scores.coding += 3;
-
-  // Long input boost
   if (text.length > 3000) scores.long_context += 3;
-
-  // Short input boost
   if (text.length < 60 && !text.includes("```")) scores.fast += 2;
 
   const max = Math.max(...Object.values(scores));
   if (max === 0) return "general";
 
-  // Priority order for tie-breaking
   const priority: Category[] = ["coding", "reasoning", "long_context", "study", "creative", "fast", "general"];
   for (const cat of priority) {
     if (scores[cat] === max) return cat;
@@ -158,7 +159,6 @@ function detectCategory(text: string): Category {
 
 function buildModelChain(category: Category): string[] {
   const categoryModels = CATEGORY_MODELS[category] || CATEGORY_MODELS.general;
-  // Deduplicate while preserving order
   const seen = new Set<string>();
   const chain: string[] = [];
   for (const m of [...categoryModels, ...BALANCED_BACKUP, FINAL_FALLBACK]) {
@@ -248,12 +248,12 @@ serve(async (req) => {
       }
     }
 
-    // ── Detect category (or use manual override) ──
+    // ── Detect category ──
     const queryText = lastMsg?.content || "";
     const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
     const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
     const models = buildModelChain(category);
-    const timeout = TIMEOUT_MS[category] || 4000;
+    const timeout = TIMEOUT_MS[category] || 12000;
     console.log(`[Lumina] Mode: ${category} | Timeout: ${timeout}ms | Chain: ${models.length} models`);
 
     // ── System prompt ──
