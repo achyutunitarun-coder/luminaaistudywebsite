@@ -9,6 +9,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type MCQ = { question: string; options: string[]; correct: number; explanation: string };
 type ShortAnswer = { question: string; answer: string };
