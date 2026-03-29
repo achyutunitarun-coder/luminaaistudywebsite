@@ -11,134 +11,165 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ── Primary models (best free models) ──
-const PRIMARY_MODELS = [
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "qwen/qwen3-coder:free",
+// ═══════════════════════════════════════════════════════════
+// MODEL CATEGORY MAPPING — ALL FREE, ORDERED BY PRIORITY
+// ═══════════════════════════════════════════════════════════
+
+const CATEGORY_MODELS: Record<string, string[]> = {
+  reasoning: [
+    "deepseek/deepseek-r1:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+  ],
+  coding: [
+    "qwen/qwen3-coder:free",
+    "deepseek/deepseek-coder-v2-lite:free",
+  ],
+  general: [
+    "deepseek/deepseek-chat:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+  ],
+  fast: [
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-2b-it:free",
+    "liquid/lfm2.5-1.2b-instruct:free",
+  ],
+  study: [
+    "zhipu-ai/glm-4.5-air:free",
+    "stepfun/step-3.5-flash:free",
+  ],
+  long_context: [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "zhipu-ai/glm-4.5-air:free",
+  ],
+  creative: [
+    "arcee-ai/trinity-mini:free",
+    "mistralai/mistral-7b-instruct:free",
+  ],
+};
+
+// Balanced backup layer — tried after category models fail
+const BALANCED_BACKUP = [
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "zhipu-ai/glm-4.5-air:free",
 ];
 
-// Primary fallback — OpenRouter picks best available free model
-const AUTO_ROUTER = "openrouter/auto";
+// Final safety net
+const FINAL_FALLBACK = "openrouter/auto";
 
-// ── Coding specialists ──
-const CODING_MODELS = [
-  "qwen/qwen3-coder:free",
-  "qwen/qwen-2.5-coder-32b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+// ═══════════════════════════════════════════════════════════
+// TIMEOUT CONFIG PER CATEGORY (ms)
+// ═══════════════════════════════════════════════════════════
+
+const TIMEOUT_MS: Record<string, number> = {
+  fast: 2000,
+  general: 4000,
+  coding: 4000,
+  study: 4000,
+  creative: 4000,
+  long_context: 6000,
+  reasoning: 6000,
+};
+
+// ═══════════════════════════════════════════════════════════
+// KEYWORD-BASED TASK DETECTION
+// ═══════════════════════════════════════════════════════════
+
+const CODING_KW = [
+  "code","coding","program","function","bug","debug","javascript","python",
+  "typescript","react","html","css","api","algorithm","syntax","compile",
+  "runtime","error","exception","class","array","variable","loop","import",
+  "export","async","await","promise","fetch","database","sql","git","deploy",
+  "docker","npm","node","backend","frontend","framework","library","component",
+  "hook","rust","java","golang","c++","swift","kotlin",
 ];
 
-// ── Reasoning specialists ──
-const REASONING_MODELS = [
-  "deepseek/deepseek-r1-0528:free",
-  "qwen/qwq-32b:free",
-  "deepseek/deepseek-r1:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
+const REASONING_KW = [
+  "why","explain why","reason","reasoning","logic","prove","proof","deduce",
+  "infer","conclude","analyze","critical thinking","argument","fallacy",
+  "hypothesis","theorem","paradox","contradiction","philosophy","step by step",
+  "step-by-step","breakdown","evaluate","math","calculus","integral",
+  "derivative","equation","algebra","geometry","trigonometry","statistics",
+  "probability","matrix","vector","physics","chemistry","formula","solve",
+  "calculate","polynomial","logarithm","exponent","limit","series",
+  "sequence","differential","linear algebra",
 ];
 
-// ── Math/Science specialists ──
-const MATH_MODELS = [
-  "deepseek/deepseek-r1-0528:free",
-  "deepseek/deepseek-r1:free",
-  "qwen/qwq-32b:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+const STUDY_KW = [
+  "study","learn","explain","concept","definition","exam","test prep",
+  "revision","flashcard","quiz","chapter","textbook","lecture","syllabus",
+  "curriculum","practice","homework","assignment","notes","summary",
+  "important points","key concepts",
 ];
 
-// ── Creative/Writing specialists ──
-const CREATIVE_MODELS = [
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-27b-it:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
+const CREATIVE_KW = [
+  "write","essay","story","poem","creative","narrative","blog","article",
+  "letter","speech","script","dialogue","fiction","describe","imagine",
+  "compose","draft","rewrite","paraphrase","review","critique","tone",
+  "storytelling",
 ];
 
-// ── Extended fallback pool ──
-const FALLBACK_MODELS = [
-  "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1-0528:free",
-  "qwen/qwq-32b:free",
-  "qwen/qwen-2.5-coder-32b-instruct:free",
-  "deepseek/deepseek-r1:free",
-  "microsoft/phi-4-reasoning-plus:free",
-  "microsoft/phi-4-reasoning:free",
-  "microsoft/mai-ds-r1:free",
-  "rekaai/reka-flash-3:free",
-  "moonshotai/kimi-vl-a3b-thinking:free",
-  "nvidia/llama-3.1-nemotron-ultra-253b:free",
-  "open-r1/olympiccoder-32b:free",
-  "allenai/olmo-2-0325-32b-instruct:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3-12b-it:free",
-  "google/gemma-3-1b-it:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
+const LONG_CONTEXT_KW = [
+  "summarize","summary","long text","entire document","full text",
+  "large input","whole file","all pages","condense","brief overview",
+  "tldr","key takeaways",
 ];
 
-// ── Keyword sets for routing ──
-const CODING_KEYWORDS = [
-  "code", "coding", "program", "function", "bug", "debug", "javascript", "python",
-  "typescript", "react", "html", "css", "api", "algorithm", "syntax", "compile",
-  "runtime", "error", "exception", "class", "object", "array", "variable",
-  "loop", "if else", "switch", "import", "export", "async", "await", "promise",
-  "fetch", "database", "sql", "git", "deploy", "docker", "npm", "node",
-  "backend", "frontend", "framework", "library", "component", "hook",
+const FAST_KW = [
+  "quick","fast","short answer","yes or no","one word","brief",
+  "simple","what is","define","translate","convert","how much",
+  "when did","where is","who is",
 ];
 
-const REASONING_KEYWORDS = [
-  "why", "explain why", "reason", "reasoning", "logic", "prove", "proof",
-  "deduce", "infer", "conclude", "analyze", "critical thinking", "argument",
-  "fallacy", "hypothesis", "theorem", "paradox", "contradiction", "philosophy",
-  "think step by step", "step-by-step", "breakdown", "evaluate",
-];
+type Category = "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
 
-const MATH_KEYWORDS = [
-  "math", "calculus", "integral", "derivative", "equation", "algebra",
-  "geometry", "trigonometry", "statistics", "probability", "matrix",
-  "vector", "physics", "chemistry", "formula", "solve", "calculate",
-  "graph", "function", "polynomial", "logarithm", "exponent", "limit",
-  "series", "sequence", "differential", "linear algebra",
-];
-
-const CREATIVE_KEYWORDS = [
-  "write", "essay", "story", "poem", "creative", "narrative", "blog",
-  "article", "letter", "speech", "script", "dialogue", "fiction",
-  "describe", "imagine", "compose", "draft", "rewrite", "summarize",
-  "paraphrase", "review", "critique",
-];
-
-function detectQueryType(text: string): "coding" | "reasoning" | "math" | "creative" | "general" {
+function detectCategory(text: string): Category {
   const lower = text.toLowerCase();
-  let codingScore = 0, reasoningScore = 0, mathScore = 0, creativeScore = 0;
+  const scores: Record<Category, number> = {
+    reasoning: 0, coding: 0, general: 0, fast: 0,
+    study: 0, long_context: 0, creative: 0,
+  };
 
-  for (const kw of CODING_KEYWORDS) if (lower.includes(kw)) codingScore++;
-  for (const kw of REASONING_KEYWORDS) if (lower.includes(kw)) reasoningScore++;
-  for (const kw of MATH_KEYWORDS) if (lower.includes(kw)) mathScore++;
-  for (const kw of CREATIVE_KEYWORDS) if (lower.includes(kw)) creativeScore++;
+  for (const kw of CODING_KW) if (lower.includes(kw)) scores.coding++;
+  for (const kw of REASONING_KW) if (lower.includes(kw)) scores.reasoning++;
+  for (const kw of STUDY_KW) if (lower.includes(kw)) scores.study++;
+  for (const kw of CREATIVE_KW) if (lower.includes(kw)) scores.creative++;
+  for (const kw of LONG_CONTEXT_KW) if (lower.includes(kw)) scores.long_context++;
+  for (const kw of FAST_KW) if (lower.includes(kw)) scores.fast++;
 
-  if (text.includes("```") || text.includes("function ") || text.includes("const ") || text.includes("let ")) codingScore += 3;
+  // Code block boost
+  if (text.includes("```") || text.includes("function ") || text.includes("const ") || text.includes("let ")) scores.coding += 3;
 
-  const max = Math.max(codingScore, reasoningScore, mathScore, creativeScore);
+  // Long input boost
+  if (text.length > 3000) scores.long_context += 3;
+
+  // Short input boost
+  if (text.length < 60 && !text.includes("```")) scores.fast += 2;
+
+  const max = Math.max(...Object.values(scores));
   if (max === 0) return "general";
-  if (codingScore === max) return "coding";
-  if (mathScore === max) return "math";
-  if (reasoningScore === max) return "reasoning";
-  return "creative";
+
+  // Priority order for tie-breaking
+  const priority: Category[] = ["coding", "reasoning", "long_context", "study", "creative", "fast", "general"];
+  for (const cat of priority) {
+    if (scores[cat] === max) return cat;
+  }
+  return "general";
 }
 
-function getModelsForQuery(queryType: string): string[] {
-  switch (queryType) {
-    case "coding": return [...CODING_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS];
-    case "reasoning": return [...REASONING_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS];
-    case "math": return [...MATH_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS];
-    case "creative": return [...CREATIVE_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS];
-    default: return [...PRIMARY_MODELS, AUTO_ROUTER, ...FALLBACK_MODELS];
+function buildModelChain(category: Category): string[] {
+  const categoryModels = CATEGORY_MODELS[category] || CATEGORY_MODELS.general;
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  const chain: string[] = [];
+  for (const m of [...categoryModels, ...BALANCED_BACKUP, FINAL_FALLBACK]) {
+    if (!seen.has(m)) { seen.add(m); chain.push(m); }
   }
+  return chain;
 }
+
+// ═══════════════════════════════════════════════════════════
+// SERPER SEARCH
+// ═══════════════════════════════════════════════════════════
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
   try {
@@ -157,78 +188,92 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
+// ═══════════════════════════════════════════════════════════
+// FETCH WITH TIMEOUT
+// ═══════════════════════════════════════════════════════════
+
+async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN HANDLER
+// ═══════════════════════════════════════════════════════════
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Auth
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // ── Auth ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const _supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user: _authUser }, error: _authErr } = await _supabase.auth.getUser();
-    if (_authErr || !_authUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+    const { data: { user }, error: authErr } = await sb.auth.getUser();
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Payload
+    // ── Payload ──
     const body = await req.text();
     if (body.length > MAX_PAYLOAD_BYTES) {
-      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const { messages } = JSON.parse(body);
+    const { messages, mode } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > MAX_MESSAGES) {
-      return new Response(JSON.stringify({ error: 'Invalid or too many messages (max 50)' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Invalid or too many messages (max 50)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    // Search context
+    // ── Search context ──
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let searchContext = "";
     if (lastMsg && SERPER_API_KEY) {
-      // For file-attached messages, search on just the user's question part (before --- ATTACHED FILES ---)
       const searchQuery = lastMsg.content.split("--- ATTACHED FILES ---")[0].trim().slice(0, 120);
       if (searchQuery.length > 5) {
         searchContext = await searchSerper(searchQuery, SERPER_API_KEY);
       }
     }
 
-    // Detect query type
+    // ── Detect category (or use manual override) ──
     const queryText = lastMsg?.content || "";
-    const queryType = detectQueryType(queryText);
-    const models = getModelsForQuery(queryType);
-    console.log(`[Lumina] Query type: ${queryType}, trying ${models.length} models`);
+    const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
+    const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
+    const models = buildModelChain(category);
+    const timeout = TIMEOUT_MS[category] || 4000;
+    console.log(`[Lumina] Mode: ${category} | Timeout: ${timeout}ms | Chain: ${models.length} models`);
 
-    // Check if message has file attachments
+    // ── System prompt ──
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
 
     let systemPrompt = `You are Lumina AI — a friendly, warm, and brilliant study buddy built by Tarun Kartikeya.
 
 ## CRITICAL RULES:
-
 1. **ALWAYS respond directly to what the user is asking.** Read their FULL message including any attached file content. Never give a generic greeting when the user has asked a question or attached files.
-
-2. **ATTACHED FILES**: When the user's message contains "--- ATTACHED FILES ---", they have uploaded a document. You MUST read ALL the file content carefully and respond based on it. The file content IS the context for their question. NEVER ignore it. NEVER respond with just a greeting when files are attached.
-
+2. **ATTACHED FILES**: When the user's message contains "--- ATTACHED FILES ---", they have uploaded a document. You MUST read ALL the file content carefully and respond based on it. NEVER ignore it. NEVER respond with just a greeting when files are attached.
 3. **GREETINGS**: ONLY give a short 2-3 sentence greeting if the user's ENTIRE message is just "hello", "hi", "hey" etc. with NO other content and NO attached files.
-
 4. **Casual chat** = short, friendly, human. Like texting a friend.
 
-## WHEN SOMEONE ASKS AN ACADEMIC QUESTION:
-
-Deliver world-class, university-level explanations:
-
+## ACADEMIC QUESTIONS:
 - **Open** with a powerful analogy or real-world hook
 - **Build** understanding layer by layer — intuition → formal definition → deeper insight
 - **Explain** the WHY behind every formula, theorem, or concept
 - **Format**: Rich Markdown — **bold** key terms, *italics* for emphasis, headings for sections
 - **Math/Science**: Use LaTeX notation ($x^2$, $\\frac{1}{2}$). Show derivations, explain each step
 - **Depth**: Thorough and comprehensive. Cover edge cases, misconceptions, exam insights
-- **Tone**: Warm, encouraging — like a brilliant mentor who loves the subject
 - **End** with ONE thought-provoking check question
 
 ## RESPONSE QUALITY:
@@ -237,18 +282,18 @@ Deliver world-class, university-level explanations:
 - If the student seems confused, try a COMPLETELY different angle`;
 
     if (hasFiles) {
-      systemPrompt += `\n\n## IMPORTANT — FILE CONTEXT ACTIVE:
-The user has attached files to this message. Their question is about the file content. Read ALL the attached content and answer based on it. Do NOT greet them — answer their question directly using the file content.`;
+      systemPrompt += `\n\n## FILE CONTEXT ACTIVE:
+The user has attached files. Their question is about the file content. Read ALL attached content and answer based on it. Do NOT greet — answer directly using the file content.`;
     }
 
     if (searchContext) systemPrompt += `\n\nREFERENCE DATA (use naturally, don't cite):\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    // Try models with fallback
+    // ── Try models with fallback + timeout ──
     for (const model of models) {
       try {
-        const res = await fetch(OPENROUTER_URL, {
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
@@ -261,29 +306,49 @@ The user has attached files to this message. Their question is about the file co
             temperature: 0.7,
             stream: true,
           }),
-        });
+        }, timeout);
 
         if (!res.ok) {
           const errText = await res.text();
-          console.error(`[Lumina] ${model} error ${res.status}: ${errText}`);
+          console.error(`[Lumina] ${model} error ${res.status}: ${errText.slice(0, 200)}`);
           continue;
         }
 
         const contentType = res.headers.get("content-type") || "";
         if (contentType.includes("application/json")) {
-          const body = await res.json();
-          if (body.error) {
-            console.error(`[Lumina] ${model} returned error in body:`, body.error);
+          const jsonBody = await res.json();
+          if (jsonBody.error) {
+            console.error(`[Lumina] ${model} body error:`, jsonBody.error);
             continue;
           }
         }
 
-        console.log(`[Lumina] Success with model: ${model} (type: ${queryType})`);
-        return new Response(res.body, {
+        console.log(`[Lumina] ✓ ${model} (mode: ${category})`);
+
+        // Inject model/mode metadata as first SSE event
+        const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model, mode: category } })}\n\n`;
+        const metaBytes = new TextEncoder().encode(metaEvent);
+
+        const { readable, writable } = new TransformStream();
+        const writer = writable.getWriter();
+
+        (async () => {
+          await writer.write(metaBytes);
+          const reader = res.body!.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            await writer.write(value);
+          }
+          await writer.close();
+        })();
+
+        return new Response(readable, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
         });
       } catch (e) {
-        console.error(`[Lumina] ${model} exception:`, e);
+        const isTimeout = e instanceof DOMException && e.name === "AbortError";
+        console.error(`[Lumina] ${model} ${isTimeout ? "TIMEOUT" : "exception"}:`, isTimeout ? `>${timeout}ms` : e);
       }
     }
 
