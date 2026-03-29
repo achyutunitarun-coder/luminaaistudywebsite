@@ -224,7 +224,8 @@ Rules:
 
 Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.
 - Keep each explanation under 2 sentences.
-- Use plain text only (no LaTeX, no markdown).` },
+- Use LaTeX notation for math expressions (e.g. $x^2 + 3x - 5$, $\\frac{1}{2}$, $\\sqrt{x}$). Wrap inline math in single dollar signs.
+- Use plain text for non-math content (no markdown formatting like ** or ##).` },
       { role: "user", content: `Subject: ${String(subject || 'General').slice(0, 200)}\n\nSyllabus/Topic:\n${String(syllabus || '').slice(0, 10000)}` },
     ];
 
