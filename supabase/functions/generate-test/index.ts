@@ -34,48 +34,68 @@ const FALLBACK_MODELS = [
 ];
 const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
-function cleanAndParseJSON(raw: string): any {
+type TestPayload = {
+  questions: Array<{ question: string; options: string[]; correct: number; explanation: string }>;
+};
+
+const normalizeSingleQuotes = (input: string) => input
+  .replace(/([{,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '$1"$2":')
+  .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_m, value) => `: "${String(value).replace(/"/g, '\\"')}"`);
+
+const autoCloseJson = (input: string) => {
+  let json = input;
+  let braces = 0;
+  let brackets = 0;
+  for (const ch of json) {
+    if (ch === "{") braces++;
+    if (ch === "}") braces--;
+    if (ch === "[") brackets++;
+    if (ch === "]") brackets--;
+  }
+  while (brackets > 0) {
+    json += "]";
+    brackets--;
+  }
+  while (braces > 0) {
+    json += "}";
+    braces--;
+  }
+  return json;
+};
+
+function cleanAndParseJSON(raw: string): unknown {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   text = text.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
 
   const start = text.search(/[\[{]/);
   if (start < 0) return null;
+
   const startChar = text[start];
   const end = text.lastIndexOf(startChar === "[" ? "]" : "}");
-  if (end < 0 || end <= start) return null;
+  const extracted = end > start ? text.slice(start, end + 1) : text.slice(start);
+  const sanitized = extracted
+    .replace(/,\s*([\]}])/g, "$1")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");
 
-  let jsonStr = text.slice(start, end + 1).trim();
-  jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
-  jsonStr = jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");
+  const candidates = [
+    sanitized,
+    normalizeSingleQuotes(sanitized),
+    autoCloseJson(sanitized),
+    autoCloseJson(normalizeSingleQuotes(sanitized)),
+  ];
 
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    let braces = 0;
-    let brackets = 0;
-    for (const ch of jsonStr) {
-      if (ch === "{") braces++;
-      if (ch === "}") braces--;
-      if (ch === "[") brackets++;
-      if (ch === "]") brackets--;
-    }
-    while (brackets > 0) {
-      jsonStr += "]";
-      brackets--;
-    }
-    while (braces > 0) {
-      jsonStr += "}";
-      braces--;
-    }
+  for (const candidate of candidates) {
     try {
-      return JSON.parse(jsonStr);
+      return JSON.parse(candidate);
     } catch {
-      return null;
+      // try next
     }
   }
+
+  return null;
 }
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<TestPayload> {
   for (const model of ALL_MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -86,7 +106,15 @@ async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500)
       if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
       const data = await res.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (content) { console.log(`[generate-test] Success: ${model}`); return content; }
+      if (!content) continue;
+
+      const parsed = cleanAndParseJSON(content) as TestPayload | null;
+      if (parsed?.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+        console.log(`[generate-test] Success: ${model}`);
+        return parsed;
+      }
+
+      console.error(`[generate-test] ${model} produced unparsable output, trying next model`);
     } catch (e) { console.error(`${model} exception:`, e); }
   }
   throw new Error("All models failed");
@@ -127,21 +155,15 @@ Rules:
 - Each wrong option should be a plausible distractor (common misconception)
 - Explanations should teach WHY the answer is correct AND why each wrong option fails
 
-Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.` },
+Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.
+- Keep each explanation under 2 sentences.
+- Use plain text only (no LaTeX, no markdown).` },
       { role: "user", content: `Subject: ${String(subject || 'General').slice(0, 200)}\n\nSyllabus/Topic:\n${String(syllabus || '').slice(0, 10000)}` },
     ];
 
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
-    const parsed = cleanAndParseJSON(text);
-    if (parsed?.questions) {
-      return new Response(JSON.stringify(parsed), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.error("[generate-test] Failed to parse AI response:", text.slice(0, 500));
-    return new Response(JSON.stringify({ error: "AI returned an invalid response. Please try again." }), {
-      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const parsed = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2200);
+    return new Response(JSON.stringify(parsed), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("generate-test error:", e);
