@@ -36,11 +36,20 @@ const SmartNotebook = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
+  const [fileLoading, setFileLoading] = useState(false);
+
   const readFile = useCallback(async (f: File) => {
     setFile(f);
-    const text = await f.text();
-    // Truncate very large files to ~30k chars for the AI
-    setFileContent(text.slice(0, 30000));
+    setFileLoading(true);
+    try {
+      const text = await extractDocumentText(f);
+      // Truncate very large files to ~30k chars for the AI
+      setFileContent(text.slice(0, 30000));
+    } catch (e) {
+      console.error('File extraction error:', e);
+      toast.error('Failed to read file. Try a different format.');
+    }
+    setFileLoading(false);
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
