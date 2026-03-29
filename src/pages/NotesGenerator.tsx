@@ -81,13 +81,15 @@ const NotesGenerator = () => {
     setAutoSaved(false);
 
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullSourceText = (sourceText || '') + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ topic, sourceText, style: selectedStyle }),
+        body: JSON.stringify({ topic, sourceText: fullSourceText, style: selectedStyle }),
       });
 
       if (!resp.ok) throw new Error('Failed');
