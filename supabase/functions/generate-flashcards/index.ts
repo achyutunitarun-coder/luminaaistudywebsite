@@ -50,6 +50,20 @@ function getModelsToTry(): string[] {
 }
 
 async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
+
+function cleanAndParseJSON(raw: string): any {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  let jsonStr = match[0];
+  jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
+  try { return JSON.parse(jsonStr); } catch {}
+  jsonStr = jsonStr.replace(/[\x00-\x1f]/g, ' ');
+  try { return JSON.parse(jsonStr); } catch {}
+  return null;
+}
+
   const models = getModelsToTry();
   console.log(`[generate-flashcards] Trying ${models.length} models`);
 
@@ -117,15 +131,16 @@ Return ONLY valid JSON with no markdown fences: {"cards": [{"front": "question",
     ];
 
     const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
+    const parsed = cleanAndParseJSON(text);
+    if (parsed?.cards) {
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "Failed to parse flashcards" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.error("[generate-flashcards] Failed to parse AI response:", text.slice(0, 500));
+    return new Response(JSON.stringify({ error: "AI returned an invalid response. Please try again." }), {
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("generate-flashcards error:", e);
