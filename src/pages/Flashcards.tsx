@@ -25,6 +25,7 @@ const Flashcards = () => {
   const [activeDeck, setActiveDeck] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const { data: decks } = useQuery({
     queryKey: ['flashcard_decks', user?.id],
