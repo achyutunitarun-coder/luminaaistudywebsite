@@ -234,7 +234,7 @@ serve(async (req) => {
     if (authErr || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = authUser.id;
 
     // Payload size check
     const body = await req.text();
