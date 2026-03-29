@@ -302,6 +302,12 @@ const ChatPage = () => {
           if (jsonStr === '[DONE]') break;
           try {
             const parsed = JSON.parse(jsonStr);
+            // Capture model/mode metadata
+            if (parsed.lumina_meta) {
+              setActiveMode(parsed.lumina_meta.mode);
+              setActiveModel(parsed.lumina_meta.model);
+              continue;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               fullContent += content;
