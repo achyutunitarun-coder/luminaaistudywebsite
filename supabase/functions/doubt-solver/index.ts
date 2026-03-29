@@ -9,25 +9,25 @@ const corsHeaders = {
 
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
-
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Verified working free models — ordered by quality for doubt solving
+// Verified working free models (2026-03-29)
 const ALL_MODELS = [
-  "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1:free",
-  "deepseek/deepseek-r1-0528:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "google/gemma-3-12b-it:free",
-  "qwen/qwq-32b:free",
-  "microsoft/phi-4-reasoning-plus:free",
-  "microsoft/phi-4-reasoning:free",
-  "microsoft/mai-ds-r1:free",
-  "rekaai/reka-flash-3:free",
-  "nvidia/llama-3.1-nemotron-ultra-253b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
+  "z-ai/glm-4.5-air:free",
   "qwen/qwen3-coder:free",
-  "qwen/qwen-2.5-coder-32b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "arcee-ai/trinity-large-preview:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
   "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e4b-it:free",
   "openrouter/auto",
 ];
 
@@ -52,7 +52,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -63,7 +62,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Payload size check
     const body = await req.text();
     if (body.length > MAX_PAYLOAD_BYTES) {
       return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -84,26 +82,26 @@ serve(async (req) => {
       searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
     }
 
+    const queryText = lastMsg?.content || "";
+    const hasFiles = queryText.includes("--- ATTACHED FILES ---");
+
     let systemPrompt = `You are Lumina AI Doubt Solver — a world-class tutor who makes even the hardest concepts feel intuitive. Built by Tarun Kartikeya.
 
-Your approach:
-- First, acknowledge what the student might be struggling with — show you understand the confusion
-- Give a crystal-clear explanation using everyday analogies and vivid mental models
-- For math/science: show complete step-by-step solutions with reasoning at EACH step, not just the answer
-- For conceptual subjects: build understanding through stories, examples, and connections
-- Use markdown formatting: **bold** for key terms, headers for sections, code blocks for formulas
-- Include relevant diagrams described in text when helpful
-- End with 1-2 targeted practice questions that reinforce the exact concept
-- Be encouraging — treat every question as worthy of a thorough answer
+RULES:
+- If the user sends a casual greeting (hi, hello, hey) with no academic question, reply with a warm 2-3 sentence greeting and ask what they need help with. Do NOT lecture about random topics.
+- For academic questions: acknowledge the confusion, give crystal-clear explanations with analogies, show step-by-step solutions for math/science, use **bold** for key terms and LaTeX for formulas.
+- End academic answers with 1-2 practice questions.
 
-Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust depth accordingly:
-- SIMPLE: Use the simplest possible language, lots of analogies, minimal jargon
-- EXAM: Focus on exam-relevant patterns, common mistakes, scoring tips, and model answers
-- DEEP: Go into theoretical depth, proofs, edge cases, and advanced implications
+Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust depth:
+- SIMPLE: Simplest language, lots of analogies, minimal jargon
+- EXAM: Exam patterns, common mistakes, scoring tips, model answers
+- DEEP: Theoretical depth, proofs, edge cases, advanced implications`;
 
-IMPORTANT: If the user just says "hello" or "hi", give a brief friendly greeting and ask what they need help with. Do NOT lecture about unrelated topics.`;
+    if (hasFiles) {
+      systemPrompt += `\n\nThe user has attached files. Read ALL the attached content and answer based on it.`;
+    }
 
-    if (searchContext) systemPrompt += `\n\nREFERENCE DATA:\n${searchContext}`;
+    if (searchContext) systemPrompt += `\n\nReference data:\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
