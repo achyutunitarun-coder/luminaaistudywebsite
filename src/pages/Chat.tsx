@@ -255,7 +255,11 @@ const ChatPage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMessages, memoryContext }),
+        body: JSON.stringify({
+          messages: allMessages,
+          memoryContext,
+          ...(selectedMode !== 'auto' ? { mode: selectedMode } : {}),
+        }),
       });
 
       if (!resp.ok) {
