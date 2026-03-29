@@ -95,7 +95,7 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 5, compact =
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED}
+        accept={DOCUMENT_ACCEPT}
         multiple
         className="hidden"
         onChange={e => e.target.files && handleFiles(e.target.files)}
