@@ -380,7 +380,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
                   <FileText className="w-4 h-4 mr-2" /> Upload Document
                 </Button>
                 <input ref={audioInputRef} type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
-                <input ref={docInputRef} type="file" accept=".pdf,.txt,.md,.csv,.json,.doc,.docx,.rtf,text/*" onChange={handleDocumentUpload} className="hidden" />
+                <input ref={docInputRef} type="file" accept={DOCUMENT_ACCEPT} onChange={handleDocumentUpload} className="hidden" />
               </div>
             </motion.div>
           )}

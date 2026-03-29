@@ -266,12 +266,12 @@ const SmartNotebook = () => {
                         <File className="w-4 h-4 mr-2" /> Choose File
                       </Button>
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".txt,.md,.csv,.json,.xml,.html,.js,.ts,.py,.java,.c,.cpp,.tex,.log,.rtf"
-                      onChange={handleFileSelect}
-                      className="hidden"
+                     <input
+                       ref={fileInputRef}
+                       type="file"
+                       accept={DOCUMENT_ACCEPT}
+                       onChange={handleFileSelect}
+                       className="hidden"
                     />
                   </>
                 ) : (
