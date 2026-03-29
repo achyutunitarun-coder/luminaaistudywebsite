@@ -102,34 +102,16 @@ const Tests = () => {
     const coinsEarned = Math.max(5, Math.round(score / 10)); // 5-10 coins based on score
     
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('xp, coins, level')
-        .eq('user_id', user.id)
-        .single();
+      const { data: result, error } = await supabase.rpc('award_xp_coins', {
+        p_user_id: user.id,
+        p_xp: xpEarned,
+        p_coins: coinsEarned,
+      });
       
-      if (profile) {
-        const newXp = (profile.xp || 0) + xpEarned;
-        const newCoins = (profile.coins || 0) + coinsEarned;
-        // Level up every 100 XP
-        const newLevel = Math.floor(newXp / 100) + 1;
-        
-        await supabase
-          .from('profiles')
-          .update({ 
-            xp: newXp, 
-            coins: newCoins, 
-            level: newLevel,
-            last_study_date: new Date().toISOString().split('T')[0],
-          })
-          .eq('user_id', user.id);
-        
-        // Invalidate profile query to refresh UI
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
-        
-        if (newLevel > (profile.level || 1)) {
-          toast.success(`🎉 Level Up! You're now Level ${newLevel}!`);
-        }
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+      
+      if (result?.leveled_up) {
+        toast.success(`🎉 Level Up! You're now Level ${result.level}!`);
       }
     } catch (err) {
       console.error('Failed to award XP/coins:', err);
