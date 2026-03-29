@@ -115,7 +115,7 @@ const StudySession = () => {
     const coinsEarned = Math.max(2, Math.floor(duration / 15) * 3); // 3 coins per 15 min
     
     try {
-      const { data: result, error } = await supabase.rpc('award_xp_coins', {
+      const { data: result } = await supabase.rpc('award_xp_coins', {
         p_user_id: user.id,
         p_xp: xpEarned,
         p_coins: coinsEarned,
@@ -123,8 +123,9 @@ const StudySession = () => {
       
       queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
       
-      if (result?.leveled_up) {
-        toast.success(`🎉 Level Up! You're now Level ${result.level}!`);
+      const parsed = result as Record<string, unknown> | null;
+      if (parsed?.leveled_up) {
+        toast.success(`🎉 Level Up! You're now Level ${parsed.level}!`);
       }
     } catch (err) {
       console.error('Failed to award XP/coins:', err);
