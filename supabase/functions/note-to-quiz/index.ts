@@ -66,15 +66,16 @@ serve(async (req) => {
     ];
 
     const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2000);
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
+    const parsed = cleanAndParseJSON(text);
+    if (parsed) {
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "Failed to parse quiz" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.error("[note-to-quiz] Failed to parse AI response:", text.slice(0, 500));
+    return new Response(JSON.stringify({ error: "AI returned an invalid response. Please try again." }), {
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("note-to-quiz error:", e);
