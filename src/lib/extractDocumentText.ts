@@ -5,12 +5,21 @@
 
 const extractPdfText = async (file: File): Promise<string> => {
   try {
-    const pdfjsLib = await import('pdfjs-dist');
-    // Disable worker to avoid dynamic import failures in Vite
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    const [pdfjsLib, workerSrc] = await Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+    ]);
+
+    // Force a local bundled worker URL so PDF parsing is stable in Vite/prod.
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.default;
 
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+    const pdf = await pdfjsLib.getDocument({
+      data: arrayBuffer,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    }).promise;
 
     let fullText = '';
     const totalPages = pdf.numPages;
