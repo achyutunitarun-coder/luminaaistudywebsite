@@ -111,6 +111,7 @@ const NoteToQuiz = () => {
                 onChange={e => setNotes(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[200px] px-5 py-4 text-sm leading-relaxed resize-none"
               />
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
               <Button onClick={generate} disabled={generating || !notes.trim()} className="gradient-primary text-primary-foreground h-13 px-8 rounded-2xl shadow-lg shadow-primary/20">
                 {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 Generate Quiz

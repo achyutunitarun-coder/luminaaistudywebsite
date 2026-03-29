@@ -232,6 +232,9 @@ const NotesGenerator = () => {
                     onChange={e => setSourceText(e.target.value)}
                     className="bg-muted/30 border-border/40 rounded-xl min-h-[140px] px-5 py-4 text-sm leading-relaxed resize-none"
                   />
+                  <div className="mt-2">
+                    <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
+                  </div>
                 </div>
               </div>
             </div>
