@@ -285,7 +285,7 @@ const Tests = () => {
                       Q{currentQ + 1}
                     </span>
                     <p className="text-lg text-foreground font-medium leading-relaxed flex-1">{q.question}</p>
-                    <MarkdownRenderer className="text-lg text-foreground font-medium leading-relaxed flex-1 [&>div>p]:m-0">{q.question}</MarkdownRenderer>
+                    {submitted && (
                       answers[currentQ] === q.correct
                         ? <CheckCircle className="w-6 h-6 text-success flex-shrink-0" />
                         : answers[currentQ] !== undefined
