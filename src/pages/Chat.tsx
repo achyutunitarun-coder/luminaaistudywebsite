@@ -567,6 +567,47 @@ const ChatPage = () => {
       {/* Input */}
       <div className="border-t border-border/10 bg-background/80 backdrop-blur-sm p-3 md:p-4">
         <div className="max-w-3xl mx-auto">
+          {/* Mode selector */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowModeMenu(!showModeMenu)}
+                className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-muted/20 border border-border/15 text-muted-foreground hover:text-foreground hover:border-border/30 transition-all"
+              >
+                {(() => { const m = MODE_OPTIONS.find(o => o.value === selectedMode); const Icon = m?.icon || Zap; return <Icon className="w-3 h-3" />; })()}
+                {MODE_OPTIONS.find(o => o.value === selectedMode)?.label || 'Auto'}
+                <ChevronDown className="w-3 h-3 opacity-50" />
+              </button>
+              {showModeMenu && (
+                <div className="absolute bottom-full left-0 mb-1 w-48 bg-card border border-border/20 rounded-xl shadow-xl p-1 z-50">
+                  {MODE_OPTIONS.map(opt => {
+                    const Icon = opt.icon;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setSelectedMode(opt.value); setShowModeMenu(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all text-xs ${
+                          selectedMode === opt.value ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium">{opt.label}</div>
+                          <div className="text-[10px] opacity-60">{opt.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {activeModel && (
+              <span className="text-[10px] text-muted-foreground/40 truncate">
+                {activeModel.split('/').pop()?.replace(':free', '')}
+              </span>
+            )}
+          </div>
+
           {uploadedFiles.length > 0 && (
             <div className="mb-2">
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
