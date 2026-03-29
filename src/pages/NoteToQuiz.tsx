@@ -9,6 +9,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 type MCQ = { question: string; options: string[]; correct: number; explanation: string };
 type ShortAnswer = { question: string; answer: string };
@@ -22,6 +23,7 @@ const NoteToQuiz = () => {
   const [showAnswers, setShowAnswers] = useState(false);
   const [activeTab, setActiveTab] = useState<'mcq' | 'short' | 'conceptual'>('mcq');
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generate = async () => {
     if (!notes.trim()) return;
@@ -32,13 +34,15 @@ const NoteToQuiz = () => {
     setMcqAnswers({});
     setShowAnswers(false);
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullNotes = notes + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/note-to-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({ notes: fullNotes }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
@@ -107,6 +111,7 @@ const NoteToQuiz = () => {
                 onChange={e => setNotes(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[200px] px-5 py-4 text-sm leading-relaxed resize-none"
               />
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
               <Button onClick={generate} disabled={generating || !notes.trim()} className="gradient-primary text-primary-foreground h-13 px-8 rounded-2xl shadow-lg shadow-primary/20">
                 {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 Generate Quiz

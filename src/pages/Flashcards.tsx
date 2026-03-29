@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 const Flashcards = () => {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ const Flashcards = () => {
   const [activeDeck, setActiveDeck] = useState<string | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const { data: decks } = useQuery({
     queryKey: ['flashcard_decks', user?.id],
@@ -50,13 +52,15 @@ const Flashcards = () => {
     if (!allowed) return;
     setGenerating(true);
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullContent = content + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ content, title, cardCount }),
+        body: JSON.stringify({ content: fullContent, title, cardCount }),
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
@@ -200,6 +204,7 @@ const Flashcards = () => {
                 onChange={e => setContent(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
               />
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
               
               {/* Card count selector */}
               <div className="space-y-3">

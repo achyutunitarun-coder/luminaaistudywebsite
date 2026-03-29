@@ -11,6 +11,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
@@ -34,6 +35,7 @@ const NotesGenerator = () => {
   const [autoSaved, setAutoSaved] = useState(false);
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   // Auto-save notes after generation completes
   useEffect(() => {
@@ -79,13 +81,15 @@ const NotesGenerator = () => {
     setAutoSaved(false);
 
     try {
+      const fileContext = buildFileContext(uploadedFiles);
+      const fullSourceText = (sourceText || '') + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ topic, sourceText, style: selectedStyle }),
+        body: JSON.stringify({ topic, sourceText: fullSourceText, style: selectedStyle }),
       });
 
       if (!resp.ok) throw new Error('Failed');
@@ -228,6 +232,9 @@ const NotesGenerator = () => {
                     onChange={e => setSourceText(e.target.value)}
                     className="bg-muted/30 border-border/40 rounded-xl min-h-[140px] px-5 py-4 text-sm leading-relaxed resize-none"
                   />
+                  <div className="mt-2">
+                    <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
+                  </div>
                 </div>
               </div>
             </div>
