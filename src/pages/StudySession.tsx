@@ -167,7 +167,6 @@ const StudySession = () => {
       const { data, error } = await supabase.functions.invoke('session-analysis', {
         body: {
           sessionData: { duration_minutes: duration, tools_used: toolsUsed, uploaded_materials: buildFileContext(uploadedFiles) },
-          userId: user.id,
         },
       });
 
