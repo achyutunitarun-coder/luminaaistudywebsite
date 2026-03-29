@@ -481,13 +481,13 @@ const ChatPage = () => {
                   </motion.div>
 
                   {/* Message Bubble */}
-                  <div className={`max-w-[85%] md:max-w-[80%] min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[85%] md:max-w-[75%] min-w-0 overflow-hidden ${isUser ? 'items-end' : 'items-start'}`}>
                     <span className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 block ${
                       isUser ? 'text-right text-primary/50' : 'text-left text-secondary/50'
                     }`}>
                       {isUser ? 'You' : 'Lumina'}
                     </span>
-                    <div className={`rounded-2xl px-4 py-3 transition-all duration-200 ${
+                    <div className={`rounded-2xl px-4 py-3 transition-all duration-200 overflow-hidden ${
                       isUser
                         ? 'bg-primary/10 border border-primary/15 rounded-tr-md'
                         : 'bg-muted/20 border border-border/10 rounded-tl-md shadow-sm'
@@ -497,8 +497,6 @@ const ChatPage = () => {
                           prose-p:my-2 prose-p:leading-[1.75]
                           prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-5 prose-headings:mb-2
                           prose-strong:text-foreground prose-strong:font-semibold
-                          prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-[12px] md:prose-code:text-[13px] prose-code:before:content-none prose-code:after:content-none
-                          prose-pre:bg-card/50 prose-pre:border prose-pre:border-border/10 prose-pre:rounded-xl prose-pre:p-3 md:prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:shadow-inner
                           prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
                           prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground prose-blockquote:py-1
                           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
