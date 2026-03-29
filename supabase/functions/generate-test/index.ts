@@ -34,26 +34,48 @@ const FALLBACK_MODELS = [
 ];
 const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
-
 function cleanAndParseJSON(raw: string): any {
-  // Strip thinking tags from reasoning models
-  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  // Strip markdown code fences
-  text = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-  // Extract outermost JSON object
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  let jsonStr = match[0];
-  // Fix trailing commas before } or ]
-  jsonStr = jsonStr.replace(/,\s*([\]}])/g, '$1');
-  try { return JSON.parse(jsonStr); } catch {}
-  // Try removing control characters
-  jsonStr = jsonStr.replace(/[\x00-\x1f]/g, ' ');
-  try { return JSON.parse(jsonStr); } catch {}
-  return null;
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  text = text.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+  const start = text.search(/[\[{]/);
+  if (start < 0) return null;
+  const startChar = text[start];
+  const end = text.lastIndexOf(startChar === "[" ? "]" : "}");
+  if (end < 0 || end <= start) return null;
+
+  let jsonStr = text.slice(start, end + 1).trim();
+  jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
+  jsonStr = jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ");
+
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    let braces = 0;
+    let brackets = 0;
+    for (const ch of jsonStr) {
+      if (ch === "{") braces++;
+      if (ch === "}") braces--;
+      if (ch === "[") brackets++;
+      if (ch === "]") brackets--;
+    }
+    while (brackets > 0) {
+      jsonStr += "]";
+      brackets--;
+    }
+    while (braces > 0) {
+      jsonStr += "}";
+      braces--;
+    }
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
+  }
 }
 
+async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<string> {
   for (const model of ALL_MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
