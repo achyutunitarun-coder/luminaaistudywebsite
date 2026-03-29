@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_PAYLOAD_BYTES = 50_000;
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODELS = [
@@ -52,11 +55,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { syllabus, subject, numQuestions } = await req.json();
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const _supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: _claims, error: _claimsErr } = await _supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (_claimsErr || !_claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Payload size check
+    const body = await req.text();
+    if (body.length > MAX_PAYLOAD_BYTES) {
+      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { syllabus, subject, numQuestions } = JSON.parse(body);
+
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const num = numQuestions || 5;
+    const num = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
     const aiMessages = [
       { role: "system", content: `You are an expert exam question setter. Generate ${num} challenging multiple choice questions that test deep understanding, not just surface recall.
 
@@ -67,7 +87,7 @@ Rules:
 - Explanations should teach WHY the answer is correct AND why each wrong option fails
 
 Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...", "options": ["A", "B", "C", "D"], "correct": 0, "explanation": "..."}]} where correct is the 0-based index.` },
-      { role: "user", content: `Subject: ${subject || 'General'}\n\nSyllabus/Topic:\n${syllabus}` },
+      { role: "user", content: `Subject: ${String(subject || 'General').slice(0, 200)}\n\nSyllabus/Topic:\n${String(syllabus || '').slice(0, 10000)}` },
     ];
 
     const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);

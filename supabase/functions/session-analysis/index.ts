@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_PAYLOAD_BYTES = 50_000;
+
 type Strength = {
   topic: string;
   subject: string;
@@ -222,7 +224,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { sessionData, userId } = (await req.json()) as { sessionData?: SessionPayload; userId?: string };
+    // Auth check — derive userId from JWT, never from request body
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: claimsData, error: claimsErr } = await authClient.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (claimsErr || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const userId = claimsData.claims.sub as string;
+
+    // Payload size check
+    const body = await req.text();
+    if (body.length > MAX_PAYLOAD_BYTES) {
+      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { sessionData } = JSON.parse(body) as { sessionData?: SessionPayload };
     const payload = sessionData || {};
 
     const testsCompleted = Number(payload.tests_completed || 0);
@@ -234,7 +253,7 @@ serve(async (req) => {
       ? payload.top_mistakes.filter((item): item is [string, number] => Array.isArray(item) && typeof item[0] === "string" && typeof item[1] === "number")
       : [];
 
-    if (userId && topMistakes.length === 0) {
+    if (topMistakes.length === 0) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseKey);
