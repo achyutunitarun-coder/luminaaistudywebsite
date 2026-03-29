@@ -35,6 +35,7 @@ const NotesGenerator = () => {
   const [autoSaved, setAutoSaved] = useState(false);
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   // Auto-save notes after generation completes
   useEffect(() => {
