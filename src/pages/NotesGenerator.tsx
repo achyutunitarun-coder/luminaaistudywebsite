@@ -11,6 +11,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
