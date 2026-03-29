@@ -12,61 +12,59 @@ const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ═══════════════════════════════════════════════════════════
-// MODEL CATEGORY MAPPING — ALL VERIFIED FREE MODELS
+// VERIFIED FREE MODELS (as of 2026-03-29)
 // ═══════════════════════════════════════════════════════════
 
 const CATEGORY_MODELS: Record<string, string[]> = {
   reasoning: [
-    "deepseek/deepseek-r1:free",
-    "deepseek/deepseek-r1-0528:free",
-    "microsoft/phi-4-reasoning-plus:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
     "nvidia/nemotron-nano-9b-v2:free",
+    "openai/gpt-oss-120b:free",
   ],
   coding: [
     "qwen/qwen3-coder:free",
-    "qwen/qwen-2.5-coder-32b-instruct:free",
-    "deepseek/deepseek-chat-v3-0324:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "openai/gpt-oss-120b:free",
   ],
   general: [
-    "deepseek/deepseek-chat-v3-0324:free",
-    "google/gemma-3-12b-it:free",
-    "rekaai/reka-flash-3:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
   ],
   fast: [
+    "google/gemma-3n-e4b-it:free",
+    "google/gemma-3n-e2b-it:free",
     "google/gemma-3-4b-it:free",
-    "google/gemma-3-12b-it:free",
-    "rekaai/reka-flash-3:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
   ],
   study: [
-    "deepseek/deepseek-chat-v3-0324:free",
+    "z-ai/glm-4.5-air:free",
+    "stepfun/step-3.5-flash:free",
     "google/gemma-3-12b-it:free",
-    "microsoft/mai-ds-r1:free",
   ],
   long_context: [
-    "nvidia/llama-3.1-nemotron-ultra-253b:free",
-    "deepseek/deepseek-chat-v3-0324:free",
-    "deepseek/deepseek-r1:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
   ],
   creative: [
-    "deepseek/deepseek-chat-v3-0324:free",
-    "google/gemma-3-12b-it:free",
-    "rekaai/reka-flash-3:free",
+    "arcee-ai/trinity-large-preview:free",
+    "arcee-ai/trinity-mini:free",
+    "google/gemma-3-27b-it:free",
   ],
 };
 
 // Balanced backup layer
 const BALANCED_BACKUP = [
-  "microsoft/phi-4-reasoning:free",
-  "qwen/qwq-32b:free",
-  "google/gemma-3-4b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "minimax/minimax-m2.5:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ];
 
 const FINAL_FALLBACK = "openrouter/auto";
 
-// ═══════════════════════════════════════════════════════════
-// TIMEOUT CONFIG PER CATEGORY (ms) — generous for streaming
-// ═══════════════════════════════════════════════════════════
-
+// Timeouts (ms)
 const TIMEOUT_MS: Record<string, number> = {
   fast: 8000,
   general: 12000,
@@ -188,10 +186,6 @@ async function searchSerper(query: string, apiKey: string): Promise<string> {
   } catch { return ""; }
 }
 
-// ═══════════════════════════════════════════════════════════
-// FETCH WITH TIMEOUT
-// ═══════════════════════════════════════════════════════════
-
 async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -213,7 +207,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // ── Auth ──
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -224,7 +217,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Payload ──
     const body = await req.text();
     if (body.length > MAX_PAYLOAD_BYTES) {
       return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -237,7 +229,6 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    // ── Search context ──
     const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
     let searchContext = "";
@@ -248,7 +239,6 @@ serve(async (req) => {
       }
     }
 
-    // ── Detect category ──
     const queryText = lastMsg?.content || "";
     const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
     const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
@@ -256,41 +246,25 @@ serve(async (req) => {
     const timeout = TIMEOUT_MS[category] || 12000;
     console.log(`[Lumina] Mode: ${category} | Timeout: ${timeout}ms | Chain: ${models.length} models`);
 
-    // ── System prompt ──
+    // Check if user actually attached files
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
 
     let systemPrompt = `You are Lumina AI — a friendly, warm, and brilliant study buddy built by Tarun Kartikeya.
 
-## CRITICAL RULES:
-1. **ALWAYS respond directly to what the user is asking.** Read their FULL message including any attached file content. Never give a generic greeting when the user has asked a question or attached files.
-2. **ATTACHED FILES**: When the user's message contains "--- ATTACHED FILES ---", they have uploaded a document. You MUST read ALL the file content carefully and respond based on it. NEVER ignore it. NEVER respond with just a greeting when files are attached.
-3. **GREETINGS**: ONLY give a short 2-3 sentence greeting if the user's ENTIRE message is just "hello", "hi", "hey" etc. with NO other content and NO attached files.
-4. **Casual chat** = short, friendly, human. Like texting a friend.
-
-## ACADEMIC QUESTIONS:
-- **Open** with a powerful analogy or real-world hook
-- **Build** understanding layer by layer — intuition → formal definition → deeper insight
-- **Explain** the WHY behind every formula, theorem, or concept
-- **Format**: Rich Markdown — **bold** key terms, *italics* for emphasis, headings for sections
-- **Math/Science**: Use LaTeX notation ($x^2$, $\\frac{1}{2}$). Show derivations, explain each step
-- **Depth**: Thorough and comprehensive. Cover edge cases, misconceptions, exam insights
-- **End** with ONE thought-provoking check question
-
-## RESPONSE QUALITY:
-- Start answering IMMEDIATELY. No filler like "Great question!" or "Sure, let me explain."
-- Every academic response should feel like a mini-lecture from the world's best professor
-- If the student seems confused, try a COMPLETELY different angle`;
+RULES:
+- If the user sends a casual greeting (hi, hello, hey) with no question, reply with a warm 2-3 sentence greeting and ask what they need help with. Keep it natural.
+- For academic questions: open with an analogy, build understanding layer by layer, use rich Markdown formatting with **bold** key terms, LaTeX for math ($x^2$, $\\frac{1}{2}$), and end with a check question.
+- Start answering immediately — no filler phrases like "Great question!" or "Sure!"
+- Be thorough but clear. Every response should feel like a mini-lecture from the best professor.`;
 
     if (hasFiles) {
-      systemPrompt += `\n\n## FILE CONTEXT ACTIVE:
-The user has attached files. Their question is about the file content. Read ALL attached content and answer based on it. Do NOT greet — answer directly using the file content.`;
+      systemPrompt += `\n\nThe user has attached files in their message (after "--- ATTACHED FILES ---"). Read ALL the file content and respond based on it. Focus on the file content.`;
     }
 
-    if (searchContext) systemPrompt += `\n\nREFERENCE DATA (use naturally, don't cite):\n${searchContext}`;
+    if (searchContext) systemPrompt += `\n\nReference data (use naturally, don't cite):\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    // ── Try models with fallback + timeout ──
     for (const model of models) {
       try {
         const res = await fetchWithTimeout(OPENROUTER_URL, {
@@ -325,7 +299,6 @@ The user has attached files. Their question is about the file content. Read ALL 
 
         console.log(`[Lumina] ✓ ${model} (mode: ${category})`);
 
-        // Inject model/mode metadata as first SSE event
         const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model, mode: category } })}\n\n`;
         const metaBytes = new TextEncoder().encode(metaEvent);
 
