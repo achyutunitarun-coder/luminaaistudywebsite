@@ -97,25 +97,41 @@ function cleanAndParseJSON(raw: string): unknown {
 
 async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<TestPayload> {
   for (const model of ALL_MODELS) {
-    try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }),
-      });
-      if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) continue;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages,
+            max_tokens: maxTokens,
+            temperature: 0.4,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-      const parsed = cleanAndParseJSON(content) as TestPayload | null;
-      if (parsed?.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-        console.log(`[generate-test] Success: ${model}`);
-        return parsed;
+        if (!res.ok) {
+          const t = await res.text();
+          console.error(`${model} error ${res.status}: ${t}`);
+          continue;
+        }
+
+        const data = await res.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) continue;
+
+        const parsed = cleanAndParseJSON(content) as TestPayload | null;
+        if (parsed?.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          console.log(`[generate-test] Success: ${model} (attempt ${attempt})`);
+          return parsed;
+        }
+
+        console.error(`[generate-test] ${model} produced unparsable output on attempt ${attempt}`);
+      } catch (e) {
+        console.error(`${model} exception:`, e);
       }
-
-      console.error(`[generate-test] ${model} produced unparsable output, trying next model`);
-    } catch (e) { console.error(`${model} exception:`, e); }
+    }
   }
   throw new Error("All models failed");
 }
