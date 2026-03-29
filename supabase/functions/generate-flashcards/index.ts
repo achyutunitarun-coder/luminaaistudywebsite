@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_PAYLOAD_BYTES = 100_000;
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -77,7 +80,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { content, title, cardCount = 20 } = await req.json();
+    // Auth check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const _supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+    const { data: _claims, error: _claimsErr } = await _supabase.auth.getClaims(authHeader.replace('Bearer ', ''));
+    if (_claimsErr || !_claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Payload size check
+    const body = await req.text();
+    if (body.length > MAX_PAYLOAD_BYTES) {
+      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const { content, title, cardCount = 20 } = JSON.parse(body);
+
     const count = Math.min(Math.max(Number(cardCount) || 20, 5), 80);
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
@@ -93,7 +113,7 @@ Rules:
 - Order cards from fundamental to advanced
 
 Return ONLY valid JSON with no markdown fences: {"cards": [{"front": "question", "back": "answer"}]}` },
-      { role: "user", content: `Create ${count} flashcards for "${title}" from this content:\n\n${content}` },
+      { role: "user", content: `Create ${count} flashcards for "${String(title || '').slice(0, 200)}" from this content:\n\n${String(content || '').slice(0, 30000)}` },
     ];
 
     const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2500);

@@ -91,7 +91,6 @@ const WeaknessRadar = () => {
     try {
       const { data, error } = await supabase.functions.invoke('session-analysis', {
         body: {
-          userId: user?.id,
           sessionData: {
             tests_completed: tests?.length || 0,
             average_score: avgScore,
