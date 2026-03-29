@@ -422,6 +422,11 @@ const ChatPage = () => {
           <span className="text-sm font-medium text-foreground/80 truncate">
             {activeChatTitle || 'New Chat'}
           </span>
+          {activeMode && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium capitalize whitespace-nowrap">
+              {activeMode === 'long_context' ? 'Long Context' : activeMode}
+            </span>
+          )}
         </div>
         {messages.length > 0 && (
           <button
