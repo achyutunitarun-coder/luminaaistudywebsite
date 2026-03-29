@@ -7,26 +7,25 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODELS = [
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-27b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-coder:free",
 ];
 const FALLBACK_MODELS = [
   "openrouter/auto",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1-0528:free",
-  "qwen/qwq-32b:free",
-  "qwen/qwen-2.5-coder-32b-instruct:free",
-  "deepseek/deepseek-r1:free",
-  "microsoft/phi-4-reasoning-plus:free",
-  "microsoft/phi-4-reasoning:free",
-  "microsoft/mai-ds-r1:free",
-  "rekaai/reka-flash-3:free",
-  "nvidia/llama-3.1-nemotron-ultra-253b:free",
+  "z-ai/glm-4.5-air:free",
   "google/gemma-3-12b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "arcee-ai/trinity-large-preview:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "minimax/minimax-m2.5:free",
+  "stepfun/step-3.5-flash:free",
   "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e4b-it:free",
+  "openai/gpt-oss-120b:free",
 ];
 const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
