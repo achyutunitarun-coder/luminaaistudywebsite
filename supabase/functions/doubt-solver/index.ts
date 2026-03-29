@@ -11,29 +11,25 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const PRIMARY_MODELS = [
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "qwen/qwen3-coder:free",
-];
-const FALLBACK_MODELS = [
-  "openrouter/auto",
+
+// Verified working free models — ordered by quality for doubt solving
+const ALL_MODELS = [
   "deepseek/deepseek-chat-v3-0324:free",
-  "deepseek/deepseek-r1-0528:free",
-  "qwen/qwq-32b:free",
-  "qwen/qwen-2.5-coder-32b-instruct:free",
   "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-r1-0528:free",
+  "google/gemma-3-12b-it:free",
+  "qwen/qwq-32b:free",
   "microsoft/phi-4-reasoning-plus:free",
   "microsoft/phi-4-reasoning:free",
   "microsoft/mai-ds-r1:free",
   "rekaai/reka-flash-3:free",
   "nvidia/llama-3.1-nemotron-ultra-253b:free",
-  "google/gemma-3-12b-it:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "qwen/qwen3-coder:free",
+  "qwen/qwen-2.5-coder-32b-instruct:free",
   "google/gemma-3-4b-it:free",
+  "openrouter/auto",
 ];
-const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
 
 async function searchSerper(query: string, apiKey: string): Promise<string> {
   try {
@@ -103,7 +99,9 @@ Your approach:
 Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust depth accordingly:
 - SIMPLE: Use the simplest possible language, lots of analogies, minimal jargon
 - EXAM: Focus on exam-relevant patterns, common mistakes, scoring tips, and model answers
-- DEEP: Go into theoretical depth, proofs, edge cases, and advanced implications`;
+- DEEP: Go into theoretical depth, proofs, edge cases, and advanced implications
+
+IMPORTANT: If the user just says "hello" or "hi", give a brief friendly greeting and ask what they need help with. Do NOT lecture about unrelated topics.`;
 
     if (searchContext) systemPrompt += `\n\nREFERENCE DATA:\n${searchContext}`;
 
@@ -126,7 +124,7 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
           }),
         });
 
-        if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
+        if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t.slice(0, 200)}`); continue; }
 
         console.log(`[doubt-solver] Success: ${model}`);
 
