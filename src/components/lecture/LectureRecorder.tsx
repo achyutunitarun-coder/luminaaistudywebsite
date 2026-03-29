@@ -35,7 +35,7 @@ const BASE_TRANSCRIPTION_CONCURRENCY = 3;
 const POLL_INTERVAL_MS = 1800;
 
 const extractTextFromFile = async (file: File): Promise<string> => {
-  const text = await file.text();
+  const text = await extractDocumentText(file);
   return text.trim();
 };
 
