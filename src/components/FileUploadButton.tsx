@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Paperclip, X, FileText, Image, File, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 
 export type UploadedFile = {
   name: string;
@@ -8,8 +9,6 @@ export type UploadedFile = {
   content: string; // extracted text or base64 for images
   size: number;
 };
-
-const ACCEPTED = '.txt,.md,.csv,.json,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.py,.js,.ts,.jsx,.tsx,.html,.css,.xml,.yaml,.yml,.xlsx,.xls';
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 const getFileIcon = (type: string) => {
