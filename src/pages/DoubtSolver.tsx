@@ -220,18 +220,18 @@ const DoubtSolver = () => {
                   {isUser ? <User className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
                 </motion.div>
 
-                <div className={`max-w-[85%] min-w-0`}>
+                <div className={`max-w-[85%] min-w-0 overflow-hidden`}>
                   <span className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 block ${
                     isUser ? 'text-right text-primary/50' : 'text-left text-secondary/50'
                   }`}>
                     {isUser ? 'You' : 'Lumina'}
                   </span>
-                  <div className={`rounded-2xl px-4 py-3 transition-all ${
+                  <div className={`rounded-2xl px-4 py-3 transition-all overflow-hidden ${
                     isUser
                       ? 'gradient-primary text-primary-foreground rounded-tr-md shadow-lg shadow-primary/10'
                       : 'liquid-glass rounded-tl-md'
                   }`}>
-                    <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1">
+                    <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1">
                       <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                     </div>
                   </div>
