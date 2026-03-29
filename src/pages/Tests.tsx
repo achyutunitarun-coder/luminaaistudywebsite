@@ -12,6 +12,7 @@ import { FileUploadButton, buildFileContext, type UploadedFile } from '@/compone
 import { useQueryClient } from '@tanstack/react-query';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 type Question = {
   question: string;
@@ -283,7 +284,7 @@ const Tests = () => {
                     }`}>
                       Q{currentQ + 1}
                     </span>
-                    <p className="text-lg text-foreground font-medium leading-relaxed flex-1">{q.question}</p>
+                    <MarkdownRenderer className="text-lg text-foreground font-medium leading-relaxed flex-1 [&>div>p]:m-0">{q.question}</MarkdownRenderer>
                     {submitted && (
                       answers[currentQ] === q.correct
                         ? <CheckCircle className="w-6 h-6 text-success flex-shrink-0" />
@@ -316,7 +317,7 @@ const Tests = () => {
                               ? isCorrectOpt ? 'bg-success/20 text-success' : isSelected ? 'bg-destructive/20 text-destructive' : 'bg-muted/20 text-muted-foreground'
                               : isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted/30 text-muted-foreground'
                           }`}>{String.fromCharCode(65 + oi)}</span>
-                          <span className="text-sm">{opt}</span>
+                          <MarkdownRenderer className="text-sm [&>div>p]:m-0 inline">{opt}</MarkdownRenderer>
                         </button>
                       );
                     })}
@@ -329,7 +330,7 @@ const Tests = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         className="mt-6 text-sm text-muted-foreground leading-relaxed bg-muted/10 rounded-2xl p-5 border border-border/15"
                       >
-                        💡 {q.explanation}
+                        💡 <MarkdownRenderer className="inline [&>div]:inline [&>div>p]:inline [&>div>p]:m-0">{q.explanation}</MarkdownRenderer>
                       </motion.div>
                     )}
                   </AnimatePresence>
