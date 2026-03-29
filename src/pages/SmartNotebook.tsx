@@ -256,7 +256,7 @@ const SmartNotebook = () => {
                     </motion.div>
                     <h2 className="text-2xl font-display font-bold text-foreground mb-2">Upload Your Study Material</h2>
                     <p className="text-muted-foreground text-sm max-w-md text-center mb-8">
-                      Drop a file or click to upload. Supports .txt, .md, .csv, .json, and other text files.
+                      Drop a file or click to upload. Supports PDFs, Excel, images, code files, and text documents.
                     </p>
                     <div className="flex gap-3">
                       <Button
