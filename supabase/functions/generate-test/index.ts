@@ -38,6 +38,8 @@ type TestPayload = {
   questions: Array<{ question: string; options: string[]; correct: number; explanation: string }>;
 };
 
+type Question = TestPayload["questions"][number];
+
 const normalizeSingleQuotes = (input: string) => input
   .replace(/([{,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '$1"$2":')
   .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_m, value) => `: "${String(value).replace(/"/g, '\\"')}"`);
@@ -95,7 +97,40 @@ function cleanAndParseJSON(raw: string): unknown {
   return null;
 }
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500): Promise<TestPayload> {
+function normalizeQuestionKey(question: string): string {
+  return question.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function sanitizeQuestions(payload: unknown): Question[] {
+  const rawQuestions = (payload as TestPayload | null)?.questions;
+  if (!Array.isArray(rawQuestions)) return [];
+
+  const deduped = new Map<string, Question>();
+
+  for (const item of rawQuestions) {
+    const question = typeof item?.question === "string" ? item.question.trim() : "";
+    const options = Array.isArray(item?.options)
+      ? item.options.map((opt) => String(opt ?? "").trim()).filter(Boolean)
+      : [];
+    const correct = Number(item?.correct);
+    const explanation = typeof item?.explanation === "string" ? item.explanation.trim() : "";
+
+    if (!question || options.length < 2 || !Number.isInteger(correct) || correct < 0 || correct >= options.length || !explanation) {
+      continue;
+    }
+
+    const key = normalizeQuestionKey(question);
+    if (!deduped.has(key)) {
+      deduped.set(key, { question, options, correct, explanation });
+    }
+  }
+
+  return [...deduped.values()];
+}
+
+async function callOpenRouter(apiKey: string, messages: any[], expectedCount: number, maxTokens = 4500): Promise<TestPayload> {
+  let bestPartial: Question[] = [];
+
   for (const model of ALL_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -121,10 +156,21 @@ async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500)
         const content = data?.choices?.[0]?.message?.content;
         if (!content) continue;
 
-        const parsed = cleanAndParseJSON(content) as TestPayload | null;
-        if (parsed?.questions && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          console.log(`[generate-test] Success: ${model} (attempt ${attempt})`);
-          return parsed;
+        const parsed = cleanAndParseJSON(content);
+        const validQuestions = sanitizeQuestions(parsed);
+
+        if (validQuestions.length >= expectedCount) {
+          console.log(`[generate-test] Success: ${model} (attempt ${attempt}) - ${validQuestions.length}/${expectedCount}`);
+          return { questions: validQuestions.slice(0, expectedCount) };
+        }
+
+        if (validQuestions.length > bestPartial.length) {
+          bestPartial = validQuestions;
+        }
+
+        if (validQuestions.length > 0) {
+          console.error(`[generate-test] ${model} returned only ${validQuestions.length}/${expectedCount} questions on attempt ${attempt}`);
+          continue;
         }
 
         console.error(`[generate-test] ${model} produced unparsable output on attempt ${attempt}`);
@@ -133,6 +179,11 @@ async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 2500)
       }
     }
   }
+
+  if (bestPartial.length > 0) {
+    return { questions: bestPartial };
+  }
+
   throw new Error("All models failed");
 }
 
@@ -177,8 +228,45 @@ Return ONLY valid JSON with no markdown fences: {"questions": [{"question": "...
       { role: "user", content: `Subject: ${String(subject || 'General').slice(0, 200)}\n\nSyllabus/Topic:\n${String(syllabus || '').slice(0, 10000)}` },
     ];
 
-    const parsed = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 2200);
-    return new Response(JSON.stringify(parsed), {
+    const initialMaxTokens = Math.min(8192, Math.max(3500, num * 900));
+    const initialResult = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, num, initialMaxTokens);
+
+    let mergedQuestions = sanitizeQuestions(initialResult).slice(0, num);
+    const seen = new Set(mergedQuestions.map((q) => normalizeQuestionKey(q.question)));
+
+    for (let topUpAttempt = 1; mergedQuestions.length < num && topUpAttempt <= 3; topUpAttempt++) {
+      const remaining = num - mergedQuestions.length;
+      const topUpMessages = [
+        {
+          role: "system",
+          content: `Generate exactly ${remaining} NEW multiple choice questions in valid JSON only: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}]}. Do not repeat or rephrase any existing questions. Keep explanations under 2 sentences and plain text only.`,
+        },
+        {
+          role: "user",
+          content: `Subject: ${String(subject || "General").slice(0, 200)}\n\nSyllabus/Topic:\n${String(syllabus || "").slice(0, 10000)}\n\nExisting questions to avoid:\n${mergedQuestions.map((q, i) => `${i + 1}. ${q.question}`).join("\n")}`,
+        },
+      ];
+
+      const topUp = await callOpenRouter(
+        OPENROUTER_API_KEY,
+        topUpMessages,
+        remaining,
+        Math.min(8192, Math.max(3000, remaining * 1000)),
+      );
+
+      const next = sanitizeQuestions(topUp).filter((q) => !seen.has(normalizeQuestionKey(q.question)));
+      for (const q of next) {
+        if (mergedQuestions.length >= num) break;
+        seen.add(normalizeQuestionKey(q.question));
+        mergedQuestions.push(q);
+      }
+    }
+
+    if (mergedQuestions.length < num) {
+      throw new Error(`Could only generate ${mergedQuestions.length} of ${num} questions. Please retry.`);
+    }
+
+    return new Response(JSON.stringify({ questions: mergedQuestions.slice(0, num) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
