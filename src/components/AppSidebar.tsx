@@ -38,6 +38,7 @@ import {
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'AI Chat', url: '/chat', icon: MessageSquare },
+  { title: 'Resources', url: '/resources', icon: BookOpen },
   { title: 'Study Session', url: '/study-session', icon: Target },
   { title: 'Tests', url: '/tests', icon: FileText },
   { title: 'Flashcards', url: '/flashcards', icon: Layers },
@@ -46,11 +47,10 @@ const mainItems = [
   { title: 'Quick Study', url: '/quick-study', icon: Zap },
   { title: 'Study Planner', url: '/study-planner', icon: Calendar },
   { title: 'Lecture AI', url: '/lecture-ai', icon: FileAudio },
-  
-  
+  { title: 'Game Modes', url: '/game-modes', icon: Swords },
   { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
+  { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
   { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
-  
   { title: 'Smart Notebook', url: '/smart-notebook', icon: NotebookPen },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
