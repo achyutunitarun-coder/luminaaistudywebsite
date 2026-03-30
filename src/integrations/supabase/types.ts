@@ -219,6 +219,75 @@ export type Database = {
           },
         ]
       }
+      game_sessions: {
+        Row: {
+          coins_earned: number
+          created_at: string
+          data: Json | null
+          game_mode: string
+          id: string
+          score: number
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          coins_earned?: number
+          created_at?: string
+          data?: Json | null
+          game_mode: string
+          id?: string
+          score?: number
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          coins_earned?: number
+          created_at?: string
+          data?: Json | null
+          game_mode?: string
+          id?: string
+          score?: number
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: []
+      }
+      leaderboard_entries: {
+        Row: {
+          avatar_url: string | null
+          display_name: string
+          id: string
+          level: number
+          period: string
+          period_start: string
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string
+          id?: string
+          level?: number
+          period?: string
+          period_start?: string
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string
+          id?: string
+          level?: number
+          period?: string
+          period_start?: string
+          updated_at?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
       mistakes: {
         Row: {
           correct_answer: string | null
@@ -315,6 +384,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           xp?: number
+        }
+        Relationships: []
+      }
+      resources: {
+        Row: {
+          content: Json
+          created_at: string
+          curriculum: string
+          id: string
+          quality_score: number | null
+          resource_type: string
+          subject: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          curriculum: string
+          id?: string
+          quality_score?: number | null
+          resource_type?: string
+          subject: string
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          curriculum?: string
+          id?: string
+          quality_score?: number | null
+          resource_type?: string
+          subject?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -600,6 +708,7 @@ export type Database = {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
       }
+      sync_leaderboard: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
