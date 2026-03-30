@@ -11,13 +11,13 @@ import {
   Sparkles,
   Calendar,
   Zap,
-  Timer,
   Target,
   ClipboardList,
   FileAudio,
-  
-  
   NotebookPen,
+  BookOpen,
+  Trophy,
+  Swords,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
