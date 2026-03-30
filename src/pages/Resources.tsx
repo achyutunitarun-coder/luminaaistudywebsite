@@ -121,7 +121,7 @@ const Resources = () => {
     if (!notes) return null;
     return (
       <div className="prose prose-invert max-w-none">
-        <MarkdownRenderer content={notes} />
+        <MarkdownRenderer>{notes}</MarkdownRenderer>
       </div>
     );
   };
