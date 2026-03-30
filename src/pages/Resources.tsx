@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CURRICULA, getTopicsForSubject } from '@/lib/curricula';
-import { MarkdownRenderer } from '@/components/MarkdownRenderer';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 
 type ResourceType = 'notes' | 'flashcards' | 'questions' | 'test';
