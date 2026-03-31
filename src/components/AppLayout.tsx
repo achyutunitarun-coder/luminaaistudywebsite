@@ -17,9 +17,12 @@ const primaryNav = [
 ];
 
 const moreNav = [
+  { title: 'Resources', url: '/resources' },
   { title: 'Flashcards', url: '/flashcards' },
   { title: 'Notes', url: '/notes-generator' },
+  { title: 'Game Modes', url: '/game-modes' },
   { title: 'Quest', url: '/quest' },
+  { title: 'Leaderboard', url: '/leaderboard' },
   { title: 'Doubt Solver', url: '/doubt-solver' },
   { title: 'Lecture AI', url: '/lecture-ai' },
   { title: 'Note to Quiz', url: '/note-to-quiz' },
