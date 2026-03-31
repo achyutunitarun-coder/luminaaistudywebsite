@@ -7,28 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-// All verified free OpenRouter models with fallback chain
-const FREE_MODELS = [
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-coder:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-3-12b-it:free",
-  "z-ai/glm-4.5-air:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "arcee-ai/trinity-large-preview:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "minimax/minimax-m2.5:free",
-  "stepfun/step-3.5-flash:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "openrouter/auto",
-];
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -64,9 +42,6 @@ serve(async (req) => {
       }
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
-
     let systemPrompt = "";
     let userPrompt = "";
 
@@ -96,78 +71,81 @@ serve(async (req) => {
     let rawContent = "";
     let success = false;
 
-    // Try each free model in sequence until one works
-    for (const model of FREE_MODELS) {
+    // Primary: Lovable AI gateway
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
       try {
-        console.log(`[generate-resources] Trying model: ${model}`);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-
-        const response = await fetch(OPENROUTER_URL, {
+        console.log("[generate-resources] Using Lovable AI gateway");
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model,
+            model: "google/gemini-3-flash-preview",
             messages,
             max_tokens: type === "notes" ? 8000 : 4000,
-            temperature: 0.7,
           }),
-          signal: controller.signal,
         });
 
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error(`[generate-resources] ${model} error ${response.status}: ${errText.slice(0, 200)}`);
-          continue;
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limited. Please try again in a moment." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
-        const aiData = await response.json();
-        const content = aiData.choices?.[0]?.message?.content;
-        if (!content || content.trim().length < 20) {
-          console.error(`[generate-resources] ${model} returned empty/short response`);
-          continue;
+        if (response.ok) {
+          const aiData = await response.json();
+          rawContent = aiData.choices?.[0]?.message?.content || "";
+          if (rawContent.length > 20) success = true;
+        } else {
+          console.error("[generate-resources] Gateway error:", response.status);
         }
-
-        rawContent = content;
-        success = true;
-        console.log(`[generate-resources] Success with model: ${model}`);
-        break;
       } catch (e) {
-        console.error(`[generate-resources] ${model} exception:`, e);
-        continue;
+        console.error("[generate-resources] Gateway exception:", e);
       }
     }
 
+    // Fallback: OpenRouter free models
     if (!success) {
-      // Final fallback: try Lovable AI gateway
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (LOVABLE_API_KEY) {
-        console.log("[generate-resources] Falling back to Lovable AI gateway");
-        try {
-          const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
-              messages,
-              max_tokens: type === "notes" ? 8000 : 4000,
-            }),
-          });
-          if (response.ok) {
+      const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+      if (OPENROUTER_API_KEY) {
+        const models = [
+          "google/gemma-3-27b-it:free",
+          "meta-llama/llama-3.3-70b-instruct:free",
+          "qwen/qwen3-coder:free",
+          "nousresearch/hermes-3-llama-3.1-405b:free",
+        ];
+        for (const model of models) {
+          try {
+            console.log(`[generate-resources] Trying OpenRouter: ${model}`);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ model, messages, max_tokens: type === "notes" ? 8000 : 4000, temperature: 0.7 }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeout);
+            if (!response.ok) continue;
             const aiData = await response.json();
-            rawContent = aiData.choices?.[0]?.message?.content || "";
-            if (rawContent.length > 20) success = true;
-          }
-        } catch (e) {
-          console.error("[generate-resources] Lovable AI fallback failed:", e);
+            const content = aiData.choices?.[0]?.message?.content;
+            if (content && content.trim().length > 20) {
+              rawContent = content;
+              success = true;
+              break;
+            }
+          } catch { continue; }
         }
       }
     }
@@ -181,8 +159,9 @@ serve(async (req) => {
     if (type === "notes") {
       content = { notes: rawContent };
     } else {
-      // Parse JSON from response - strip markdown code fences
+      // Parse JSON - strip markdown code fences and thinking tags
       let cleaned = rawContent;
+      cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
       cleaned = cleaned.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
       const jsonMatch = cleaned.match(/[\[{][\s\S]*[\]}]/);
       if (jsonMatch) {
