@@ -8,6 +8,7 @@ import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
+import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
@@ -34,7 +35,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const ProtectedLayout = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, needsOnboarding, setNeedsOnboarding } = useAuth();
 
   if (loading) {
     return (
@@ -49,6 +50,9 @@ const ProtectedLayout = () => {
   return (
     <SubscriptionProvider>
       <StudyTimerProvider>
+        {needsOnboarding && (
+          <Onboarding onComplete={() => setNeedsOnboarding(false)} />
+        )}
         <MonthlyReportModal />
         <AppLayout>
           <Outlet />
