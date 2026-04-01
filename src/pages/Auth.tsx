@@ -126,7 +126,7 @@ const Auth = () => {
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.2, ...spring }}
+            transition={{ delay: 0.2, type: 'spring' as const, damping: 25, stiffness: 300 }}
             className="w-16 h-16 mx-auto mb-6 rounded-2xl gradient-primary flex items-center justify-center shadow-xl shadow-primary/25"
           >
             <Sparkles className="w-8 h-8 text-primary-foreground" />
