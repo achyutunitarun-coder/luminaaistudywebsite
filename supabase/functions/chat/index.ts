@@ -12,59 +12,73 @@ const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ═══════════════════════════════════════════════════════════
-// VERIFIED FREE MODELS (as of 2026-03-29)
+// 20+ FREE MODELS — openrouter/free as PRIMARY
 // ═══════════════════════════════════════════════════════════
 
 const CATEGORY_MODELS: Record<string, string[]> = {
   reasoning: [
+    "openrouter/free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "nvidia/nemotron-nano-9b-v2:free",
     "openai/gpt-oss-120b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
   ],
   coding: [
+    "openrouter/free",
     "qwen/qwen3-coder:free",
     "qwen/qwen3-next-80b-a3b-instruct:free",
     "openai/gpt-oss-120b:free",
+    "deepseek/deepseek-chat-v3-0324:free",
   ],
   general: [
+    "openrouter/free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemma-3-27b-it:free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "arcee-ai/trinity-large-preview:free",
   ],
   fast: [
+    "openrouter/free",
     "google/gemma-3n-e4b-it:free",
     "google/gemma-3n-e2b-it:free",
     "google/gemma-3-4b-it:free",
     "meta-llama/llama-3.2-3b-instruct:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "arcee-ai/trinity-mini:free",
   ],
   study: [
+    "openrouter/free",
     "z-ai/glm-4.5-air:free",
     "stepfun/step-3.5-flash:free",
     "google/gemma-3-12b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
   ],
   long_context: [
+    "openrouter/free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
   ],
   creative: [
+    "openrouter/free",
     "arcee-ai/trinity-large-preview:free",
     "arcee-ai/trinity-mini:free",
     "google/gemma-3-27b-it:free",
+    "minimax/minimax-m2.5:free",
   ],
 };
 
-// Balanced backup layer
 const BALANCED_BACKUP = [
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 const FINAL_FALLBACK = "openrouter/auto";
 
-// Timeouts (ms)
 const TIMEOUT_MS: Record<string, number> = {
   fast: 8000,
   general: 12000,
@@ -246,19 +260,24 @@ serve(async (req) => {
     const timeout = TIMEOUT_MS[category] || 12000;
     console.log(`[Lumina] Mode: ${category} | Timeout: ${timeout}ms | Chain: ${models.length} models`);
 
-    // Check if user actually attached files
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
 
-    let systemPrompt = `You are Lumina AI — a friendly, warm, and brilliant study buddy built by Tarun Kartikeya.
+    let systemPrompt = `You are a professional AI tutor — calm, intelligent, and adaptive.
 
-RULES:
-- If the user sends a casual greeting (hi, hello, hey) with no question, reply with a warm 2-3 sentence greeting and ask what they need help with. Keep it natural.
-- For academic questions: open with an analogy, build understanding layer by layer, use rich Markdown formatting with **bold** key terms, LaTeX for math ($x^2$, $\\frac{1}{2}$), and end with a check question.
-- Start answering immediately — no filler phrases like "Great question!" or "Sure!"
-- Be thorough but clear. Every response should feel like a mini-lecture from the best professor.`;
+STRICT RULES:
+- NEVER introduce yourself or say your name unless explicitly asked
+- NEVER say "Hi, I'm Lumina" or any variation
+- If user says "hi" or "hello": respond with "Hey! What do you want to study today?" — nothing more
+- For questions: ANSWER DIRECTLY. No filler like "Great question!" or "Sure!"
+- Be structured, concise, and teacher-like
+- Use rich Markdown: **bold** key terms, headings, bullet points, tables when helpful
+- Use LaTeX for math: $x^2$, $\\frac{a}{b}$, $$\\int_0^1 f(x)dx$$
+- End academic answers with a brief check question to test understanding
+- NEVER ramble or over-explain simple things
+- NEVER use broken tables or messy formatting`;
 
     if (hasFiles) {
-      systemPrompt += `\n\nThe user has attached files in their message (after "--- ATTACHED FILES ---"). Read ALL the file content and respond based on it. Focus on the file content.`;
+      systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content and respond based on it. Focus on the file content, not greetings.`;
     }
 
     if (searchContext) systemPrompt += `\n\nReference data (use naturally, don't cite):\n${searchContext}`;
