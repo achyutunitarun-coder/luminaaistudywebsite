@@ -3,7 +3,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Flame, Coins, Sparkles, LogOut, Menu, X, Clock, Crown, Home, BookOpen, Gamepad2, FolderOpen, UserCircle } from 'lucide-react';
+import { Flame, Coins, Sparkles, LogOut, Menu, X, Clock, Crown, Home, BookOpen, Gamepad2, FolderOpen, UserCircle, Wrench, Zap } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,26 +11,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 const navCategories = [
   { title: 'Dashboard', url: '/', icon: Home },
   { title: 'Study', url: '/study-session', icon: BookOpen },
+  { title: 'AI Tools', url: '/chat', icon: Wrench },
   { title: 'Games', url: '/game-modes', icon: Gamepad2 },
   { title: 'Resources', url: '/resources', icon: FolderOpen },
+  { title: 'Upgrade', url: '/upgrade', icon: Crown },
   { title: 'Profile', url: '/settings', icon: UserCircle },
 ];
 
-// Study sub-routes that should highlight "Study" in nav
-const studyRoutes = ['/study-session', '/chat', '/doubt-solver', '/tests', '/flashcards', '/notes-generator', '/note-to-quiz', '/quick-study', '/weakness-radar', '/study-planner', '/lecture-ai', '/smart-notebook', '/pulse'];
-// Game sub-routes
+const studyRoutes = ['/study-session', '/study-planner', '/pulse', '/weakness-radar'];
+const aiToolRoutes = ['/chat', '/doubt-solver', '/notes-generator', '/note-to-quiz', '/quick-study', '/lecture-ai', '/smart-notebook', '/flashcards', '/tests'];
 const gameRoutes = ['/game-modes', '/quest', '/leaderboard'];
-// Resource sub-routes
 const resourceRoutes = ['/resources'];
-// Profile sub-routes
-const profileRoutes = ['/settings', '/upgrade'];
+const profileRoutes = ['/settings'];
+const upgradeRoutes = ['/upgrade'];
 
 function isRouteActive(url: string, pathname: string) {
   if (url === '/') return pathname === '/';
   if (url === '/study-session') return studyRoutes.includes(pathname);
+  if (url === '/chat') return aiToolRoutes.includes(pathname);
   if (url === '/game-modes') return gameRoutes.includes(pathname);
   if (url === '/resources') return resourceRoutes.includes(pathname);
   if (url === '/settings') return profileRoutes.includes(pathname);
+  if (url === '/upgrade') return upgradeRoutes.includes(pathname);
   return pathname === url;
 }
 
@@ -45,12 +47,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
   const timerMins = Math.floor(seconds / 60);
   const timerSecs = seconds % 60;
-
   const levelProgress = profile ? ((profile.xp % 100) / 100) * 100 : 0;
+
+  // Hide Upgrade tab for pro users
+  const visibleNav = isPro ? navCategories.filter(n => n.url !== '/upgrade') : navCategories;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Top Nav */}
       <nav className="sticky top-0 z-50 vibrancy border-b border-border/10">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6">
           <div className="h-14 flex items-center justify-between">
@@ -68,9 +71,9 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               </span>
             </NavLink>
 
-            {/* Center Nav — 5 categories only */}
-            <div className="hidden md:flex items-center gap-1 flex-1 justify-center px-4">
-              {navCategories.map(item => {
+            {/* Center Nav */}
+            <div className="hidden md:flex items-center gap-0.5 flex-1 justify-center px-4">
+              {visibleNav.map(item => {
                 const Icon = item.icon;
                 const active = isRouteActive(item.url, location.pathname);
                 return (
@@ -78,12 +81,12 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                     key={item.url}
                     to={item.url}
                     end={item.url === '/'}
-                    className={`px-4 py-2 text-[13px] font-medium transition-all duration-200 rounded-xl whitespace-nowrap flex items-center gap-2 ${
+                    className={`px-3 py-2 text-[12px] font-medium transition-all duration-200 rounded-xl whitespace-nowrap flex items-center gap-1.5 ${
                       active ? 'text-foreground bg-muted/40 shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/20'
                     }`}
                     activeClassName=""
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5" />
                     {item.title}
                   </NavLink>
                 );
@@ -92,7 +95,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
             {/* Right Side */}
             <div className="flex items-center gap-2.5">
-              {/* Level badge */}
               {profile && (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -111,7 +113,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 </motion.div>
               )}
 
-              {/* Timer Pill */}
               <motion.button
                 onClick={() => navigate('/study-session')}
                 whileHover={{ scale: 1.05 }}
@@ -166,7 +167,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               className="md:hidden overflow-hidden border-t border-border/10"
             >
               <div className="max-w-[1400px] mx-auto px-6 py-3 space-y-0.5">
-                {navCategories.map(item => {
+                {visibleNav.map(item => {
                   const Icon = item.icon;
                   const active = isRouteActive(item.url, location.pathname);
                   return (
@@ -198,16 +199,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                     </div>
                   </div>
                 )}
-                {!isPro && (
-                  <button
-                    onClick={() => { navigate('/upgrade'); setMobileOpen(false); }}
-                    className="w-full text-left px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-400 rounded-xl flex items-center gap-2 transition-all duration-200"
-                  >
-                    <Crown className="w-4 h-4" />
-                    <span style={{ fontFamily: "'SF Pro Display', -apple-system, system-ui, sans-serif" }}>Upgrade to Lumina Ultimate</span>
-                    <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
-                  </button>
-                )}
                 <button
                   onClick={signOut}
                   className="w-full text-left px-3 py-2.5 text-sm text-destructive hover:bg-destructive/8 transition-all duration-150 rounded-xl flex items-center gap-2"
@@ -221,7 +212,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </AnimatePresence>
       </nav>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
           {children}

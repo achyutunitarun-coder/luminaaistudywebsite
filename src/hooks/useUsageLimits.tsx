@@ -32,6 +32,8 @@ export const useUsageLimits = () => {
 
   const checkAndIncrement = useCallback(async (feature: string): Promise<boolean> => {
     if (isPro) return true;
+    // Resources are unlimited for all plans
+    if (feature === 'resource_generation') return true;
     if (!user) {
       toast.error('Please sign in to use this feature.');
       return false;
