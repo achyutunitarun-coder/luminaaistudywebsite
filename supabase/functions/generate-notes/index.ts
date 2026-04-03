@@ -442,22 +442,6 @@ Keep language conversational but accurate. Use analogies for every abstract conc
 Use the two-column Cornell format faithfully. Left column = targeted review questions. Right column = comprehensive answers. Every section ends with a summary. Include a master summary at the end.`,
 };
 
-async function searchSerper(query: string, apiKey: string): Promise<string> {
-  try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 4, gl: "us", hl: "en" }),
-    });
-    if (!res.ok) return "";
-    const data = await res.json();
-    let ctx = "";
-    if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
-    for (const r of (data.organic ?? []).slice(0, 4)) ctx += `${r.title}: ${r.snippet ?? ""}\n`;
-    return ctx;
-  } catch { return ""; }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -470,13 +454,7 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
-
-    let searchContext = "";
-    if (!sourceText && topic && SERPER_API_KEY) {
-      searchContext = await searchSerper(`${topic} study notes key concepts`, SERPER_API_KEY);
-    }
 
     const systemPrompt = isRefinement
       ? `You are Lumina AI's professional study notes assistant. Refine the existing notes per user instructions while maintaining the same formatting structure. Output the COMPLETE updated notes in full — never truncate.`
@@ -490,15 +468,14 @@ QUALITY RULES:
 - Be EXHAUSTIVE. Cover every major concept, sub-concept, formula, definition, and edge case.
 - **Bold** every key term on first use. Use *italics* sparingly for emphasis.
 - Use horizontal rules (---) to separate major sections for visual clarity.
+- IMPORTANT: Add proper spacing between paragraphs and sections. Use blank lines between paragraphs.
 - Include concrete, worked-through examples — not vague references.
 - Add "⚠️ Common Mistake" callouts where students typically go wrong.
 - Include mnemonics or memory tricks where they genuinely help retention.
 - Use tables for comparisons, definitions, or structured data — they improve readability.
 - Use blockquotes (>) for important theorems, definitions, or key insights.
 - Never output placeholder text. Every line must contain real, accurate content.
-- Make it feel like the best study resource ever created for this topic.
-${searchContext ? `\nREFERENCE DATA (use this to enhance accuracy and depth):\n${searchContext}` : ""}`;
-
+- Make it feel like the best study resource ever created for this topic.`;
     const userContent = sourceText
       ? `Create comprehensive study notes from this material:\n\n${sourceText}`
       : `Create the most thorough, exam-ready study notes possible on "${topic}".`;
