@@ -442,15 +442,8 @@ Keep language conversational but accurate. Use analogies for every abstract conc
 Use the two-column Cornell format faithfully. Left column = targeted review questions. Right column = comprehensive answers. Every section ends with a summary. Include a master summary at the end.`,
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  try {
-    const body = await req.text();
-    if (body.length > 100_000) {
-      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const { topic, sourceText, style, isRefinement } = JSON.parse(body);
+
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
