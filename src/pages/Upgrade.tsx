@@ -121,7 +121,7 @@ const Upgrade = () => {
               </div>
             </div>
             <div className="text-4xl font-display font-bold text-foreground mb-6">
-              ₹399<span className="text-sm font-normal text-muted-foreground ml-1">/month</span>
+              ₹199<span className="text-sm font-normal text-muted-foreground ml-1">/month</span>
             </div>
             <div className="space-y-3">
               {proFeatures.map((item, i) => (

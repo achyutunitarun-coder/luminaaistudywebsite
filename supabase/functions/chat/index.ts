@@ -11,10 +11,6 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ═══════════════════════════════════════════════════════════
-// 20+ FREE MODELS — openrouter/free as PRIMARY
-// ═══════════════════════════════════════════════════════════
-
 const CATEGORY_MODELS: Record<string, string[]> = {
   reasoning: [
     "openrouter/free",
@@ -80,18 +76,9 @@ const BALANCED_BACKUP = [
 const FINAL_FALLBACK = "openrouter/auto";
 
 const TIMEOUT_MS: Record<string, number> = {
-  fast: 8000,
-  general: 12000,
-  coding: 12000,
-  study: 12000,
-  creative: 12000,
-  long_context: 15000,
-  reasoning: 15000,
+  fast: 8000, general: 12000, coding: 12000, study: 12000,
+  creative: 12000, long_context: 15000, reasoning: 15000,
 };
-
-// ═══════════════════════════════════════════════════════════
-// KEYWORD-BASED TASK DETECTION
-// ═══════════════════════════════════════════════════════════
 
 const CODING_KW = [
   "code","coding","program","function","bug","debug","javascript","python",
@@ -101,7 +88,6 @@ const CODING_KW = [
   "docker","npm","node","backend","frontend","framework","library","component",
   "hook","rust","java","golang","c++","swift","kotlin",
 ];
-
 const REASONING_KW = [
   "why","explain why","reason","reasoning","logic","prove","proof","deduce",
   "infer","conclude","analyze","critical thinking","argument","fallacy",
@@ -112,27 +98,23 @@ const REASONING_KW = [
   "calculate","polynomial","logarithm","exponent","limit","series",
   "sequence","differential","linear algebra",
 ];
-
 const STUDY_KW = [
   "study","learn","explain","concept","definition","exam","test prep",
   "revision","flashcard","quiz","chapter","textbook","lecture","syllabus",
   "curriculum","practice","homework","assignment","notes","summary",
   "important points","key concepts",
 ];
-
 const CREATIVE_KW = [
   "write","essay","story","poem","creative","narrative","blog","article",
   "letter","speech","script","dialogue","fiction","describe","imagine",
   "compose","draft","rewrite","paraphrase","review","critique","tone",
   "storytelling",
 ];
-
 const LONG_CONTEXT_KW = [
   "summarize","summary","long text","entire document","full text",
   "large input","whole file","all pages","condense","brief overview",
   "tldr","key takeaways",
 ];
-
 const FAST_KW = [
   "quick","fast","short answer","yes or no","one word","brief",
   "simple","what is","define","translate","convert","how much",
@@ -147,25 +129,19 @@ function detectCategory(text: string): Category {
     reasoning: 0, coding: 0, general: 0, fast: 0,
     study: 0, long_context: 0, creative: 0,
   };
-
   for (const kw of CODING_KW) if (lower.includes(kw)) scores.coding++;
   for (const kw of REASONING_KW) if (lower.includes(kw)) scores.reasoning++;
   for (const kw of STUDY_KW) if (lower.includes(kw)) scores.study++;
   for (const kw of CREATIVE_KW) if (lower.includes(kw)) scores.creative++;
   for (const kw of LONG_CONTEXT_KW) if (lower.includes(kw)) scores.long_context++;
   for (const kw of FAST_KW) if (lower.includes(kw)) scores.fast++;
-
   if (text.includes("```") || text.includes("function ") || text.includes("const ") || text.includes("let ")) scores.coding += 3;
   if (text.length > 3000) scores.long_context += 3;
   if (text.length < 60 && !text.includes("```")) scores.fast += 2;
-
   const max = Math.max(...Object.values(scores));
   if (max === 0) return "general";
-
   const priority: Category[] = ["coding", "reasoning", "long_context", "study", "creative", "fast", "general"];
-  for (const cat of priority) {
-    if (scores[cat] === max) return cat;
-  }
+  for (const cat of priority) { if (scores[cat] === max) return cat; }
   return "general";
 }
 
@@ -177,27 +153,6 @@ function buildModelChain(category: Category): string[] {
     if (!seen.has(m)) { seen.add(m); chain.push(m); }
   }
   return chain;
-}
-
-// ═══════════════════════════════════════════════════════════
-// SERPER SEARCH
-// ═══════════════════════════════════════════════════════════
-
-async function searchSerper(query: string, apiKey: string): Promise<string> {
-  try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 4, gl: "us", hl: "en" }),
-    });
-    if (!res.ok) return "";
-    const data = await res.json();
-    let ctx = "";
-    if (data.answerBox) ctx += `Direct Answer: ${data.answerBox.answer ?? data.answerBox.snippet ?? ""}\n`;
-    if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
-    for (const r of (data.organic ?? []).slice(0, 4)) ctx += `${r.title}: ${r.snippet ?? ""}\n`;
-    return ctx;
-  } catch { return ""; }
 }
 
 async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
@@ -212,10 +167,6 @@ async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: numbe
     throw e;
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// MAIN HANDLER
-// ═══════════════════════════════════════════════════════════
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -243,22 +194,13 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
-    let searchContext = "";
-    if (lastMsg && SERPER_API_KEY) {
-      const searchQuery = lastMsg.content.split("--- ATTACHED FILES ---")[0].trim().slice(0, 120);
-      if (searchQuery.length > 5) {
-        searchContext = await searchSerper(searchQuery, SERPER_API_KEY);
-      }
-    }
-
     const queryText = lastMsg?.content || "";
     const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
     const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
     const models = buildModelChain(category);
     const timeout = TIMEOUT_MS[category] || 12000;
-    console.log(`[Lumina] Mode: ${category} | Timeout: ${timeout}ms | Chain: ${models.length} models`);
+    console.log(`[Lumina] Mode: ${category} | Chain: ${models.length} models`);
 
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
 
@@ -272,6 +214,7 @@ STRICT RULES:
 - Be structured, concise, and teacher-like
 - Use rich Markdown: **bold** key terms, headings, bullet points, tables when helpful
 - Use LaTeX for math: $x^2$, $\\frac{a}{b}$, $$\\int_0^1 f(x)dx$$
+- IMPORTANT: Add proper spacing between paragraphs and sections. Use blank lines between paragraphs.
 - End academic answers with a brief check question to test understanding
 - NEVER ramble or over-explain simple things
 - NEVER use broken tables or messy formatting`;
@@ -279,8 +222,6 @@ STRICT RULES:
     if (hasFiles) {
       systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content and respond based on it. Focus on the file content, not greetings.`;
     }
-
-    if (searchContext) systemPrompt += `\n\nReference data (use naturally, don't cite):\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 

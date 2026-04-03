@@ -11,8 +11,8 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Verified working free models (2026-03-29)
 const ALL_MODELS = [
+  "openrouter/free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -30,23 +30,6 @@ const ALL_MODELS = [
   "google/gemma-3n-e4b-it:free",
   "openrouter/auto",
 ];
-
-async function searchSerper(query: string, apiKey: string): Promise<string> {
-  try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 4, gl: "us", hl: "en" }),
-    });
-    if (!res.ok) return "";
-    const data = await res.json();
-    let ctx = "";
-    if (data.answerBox) ctx += `Direct Answer: ${data.answerBox.answer ?? data.answerBox.snippet ?? ""}\n`;
-    if (data.knowledgeGraph?.description) ctx += `${data.knowledgeGraph.title}: ${data.knowledgeGraph.description}\n`;
-    for (const r of (data.organic ?? []).slice(0, 4)) ctx += `${r.title}: ${r.snippet ?? ""}\n`;
-    return ctx;
-  } catch { return ""; }
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -75,21 +58,16 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const SERPER_API_KEY = Deno.env.get("SERPER_API_KEY");
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
-    let searchContext = "";
-    if (lastMsg && SERPER_API_KEY) {
-      searchContext = await searchSerper(lastMsg.content.slice(0, 120), SERPER_API_KEY);
-    }
-
     const queryText = lastMsg?.content || "";
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
 
-    let systemPrompt = `You are Lumina AI Doubt Solver — a world-class tutor who makes even the hardest concepts feel intuitive. Built by Tarun Kartikeya.
+    let systemPrompt = `You are a world-class AI tutor who makes even the hardest concepts feel intuitive.
 
 RULES:
 - If the user sends a casual greeting (hi, hello, hey) with no academic question, reply with a warm 2-3 sentence greeting and ask what they need help with. Do NOT lecture about random topics.
-- For academic questions: acknowledge the confusion, give crystal-clear explanations with analogies, show step-by-step solutions for math/science, use **bold** for key terms and LaTeX for formulas.
+- For academic questions: acknowledge the confusion, give crystal-clear explanations with analogies, show step-by-step solutions for math/science, use **bold** for key terms and LaTeX for formulas ($x^2$, $$\\int f(x)dx$$).
+- IMPORTANT: Add proper spacing between paragraphs. Use blank lines between sections.
 - End academic answers with 1-2 practice questions.
 
 Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust depth:
@@ -100,8 +78,6 @@ Detect the mode from the message prefix ([SIMPLE], [EXAM], [DEEP]) and adjust de
     if (hasFiles) {
       systemPrompt += `\n\nThe user has attached files. Read ALL the attached content and answer based on it.`;
     }
-
-    if (searchContext) systemPrompt += `\n\nReference data:\n${searchContext}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
