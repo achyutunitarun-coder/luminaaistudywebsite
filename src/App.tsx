@@ -30,6 +30,8 @@ import Upgrade from "@/pages/Upgrade";
 import Resources from "@/pages/Resources";
 import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
+import AITools from "@/pages/AITools";
+import LuminaHub from "@/pages/LuminaHub";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +83,8 @@ const App = () => (
 
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/ai-tools" element={<AITools />} />
+              <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
