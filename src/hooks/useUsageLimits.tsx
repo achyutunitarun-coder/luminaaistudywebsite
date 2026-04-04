@@ -23,6 +23,14 @@ const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   lecture_quiz:       { limit: 6,   period: 'daily' },
   podcast_generation: { limit: 1,   period: 'weekly' },
   weakness_radar:     { limit: 1,   period: 'weekly' },
+  // Hub modules
+  recall_mode:        { limit: 20,  period: 'daily' },
+  spaced_scheduler:   { limit: 5,   period: 'daily' },
+  smart_shuffle:      { limit: 2,   period: 'daily' },
+  explain_mode:       { limit: 2,   period: 'daily' },
+  why_engine:         { limit: 3,   period: 'daily' },
+  visualize_mode:     { limit: 1,   period: 'daily' },
+  cognitive_dashboard:{ limit: 3,   period: 'daily' },
 };
 
 export const useUsageLimits = () => {
@@ -32,7 +40,6 @@ export const useUsageLimits = () => {
 
   const checkAndIncrement = useCallback(async (feature: string): Promise<boolean> => {
     if (isPro) return true;
-    // Resources are unlimited for all plans
     if (feature === 'resource_generation') return true;
     if (!user) {
       toast.error('Please sign in to use this feature.');
