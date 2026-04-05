@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, X, Zap, Crown, Shield, Star, Sparkles, Rocket } from 'lucide-react';
+import { Check, X, Zap, Crown, Shield, Star, Sparkles, Rocket, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -14,7 +14,7 @@ const basicLimits = [
   '6 notes generations/day',
   '25 quest games/day',
   '50 doubt-solving messages/day',
-  'Limited Hub access',
+  'Limited Hub access (daily caps)',
   '1 podcast generation/week',
   '1 weakness radar/week',
 ];
@@ -26,14 +26,21 @@ const ultimateFeatures = [
   'Unlimited notes generations',
   'Unlimited quest games',
   'Unlimited doubt solving',
-  'Full Hub access',
   'Unlimited podcast generation',
   'Unlimited weakness radar',
   'Priority support',
 ];
 
+const ultimateExclusions = [
+  'Full Hub access (PRO+ only)',
+  'Advanced analytics & insights',
+  'Focus Mode',
+  'Custom study plans',
+];
+
 const proPlus = [
   'Everything in Ultimate',
+  'Full Hub access — all 7 modules unlimited',
   'Full cognitive dashboard history (1 year)',
   'Focus Mode (no skipping)',
   'Advanced analytics & insights',
@@ -43,7 +50,7 @@ const proPlus = [
 ];
 
 const Upgrade = () => {
-  const { isPro } = useSubscription();
+  const { isPro, isProPlus, isUltimate } = useSubscription();
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -86,7 +93,7 @@ const Upgrade = () => {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center"><Crown className="w-5 h-5 text-amber-400" /></div>
-              <div><h3 className="text-lg font-display font-semibold text-foreground">Ultimate</h3><p className="text-muted-foreground text-xs">Unlimited everything</p></div>
+              <div><h3 className="text-lg font-display font-semibold text-foreground">Ultimate</h3><p className="text-muted-foreground text-xs">Unlimited AI tools</p></div>
             </div>
             <div className="text-4xl font-display font-bold text-foreground mb-6">₹199<span className="text-sm font-normal text-muted-foreground ml-1">/month</span></div>
             <div className="space-y-2.5">
@@ -96,9 +103,17 @@ const Upgrade = () => {
                   {item}
                 </motion.div>
               ))}
+              {ultimateExclusions.map((item, i) => (
+                <motion.div key={item} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.03 }} className="flex items-center gap-2.5 text-sm text-muted-foreground/50">
+                  <div className="w-5 h-5 rounded-full bg-muted/20 flex items-center justify-center flex-shrink-0"><Lock className="w-3 h-3 text-muted-foreground/40" /></div>
+                  {item}
+                </motion.div>
+              ))}
             </div>
-            {isPro ? (
+            {isUltimate ? (
               <Button variant="outline" className="w-full mt-6 h-11 rounded-2xl" disabled><Star className="w-4 h-4 mr-2" /> Current Plan</Button>
+            ) : isProPlus ? (
+              <Button variant="outline" className="w-full mt-6 h-11 rounded-2xl" disabled>Included in PRO+</Button>
             ) : (
               <Button onClick={() => window.open(`https://checkout.dodopayments.com/buy/${DODO_ULTIMATE_ID}`, '_blank')}
                 className="w-full mt-6 h-12 rounded-2xl gradient-primary text-primary-foreground font-semibold text-base shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all hover:scale-[1.01] active:scale-[0.99]">
@@ -111,7 +126,7 @@ const Upgrade = () => {
         {/* PRO+ ₹499 */}
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="rounded-[1.75rem] liquid-glass p-6 border border-violet-500/20 relative">
           <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1">
-            <Rocket className="w-3 h-3" /> New
+            <Rocket className="w-3 h-3" /> Best Value
           </div>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
@@ -127,10 +142,14 @@ const Upgrade = () => {
                 </motion.div>
               ))}
             </div>
-            <Button onClick={() => window.open(`https://checkout.dodopayments.com/buy/${DODO_PRO_PLUS_ID}`, '_blank')}
-              className="w-full mt-6 h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold text-base shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 transition-all hover:scale-[1.01] active:scale-[0.99]">
-              <Rocket className="w-5 h-5 mr-2" /> Go PRO+
-            </Button>
+            {isProPlus ? (
+              <Button variant="outline" className="w-full mt-6 h-11 rounded-2xl" disabled><Star className="w-4 h-4 mr-2" /> Current Plan</Button>
+            ) : (
+              <Button onClick={() => window.open(`https://checkout.dodopayments.com/buy/${DODO_PRO_PLUS_ID}`, '_blank')}
+                className="w-full mt-6 h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold text-base shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 transition-all hover:scale-[1.01] active:scale-[0.99]">
+                <Rocket className="w-5 h-5 mr-2" /> Go PRO+
+              </Button>
+            )}
           </div>
         </motion.div>
       </div>

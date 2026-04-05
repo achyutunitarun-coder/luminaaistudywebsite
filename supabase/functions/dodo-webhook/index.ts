@@ -23,6 +23,14 @@ serve(async (req) => {
     const customerEmail = data?.customer?.email;
     const subscriptionId = data?.subscription_id || data?.id;
     const status = data?.status;
+    const productId = data?.product_id || data?.items?.[0]?.product_id || '';
+
+    // Determine plan tier from product ID
+    const ULTIMATE_PRODUCT_ID = 'pdt_0NbKNHJ5nK556qajM5MKa';
+    const PRO_PLUS_PRODUCT_ID = 'pdt_0Nbybrhl2M0GdzScdoAwb';
+    let planTier = 'ultimate'; // default paid tier
+    if (productId === PRO_PLUS_PRODUCT_ID) planTier = 'pro_plus';
+    const status = data?.status;
 
     if (!customerEmail) {
       console.error("No customer email in webhook payload");
@@ -54,7 +62,7 @@ serve(async (req) => {
         user_id: userId,
         subscription_id: subscriptionId,
         status: isActive ? "active" : "inactive",
-        plan: isActive ? "pro" : "basic",
+        plan: isActive ? planTier : "basic",
         current_period_end: data?.current_period_end || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
@@ -67,7 +75,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Subscription ${type} processed: ${isActive ? 'PRO' : 'BASIC'}`);
+    console.log(`Subscription ${type} processed: ${isActive ? planTier.toUpperCase() : 'BASIC'}`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
