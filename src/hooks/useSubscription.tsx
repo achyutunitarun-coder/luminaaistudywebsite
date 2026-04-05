@@ -2,12 +2,14 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-type Plan = 'basic' | 'pro';
+type Plan = 'basic' | 'ultimate' | 'pro_plus';
 
 type SubscriptionContextType = {
   plan: Plan;
   loading: boolean;
-  isPro: boolean;
+  isPro: boolean;        // ultimate or pro_plus (any paid)
+  isProPlus: boolean;    // pro_plus only (₹499)
+  isUltimate: boolean;   // ultimate only (₹199)
   refetch: () => Promise<void>;
 };
 
@@ -26,7 +28,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         .select('status, plan')
         .eq('user_id', user.id)
         .maybeSingle();
-      setPlan(data?.status === 'active' ? 'pro' : 'basic');
+      if (data?.status === 'active') {
+        if (data.plan === 'pro_plus') setPlan('pro_plus');
+        else setPlan('ultimate');
+      } else {
+        setPlan('basic');
+      }
     } catch {
       setPlan('basic');
     }
@@ -35,8 +42,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
 
+  const isPro = plan === 'ultimate' || plan === 'pro_plus';
+  const isProPlus = plan === 'pro_plus';
+  const isUltimate = plan === 'ultimate';
+
   return (
-    <SubscriptionContext.Provider value={{ plan, loading, isPro: plan === 'pro', refetch: fetchSubscription }}>
+    <SubscriptionContext.Provider value={{ plan, loading, isPro, isProPlus, isUltimate, refetch: fetchSubscription }}>
       {children}
     </SubscriptionContext.Provider>
   );
