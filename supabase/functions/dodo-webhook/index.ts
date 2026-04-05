@@ -23,6 +23,14 @@ serve(async (req) => {
     const customerEmail = data?.customer?.email;
     const subscriptionId = data?.subscription_id || data?.id;
     const status = data?.status;
+    const productId = data?.product_id || data?.items?.[0]?.product_id || '';
+
+    // Determine plan tier from product ID
+    const ULTIMATE_PRODUCT_ID = 'pdt_0NbKNHJ5nK556qajM5MKa';
+    const PRO_PLUS_PRODUCT_ID = 'pdt_0Nbybrhl2M0GdzScdoAwb';
+    let planTier = 'ultimate'; // default paid tier
+    if (productId === PRO_PLUS_PRODUCT_ID) planTier = 'pro_plus';
+    const status = data?.status;
 
     if (!customerEmail) {
       console.error("No customer email in webhook payload");
