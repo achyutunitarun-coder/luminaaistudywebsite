@@ -62,7 +62,7 @@ serve(async (req) => {
         user_id: userId,
         subscription_id: subscriptionId,
         status: isActive ? "active" : "inactive",
-        plan: isActive ? "pro" : "basic",
+        plan: isActive ? planTier : "basic",
         current_period_end: data?.current_period_end || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
