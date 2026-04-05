@@ -75,7 +75,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Subscription ${type} processed: ${isActive ? 'PRO' : 'BASIC'}`);
+    console.log(`Subscription ${type} processed: ${isActive ? planTier.toUpperCase() : 'BASIC'}`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
