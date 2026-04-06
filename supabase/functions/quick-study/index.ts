@@ -2,85 +2,46 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const PRIMARY_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-coder:free",
-];
-const FALLBACK_MODELS = [
-  "openrouter/auto",
-  "z-ai/glm-4.5-air:free",
-  "google/gemma-3-12b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "arcee-ai/trinity-large-preview:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "minimax/minimax-m2.5:free",
-  "stepfun/step-3.5-flash:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "openai/gpt-oss-120b:free",
-];
-const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
+const MODELS = ["openrouter/auto", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
 
-async function callOpenRouter(apiKey: string, messages: any[], maxTokens = 3000): Promise<string> {
-  for (const model of ALL_MODELS) {
+async function callAI(apiKey: string, messages: any[], maxTokens = 3000): Promise<string> {
+  for (const model of MODELS) {
     try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }),
-      });
-      if (!res.ok) { const t = await res.text(); console.error(`${model} error ${res.status}: ${t}`); continue; }
+      const c = new AbortController();
+      const t = setTimeout(() => c.abort(), 12000);
+      const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }) });
+      clearTimeout(t);
+      if (!res.ok) { const e = await res.text(); console.error(`[quick-study] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
       const data = await res.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (content) { console.log(`[quick-study] Success: ${model}`); return content; }
-    } catch (e) { console.error(`${model} exception:`, e); }
+      if (content) { console.log(`[quick-study] ✓ ${model}`); return content; }
+    } catch (e) { console.error(`[quick-study] ${model}:`, e); }
   }
   throw new Error("All models failed");
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
     const body = await req.text();
-    if (body.length > 10_000) {
-      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (body.length > 10_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic } = JSON.parse(body);
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const aiMessages = [
-      { role: "system", content: `You are an expert tutor creating a comprehensive quick study lesson. Create 8-10 key concepts with DETAILED explanations (4-6 sentences each, with examples and real-world connections) and 8 practice questions with thorough explanations.
-
-Return ONLY valid JSON with no markdown fences: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation with examples"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "why this is correct and why others aren't"}]}` },
-      { role: "user", content: `Create an incredibly thorough quick study lesson on "${topic}" — make it so good that a student could ace an exam just from this.` },
-    ];
-
-    const text = await callOpenRouter(OPENROUTER_API_KEY, aiMessages, 3000);
+    const text = await callAI(OPENROUTER_API_KEY, [
+      { role: "system", content: `Create a comprehensive quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}` },
+      { role: "user", content: `Create a thorough quick study lesson on "${topic}".` },
+    ], 3000);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "Failed to parse quick study" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (jsonMatch) return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Failed to parse quick study" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("quick-study error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
