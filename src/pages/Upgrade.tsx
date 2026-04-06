@@ -95,7 +95,8 @@ const Upgrade = () => {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center"><Crown className="w-5 h-5 text-amber-400" /></div>
               <div><h3 className="text-lg font-display font-semibold text-foreground">Ultimate</h3><p className="text-muted-foreground text-xs">Unlimited AI tools</p></div>
             </div>
-            <div className="text-4xl font-display font-bold text-foreground mb-6">₹199<span className="text-sm font-normal text-muted-foreground ml-1">/month</span></div>
+            <div className="text-4xl font-display font-bold text-foreground mb-1">₹199<span className="text-sm font-normal text-muted-foreground ml-1">/month</span></div>
+            <p className="text-xs text-muted-foreground mb-5">All AI tools unlimited · No Hub access</p>
             <div className="space-y-2.5">
               {ultimateFeatures.map((item, i) => (
                 <motion.div key={item} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.03 }} className="flex items-center gap-2.5 text-sm text-foreground/80">
@@ -124,8 +125,10 @@ const Upgrade = () => {
         </motion.div>
 
         {/* PRO+ ₹499 */}
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="rounded-[1.75rem] liquid-glass p-6 border border-violet-500/20 relative">
-          <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1">
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="rounded-[1.75rem] liquid-glass p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-purple-500/5" />
+          <div className="absolute inset-[1px] rounded-[calc(1.75rem-1px)] border border-violet-500/30" />
+          <div className="absolute -top-3 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1 z-10">
             <Rocket className="w-3 h-3" /> Best Value
           </div>
           <div className="relative z-10">
@@ -133,7 +136,8 @@ const Upgrade = () => {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center"><Sparkles className="w-5 h-5 text-violet-400" /></div>
               <div><h3 className="text-lg font-display font-semibold text-foreground">PRO+</h3><p className="text-muted-foreground text-xs">Maximum power</p></div>
             </div>
-            <div className="text-4xl font-display font-bold text-foreground mb-6">₹499<span className="text-sm font-normal text-muted-foreground ml-1">/month</span></div>
+            <div className="text-4xl font-display font-bold text-foreground mb-1">₹499<span className="text-sm font-normal text-muted-foreground ml-1">/month</span></div>
+            <p className="text-xs text-violet-400/80 mb-5">Everything unlimited · Full Hub access</p>
             <div className="space-y-2.5">
               {proPlus.map((item, i) => (
                 <motion.div key={item} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.03 }} className="flex items-center gap-2.5 text-sm text-foreground/80">
