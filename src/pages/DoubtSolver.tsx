@@ -22,7 +22,7 @@ const modes = [
 ];
 
 const DoubtSolver = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -72,10 +72,9 @@ const DoubtSolver = () => {
     setMessages(prev => [...prev, { role: 'user', content: displayContent }]);
     setIsLoading(true);
 
-    const currentChatId = await saveMessage('user', displayContent, chatId);
+    const currentChatIdPromise = saveMessage('user', displayContent, chatId);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/doubt-solver`, {
         method: 'POST',
         headers: {
@@ -109,6 +108,7 @@ const DoubtSolver = () => {
       const fullContent = streamBuffer.getText();
 
       if (fullContent) {
+        const currentChatId = await currentChatIdPromise;
         await saveMessage('assistant', fullContent, currentChatId);
       } else {
         setMessages(prev => {
@@ -217,7 +217,7 @@ const DoubtSolver = () => {
                       : 'liquid-glass rounded-tl-md'
                   }`}>
                     <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1">
-                      <MarkdownRenderer>{msg.content}</MarkdownRenderer>
+                      <MarkdownRenderer streaming={!isUser && isLoading && i === messages.length - 1}>{msg.content}</MarkdownRenderer>
                     </div>
                   </div>
                 </div>

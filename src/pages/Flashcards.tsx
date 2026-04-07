@@ -14,7 +14,7 @@ import { UpgradePopup } from '@/components/UpgradePopup';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 
 const Flashcards = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const queryClient = useQueryClient();
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [showCreate, setShowCreate] = useState(false);
@@ -54,7 +54,6 @@ const Flashcards = () => {
     try {
       const fileContext = buildFileContext(uploadedFiles);
       const fullContent = content + fileContext;
-      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
         method: 'POST',
         headers: {

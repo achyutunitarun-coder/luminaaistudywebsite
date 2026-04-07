@@ -69,6 +69,8 @@ export async function streamSSE(resp: Response, options: StreamOptions = {}) {
     processBuffer();
   }
 
+  buffer += decoder.decode();
+
   if (!streamDone && buffer.trim()) {
     const leftover = buffer;
     buffer = '';
@@ -86,14 +88,30 @@ export function createBufferedTextAccumulator(
 ) {
   let fullText = '';
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let frame: number | null = null;
+  let lastFlushedLength = 0;
+
+  const emit = () => {
+    frame = null;
+    if (fullText.length === lastFlushedLength) return;
+    lastFlushedLength = fullText.length;
+    onFlush(fullText);
+  };
 
   const flush = () => {
     timer = null;
-    onFlush(fullText);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(emit);
+      return;
+    }
+
+    emit();
   };
 
   return {
     push(chunk: string) {
+      if (!chunk) return;
       fullText += chunk;
       if (timer !== null) return;
       timer = setTimeout(flush, flushMs);
@@ -103,7 +121,11 @@ export function createBufferedTextAccumulator(
         clearTimeout(timer);
         timer = null;
       }
-      onFlush(fullText);
+      if (frame !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(frame);
+        frame = null;
+      }
+      emit();
     },
     getText() {
       return fullText;

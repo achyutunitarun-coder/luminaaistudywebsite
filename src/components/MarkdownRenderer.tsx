@@ -64,9 +64,18 @@ function preprocessLatex(text: string): string {
 interface MarkdownRendererProps {
   children: string;
   className?: string;
+  streaming?: boolean;
 }
 
-export default function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
+export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
+  if (streaming) {
+    return (
+      <div className={`overflow-hidden break-words markdown-content ${className || ''}`}>
+        <div className="whitespace-pre-wrap break-words leading-[inherit]">{children}</div>
+      </div>
+    );
+  }
+
   const processed = useMemo(() => preprocessLatex(children), [children]);
 
   return (
