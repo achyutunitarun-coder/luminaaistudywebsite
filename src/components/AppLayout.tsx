@@ -6,35 +6,63 @@ import { useSubscription } from '@/hooks/useSubscription';
 import {
   LayoutDashboard, FileText, BarChart3, Brain, Target, Settings,
   LogOut, Menu, X, Clock, Flame, Coins, Sparkles, Crown,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, MessageSquare, HelpCircle, Zap,
+  Layers, Mic, PenTool, BookOpen, Swords, Trophy, Gamepad2,
+  ClipboardList, Calendar, FileAudio, NotebookPen, ArrowUpCircle,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const sidebarItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Tests', url: '/tests', icon: FileText },
-  { title: 'Analytics', url: '/pulse', icon: BarChart3 },
-  { title: 'Brain Hub', url: '/hub', icon: Brain },
-  { title: 'Focus Mode', url: '/study-session', icon: Target },
-  { title: 'Settings', url: '/settings', icon: Settings },
+const sidebarSections = [
+  {
+    label: 'Main',
+    items: [
+      { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+      { title: 'AI Tools', url: '/ai-tools', icon: Sparkles },
+      { title: 'Brain Hub', url: '/hub', icon: Brain },
+    ],
+  },
+  {
+    label: 'Study',
+    items: [
+      { title: 'AI Chat', url: '/chat', icon: MessageSquare },
+      { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
+      { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
+      { title: 'Quick Study', url: '/quick-study', icon: Zap },
+      { title: 'Lecture AI', url: '/lecture-ai', icon: Mic },
+      { title: 'Smart Notebook', url: '/smart-notebook', icon: PenTool },
+      { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
+    ],
+  },
+  {
+    label: 'Practice',
+    items: [
+      { title: 'Tests', url: '/tests', icon: Target },
+      { title: 'Flashcards', url: '/flashcards', icon: Layers },
+      { title: 'Game Modes', url: '/game-modes', icon: Swords },
+      { title: 'Quest', url: '/quest', icon: Gamepad2 },
+    ],
+  },
+  {
+    label: 'Analytics',
+    items: [
+      { title: 'Pulse', url: '/pulse', icon: BarChart3 },
+      { title: 'Weakness Radar', url: '/weakness-radar', icon: Brain },
+      { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+    ],
+  },
+  {
+    label: 'More',
+    items: [
+      { title: 'Study Planner', url: '/study-planner', icon: Calendar },
+      { title: 'Study Session', url: '/study-session', icon: Clock },
+      { title: 'Resources', url: '/resources', icon: BookOpen },
+      { title: 'Upgrade', url: '/upgrade', icon: ArrowUpCircle },
+      { title: 'Settings', url: '/settings', icon: Settings },
+    ],
+  },
 ];
-
-const routeGroups: Record<string, string[]> = {
-  '/': ['/'],
-  '/tests': ['/tests', '/flashcards', '/note-to-quiz'],
-  '/pulse': ['/pulse', '/weakness-radar', '/leaderboard'],
-  '/hub': ['/hub', '/ai-tools', '/chat', '/doubt-solver', '/notes-generator', '/quick-study', '/lecture-ai', '/smart-notebook', '/resources', '/flowcharts'],
-  '/study-session': ['/study-session', '/study-planner', '/game-modes', '/quest'],
-  '/settings': ['/settings', '/upgrade'],
-};
-
-function isActive(url: string, pathname: string) {
-  const group = routeGroups[url];
-  if (group) return group.includes(pathname);
-  return pathname === url;
-}
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { profile } = useProfile();
@@ -69,7 +97,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
       {/* XP Bar */}
       {(!collapsed || isMobile) && profile && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-3">
           <div className="liquid-glass-subtle rounded-xl p-3">
             <div className="flex justify-between text-[11px] mb-1.5">
               <span className="text-primary font-bold">Lv.{profile.level}</span>
@@ -87,37 +115,48 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
       )}
 
-      {/* Nav Items */}
-      <nav className="flex-1 px-3 space-y-1">
-        {sidebarItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.url, location.pathname);
-          return (
-            <NavLink
-              key={item.url}
-              to={item.url}
-              end={item.url === '/'}
-              onClick={() => isMobile && setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 group ${
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/15'
-              } ${collapsed && !isMobile ? 'justify-center px-2.5' : ''}`}
-              activeClassName=""
-            >
-              <Icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${active ? 'text-primary' : 'group-hover:text-foreground'}`} />
-              {(!collapsed || isMobile) && <span>{item.title}</span>}
-              {active && (!collapsed || isMobile) && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </NavLink>
-          );
-        })}
+      {/* Nav Sections */}
+      <nav className="flex-1 overflow-y-auto px-3 space-y-4 pb-2">
+        {sidebarSections.map((section) => (
+          <div key={section.label}>
+            {(!collapsed || isMobile) && (
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold px-3 mb-1.5">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = location.pathname === item.url;
+                return (
+                  <NavLink
+                    key={item.url}
+                    to={item.url}
+                    end={item.url === '/'}
+                    onClick={() => isMobile && setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 group ${
+                      active
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/15'
+                    } ${collapsed && !isMobile ? 'justify-center px-2.5' : ''}`}
+                    activeClassName=""
+                  >
+                    <Icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${active ? 'text-primary' : 'group-hover:text-foreground'}`} />
+                    {(!collapsed || isMobile) && <span>{item.title}</span>}
+                    {active && (!collapsed || isMobile) && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Stats */}
       {(!collapsed || isMobile) && profile && (
-        <div className="px-4 pb-3 space-y-2">
+        <div className="px-4 pb-3 space-y-2 flex-shrink-0">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-1.5 text-xs">
               <Flame className="w-3.5 h-3.5 text-warning" />
@@ -128,8 +167,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               <span className="text-xp font-semibold tabular-nums">{profile.coins}</span>
             </div>
           </div>
-
-          {/* Timer */}
           <button
             onClick={() => navigate('/study-session')}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl liquid-glass-subtle text-xs hover:border-primary/20 transition-all"
@@ -142,7 +179,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       )}
 
       {/* Sign Out */}
-      <div className="px-3 pb-4 pt-2 border-t border-border/10 mt-2">
+      <div className="px-3 pb-4 pt-2 border-t border-border/10 mt-2 flex-shrink-0">
         <button
           onClick={signOut}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-all w-full ${
@@ -166,7 +203,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         style={{ background: 'hsl(230 22% 8% / 0.95)', backdropFilter: 'blur(24px)' }}
       >
         <SidebarContent />
-        {/* Collapse Toggle */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-muted border border-border/20 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-50"
