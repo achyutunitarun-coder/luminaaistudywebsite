@@ -10,16 +10,15 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const PRIMARY_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "minimax/minimax-m2.5:free",
+  "google/gemma-3-27b-it:free",
   "z-ai/glm-4.5-air:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
 ];
 
-const AUTO_ROUTER = "stepfun/step-3.5-flash:free";
+const AUTO_ROUTER = "google/gemma-3-12b-it:free";
 
 const FALLBACK_MODELS = [
-  "stepfun/step-3.5-flash:free",
   "google/gemma-3-12b-it:free",
 ];
 
