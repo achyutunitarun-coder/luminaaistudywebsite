@@ -230,9 +230,7 @@ const ChatPage = () => {
         return;
       }
 
-      // Handle SSE streaming
-      const reader = resp.body?.getReader();
-      if (!reader) {
+      if (!resp.body) {
         toast.error('Failed to get AI response stream.');
         return;
       }

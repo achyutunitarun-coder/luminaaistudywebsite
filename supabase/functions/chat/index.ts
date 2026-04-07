@@ -14,16 +14,25 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Diversified free model chains — spread across providers to avoid shared rate limits
 // Priority: speed + no-thinking + provider diversity
 const FAST_MODELS: Record<string, string[]> = {
-  reasoning: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
-  coding: ["qwen/qwen3-coder:free", "minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
-  general: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
-  fast: ["minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
-  study: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
-  long_context: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
-  creative: ["meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "google/gemma-3-12b-it:free"],
+  reasoning: ["minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  coding: ["qwen/qwen3-coder:free", "minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  general: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "google/gemma-3-27b-it:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  fast: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  study: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  long_context: ["minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  creative: ["z-ai/glm-4.5-air:free", "minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
 };
 
-const TIMEOUT_MS = 12000;
+const TIMEOUT_MS = 9000;
+const CATEGORY_MAX_TOKENS: Record<Category, number> = {
+  reasoning: 1200,
+  coding: 1200,
+  general: 900,
+  fast: 420,
+  study: 1100,
+  long_context: 1400,
+  creative: 1100,
+};
 
 const CODING_KW = ["code","coding","program","function","bug","debug","javascript","python","typescript","react","html","css","api","algorithm","syntax","compile","class","array","loop","import","async","await","promise","fetch","database","sql"];
 const REASONING_KW = ["why","explain why","reason","logic","prove","proof","analyze","math","calculus","integral","derivative","equation","algebra","geometry","physics","chemistry","formula","solve","calculate","step by step"];
@@ -92,6 +101,7 @@ serve(async (req) => {
     const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
     const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
     const models = FAST_MODELS[category] || FAST_MODELS.general;
+    const maxTokens = CATEGORY_MAX_TOKENS[category] || CATEGORY_MAX_TOKENS.general;
 
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     let systemPrompt = `You are Lumina — a brilliant, adaptable AI study companion. You're NOT a textbook. You're like the smartest friend who happens to know everything and explains things in ways that actually click.
@@ -129,7 +139,7 @@ RULES:
         const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 2048, temperature: 0.7, stream: true }),
+          body: JSON.stringify({ model, messages: aiMessages, max_tokens: maxTokens, temperature: 0.65, stream: true }),
         }, TIMEOUT_MS);
 
         if (!res.ok) { const t = await res.text(); console.error(`[chat] ${model} ${res.status}: ${t.slice(0, 200)}`); continue; }
@@ -141,11 +151,21 @@ RULES:
         const metaBytes = new TextEncoder().encode(metaEvent);
         const { readable, writable } = new TransformStream();
         const writer = writable.getWriter();
-        (async () => {
-          await writer.write(metaBytes);
-          const reader = res.body!.getReader();
-          while (true) { const { done, value } = await reader.read(); if (done) break; await writer.write(value); }
-          await writer.close();
+        void (async () => {
+          try {
+            await writer.write(metaBytes);
+            const reader = res.body?.getReader();
+            if (!reader) return;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              await writer.write(value);
+            }
+          } catch (streamError) {
+            console.warn("[chat] stream closed early:", streamError instanceof Error ? streamError.message : streamError);
+          } finally {
+            try { await writer.close(); } catch {}
+          }
         })();
         return new Response(readable, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
       } catch (e) {
