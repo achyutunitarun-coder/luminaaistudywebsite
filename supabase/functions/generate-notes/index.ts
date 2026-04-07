@@ -16,7 +16,7 @@ const PRIMARY_MODELS = [
   "qwen/qwen3-coder:free",
 ];
 
-const AUTO_ROUTER = "openrouter/auto";
+const AUTO_ROUTER = "openrouter/free";
 
 const FALLBACK_MODELS = [
   "openrouter/auto",
