@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, BookOpen, Zap, Swords, TrendingUp, BarChart3, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle } from 'lucide-react';
+import { Trophy, Flame, Target, BookOpen, Zap, Swords, TrendingUp, BarChart3, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, FileText, Layers, Mic } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -82,7 +82,6 @@ const Dashboard = () => {
   const hrs = Math.floor(totalToday / 60);
   const mins = totalToday % 60;
 
-  // AI Insight computation
   const avgScore = recentTests?.length
     ? Math.round(recentTests.reduce((s, t) => s + (t.score || 0), 0) / recentTests.length)
     : null;
@@ -119,7 +118,7 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* AI Insight Panel — PRIMARY FOCAL POINT */}
+      {/* AI Insight Panel */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -131,7 +130,6 @@ const Dashboard = () => {
         <div className="ambient-orb w-[300px] h-[300px] bg-secondary/4 -bottom-20 -left-20" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-          {/* Left: AI badge + message */}
           <div className="flex-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/15 mb-3">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
@@ -152,7 +150,6 @@ const Dashboard = () => {
             </Button>
           </div>
 
-          {/* Right: Readiness Ring */}
           <div className="flex-shrink-0">
             <div className="relative w-28 h-28">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -181,7 +178,7 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* Level 2: Stats Grid */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { icon: Trophy, label: 'Level', value: profile.level, color: 'text-xp', bg: 'bg-xp/8' },
@@ -209,7 +206,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Level 2: Subject Cards with AI mini-insights */}
+      {/* Weak Areas — Premium Design */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
@@ -227,28 +224,67 @@ const Dashboard = () => {
                 if (!topicCounts[m.topic]) topicCounts[m.topic] = { count: 0, subject: m.subject || '' };
                 topicCounts[m.topic].count++;
               });
+              const colors = [
+                { border: 'border-rose-500/30', bg: 'from-rose-500/8 to-transparent', icon: 'text-rose-400', badge: 'bg-rose-500/15 text-rose-400' },
+                { border: 'border-amber-500/30', bg: 'from-amber-500/8 to-transparent', icon: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400' },
+                { border: 'border-orange-500/30', bg: 'from-orange-500/8 to-transparent', icon: 'text-orange-400', badge: 'bg-orange-500/15 text-orange-400' },
+              ];
               return Object.entries(topicCounts)
                 .sort((a, b) => b[1].count - a[1].count)
                 .slice(0, 3)
-                .map(([topic, { count, subject }], i) => (
-                  <div key={topic} className="rounded-2xl liquid-glass p-4 border-l-2 border-destructive/40">
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
-                        <span className="text-xs text-destructive font-medium">{count} mistakes</span>
+                .map(([topic, { count, subject }], i) => {
+                  const c = colors[i] || colors[2];
+                  const severity = count >= 5 ? 'Critical' : count >= 3 ? 'Needs Work' : 'Watch';
+                  return (
+                    <motion.button
+                      key={topic}
+                      whileHover={{ y: -3, scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => navigate('/tests')}
+                      className={`rounded-2xl liquid-glass p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${c.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.badge}`}>
+                            <AlertTriangle className="w-3 h-3" />
+                            {severity}
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums">{count} errors</span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{topic}</h3>
+                        <p className="text-[11px] text-muted-foreground">{subject}</p>
+                        <div className="mt-3 h-1 rounded-full bg-muted/20 overflow-hidden">
+                          <motion.div
+                            className={`h-full rounded-full bg-gradient-to-r ${c.bg.replace('to-transparent', 'to-current')}`}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(count * 20, 100)}%` }}
+                            transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
+                            style={{ background: `hsl(var(--destructive) / ${0.3 + count * 0.1})` }}
+                          />
+                        </div>
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground mb-0.5">{topic}</h3>
-                      <p className="text-[11px] text-muted-foreground">{subject}</p>
-                    </div>
-                  </div>
-                ));
+                    </motion.button>
+                  );
+                });
             })()}
           </div>
         ) : (
-          <div className="rounded-2xl liquid-glass p-6 text-center">
+          <div className="rounded-2xl liquid-glass p-8 text-center">
             <div className="relative z-10">
-              <CheckCircle2 className="w-8 h-8 text-success mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Take some tests to discover your weak areas</p>
+              <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-7 h-7 text-success" />
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">No weak areas detected</p>
+              <p className="text-xs text-muted-foreground">Take some tests to discover areas for improvement</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/tests')}
+                className="mt-4 rounded-xl text-xs"
+              >
+                Take a Test <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
             </div>
           </div>
         )}
@@ -257,30 +293,31 @@ const Dashboard = () => {
       {/* Quick Actions */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, ease }}>
         <h2 className="text-[15px] font-display font-semibold text-foreground mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { name: 'AI Chat', desc: 'Ask anything, get explanations', icon: Zap, url: '/chat', color: 'text-primary', bg: 'bg-primary/8' },
-            { name: 'Generate Test', desc: 'Adaptive tests on any topic', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
-            { name: 'Brain Hub', desc: 'Active recall, spaced repetition', icon: Brain, url: '/hub', color: 'text-xp', bg: 'bg-xp/8' },
+            { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', color: 'text-primary', bg: 'bg-primary/8' },
+            { name: 'Generate Test', desc: 'Any topic', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
+            { name: 'Brain Hub', desc: 'Active recall', icon: Brain, url: '/hub', color: 'text-xp', bg: 'bg-xp/8' },
+            { name: 'AI Tools', desc: 'All tools', icon: Sparkles, url: '/ai-tools', color: 'text-primary', bg: 'bg-primary/8' },
           ].map(action => (
             <button
               key={action.name}
               onClick={() => navigate(action.url)}
-              className="rounded-2xl liquid-glass p-5 text-left transition-all duration-300 group card-hover"
+              className="rounded-2xl liquid-glass p-4 text-left transition-all duration-300 group card-hover"
             >
               <div className="relative z-10">
                 <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
                   <action.icon className={`w-5 h-5 ${action.color}`} />
                 </div>
                 <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
-                <p className="text-xs text-muted-foreground">{action.desc}</p>
+                <p className="text-[11px] text-muted-foreground">{action.desc}</p>
               </div>
             </button>
           ))}
         </div>
       </motion.div>
 
-      {/* Weekly Activity Graph */}
+      {/* Weekly Activity */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
