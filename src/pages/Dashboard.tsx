@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, BookOpen, Zap, Swords, TrendingUp, BarChart3, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, FileText, Layers, Mic } from 'lucide-react';
+import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -7,14 +7,27 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
+import { useMemo } from 'react';
 
 const ease = [0.25, 0.1, 0.25, 1] as const;
 
 const Dashboard = () => {
-  const { profile, getLevelTitle, xpForNextLevel } = useProfile();
+  const { profile, xpForNextLevel } = useProfile();
   const { user } = useAuth();
   const { seconds: liveSeconds } = useStudyTimer();
   const navigate = useNavigate();
+
+  // Parse user preferences for personalization
+  const userPrefs = useMemo(() => {
+    if (!profile?.extra_preferences) return null;
+    try {
+      return JSON.parse(profile.extra_preferences as string);
+    } catch { return null; }
+  }, [profile?.extra_preferences]);
+
+  const userName = profile?.display_name?.split(' ')[0] || 'there';
+  const userSubjects = userPrefs?.subjects || [];
+  const userGoal = userPrefs?.goal || 'learning';
 
   const { data: todayMinutes } = useQuery({
     queryKey: ['today-study-minutes', user?.id],
@@ -25,7 +38,7 @@ const Dashboard = () => {
         .select('duration_minutes')
         .eq('user_id', user!.id)
         .gte('started_at', today);
-      return data?.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) || 0;
+      return data?.reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
     },
     enabled: !!user,
   });
@@ -35,7 +48,7 @@ const Dashboard = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('tests')
-        .select('score, subject, created_at')
+        .select('score, subject, created_at, correct_answers, total_questions')
         .eq('user_id', user!.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
@@ -64,31 +77,20 @@ const Dashboard = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('mistakes')
-        .select('topic, subject')
+        .select('topic, subject, mistake_type')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
       return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: totalSessions } = useQuery({
-    queryKey: ['total-sessions-count', user?.id],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('study_sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user!.id);
-      return count || 0;
-    },
-    enabled: !!user,
-  });
+  // Streak calculation from profile
+  const streakDays = profile?.streak_days || 0;
 
   if (!profile) return null;
 
-  const xpProgress = profile.xp % 100;
-  const nextLevelXp = xpForNextLevel(profile.level);
   const liveMinutes = Math.floor(liveSeconds / 60);
   const totalToday = (todayMinutes || 0) + liveMinutes;
   const hrs = Math.floor(totalToday / 60);
@@ -98,7 +100,7 @@ const Dashboard = () => {
     ? Math.round(recentTests.reduce((s, t) => s + (t.score || 0), 0) / recentTests.length)
     : null;
 
-  // Score trend: compare last 3 vs previous 3
+  // Score trend
   const scoreTrend = (() => {
     if (!recentTests || recentTests.length < 4) return null;
     const recent3 = recentTests.slice(0, 3).reduce((s, t) => s + (t.score || 0), 0) / 3;
@@ -106,8 +108,8 @@ const Dashboard = () => {
     return Math.round(recent3 - prev3);
   })();
 
-  // Subject breakdown
-  const subjectScores = (() => {
+  // Group by SUBJECT not individual question text
+  const subjectScores = useMemo(() => {
     if (!recentTests?.length) return {};
     const map: Record<string, { total: number; count: number }> = {};
     recentTests.forEach(t => {
@@ -117,60 +119,70 @@ const Dashboard = () => {
       map[sub].count++;
     });
     return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Math.round(v.total / v.count)]));
-  })();
+  }, [recentTests]);
 
-  const weakestSubject = Object.entries(subjectScores).sort((a, b) => a[1] - b[1])[0];
-  const strongestSubject = Object.entries(subjectScores).sort((a, b) => b[1] - a[1])[0];
-
-  const topWeaknesses = (() => {
+  // Weak areas grouped by SUBJECT (not raw question text)
+  const weakSubjects = useMemo(() => {
     if (!mistakeData?.length) return [];
-    const counts: Record<string, { count: number; subject: string }> = {};
+    const subjectCounts: Record<string, { count: number; types: Record<string, number> }> = {};
     mistakeData.forEach(m => {
-      if (!counts[m.topic]) counts[m.topic] = { count: 0, subject: m.subject || '' };
-      counts[m.topic].count++;
+      const sub = m.subject || 'General';
+      if (!subjectCounts[sub]) subjectCounts[sub] = { count: 0, types: {} };
+      subjectCounts[sub].count++;
+      const t = m.mistake_type || 'conceptual';
+      subjectCounts[sub].types[t] = (subjectCounts[sub].types[t] || 0) + 1;
     });
-    return Object.entries(counts)
+    return Object.entries(subjectCounts)
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 3)
-      .map(([topic, data]) => ({ topic, ...data }));
-  })();
+      .map(([subject, data]) => {
+        const topType = Object.entries(data.types).sort((a, b) => b[1] - a[1])[0]?.[0] || 'conceptual';
+        return { subject, count: data.count, topMistakeType: topType };
+      });
+  }, [mistakeData]);
 
-  const weekTotal = weeklyMinutes?.reduce((s, w) => s + Math.min(w.duration_minutes || 0, 1440), 0) || 0;
   const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
   const consistency = Math.round((daysStudied / 7) * 100);
 
-  // Build smart insight
+  // Personalized insight message
   const insightMessage = (() => {
     const parts: string[] = [];
 
-    if (avgScore !== null) {
-      parts.push(`Your average test score is **${avgScore}%**${scoreTrend !== null ? (scoreTrend >= 0 ? ` (↑ ${scoreTrend}% trend)` : ` (↓ ${Math.abs(scoreTrend)}% trend)`) : ''}.`);
+    if (avgScore !== null && recentTests && recentTests.length > 0) {
+      const lastTest = recentTests[0];
+      const trendText = scoreTrend !== null
+        ? (scoreTrend >= 0 ? ` — trending up ${scoreTrend}%` : ` — dropped ${Math.abs(scoreTrend)}%`)
+        : '';
+      parts.push(`Average score: ${avgScore}%${trendText}. Last test: ${lastTest.subject || 'General'} (${lastTest.score}%).`);
     }
 
-    if (weakestSubject && strongestSubject && weakestSubject[0] !== strongestSubject[0]) {
-      parts.push(`Strongest in **${strongestSubject[0]}** (${strongestSubject[1]}%), needs work in **${weakestSubject[0]}** (${weakestSubject[1]}%).`);
+    if (weakSubjects.length > 0) {
+      const weakest = weakSubjects[0];
+      parts.push(`${weakest.subject} needs attention — ${weakest.count} mistakes, mostly ${weakest.topMistakeType}.`);
     }
 
-    if (topWeaknesses.length > 0) {
-      parts.push(`Top weak area: **${topWeaknesses[0].topic.slice(0, 50)}** (${topWeaknesses[0].count} errors).`);
+    if (streakDays >= 3) {
+      parts.push(`${streakDays}-day streak! Keep the momentum going.`);
+    } else if (streakDays === 0 && totalToday === 0) {
+      parts.push(`Start studying today to build your streak.`);
     }
 
-    if (consistency > 0) {
-      parts.push(`${consistency}% study consistency this week (${daysStudied}/7 days).`);
+    if (consistency > 0 && consistency < 100) {
+      parts.push(`${consistency}% consistency this week (${daysStudied}/7 days).`);
     }
 
     if (parts.length === 0) {
-      return `Welcome back! Start a study session or take a test to get personalized AI insights about your performance.`;
+      return `Hey ${userName}! ${userGoal === 'exams' ? 'Ready to prep for exams?' : 'Ready to learn something new?'} Start a study session or take a test to get personalized insights.`;
     }
 
     return parts.join(' ');
   })();
 
-  const insightAction = topWeaknesses.length > 0
-    ? { label: 'Practice Weak Areas', url: '/tests' }
+  const insightAction = weakSubjects.length > 0
+    ? { label: `Practice ${weakSubjects[0].subject}`, url: '/tests' }
     : avgScore !== null && avgScore < 70
     ? { label: 'Improve Your Score', url: '/tests' }
-    : { label: 'Continue Studying', url: '/study-session' };
+    : { label: 'Start Studying', url: '/study-session' };
 
   const readinessScore = avgScore ?? 0;
 
@@ -195,23 +207,41 @@ const Dashboard = () => {
             </div>
             <h2 className="text-xl md:text-2xl font-display font-bold text-foreground leading-snug mb-2">
               {avgScore !== null
-                ? `You're at ${avgScore}% readiness${scoreTrend !== null && scoreTrend > 0 ? ' — improving!' : ''}`
-                : `Let's build your study streak`}
+                ? (
+                  <span className="flex items-center gap-2">
+                    {avgScore >= 70 ? `Strong performance, ${userName}` : `Room to grow, ${userName}`}
+                    {scoreTrend !== null && (
+                      scoreTrend >= 0
+                        ? <TrendingUp className="w-5 h-5 text-success inline" />
+                        : <TrendingDown className="w-5 h-5 text-destructive inline" />
+                    )}
+                  </span>
+                )
+                : `Welcome back, ${userName}!`}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
-              {insightMessage.replace(/\*\*(.*?)\*\*/g, '$1')}
+              {insightMessage}
             </p>
 
-            {/* Subject breakdown mini-table */}
-            {Object.keys(subjectScores).length > 1 && (
+            {/* Subject performance chips */}
+            {Object.keys(subjectScores).length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {Object.entries(subjectScores).map(([sub, score]) => (
-                  <div key={sub} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${
-                    score >= 70 ? 'bg-success/10 text-success' : score >= 50 ? 'bg-warning/10 text-warning' : 'bg-destructive/10 text-destructive'
-                  }`}>
+                  <motion.div
+                    key={sub}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border ${
+                      score >= 70
+                        ? 'bg-success/10 text-success border-success/20'
+                        : score >= 50
+                        ? 'bg-warning/10 text-warning border-warning/20'
+                        : 'bg-destructive/10 text-destructive border-destructive/20'
+                    }`}
+                  >
                     <span className="capitalize">{sub}</span>
                     <span className="font-bold tabular-nums">{score}%</span>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -256,10 +286,10 @@ const Dashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Trophy, label: 'Level', value: profile.level, color: 'text-xp', bg: 'bg-xp/8' },
-          { icon: Flame, label: 'Streak', value: `${profile.streak_days}d`, color: 'text-warning', bg: 'bg-warning/8' },
-          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, color: 'text-primary', bg: 'bg-primary/8' },
-          { icon: Target, label: 'Tests', value: recentTests?.length ?? 0, color: 'text-secondary', bg: 'bg-secondary/8' },
+          { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/${100} XP`, color: 'text-xp', bg: 'bg-xp/8' },
+          { icon: Flame, label: 'Streak', value: `${streakDays}d`, sub: streakDays >= 3 ? '🔥 On fire!' : 'Keep going', color: 'text-warning', bg: 'bg-warning/8' },
+          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, sub: totalToday > 30 ? 'Great progress' : 'Just started', color: 'text-primary', bg: 'bg-primary/8' },
+          { icon: Target, label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', sub: `${recentTests?.length || 0} tests taken`, color: 'text-secondary', bg: 'bg-secondary/8' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -275,23 +305,24 @@ const Dashboard = () => {
               <div>
                 <p className="text-[11px] text-muted-foreground">{stat.label}</p>
                 <p className="text-lg font-display font-bold text-foreground tabular-nums">{stat.value}</p>
+                <p className="text-[10px] text-muted-foreground/70">{stat.sub}</p>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Weak Areas */}
+      {/* Weak Areas — By SUBJECT */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
-            <Brain className="w-4 h-4 text-primary" /> Weak Areas
+            <Brain className="w-4 h-4 text-primary" /> Areas to Improve
           </h2>
           <Button variant="ghost" size="sm" onClick={() => navigate('/weakness-radar')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
-            View All <ArrowRight className="w-3 h-3 ml-1" />
+            Details <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
-        {topWeaknesses.length > 0 ? (
+        {weakSubjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(() => {
               const colors = [
@@ -299,13 +330,16 @@ const Dashboard = () => {
                 { border: 'border-l-amber-500/40', bg: 'from-amber-500/8 to-transparent', badge: 'bg-amber-500/15 text-amber-400' },
                 { border: 'border-l-orange-500/40', bg: 'from-orange-500/8 to-transparent', badge: 'bg-orange-500/15 text-orange-400' },
               ];
-              return topWeaknesses.map((w, i) => {
+              return weakSubjects.map((w, i) => {
                 const c = colors[i] || colors[2];
-                const severity = w.count >= 5 ? 'Critical' : w.count >= 3 ? 'Needs Work' : 'Watch';
-                const truncatedTopic = w.topic.length > 60 ? w.topic.slice(0, 57) + '...' : w.topic;
+                const severity = w.count >= 10 ? 'Critical' : w.count >= 5 ? 'Needs Work' : 'Watch';
+                const subjectScore = subjectScores[w.subject];
                 return (
                   <motion.button
-                    key={w.topic}
+                    key={w.subject}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1, ease }}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate('/tests')}
@@ -318,14 +352,16 @@ const Dashboard = () => {
                           <AlertTriangle className="w-3 h-3" />
                           {severity}
                         </div>
-                        <span className="text-xs text-muted-foreground tabular-nums">{w.count}×</span>
+                        {subjectScore !== undefined && (
+                          <span className="text-xs text-muted-foreground tabular-nums">{subjectScore}% avg</span>
+                        )}
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-2">{truncatedTopic}</h3>
-                      <p className="text-[11px] text-muted-foreground capitalize">{w.subject}</p>
+                      <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors capitalize">{w.subject}</h3>
+                      <p className="text-[11px] text-muted-foreground">{w.count} mistakes · mostly {w.topMistakeType}</p>
                       <div className="mt-3 h-1 rounded-full bg-muted/20 overflow-hidden">
                         <div
                           className="h-full rounded-full bg-destructive/40 transition-[width] duration-700 ease-out"
-                          style={{ width: `${Math.min(w.count * 20, 100)}%` }}
+                          style={{ width: `${Math.min(w.count * 5, 100)}%` }}
                         />
                       </div>
                     </div>
@@ -340,14 +376,9 @@ const Dashboard = () => {
               <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-7 h-7 text-success" />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">No weak areas detected</p>
+              <p className="text-sm font-medium text-foreground mb-1">Looking good!</p>
               <p className="text-xs text-muted-foreground">Take some tests to discover areas for improvement</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/tests')}
-                className="mt-4 rounded-xl text-xs"
-              >
+              <Button variant="outline" size="sm" onClick={() => navigate('/tests')} className="mt-4 rounded-xl text-xs">
                 Take a Test <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
@@ -361,12 +392,15 @@ const Dashboard = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', color: 'text-primary', bg: 'bg-primary/8' },
-            { name: 'Generate Test', desc: 'Any topic', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
+            { name: 'Generate Test', desc: userSubjects[0] ? `Try ${userSubjects[0]}` : 'Any topic', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
             { name: 'Brain Hub', desc: 'Active recall', icon: Brain, url: '/hub', color: 'text-xp', bg: 'bg-xp/8' },
             { name: 'AI Tools', desc: 'All tools', icon: Sparkles, url: '/ai-tools', color: 'text-primary', bg: 'bg-primary/8' },
-          ].map(action => (
-            <button
+          ].map((action, i) => (
+            <motion.button
               key={action.name}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + i * 0.05, ease }}
               onClick={() => navigate(action.url)}
               className="rounded-2xl liquid-glass p-4 text-left transition-all duration-300 group card-hover"
             >
@@ -377,7 +411,7 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
                 <p className="text-[11px] text-muted-foreground">{action.desc}</p>
               </div>
-            </button>
+            </motion.button>
           ))}
         </div>
       </motion.div>
@@ -386,7 +420,7 @@ const Dashboard = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, ease }}
+        transition={{ delay: 0.45, ease }}
         className="rounded-[1.75rem] liquid-glass p-6"
       >
         <div className="relative z-10">
@@ -395,10 +429,10 @@ const Dashboard = () => {
               <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-primary" /> This Week
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{daysStudied}/7 days active · {consistency}% consistency</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{daysStudied}/7 days · {consistency}% consistency</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
-              Full Analytics <ArrowRight className="w-3 h-3 ml-1" />
+              Analytics <ArrowRight className="w-3 h-3 ml-1" />
             </Button>
           </div>
 
