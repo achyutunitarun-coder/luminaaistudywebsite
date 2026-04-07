@@ -280,7 +280,7 @@ const AudioAnalysis = () => {
                 {notes && (
                   <div className="w-full mt-8 rounded-2xl bg-muted/10 border border-border/20 p-6 max-h-[400px] overflow-y-auto">
                     <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground">
-                      <MarkdownRenderer>{notes}</MarkdownRenderer>
+                      <MarkdownRenderer streaming={state === 'processing'}>{notes}</MarkdownRenderer>
                     </div>
                   </div>
                 )}

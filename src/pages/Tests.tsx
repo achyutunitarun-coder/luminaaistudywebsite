@@ -22,7 +22,7 @@ type Question = {
 };
 
 const Tests = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const queryClient = useQueryClient();
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [syllabus, setSyllabus] = useState('');
@@ -49,7 +49,6 @@ const Tests = () => {
     try {
       const fileContext = buildFileContext(uploadedFiles);
       const fullSyllabus = syllabus + fileContext;
-      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-test`, {
         method: 'POST',
         headers: {

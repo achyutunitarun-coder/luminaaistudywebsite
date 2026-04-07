@@ -105,7 +105,7 @@ const ChatSidebar = ({
 
 /* ─── Main Chat Component ─── */
 const ChatPage = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const isMobile = useIsMobile();
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
   const [chats, setChats] = useState<Chat[]>([]);
@@ -184,18 +184,39 @@ const ChatPage = () => {
     setUploadedFiles([]);
 
     try {
-      const { data: userMsg } = await supabase
-        .from('chat_messages')
-        .insert({ chat_id: activeChat, role: 'user', content: userContent })
-        .select()
-        .single();
+      const optimisticUserMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userContent,
+        created_at: new Date().toISOString(),
+      };
 
-      if (userMsg) setMessages(prev => [...prev, userMsg]);
+      setMessages(prev => [...prev, optimisticUserMessage]);
+
+      const persistedUserMessagePromise = (async () => {
+        try {
+          const { data } = await supabase
+            .from('chat_messages')
+            .insert({ chat_id: activeChat, role: 'user', content: userContent })
+            .select()
+            .single();
+
+          return data ?? null;
+        } catch (error) {
+          console.error('Failed to save user message:', error);
+          return null;
+        }
+      })();
+
+      void persistedUserMessagePromise.then((savedUserMsg) => {
+        if (!savedUserMsg) return;
+        setMessages(prev => prev.map(m => m.id === optimisticUserMessage.id ? savedUserMsg : m));
+      });
 
       if (messages.length === 0) {
         const title = userContent.slice(0, 50) + (userContent.length > 50 ? '...' : '');
-        await supabase.from('chats').update({ title }).eq('id', activeChat);
         setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
+        void supabase.from('chats').update({ title }).eq('id', activeChat);
       }
 
       const allMessages = [...messages, { role: 'user', content: userContent }]
@@ -205,7 +226,6 @@ const ChatPage = () => {
           content: m.content,
         }));
 
-      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
@@ -437,7 +457,7 @@ const ChatPage = () => {
                           prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground prose-blockquote:py-1
                           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
                         ">
-                          <MarkdownRenderer>{msg.content}</MarkdownRenderer>
+                          <MarkdownRenderer streaming={!isUser && isLoading && msg.id === messages[messages.length - 1]?.id}>{msg.content}</MarkdownRenderer>
                         </div>
                       </div>
                     </div>
