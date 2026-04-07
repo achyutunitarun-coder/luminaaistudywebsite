@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
 
 async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
   for (const model of MODELS) {
@@ -49,9 +49,9 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const prompts: Record<string, { system: string; user: string }> = {
-      notes: { system: `Create detailed study notes with headings, **bold** terms, formulas, examples, and a "Quick Review" summary. Use markdown.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
+      notes: { system: `Create study notes that feel like a brilliant tutor wrote them — not a textbook. Use headings, **bold** terms, real-world analogies, formulas, and a "Quick Review" summary. Make concepts click, not just list them.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
       flowchart: { system: `Return ONLY JSON (no fences): {"nodes": [{"id": "1", "label": "Title", "description": "Brief", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. 6-12 nodes.`, user: `Create concept flowchart for "${fileName}":\n\n${fileContent}` },
-      overview: { system: `Create overview in ${language || "Spanish"}. Include key concepts, bullets, conclusion. Keep technical terms in parentheses.`, user: `Create overview in ${language || "Spanish"} of "${fileName}":\n\n${fileContent}` },
+      overview: { system: `Create overview in ${language || "Spanish"}. Make it engaging and insightful — include key concepts, bullets, conclusion. Keep technical terms in parentheses.`, user: `Create overview in ${language || "Spanish"} of "${fileName}":\n\n${fileContent}` },
     };
     const p = prompts[mode];
     if (!p) throw new Error("Invalid mode");

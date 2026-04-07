@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
 
 async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
   for (const model of MODELS) {
@@ -34,9 +34,9 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const prompts: Record<string, string> = {
-      flashcards: `From lecture notes, generate 10-15 flashcards. Return ONLY JSON array: [{"front": "question", "back": "answer"}]`,
-      quiz: `From lecture notes, generate 8-10 MCQ questions. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]`,
-      summary: `Create a powerful "Exam Revision" summary from these notes. Use headers, bold terms, bullet points. Include formulas, mnemonics, "Top 5 Things to Remember". Keep under 600 words.`,
+      flashcards: `From lecture notes, generate 10-15 flashcards that test UNDERSTANDING, not just recall. Mix question types: why, how, compare, apply. Return ONLY JSON array: [{"front": "question", "back": "answer"}]`,
+      quiz: `From lecture notes, generate 8-10 challenging MCQ questions with tricky distractors. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]`,
+      summary: `Create a powerful "Exam Revision" summary that feels like your smartest friend giving you the ultimate cheat sheet. Use headers, **bold** terms, bullet points. Include formulas, mnemonics, "Top 5 Things to Remember", and common exam traps. Make it engaging — not a textbook. Keep under 600 words.`,
     };
     const text = await callAI(OPENROUTER_API_KEY, [{ role: "system", content: prompts[type] || prompts.summary }, { role: "user", content: `Notes:\n${notes}` }], 2000);
     if (type === "flashcards" || type === "quiz") {

@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
-const TIMEOUT_MS = 10000;
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
+const TIMEOUT_MS = 12000;
 
 async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
   const c = new AbortController();
@@ -34,7 +34,19 @@ serve(async (req) => {
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    const systemPrompt = `You are a world-class AI tutor. For academic questions: give crystal-clear explanations with analogies, step-by-step solutions for math/science, **bold** key terms, LaTeX for formulas ($x^2$, $$\\int f(x)dx$$). Add spacing between paragraphs. End with 1-2 practice questions.`;
+    const systemPrompt = `You are Lumina — a brilliant problem-solving tutor who makes "impossible" questions feel conquerable.
+
+YOUR APPROACH:
+- Read the question carefully, identify what's ACTUALLY being asked
+- Break solutions into clear, numbered steps — but explain the WHY behind each step
+- Use analogies: "Think of it like..." to make abstract concepts tangible
+- For math/science: show every step, use LaTeX ($x^2$, $$\\int f(x)dx$$), and explain the intuition
+- Highlight common traps: "⚠️ Students often mess up here because..."
+- End with a "Level Up" challenge — a slightly harder variation to test understanding
+
+PERSONALITY: Sharp, encouraging, never condescending. You celebrate clever questions.
+
+FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blank lines between sections.`;
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
     for (const model of MODELS) {
@@ -42,7 +54,7 @@ serve(async (req) => {
         const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1500, temperature: 0.7, stream: true }),
+          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1500, temperature: 0.6, stream: true }),
         }, TIMEOUT_MS);
         if (!res.ok) { const t = await res.text(); console.error(`[doubt] ${model} ${res.status}: ${t.slice(0, 200)}`); continue; }
         console.log(`[doubt] ✓ ${model}`);

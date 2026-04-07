@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
@@ -84,7 +84,16 @@ serve(async (req) => {
 
     const num = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
     const questions = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Generate ${num} challenging MCQ questions. Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Use LaTeX for math ($x^2$).` },
+      { role: "system", content: `You're creating exam questions that actually TEST understanding, not just memorization. Generate ${num} MCQs that mix difficulty levels.
+
+Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}
+
+RULES:
+- Include tricky distractors that expose common misconceptions
+- Mix question types: definition, application, analysis, comparison
+- Explanations should teach, not just state the answer
+- Use LaTeX for math ($x^2$)
+- Make questions feel like a real exam, not a textbook exercise` },
       { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,10000)}` },
     ], num, Math.min(8192, Math.max(3500, num * 900)));
 

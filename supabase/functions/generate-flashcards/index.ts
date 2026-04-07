@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
@@ -64,7 +64,15 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const text = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Create exactly ${count} flashcards testing understanding. Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}` },
+      { role: "system", content: `Create ${count} flashcards that actually help retention — not just definitions. Mix these types:
+- "Why does X happen?" (understanding)
+- "What's the difference between X and Y?" (comparison)
+- "If X changes, what happens to Y?" (application)
+- Classic "What is X?" (recall)
+
+Make answers concise but insightful. Include mnemonics or memory hooks where helpful.
+
+Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}` },
       { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,30000)}` },
     ], 2500);
 

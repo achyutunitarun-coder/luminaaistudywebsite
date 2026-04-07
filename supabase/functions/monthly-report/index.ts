@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3-next-80b-a3b-instruct:free", "qwen/qwen3.6-plus:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -22,7 +22,9 @@ serve(async (req) => {
         const c = new AbortController();
         const t = setTimeout(() => c.abort(), 12000);
         const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [
-          { role: "system", content: `Generate monthly report. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["..."],"overall_grade":"A/B/C/D"}` },
+          { role: "system", content: `Generate a monthly learning report. Be honest but encouraging — celebrate wins and be direct about areas needing work.
+
+Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["actionable tip"],"overall_grade":"A/B/C/D"}` },
           { role: "user", content: `Monthly report from:\n\n${JSON.stringify(userData)}` },
         ], max_tokens: 1500, temperature: 0.5 }) });
         clearTimeout(t);

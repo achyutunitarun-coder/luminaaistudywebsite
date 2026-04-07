@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
@@ -45,7 +45,11 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const text = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Generate quiz questions from notes. Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}` },
+      { role: "system", content: `Convert notes into a challenging quiz. Create questions that test UNDERSTANDING, not just recall. Include tricky options that expose common misconceptions.
+
+Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}
+
+Make explanations teach something — not just "the answer is B."` },
       { role: "user", content: `Generate quiz from:\n\n${notes}` },
     ], 2000);
     const parsed = cleanJSON(text);
