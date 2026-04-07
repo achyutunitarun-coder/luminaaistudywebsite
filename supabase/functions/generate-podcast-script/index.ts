@@ -7,24 +7,17 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODELS = [
-  "arcee-ai/trinity-large-preview:free",
-  "qwen/qwen3.6-plus:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "minimax/minimax-m2.5:free",
+  "z-ai/glm-4.5-air:free",
 ];
 const FALLBACK_MODELS = [
-  "z-ai/glm-4.5-air:free",
-  "minimax/minimax-m2.5:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
   "stepfun/step-3.5-flash:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "openai/gpt-oss-20b:free",
+  "google/gemma-3-12b-it:free",
 ];
-const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS.filter(m => !PRIMARY_MODELS.includes(m))];
+const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

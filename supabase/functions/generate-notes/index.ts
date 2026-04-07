@@ -19,17 +19,8 @@ const PRIMARY_MODELS = [
 const AUTO_ROUTER = "stepfun/step-3.5-flash:free";
 
 const FALLBACK_MODELS = [
-  "minimax/minimax-m2.5:free",
-  "z-ai/glm-4.5-air:free",
-  "google/gemma-3-12b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "arcee-ai/trinity-large-preview:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
   "stepfun/step-3.5-flash:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "openai/gpt-oss-20b:free",
+  "google/gemma-3-12b-it:free",
 ];
 
 function getModelsToTry(): string[] {
