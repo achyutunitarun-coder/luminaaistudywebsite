@@ -14,7 +14,7 @@ const PRIMARY_MODELS = [
   "qwen/qwen3-coder:free",
 ];
 const FALLBACK_MODELS = [
-  "openrouter/auto",
+  "openrouter/free",
   "z-ai/glm-4.5-air:free",
   "google/gemma-3-12b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
