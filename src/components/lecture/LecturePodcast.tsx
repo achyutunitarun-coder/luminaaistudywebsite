@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Loader2, Podcast, Play, Square, RotateCcw, Pause, Download, FileVideo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 interface Props {
   notes: string;
@@ -105,32 +106,13 @@ const LecturePodcast = ({ notes, onScriptChange, onBeforeGenerate }: Props) => {
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullScript = '';
-      let streamDone = false;
+      const streamBuffer = createBufferedTextAccumulator(setScript);
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+      streamBuffer.flushNow();
 
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '' || !line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') { streamDone = true; break; }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) { fullScript += content; setScript(fullScript); }
-          } catch {}
-        }
-      }
+      const fullScript = streamBuffer.getText();
 
       const lines = parseScriptLines(fullScript);
       setParsedScript(lines);

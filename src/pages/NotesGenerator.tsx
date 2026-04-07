@@ -12,6 +12,7 @@ import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 const suggestedTopics = ['Photosynthesis', 'World War II', 'Calculus Derivatives', 'DNA Replication', 'Supply & Demand', 'Electromagnetic Waves'];
 
@@ -92,37 +93,23 @@ const NotesGenerator = () => {
         body: JSON.stringify({ topic, sourceText: fullSourceText, style: selectedStyle }),
       });
 
-      if (!resp.ok) throw new Error('Failed');
-
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error('No stream');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try {
-            const c = JSON.parse(json).choices?.[0]?.delta?.content;
-            if (c) setNotes(prev => prev + c);
-          } catch {}
-        }
+      if (!resp.ok) {
+        if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        if (resp.status === 402) throw new Error('AI credits are exhausted right now. Please add credits.');
+        throw new Error('Failed');
       }
 
+      const streamBuffer = createBufferedTextAccumulator(setNotes);
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+      streamBuffer.flushNow();
+
+      if (!streamBuffer.getText().trim()) throw new Error('Empty response');
+
       toast.success('Notes generated & auto-saved!');
-    } catch {
-      toast.error('Failed to generate notes');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to generate notes');
     }
     setGenerating(false);
   };

@@ -11,6 +11,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 import { toast } from 'sonner';
 
 type Chat = { id: string; title: string; created_at: string };
@@ -18,9 +19,6 @@ type Message = { id: string; role: string; content: string; created_at: string }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const MAX_CONTEXT_MESSAGES = 12;
-const MAX_MEMORY_CHATS = 3;
-const MAX_MEMORY_MESSAGES_PER_CHAT = 2;
-const MAX_MEMORY_MESSAGE_CHARS = 180;
 
 /* ─── Chat History Sidebar Content ─── */
 const ChatSidebar = ({
@@ -140,7 +138,7 @@ const ChatPage = () => {
 
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' }); }, [messages, isLoading]);
 
   const loadChats = async () => {
     const { data } = await supabase.from('chats').select('*').order('updated_at', { ascending: false });
@@ -171,44 +169,6 @@ const ChatPage = () => {
     setEditingChat(null);
   };
 
-  const fetchMemoryContext = async () => {
-    if (!user) return [];
-    try {
-      const { data: recentChats } = await supabase
-        .from('chats')
-        .select('id, title')
-        .neq('id', activeChat || '')
-        .order('updated_at', { ascending: false })
-        .limit(MAX_MEMORY_CHATS);
-
-      if (!recentChats || recentChats.length === 0) return [];
-
-      const memoryContext = await Promise.all(
-        recentChats.map(async (chat) => {
-          const { data: msgs } = await supabase
-            .from('chat_messages')
-            .select('role, content')
-            .eq('chat_id', chat.id)
-            .order('created_at', { ascending: false })
-            .limit(MAX_MEMORY_MESSAGES_PER_CHAT);
-          if (!msgs || msgs.length === 0) return null;
-          return {
-            title: chat.title,
-            messages: msgs.reverse().map(m => ({
-              role: m.role,
-              content: m.content.slice(0, MAX_MEMORY_MESSAGE_CHARS),
-            })),
-          };
-        })
-      );
-
-      return memoryContext.filter(Boolean);
-    } catch (err) {
-      console.error('Failed to fetch memory context:', err);
-      return [];
-    }
-  };
-
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
 
@@ -218,7 +178,6 @@ const ChatPage = () => {
     isSendingRef.current = true;
     setIsLoading(true);
 
-    const memoryContextPromise = fetchMemoryContext();
     const fileContext = buildFileContext(uploadedFiles);
     const userContent = input.trim() + fileContext;
     setInput('');
@@ -246,8 +205,6 @@ const ChatPage = () => {
           content: m.content,
         }));
 
-      const memoryContext = await memoryContextPromise;
-
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
@@ -257,7 +214,6 @@ const ChatPage = () => {
         },
         body: JSON.stringify({
           messages: allMessages,
-          memoryContext,
           ...(selectedMode !== 'auto' ? { mode: selectedMode } : {}),
         }),
       });
@@ -266,6 +222,8 @@ const ChatPage = () => {
         const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
         if (resp.status === 429) {
           toast.error('Rate limit exceeded. Please wait a moment and try again.');
+        } else if (resp.status === 402) {
+          toast.error('AI credits are exhausted right now. Please add credits and try again.');
         } else {
           toast.error(errorData.error || 'Failed to get AI response. Please try again.');
         }
@@ -282,40 +240,20 @@ const ChatPage = () => {
       const placeholderId = crypto.randomUUID();
       setMessages(prev => [...prev, { id: placeholderId, role: 'assistant', content: '', created_at: new Date().toISOString() }]);
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
+      const streamBuffer = createBufferedTextAccumulator((text) => {
+        setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: text } : m));
+      });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+      await streamSSE(resp, {
+        onMeta: (meta) => {
+          setActiveMode(meta.mode ?? null);
+          setActiveModel(meta.model ?? null);
+        },
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
 
-        let newlineIndex: number;
-        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, newlineIndex);
-          buffer = buffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            // Capture model/mode metadata
-            if (parsed.lumina_meta) {
-              setActiveMode(parsed.lumina_meta.mode);
-              setActiveModel(parsed.lumina_meta.model);
-              continue;
-            }
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullContent += content;
-              setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, content: fullContent } : m));
-            }
-          } catch {}
-        }
-      }
+      streamBuffer.flushNow();
+      const fullContent = streamBuffer.getText();
 
       if (fullContent) {
         const { data: savedMsg } = await supabase

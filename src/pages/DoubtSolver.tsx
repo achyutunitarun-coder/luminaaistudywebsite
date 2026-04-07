@@ -10,6 +10,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 import { toast } from 'sonner';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -19,34 +20,6 @@ const modes = [
   { value: 'exam', label: '📝 Exam Focused', desc: 'Exam-ready structured answers' },
   { value: 'deep', label: '🧠 Deep Concept', desc: 'In-depth conceptual breakdown' },
 ];
-
-async function readStream(resp: Response, onChunk: (text: string) => void): Promise<string> {
-  const reader = resp.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let full = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let idx: number;
-    while ((idx = buffer.indexOf('\n')) !== -1) {
-      let line = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 1);
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (json === '[DONE]') break;
-      try {
-        const c = JSON.parse(json).choices?.[0]?.delta?.content;
-        if (c) { full += c; onChunk(full); }
-      } catch {}
-    }
-  }
-  return full;
-}
 
 const DoubtSolver = () => {
   const { user } = useAuth();
@@ -60,8 +33,8 @@ const DoubtSolver = () => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' });
+  }, [messages, isLoading]);
 
   const saveMessage = useCallback(async (role: string, content: string, existingChatId: string | null) => {
     if (!user || !content) return existingChatId;
@@ -112,17 +85,28 @@ const DoubtSolver = () => {
         body: JSON.stringify({ messages: updatedMessages }),
       });
 
-      if (!resp.ok) throw new Error('Failed');
+      if (!resp.ok) {
+        if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        if (resp.status === 402) throw new Error('AI credits are exhausted right now. Please add credits.');
+        throw new Error('Failed');
+      }
 
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-      const fullContent = await readStream(resp, (text) => {
+      const streamBuffer = createBufferedTextAccumulator((text) => {
         setMessages(prev => {
           const updated = [...prev];
           updated[updated.length - 1] = { role: 'assistant', content: text };
           return updated;
         });
       });
+
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+
+      streamBuffer.flushNow();
+      const fullContent = streamBuffer.getText();
 
       if (fullContent) {
         await saveMessage('assistant', fullContent, currentChatId);
@@ -133,8 +117,9 @@ const DoubtSolver = () => {
           return updated;
         });
       }
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sorry, something went wrong. Please try again.';
+      setMessages(prev => [...prev, { role: 'assistant', content: message }]);
     }
     setIsLoading(false);
   };
