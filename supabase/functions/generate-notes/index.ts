@@ -16,7 +16,7 @@ const PRIMARY_MODELS = [
   "z-ai/glm-4.5-air:free",
 ];
 
-const AUTO_ROUTER = "qwen/qwen3-next-80b-a3b-instruct:free";
+const AUTO_ROUTER = "stepfun/step-3.5-flash:free";
 
 const FALLBACK_MODELS = [
   "minimax/minimax-m2.5:free",
