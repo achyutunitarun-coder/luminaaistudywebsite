@@ -39,7 +39,7 @@ const Dashboard = () => {
         .eq('user_id', user!.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
       return data || [];
     },
     enabled: !!user,
@@ -73,6 +73,18 @@ const Dashboard = () => {
     enabled: !!user,
   });
 
+  const { data: totalSessions } = useQuery({
+    queryKey: ['total-sessions-count', user?.id],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('study_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id);
+      return count || 0;
+    },
+    enabled: !!user,
+  });
+
   if (!profile) return null;
 
   const xpProgress = profile.xp % 100;
@@ -86,35 +98,81 @@ const Dashboard = () => {
     ? Math.round(recentTests.reduce((s, t) => s + (t.score || 0), 0) / recentTests.length)
     : null;
 
-  const topWeakness = (() => {
-    if (!mistakeData?.length) return null;
-    const counts: Record<string, number> = {};
-    mistakeData.forEach(m => { counts[m.topic] = (counts[m.topic] || 0) + 1; });
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return sorted[0]?.[0] || null;
+  // Score trend: compare last 3 vs previous 3
+  const scoreTrend = (() => {
+    if (!recentTests || recentTests.length < 4) return null;
+    const recent3 = recentTests.slice(0, 3).reduce((s, t) => s + (t.score || 0), 0) / 3;
+    const prev3 = recentTests.slice(3, 6).reduce((s, t) => s + (t.score || 0), 0) / Math.min(recentTests.length - 3, 3);
+    return Math.round(recent3 - prev3);
   })();
 
-  const weekTotal = weeklyMinutes?.reduce((s, w) => s + (w.duration_minutes || 0), 0) || 0;
+  // Subject breakdown
+  const subjectScores = (() => {
+    if (!recentTests?.length) return {};
+    const map: Record<string, { total: number; count: number }> = {};
+    recentTests.forEach(t => {
+      const sub = t.subject || 'General';
+      if (!map[sub]) map[sub] = { total: 0, count: 0 };
+      map[sub].total += t.score || 0;
+      map[sub].count++;
+    });
+    return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Math.round(v.total / v.count)]));
+  })();
+
+  const weakestSubject = Object.entries(subjectScores).sort((a, b) => a[1] - b[1])[0];
+  const strongestSubject = Object.entries(subjectScores).sort((a, b) => b[1] - a[1])[0];
+
+  const topWeaknesses = (() => {
+    if (!mistakeData?.length) return [];
+    const counts: Record<string, { count: number; subject: string }> = {};
+    mistakeData.forEach(m => {
+      if (!counts[m.topic]) counts[m.topic] = { count: 0, subject: m.subject || '' };
+      counts[m.topic].count++;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 3)
+      .map(([topic, data]) => ({ topic, ...data }));
+  })();
+
+  const weekTotal = weeklyMinutes?.reduce((s, w) => s + Math.min(w.duration_minutes || 0, 1440), 0) || 0;
   const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
+  const consistency = Math.round((daysStudied / 7) * 100);
 
+  // Build smart insight
   const insightMessage = (() => {
-    if (avgScore !== null && topWeakness) {
-      return `Your average test score is ${avgScore}%. Your biggest weakness is **${topWeakness}**. Focus on 2-3 targeted practice sessions to improve.`;
-    }
+    const parts: string[] = [];
+
     if (avgScore !== null) {
-      return `Your average score is ${avgScore}%. Keep pushing — consistent practice is the fastest way to improve.`;
+      parts.push(`Your average test score is **${avgScore}%**${scoreTrend !== null ? (scoreTrend >= 0 ? ` (↑ ${scoreTrend}% trend)` : ` (↓ ${Math.abs(scoreTrend)}% trend)`) : ''}.`);
     }
-    if (totalToday > 60) {
-      return `Great momentum! You've studied ${hrs}h ${mins}m today. Take a short break, then focus on your weakest topics.`;
+
+    if (weakestSubject && strongestSubject && weakestSubject[0] !== strongestSubject[0]) {
+      parts.push(`Strongest in **${strongestSubject[0]}** (${strongestSubject[1]}%), needs work in **${weakestSubject[0]}** (${weakestSubject[1]}%).`);
     }
-    return `Welcome back! Start a study session to build your streak and track your progress.`;
+
+    if (topWeaknesses.length > 0) {
+      parts.push(`Top weak area: **${topWeaknesses[0].topic.slice(0, 50)}** (${topWeaknesses[0].count} errors).`);
+    }
+
+    if (consistency > 0) {
+      parts.push(`${consistency}% study consistency this week (${daysStudied}/7 days).`);
+    }
+
+    if (parts.length === 0) {
+      return `Welcome back! Start a study session or take a test to get personalized AI insights about your performance.`;
+    }
+
+    return parts.join(' ');
   })();
 
-  const insightAction = topWeakness
-    ? { label: `Practice ${topWeakness}`, url: '/tests' }
-    : avgScore !== null
-    ? { label: 'Take a Test', url: '/tests' }
-    : { label: 'Start Studying', url: '/study-session' };
+  const insightAction = topWeaknesses.length > 0
+    ? { label: 'Practice Weak Areas', url: '/tests' }
+    : avgScore !== null && avgScore < 70
+    ? { label: 'Improve Your Score', url: '/tests' }
+    : { label: 'Continue Studying', url: '/study-session' };
+
+  const readinessScore = avgScore ?? 0;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -136,11 +194,28 @@ const Dashboard = () => {
               <span className="text-[11px] font-semibold text-primary uppercase tracking-wide">AI Insight</span>
             </div>
             <h2 className="text-xl md:text-2xl font-display font-bold text-foreground leading-snug mb-2">
-              {avgScore !== null ? `You're at ${avgScore}% readiness` : `Let's build your study streak`}
+              {avgScore !== null
+                ? `You're at ${avgScore}% readiness${scoreTrend !== null && scoreTrend > 0 ? ' — improving!' : ''}`
+                : `Let's build your study streak`}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
               {insightMessage.replace(/\*\*(.*?)\*\*/g, '$1')}
             </p>
+
+            {/* Subject breakdown mini-table */}
+            {Object.keys(subjectScores).length > 1 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {Object.entries(subjectScores).map(([sub, score]) => (
+                  <div key={sub} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium ${
+                    score >= 70 ? 'bg-success/10 text-success' : score >= 50 ? 'bg-warning/10 text-warning' : 'bg-destructive/10 text-destructive'
+                  }`}>
+                    <span className="capitalize">{sub}</span>
+                    <span className="font-bold tabular-nums">{score}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <Button
               onClick={() => navigate(insightAction.url)}
               size="sm"
@@ -159,7 +234,7 @@ const Dashboard = () => {
                   stroke="url(#readiness-grad)" strokeWidth="6" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 42}`}
                   initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - (avgScore || 0) / 100) }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
                   transition={{ duration: 1.2, delay: 0.3, ease }}
                 />
                 <defs>
@@ -184,7 +259,7 @@ const Dashboard = () => {
           { icon: Trophy, label: 'Level', value: profile.level, color: 'text-xp', bg: 'bg-xp/8' },
           { icon: Flame, label: 'Streak', value: `${profile.streak_days}d`, color: 'text-warning', bg: 'bg-warning/8' },
           { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, color: 'text-primary', bg: 'bg-primary/8' },
-          { icon: Target, label: 'XP', value: profile.xp, color: 'text-secondary', bg: 'bg-secondary/8' },
+          { icon: Target, label: 'Tests', value: recentTests?.length ?? 0, color: 'text-secondary', bg: 'bg-secondary/8' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -206,7 +281,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Weak Areas — Premium Design */}
+      {/* Weak Areas */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
@@ -216,57 +291,47 @@ const Dashboard = () => {
             View All <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
-        {mistakeData && mistakeData.length > 0 ? (
+        {topWeaknesses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(() => {
-              const topicCounts: Record<string, { count: number; subject: string }> = {};
-              mistakeData.forEach(m => {
-                if (!topicCounts[m.topic]) topicCounts[m.topic] = { count: 0, subject: m.subject || '' };
-                topicCounts[m.topic].count++;
-              });
               const colors = [
-                { border: 'border-rose-500/30', bg: 'from-rose-500/8 to-transparent', icon: 'text-rose-400', badge: 'bg-rose-500/15 text-rose-400' },
-                { border: 'border-amber-500/30', bg: 'from-amber-500/8 to-transparent', icon: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400' },
-                { border: 'border-orange-500/30', bg: 'from-orange-500/8 to-transparent', icon: 'text-orange-400', badge: 'bg-orange-500/15 text-orange-400' },
+                { border: 'border-l-rose-500/40', bg: 'from-rose-500/8 to-transparent', badge: 'bg-rose-500/15 text-rose-400' },
+                { border: 'border-l-amber-500/40', bg: 'from-amber-500/8 to-transparent', badge: 'bg-amber-500/15 text-amber-400' },
+                { border: 'border-l-orange-500/40', bg: 'from-orange-500/8 to-transparent', badge: 'bg-orange-500/15 text-orange-400' },
               ];
-              return Object.entries(topicCounts)
-                .sort((a, b) => b[1].count - a[1].count)
-                .slice(0, 3)
-                .map(([topic, { count, subject }], i) => {
-                  const c = colors[i] || colors[2];
-                  const severity = count >= 5 ? 'Critical' : count >= 3 ? 'Needs Work' : 'Watch';
-                  return (
-                    <motion.button
-                      key={topic}
-                      whileHover={{ y: -3, scale: 1.01 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => navigate('/tests')}
-                      className={`rounded-2xl liquid-glass p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-br ${c.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                      <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.badge}`}>
-                            <AlertTriangle className="w-3 h-3" />
-                            {severity}
-                          </div>
-                          <span className="text-xs text-muted-foreground tabular-nums">{count} errors</span>
+              return topWeaknesses.map((w, i) => {
+                const c = colors[i] || colors[2];
+                const severity = w.count >= 5 ? 'Critical' : w.count >= 3 ? 'Needs Work' : 'Watch';
+                const truncatedTopic = w.topic.length > 60 ? w.topic.slice(0, 57) + '...' : w.topic;
+                return (
+                  <motion.button
+                    key={w.topic}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/tests')}
+                    className={`rounded-2xl liquid-glass p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${c.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.badge}`}>
+                          <AlertTriangle className="w-3 h-3" />
+                          {severity}
                         </div>
-                        <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">{topic}</h3>
-                        <p className="text-[11px] text-muted-foreground">{subject}</p>
-                        <div className="mt-3 h-1 rounded-full bg-muted/20 overflow-hidden">
-                          <motion.div
-                            className={`h-full rounded-full bg-gradient-to-r ${c.bg.replace('to-transparent', 'to-current')}`}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(count * 20, 100)}%` }}
-                            transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                            style={{ background: `hsl(var(--destructive) / ${0.3 + count * 0.1})` }}
-                          />
-                        </div>
+                        <span className="text-xs text-muted-foreground tabular-nums">{w.count}×</span>
                       </div>
-                    </motion.button>
-                  );
-                });
+                      <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-2">{truncatedTopic}</h3>
+                      <p className="text-[11px] text-muted-foreground capitalize">{w.subject}</p>
+                      <div className="mt-3 h-1 rounded-full bg-muted/20 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-destructive/40 transition-[width] duration-700 ease-out"
+                          style={{ width: `${Math.min(w.count * 20, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              });
             })()}
           </div>
         ) : (
@@ -330,7 +395,7 @@ const Dashboard = () => {
               <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-primary" /> This Week
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{daysStudied}/7 days active</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{daysStudied}/7 days active · {consistency}% consistency</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
               Full Analytics <ArrowRight className="w-3 h-3 ml-1" />
@@ -342,8 +407,12 @@ const Dashboard = () => {
               const dayMins = weeklyMinutes?.filter(s => {
                 const d = new Date(s.started_at);
                 return d.getDay() === (i + 1) % 7;
-              }).reduce((sum, s) => sum + (s.duration_minutes || 0), 0) || 0;
-              const maxMins = Math.max(...(weeklyMinutes?.map(s => s.duration_minutes || 0) || [1]), 1);
+              }).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
+              const allDayMins = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((_, j) =>
+                weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7)
+                  .reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0
+              );
+              const maxMins = Math.max(...allDayMins, 1);
               const height = Math.max((dayMins / maxMins) * 100, 4);
               const today = new Date().getDay() === (i + 1) % 7;
 
