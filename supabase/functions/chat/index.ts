@@ -11,15 +11,16 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Category-optimized free model chains — best first, fastest fallbacks last
+// Diversified free model chains — spread across providers to avoid shared rate limits
+// Priority: speed + no-thinking + provider diversity
 const FAST_MODELS: Record<string, string[]> = {
-  reasoning: ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  coding: ["qwen/qwen3-coder:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "qwen/qwen3.6-plus:free"],
-  general: ["qwen/qwen3.6-plus:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-3-27b-it:free"],
-  fast: ["qwen/qwen3-next-80b-a3b-instruct:free", "stepfun/step-3.5-flash:free", "openai/gpt-oss-20b:free", "nvidia/nemotron-nano-9b-v2:free"],
-  study: ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free"],
-  long_context: ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free"],
-  creative: ["arcee-ai/trinity-large-preview:free", "qwen/qwen3.6-plus:free", "z-ai/glm-4.5-air:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  reasoning: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  coding: ["qwen/qwen3-coder:free", "minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
+  general: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  fast: ["minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
+  study: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  long_context: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
+  creative: ["meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "google/gemma-3-12b-it:free"],
 };
 
 const TIMEOUT_MS = 12000;

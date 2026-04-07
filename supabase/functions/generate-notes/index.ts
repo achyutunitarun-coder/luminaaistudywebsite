@@ -9,27 +9,17 @@ const corsHeaders = {
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const PRIMARY_MODELS = [
-  "qwen/qwen3.6-plus:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-120b:free",
+  "minimax/minimax-m2.5:free",
   "google/gemma-3-27b-it:free",
+  "z-ai/glm-4.5-air:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
 ];
 
-const AUTO_ROUTER = "qwen/qwen3-next-80b-a3b-instruct:free";
+const AUTO_ROUTER = "google/gemma-3-12b-it:free";
 
 const FALLBACK_MODELS = [
-  "minimax/minimax-m2.5:free",
-  "z-ai/glm-4.5-air:free",
   "google/gemma-3-12b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "arcee-ai/trinity-large-preview:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "stepfun/step-3.5-flash:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "openai/gpt-oss-20b:free",
 ];
 
 function getModelsToTry(): string[] {
