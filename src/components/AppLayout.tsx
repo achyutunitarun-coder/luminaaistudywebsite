@@ -114,7 +114,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       )}
 
       {/* Nav Sections */}
-      <nav className="flex-1 overflow-y-auto px-3 space-y-4 pb-2">
+      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 space-y-4 pb-2">
         {sidebarSections.map((section) => (
           <div key={section.label}>
             {(!collapsed || isMobile) && (
