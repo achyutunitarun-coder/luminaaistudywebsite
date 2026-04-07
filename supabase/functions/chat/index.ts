@@ -11,15 +11,16 @@ const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Category-optimized free model chains — FASTEST non-thinking models first
+// Diversified free model chains — spread across providers to avoid shared rate limits
+// Priority: speed + no-thinking + provider diversity
 const FAST_MODELS: Record<string, string[]> = {
-  reasoning: ["meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "qwen/qwen3-next-80b-a3b-instruct:free", "minimax/minimax-m2.5:free", "z-ai/glm-4.5-air:free"],
-  coding: ["qwen/qwen3-coder:free", "meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free"],
-  general: ["meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "qwen/qwen3-next-80b-a3b-instruct:free", "minimax/minimax-m2.5:free", "z-ai/glm-4.5-air:free"],
-  fast: ["qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "stepfun/step-3.5-flash:free"],
-  study: ["meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "qwen/qwen3-next-80b-a3b-instruct:free", "minimax/minimax-m2.5:free", "z-ai/glm-4.5-air:free"],
-  long_context: ["meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "minimax/minimax-m2.5:free"],
-  creative: ["meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "google/gemma-3-27b-it:free", "minimax/minimax-m2.5:free"],
+  reasoning: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  coding: ["qwen/qwen3-coder:free", "minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
+  general: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  fast: ["minimax/minimax-m2.5:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
+  study: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"],
+  long_context: ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free"],
+  creative: ["meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "google/gemma-3-12b-it:free"],
 };
 
 const TIMEOUT_MS = 12000;
