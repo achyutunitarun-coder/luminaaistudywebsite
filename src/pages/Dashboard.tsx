@@ -145,38 +145,8 @@ const Dashboard = () => {
     return Math.round(recent3 - prev3);
   })();
 
-  // Group by SUBJECT not individual question text
-  const subjectScores = useMemo(() => {
-    if (!recentTests?.length) return {};
-    const map: Record<string, { total: number; count: number }> = {};
-    recentTests.forEach(t => {
-      const sub = t.subject || 'General';
-      if (!map[sub]) map[sub] = { total: 0, count: 0 };
-      map[sub].total += t.score || 0;
-      map[sub].count++;
-    });
-    return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Math.round(v.total / v.count)]));
-  }, [recentTests]);
-
-  // Weak areas grouped by SUBJECT (not raw question text)
-  const weakSubjects = useMemo(() => {
-    if (!mistakeData?.length) return [];
-    const subjectCounts: Record<string, { count: number; types: Record<string, number> }> = {};
-    mistakeData.forEach(m => {
-      const sub = m.subject || 'General';
-      if (!subjectCounts[sub]) subjectCounts[sub] = { count: 0, types: {} };
-      subjectCounts[sub].count++;
-      const t = m.mistake_type || 'conceptual';
-      subjectCounts[sub].types[t] = (subjectCounts[sub].types[t] || 0) + 1;
-    });
-    return Object.entries(subjectCounts)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 3)
-      .map(([subject, data]) => {
-        const topType = Object.entries(data.types).sort((a, b) => b[1] - a[1])[0]?.[0] || 'conceptual';
-        return { subject, count: data.count, topMistakeType: topType };
-      });
-  }, [mistakeData]);
+  const subjectScores = subjectScoresData;
+  const weakSubjects = weakSubjectsData;
 
   const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
   const consistency = Math.round((daysStudied / 7) * 100);
