@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "stepfun/step-3.5-flash:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
@@ -30,11 +30,11 @@ serve(async (req) => {
     for (const model of MODELS) {
       try {
         const c = new AbortController();
-        const t = setTimeout(() => c.abort(), 10000);
+        const t = setTimeout(() => c.abort(), 12000);
         const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [
-          { role: "system", content: `Create boss battle questions. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}` },
+          { role: "system", content: `Create an epic boss battle with creative, challenging questions. Give the boss personality! Return ONLY JSON: {"name": "Creative Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}` },
           { role: "user", content: `Boss battle for "${topic}" with 5 challenging questions.` },
-        ], max_tokens: 1500, temperature: 0.6 }) });
+        ], max_tokens: 1500, temperature: 0.7 }) });
         clearTimeout(t);
         if (!res.ok) { const e = await res.text(); console.error(`[boss] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
         const data = await res.json();

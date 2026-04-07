@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "stepfun/step-3.5-flash:free", "openai/gpt-oss-20b:free"];
 
 async function callAI(apiKey: string, messages: any[], maxTokens = 3000): Promise<string> {
   for (const model of MODELS) {
@@ -34,7 +34,11 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const text = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Create a comprehensive quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed explanation"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}` },
+      { role: "system", content: `Create a quick study lesson that feels like a brilliant friend speed-running the topic for you.
+
+Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "detailed but engaging explanation — use analogies, real-world examples, and 'aha' moments"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "teach WHY the answer is correct and why others are wrong"}]}
+
+Make it feel alive — not like reading a textbook. Include surprising facts, connections, and memory hooks.` },
       { role: "user", content: `Create a thorough quick study lesson on "${topic}".` },
     ], 3000);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
