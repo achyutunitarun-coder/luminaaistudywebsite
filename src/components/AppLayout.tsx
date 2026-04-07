@@ -79,7 +79,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const levelProgress = profile ? ((profile.xp % 100) / 100) * 100 : 0;
 
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 h-16 flex-shrink-0 ${collapsed && !isMobile ? 'justify-center' : ''}`}>
         <motion.div
@@ -114,7 +114,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       )}
 
       {/* Nav Sections */}
-      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 space-y-4 pb-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-smooth px-3 space-y-4 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
         {sidebarSections.map((section) => (
           <div key={section.label}>
             {(!collapsed || isMobile) && (
