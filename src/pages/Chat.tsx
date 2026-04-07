@@ -193,16 +193,20 @@ const ChatPage = () => {
 
       setMessages(prev => [...prev, optimisticUserMessage]);
 
-      const persistedUserMessagePromise = supabase
-        .from('chat_messages')
-        .insert({ chat_id: activeChat, role: 'user', content: userContent })
-        .select()
-        .single()
-        .then(({ data }) => data ?? null)
-        .catch((error) => {
+      const persistedUserMessagePromise = (async () => {
+        try {
+          const { data } = await supabase
+            .from('chat_messages')
+            .insert({ chat_id: activeChat, role: 'user', content: userContent })
+            .select()
+            .single();
+
+          return data ?? null;
+        } catch (error) {
           console.error('Failed to save user message:', error);
           return null;
-        });
+        }
+      })();
 
       void persistedUserMessagePromise.then((savedUserMsg) => {
         if (!savedUserMsg) return;
@@ -453,7 +457,7 @@ const ChatPage = () => {
                           prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground prose-blockquote:py-1
                           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
                         ">
-                          <MarkdownRenderer streaming={!isUser && isLoading && i === messages.length - 1}>{msg.content}</MarkdownRenderer>
+                          <MarkdownRenderer streaming={!isUser && isLoading && msg.id === messages[messages.length - 1]?.id}>{msg.content}</MarkdownRenderer>
                         </div>
                       </div>
                     </div>

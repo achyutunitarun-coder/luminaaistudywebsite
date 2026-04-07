@@ -68,6 +68,8 @@ interface MarkdownRendererProps {
 }
 
 export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
+  const processed = useMemo(() => preprocessLatex(children), [children]);
+
   if (streaming) {
     return (
       <div className={`overflow-hidden break-words markdown-content ${className || ''}`}>
@@ -75,8 +77,6 @@ export default function MarkdownRenderer({ children, className, streaming = fals
       </div>
     );
   }
-
-  const processed = useMemo(() => preprocessLatex(children), [children]);
 
   return (
     <div className={`overflow-hidden break-words markdown-content ${className || ''}`}>
