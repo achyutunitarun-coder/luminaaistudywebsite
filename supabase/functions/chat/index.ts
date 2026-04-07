@@ -13,13 +13,13 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Speed-optimized: auto first, then 4 fast fallbacks
 const FAST_MODELS: Record<string, string[]> = {
-  reasoning: ["openrouter/auto", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "google/gemma-3-27b-it:free"],
-  coding: ["openrouter/auto", "qwen/qwen3-coder:free", "deepseek/deepseek-chat-v3-0324:free", "openai/gpt-oss-120b:free"],
-  general: ["openrouter/auto", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "nvidia/nemotron-3-super-120b-a12b:free"],
-  fast: ["openrouter/auto", "google/gemma-3n-e4b-it:free", "google/gemma-3-4b-it:free", "meta-llama/llama-3.2-3b-instruct:free"],
-  study: ["openrouter/auto", "google/gemma-3-27b-it:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  long_context: ["openrouter/auto", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  creative: ["openrouter/auto", "arcee-ai/trinity-large-preview:free", "google/gemma-3-27b-it:free", "minimax/minimax-m2.5:free"],
+  reasoning: ["openrouter/free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "google/gemma-3-27b-it:free"],
+  coding: ["openrouter/free", "qwen/qwen3-coder:free", "deepseek/deepseek-chat-v3-0324:free", "openai/gpt-oss-120b:free"],
+  general: ["openrouter/free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-27b-it:free", "nvidia/nemotron-3-super-120b-a12b:free"],
+  fast: ["openrouter/free", "google/gemma-3n-e4b-it:free", "google/gemma-3-4b-it:free", "meta-llama/llama-3.2-3b-instruct:free"],
+  study: ["openrouter/free", "google/gemma-3-27b-it:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  long_context: ["openrouter/free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  creative: ["openrouter/free", "arcee-ai/trinity-large-preview:free", "google/gemma-3-27b-it:free", "minimax/minimax-m2.5:free"],
 };
 
 const TIMEOUT_MS = 10000;
