@@ -19,6 +19,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -290,8 +291,8 @@ function HubSession({ module, onClose }: { module: Module; onClose: () => void }
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' });
+  }, [messages, isLoading]);
 
   // Update stats from AI responses
   useEffect(() => {
@@ -331,44 +332,29 @@ function HubSession({ module, onClose }: { module: Module; onClose: () => void }
         }),
       });
 
-      if (!resp.ok) throw new Error('Failed');
+      if (!resp.ok) {
+        if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        if (resp.status === 402) throw new Error('AI credits are exhausted right now. Please add credits.');
+        throw new Error('Failed');
+      }
 
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let full = '';
+      const streamBuffer = createBufferedTextAccumulator((text) => {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: text };
+          return updated;
+        });
+      });
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(json);
-            if (parsed.lumina_meta) continue;
-            const c = parsed.choices?.[0]?.delta?.content;
-            if (c) {
-              full += c;
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1] = { role: 'assistant', content: full };
-                return updated;
-              });
-            }
-          } catch {}
-        }
-      }
-    } catch {
-      toast.error('Connection failed. Please try again.');
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+
+      streamBuffer.flushNow();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Connection failed. Please try again.');
     }
     setIsLoading(false);
   }, [user, messages, module.id]);

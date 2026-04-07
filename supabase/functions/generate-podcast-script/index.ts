@@ -7,16 +7,31 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
-  "google/gemma-3-27b-it:free",
+  "google/gemma-3-12b-it:free",
   "z-ai/glm-4.5-air:free",
+  "google/gemma-3-27b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 const FALLBACK_MODELS = [
   "google/gemma-3-12b-it:free",
 ];
 const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS];
+const TIMEOUT_MS = 14000;
+
+async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -32,7 +47,7 @@ serve(async (req) => {
 
     for (const model of ALL_MODELS) {
       try {
-        const res = await fetch(OPENROUTER_URL, {
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
@@ -42,7 +57,7 @@ serve(async (req) => {
             model,
             stream: true,
             max_tokens: 4000,
-            temperature: 0.85,
+            temperature: 0.75,
             messages: [
               { role: "system", content: `You are the writer for the most binge-worthy educational podcast on the internet. Create an ELECTRIFYING, LONG conversation between two hosts who are genuinely passionate about learning:
 
@@ -63,7 +78,7 @@ RULES:
               { role: "user", content: `Turn these study notes into the most engaging podcast episode ever. Make it feel ALIVE — like two brilliant friends geeking out over fascinating ideas:\n\n${notes}` },
             ],
           }),
-        });
+        }, TIMEOUT_MS);
 
         if (!res.ok) {
           const errText = await res.text();

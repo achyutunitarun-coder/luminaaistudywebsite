@@ -9,11 +9,12 @@ const corsHeaders = {
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const PRIMARY_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
-  "google/gemma-3-27b-it:free",
+  "google/gemma-3-12b-it:free",
   "z-ai/glm-4.5-air:free",
+  "google/gemma-3-27b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
 const AUTO_ROUTER = "google/gemma-3-12b-it:free";
@@ -21,6 +22,21 @@ const AUTO_ROUTER = "google/gemma-3-12b-it:free";
 const FALLBACK_MODELS = [
   "google/gemma-3-12b-it:free",
 ];
+
+const TIMEOUT_MS = 12000;
+
+async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
 
 function getModelsToTry(): string[] {
   const seen = new Set<string>();
@@ -480,7 +496,7 @@ QUALITY RULES:
 
     for (const model of models) {
       try {
-        const res = await fetch(OPENROUTER_URL, {
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${OPENROUTER_API_KEY}`,
@@ -489,11 +505,11 @@ QUALITY RULES:
           body: JSON.stringify({
             model,
             messages: aiMessages,
-            max_tokens: 4500,
-            temperature: 0.7,
+            max_tokens: 3800,
+            temperature: 0.65,
             stream: true,
           }),
-        });
+        }, TIMEOUT_MS);
 
         if (!res.ok) {
           const errText = await res.text();

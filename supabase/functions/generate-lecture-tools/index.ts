@@ -6,13 +6,13 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"];
+const MODELS = ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"];
 
 async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
   for (const model of MODELS) {
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 12000);
+      const t = setTimeout(() => c.abort(), 9000);
       const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }) });
       clearTimeout(t);
       if (!res.ok) { const e = await res.text(); console.error(`[lecture-tools] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }

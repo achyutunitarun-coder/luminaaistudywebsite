@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"];
-const TIMEOUT_MS = 12000;
+const MODELS = ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"];
+const TIMEOUT_MS = 9000;
 
 async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
   const c = new AbortController();
@@ -54,7 +54,7 @@ FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blan
         const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1500, temperature: 0.6, stream: true }),
+          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1100, temperature: 0.55, stream: true }),
         }, TIMEOUT_MS);
         if (!res.ok) { const t = await res.text(); console.error(`[doubt] ${model} ${res.status}: ${t.slice(0, 200)}`); continue; }
         console.log(`[doubt] ✓ ${model}`);

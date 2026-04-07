@@ -14,6 +14,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { FlowChart, type FlowNode, type FlowEdge } from '@/components/FlowChart';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Hindi', 'Arabic', 'Chinese', 'Japanese', 'Portuguese', 'Korean', 'Italian'];
 
@@ -64,7 +65,7 @@ const SmartNotebook = () => {
     if (f) readFile(f);
   };
 
-  const fetchResponse = async (body: Record<string, unknown>): Promise<string> => {
+  const fetchResponse = async (body: Record<string, unknown>, onText?: (text: string) => void): Promise<string> => {
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
       method: 'POST',
       headers: {
@@ -81,32 +82,14 @@ const SmartNotebook = () => {
     // Check if it's a stream or JSON
     const contentType = resp.headers.get('content-type') || '';
     if (contentType.includes('text/event-stream') && resp.body) {
-      // Handle SSE streaming
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let full = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try {
-            const c = JSON.parse(json).choices?.[0]?.delta?.content;
-            if (c) { full += c; setNotes(full); }
-          } catch {}
-        }
-      }
-      return full;
+      const streamBuffer = createBufferedTextAccumulator((text) => {
+        onText?.(text);
+      });
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+      streamBuffer.flushNow();
+      return streamBuffer.getText();
     }
 
     const data = await resp.json();
@@ -121,7 +104,8 @@ const SmartNotebook = () => {
     setNotes('');
     try {
       const content = await fetchResponse(
-        { fileContent, fileName: file?.name || 'document', mode: 'notes' }
+        { fileContent, fileName: file?.name || 'document', mode: 'notes' },
+        setNotes,
       );
       setNotes(content);
       // Auto-save to database

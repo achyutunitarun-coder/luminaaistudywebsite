@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
@@ -107,36 +108,24 @@ const AudioAnalysis = () => {
         }),
       });
 
-      if (!resp.ok || !resp.body) throw new Error('Failed');
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try {
-            const c = JSON.parse(json).choices?.[0]?.delta?.content;
-            if (c) setNotes(prev => prev + c);
-          } catch {}
-        }
+      if (!resp.ok || !resp.body) {
+        if (resp.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        if (resp.status === 402) throw new Error('AI credits are exhausted right now. Please add credits.');
+        throw new Error('Failed');
       }
+
+      const streamBuffer = createBufferedTextAccumulator(setNotes);
+      await streamSSE(resp, {
+        onDelta: (chunk) => streamBuffer.push(chunk),
+      });
+      streamBuffer.flushNow();
+
+      if (!streamBuffer.getText().trim()) throw new Error('Empty response');
 
       setState('done');
       toast.success('Lecture notes generated!');
-    } catch {
-      toast.error('Failed to generate notes');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to generate notes');
       setState('idle');
     }
   };
