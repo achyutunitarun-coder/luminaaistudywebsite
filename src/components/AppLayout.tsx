@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
@@ -20,6 +20,10 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const timerSecs = seconds % 60;
   const levelProgress = profile ? ((profile.xp % 100) / 100) * 100 : 0;
 
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+  const toggleMobile = useCallback(() => setMobileOpen((current) => !current), []);
+  const toggleCollapsed = useCallback(() => setCollapsed((current) => !current), []);
+  const navigateStudySession = useCallback(() => navigate('/study-session'), [navigate]);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -30,9 +34,19 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         }`}
         style={{ background: 'hsl(230 22% 8% / 0.95)', backdropFilter: 'blur(24px)' }}
       >
-        <SidebarContent />
+        <AppSidebarContent
+          collapsed={collapsed}
+          profile={profile}
+          levelProgress={levelProgress}
+          timerMins={timerMins}
+          timerSecs={timerSecs}
+          pathname={location.pathname}
+          onCloseMobile={closeMobile}
+          onNavigateStudySession={navigateStudySession}
+          onSignOut={signOut}
+        />
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleCollapsed}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-muted border border-border/20 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-50"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
@@ -57,7 +71,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
           )}
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 text-muted-foreground">
+          <button onClick={toggleMobile} className="p-1.5 text-muted-foreground">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
@@ -72,7 +86,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobile}
             />
             <motion.div
               initial={{ x: -280 }}
@@ -82,7 +96,18 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] z-50 border-r border-border/10"
               style={{ background: 'hsl(230 22% 8% / 0.98)' }}
             >
-              <SidebarContent isMobile />
+              <AppSidebarContent
+                collapsed={collapsed}
+                isMobile
+                profile={profile}
+                levelProgress={levelProgress}
+                timerMins={timerMins}
+                timerSecs={timerSecs}
+                pathname={location.pathname}
+                onCloseMobile={closeMobile}
+                onNavigateStudySession={navigateStudySession}
+                onSignOut={signOut}
+              />
             </motion.div>
           </>
         )}
