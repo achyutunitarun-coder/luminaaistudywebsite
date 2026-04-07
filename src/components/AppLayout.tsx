@@ -104,11 +104,9 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               <span className="text-muted-foreground tabular-nums">{profile.xp} XP</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full gradient-primary"
-                initial={{ width: 0 }}
-                animate={{ width: `${levelProgress}%` }}
-                transition={{ duration: 0.8 }}
+              <div
+                className="h-full rounded-full gradient-primary transition-[width] duration-700 ease-out"
+                style={{ width: `${levelProgress}%` }}
               />
             </div>
           </div>
@@ -116,7 +114,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       )}
 
       {/* Nav Sections */}
-      <nav className="flex-1 overflow-y-auto px-3 space-y-4 pb-2">
+      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 space-y-4 pb-2">
         {sidebarSections.map((section) => (
           <div key={section.label}>
             {(!collapsed || isMobile) && (
