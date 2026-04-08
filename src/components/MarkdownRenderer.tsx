@@ -67,58 +67,53 @@ interface MarkdownRendererProps {
   streaming?: boolean;
 }
 
-export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
-  const processed = useMemo(() => preprocessLatex(children), [children]);
-
-  if (streaming) {
+const markdownComponents = {
+  pre: ({ children }: any) => <>{children}</>,
+  code: ({ className, children, ...props }: any) => {
+    const isBlock = className?.startsWith('language-') ||
+      (typeof children === 'string' && children.includes('\n'));
+    if (isBlock) return <CodeBlock className={className}>{String(children)}</CodeBlock>;
     return (
-      <div className={`overflow-hidden break-words markdown-content ${className || ''}`}>
-        <div className="whitespace-pre-wrap break-words leading-[inherit]">{children}</div>
-      </div>
+      <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded-md text-[12px] md:text-[13px] font-mono before:content-none after:content-none" {...props}>
+        {children}
+      </code>
     );
-  }
+  },
+  p: ({ children }: any) => <p className="my-2.5 leading-[1.8]">{children}</p>,
+  h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 pb-2 border-b border-border/20">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-xl font-bold mt-5 mb-2 pb-1.5 border-b border-border/15">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
+  h4: ({ children }: any) => <h4 className="text-base font-semibold mt-3 mb-1.5">{children}</h4>,
+  ul: ({ children }: any) => <ul className="my-2.5 ml-5 space-y-1 list-disc marker:text-primary/50">{children}</ul>,
+  ol: ({ children }: any) => <ol className="my-2.5 ml-5 space-y-1 list-decimal marker:text-primary/50">{children}</ol>,
+  li: ({ children }: any) => <li className="leading-[1.75] pl-1">{children}</li>,
+  blockquote: ({ children }: any) => (
+    <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{children}</blockquote>
+  ),
+  table: ({ children }: any) => (
+    <div className="my-4 overflow-x-auto rounded-xl border border-border/20 -mx-1"><table className="w-full text-sm border-collapse">{children}</table></div>
+  ),
+  thead: ({ children }: any) => <thead className="bg-muted/30">{children}</thead>,
+  th: ({ children }: any) => <th className="px-3 py-2 text-left font-semibold text-foreground border-b border-border/20 whitespace-nowrap">{children}</th>,
+  td: ({ children }: any) => <td className="px-3 py-2 border-b border-border/10">{children}</td>,
+  hr: () => <hr className="my-6 border-border/20" />,
+  strong: ({ children }: any) => <strong className="font-semibold text-foreground">{children}</strong>,
+};
+
+export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
+  // Always render markdown — the 32ms buffered accumulator already throttles re-renders during streaming
+  // Only skip heavy LaTeX processing while actively streaming to avoid jank
+  const processed = useMemo(() => {
+    if (streaming) return children; // skip LaTeX regex during streaming for perf
+    return preprocessLatex(children);
+  }, [children, streaming]);
 
   return (
-    <div className={`overflow-hidden break-words markdown-content ${className || ''}`}>
+    <div className={`break-words markdown-content ${className || ''}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-        components={{
-          pre: ({ children }) => <>{children}</>,
-          code: ({ className, children, ...props }) => {
-            const isBlock = className?.startsWith('language-') ||
-              (typeof children === 'string' && children.includes('\n'));
-
-            if (isBlock) {
-              return <CodeBlock className={className}>{String(children)}</CodeBlock>;
-            }
-
-            return (
-              <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded-md text-[12px] md:text-[13px] font-mono before:content-none after:content-none" {...props}>
-                {children}
-              </code>
-            );
-          },
-          p: ({ children }) => <p className="my-3 leading-[1.8]">{children}</p>,
-          h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3 pb-2 border-b border-border/20">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-xl font-bold mt-8 mb-3 pb-2 border-b border-border/15">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-lg font-semibold mt-6 mb-2">{children}</h3>,
-          h4: ({ children }) => <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>,
-          ul: ({ children }) => <ul className="my-3 ml-5 space-y-1 list-disc">{children}</ul>,
-          ol: ({ children }) => <ol className="my-3 ml-5 space-y-1 list-decimal">{children}</ol>,
-          li: ({ children }) => <li className="leading-[1.75] pl-1">{children}</li>,
-          blockquote: ({ children }) => (
-            <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{children}</blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="my-4 overflow-x-auto rounded-xl border border-border/20"><table className="w-full text-sm">{children}</table></div>
-          ),
-          thead: ({ children }) => <thead className="bg-muted/30">{children}</thead>,
-          th: ({ children }) => <th className="px-4 py-2.5 text-left font-semibold text-foreground border-b border-border/20">{children}</th>,
-          td: ({ children }) => <td className="px-4 py-2 border-b border-border/10">{children}</td>,
-          hr: () => <hr className="my-6 border-border/20" />,
-          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-        }}
+        remarkPlugins={streaming ? [] : [remarkMath]}
+        rehypePlugins={streaming ? [] : [rehypeKatex]}
+        components={markdownComponents}
       >
         {processed}
       </ReactMarkdown>
