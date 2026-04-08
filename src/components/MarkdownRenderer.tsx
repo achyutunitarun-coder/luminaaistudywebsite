@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
 
@@ -39,51 +40,61 @@ function renderBreaks(children: ReactNode): ReactNode {
     if (typeof child === 'string') {
       const parts = child.split(HTML_BREAK_TOKEN);
       if (parts.length === 1) return child;
-
       return parts.flatMap((part, partIndex) => (
         partIndex < parts.length - 1
           ? [part, <br key={`markdown-br-${index}-${partIndex}`} />]
           : [part]
       ));
     }
-
     if (isValidElement<{ children?: ReactNode }>(child) && child.props.children != null) {
-      return cloneElement(child, {
-        children: renderBreaks(child.props.children),
-      });
+      return cloneElement(child, { children: renderBreaks(child.props.children) });
     }
-
     return child;
   });
 }
 
 /**
- * Robust LaTeX preprocessor that handles all common AI model output formats:
+ * Robust LaTeX preprocessor:
+ * - Protects code blocks first
  * - \( ... \) → $ ... $
  * - \[ ... \] → $$ ... $$
- * - Already-correct $...$ and $$...$$ are left alone
- * - Handles multi-line \[ \] blocks
- * - Protects code blocks from transformation
+ * - Handles \begin{...}...\end{...} environments wrapped in $$ or standalone
+ * - Handles multi-line blocks
  */
 function preprocessLatex(text: string): string {
   if (!text) return text;
 
-  // Protect code blocks from LaTeX processing
+  // 1. Normalize line endings
+  let processed = text.replace(/\r\n?/g, '\n');
+
+  // 2. Protect code blocks
   const codeBlocks: string[] = [];
-  let processed = text.replace(/\r\n?/g, '\n').replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
+  processed = processed.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
     codeBlocks.push(match);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
 
+  // 3. Handle HTML <br> tags
   processed = processed.replace(/<br\s*\/?>/gi, HTML_BREAK_TOKEN);
 
-  // Convert \( ... \) to inline math $ ... $ (non-greedy, single line)
-  processed = processed.replace(/\\\((.+?)\\\)/g, (_, math) => `$${math.trim()}$`);
+  // 4. Convert \( ... \) to inline math $ ... $ (single line, non-greedy)
+  processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, math) => `$${math.trim()}$`);
 
-  // Convert \[ ... \] to display math $$ ... $$ (handles multi-line)
-  processed = processed.replace(/\\\[([\s\S]+?)\\\]/g, (_, math) => `\n$$${math.trim()}$$\n`);
+  // 5. Convert \[ ... \] to display math $$ ... $$ (multi-line)
+  processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`);
 
-  // Restore code blocks
+  // 6. Handle standalone \begin{env}...\end{env} not already inside $$
+  //    Wrap them in $$ so KaTeX can process them
+  processed = processed.replace(
+    /(?<!\$\$\s*\n?\s*)\\begin\{(aligned|align|equation|gather|matrix|bmatrix|pmatrix|vmatrix|cases|array|split)\}([\s\S]*?)\\end\{\1\}(?!\s*\n?\s*\$\$)/g,
+    (match) => `\n$$\n${match}\n$$\n`
+  );
+
+  // 7. Ensure $$ display blocks have newlines around them for remark-math
+  processed = processed.replace(/([^\n])\$\$/g, '$1\n$$');
+  processed = processed.replace(/\$\$([^\n])/g, '$$\n$1');
+
+  // 8. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
   return processed;
@@ -119,7 +130,9 @@ const markdownComponents = {
     <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{renderBreaks(children)}</blockquote>
   ),
   table: ({ children }: any) => (
-    <div className="my-4 overflow-x-auto rounded-xl border border-border/20 -mx-1"><table className="w-full text-sm border-collapse">{children}</table></div>
+    <div className="my-4 overflow-x-auto rounded-xl border border-border/20 -mx-1">
+      <table className="w-full text-sm border-collapse">{children}</table>
+    </div>
   ),
   thead: ({ children }: any) => <thead className="bg-muted/30">{children}</thead>,
   th: ({ children }: any) => <th className="px-3 py-2 align-top text-left font-semibold text-foreground border-b border-border/20 whitespace-nowrap">{renderBreaks(children)}</th>,
@@ -128,17 +141,18 @@ const markdownComponents = {
   strong: ({ children }: any) => <strong className="font-semibold text-foreground">{renderBreaks(children)}</strong>,
 };
 
-const remarkPluginsAll = [remarkGfm, remarkMath];
-const rehypePluginsAll = [rehypeKatex];
+// CRITICAL: remarkMath MUST come before remarkGfm to prevent pipe conflicts in tables
+const remarkPlugins = [remarkMath, remarkGfm];
+const rehypePlugins = [[rehypeKatex, { strict: false, throwOnError: false, trust: true }], rehypeRaw] as any[];
 
-export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
+export default function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
   const processed = useMemo(() => preprocessLatex(children), [children]);
 
   return (
     <div className={`break-words markdown-content ${className || ''}`}>
       <ReactMarkdown
-        remarkPlugins={remarkPluginsAll}
-        rehypePlugins={rehypePluginsAll}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         components={markdownComponents}
       >
         {processed}
