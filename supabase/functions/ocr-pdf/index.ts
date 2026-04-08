@@ -5,7 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+// Free vision-capable models on OpenRouter
+const VISION_MODELS = [
+  "meta-llama/llama-4-maverick:free",
+  "google/gemma-3-27b-it:free",
+  "qwen/qwen-2.5-vl-72b-instruct:free",
+  "openrouter/auto",
+];
+
+const TIMEOUT_MS = 30000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -15,21 +25,15 @@ serve(async (req) => {
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    // Process pages in batches of 5 to avoid token limits
-    const batchSize = 5;
+    // Process pages in batches of 4
+    const batchSize = 4;
     let fullText = "";
 
     for (let i = 0; i < images.length; i += batchSize) {
@@ -40,70 +44,73 @@ serve(async (req) => {
       const content: any[] = [
         {
           type: "text",
-          text: `Extract ALL text content from these PDF pages (pages ${pageStart}-${pageEnd} of ${images.length}). This is from "${filename || "document.pdf"}".
+          text: `Extract ALL text content from these PDF pages (pages ${pageStart}-${pageEnd} of ${images.length}) from "${filename || "document.pdf"}".
 
 INSTRUCTIONS:
 - Extract EVERY piece of text, equation, diagram label, table, and heading
-- For mathematical equations, use LaTeX notation (e.g., $E = mc^2$, $$\\int f(x)dx$$)
-- Preserve the document structure: headings, bullet points, numbered lists, tables
+- For math equations, use LaTeX: $E = mc^2$, $$\\int f(x)dx$$
+- Preserve structure: headings, bullets, numbered lists, tables
 - For diagrams/figures, describe what they show in detail
 - Include ALL content — do not skip or summarize
-- Format output as clean markdown
+- Format as clean markdown
 - Label each page clearly`,
         },
       ];
 
-      for (let j = 0; j < batch.length; j++) {
-        content.push({
-          type: "image_url",
-          image_url: { url: batch[j], detail: "high" },
-        });
+      for (const img of batch) {
+        content.push({ type: "image_url", image_url: { url: img } });
       }
 
-      const response = await fetch(LOVABLE_AI_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content,
+      let extracted = "";
+      for (const model of VISION_MODELS) {
+        try {
+          const c = new AbortController();
+          const t = setTimeout(() => c.abort(), TIMEOUT_MS);
+
+          const res = await fetch(OPENROUTER_URL, {
+            method: "POST",
+            signal: c.signal,
+            headers: {
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
             },
-          ],
-          max_tokens: 8000,
-          temperature: 0.1,
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`[ocr-pdf] AI error ${response.status}:`, errText.slice(0, 300));
-
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }), {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content }],
+              max_tokens: 8000,
+              temperature: 0.1,
+            }),
           });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+          clearTimeout(t);
 
-        throw new Error(`AI gateway error: ${response.status}`);
+          if (!res.ok) {
+            const errText = await res.text();
+            console.error(`[ocr-pdf] ${model} ${res.status}: ${errText.slice(0, 200)}`);
+            continue;
+          }
+
+          const data = await res.json();
+          if (data.error) {
+            console.error(`[ocr-pdf] ${model} body error:`, data.error);
+            continue;
+          }
+
+          extracted = data.choices?.[0]?.message?.content || "";
+          if (extracted) {
+            console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`);
+            break;
+          }
+        } catch (e) {
+          const isTimeout = e instanceof DOMException && e.name === "AbortError";
+          console.error(`[ocr-pdf] ${model} ${isTimeout ? "TIMEOUT" : "err"}:`, isTimeout ? `>${TIMEOUT_MS}ms` : e);
+        }
       }
 
-      const data = await response.json();
-      const extracted = data.choices?.[0]?.message?.content || "";
-      fullText += `\n${extracted}\n`;
-
-      console.log(`[ocr-pdf] Processed pages ${pageStart}-${pageEnd} of ${images.length}`);
+      if (extracted) {
+        fullText += `\n${extracted}\n`;
+      } else {
+        fullText += `\n[Pages ${pageStart}-${pageEnd}: OCR failed - all models busy]\n`;
+      }
     }
 
     return new Response(JSON.stringify({ text: fullText.trim(), pages: images.length }), {
