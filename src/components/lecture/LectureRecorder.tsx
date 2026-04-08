@@ -223,7 +223,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
     if (!file) return;
     event.target.value = '';
     setIsProcessing(true);
-    setProcessingLabel('Reading document...');
+    setProcessingLabel(file.name.toLowerCase().endsWith('.pdf') ? 'Extracting PDF text...' : 'Reading document...');
     try {
       const text = await extractTextFromFile(file);
       if (!text || text.length < 20) throw new Error('Document appears empty or too short.');

@@ -7,14 +7,11 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Free vision-capable models on OpenRouter
 const VISION_MODELS = [
-  "mistralai/mistral-small-3.1-24b-instruct:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
-  "openrouter/free",
 ];
 
 const TIMEOUT_MS = 30000;
@@ -23,30 +20,36 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { images, filename } = await req.json();
+    const body = await req.json();
+    const images = Array.isArray(body?.images) ? body.images : [];
+    const filename = typeof body?.filename === "string" ? body.filename : "document.pdf";
+    const parsedPageOffset = Number(body?.pageOffset ?? 0);
+    const parsedTotalPages = Number(body?.totalPages ?? images.length);
+    const pageOffset = Number.isFinite(parsedPageOffset) ? Math.max(0, Math.trunc(parsedPageOffset)) : 0;
+    const totalPages = Number.isFinite(parsedTotalPages) ? Math.max(images.length, Math.trunc(parsedTotalPages)) : images.length;
 
-    if (!images || !Array.isArray(images) || images.length === 0) {
+    if (images.length === 0) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    // Process pages in batches of 4
     const batchSize = 4;
     let fullText = "";
 
     for (let i = 0; i < images.length; i += batchSize) {
       const batch = images.slice(i, i + batchSize);
-      const pageStart = i + 1;
-      const pageEnd = Math.min(i + batchSize, images.length);
+      const pageStart = pageOffset + i + 1;
+      const pageEnd = pageOffset + Math.min(i + batchSize, images.length);
 
       const content: any[] = [
         {
           type: "text",
-          text: `Extract ALL text content from these PDF pages (pages ${pageStart}-${pageEnd} of ${images.length}) from "${filename || "document.pdf"}".
+          text: `Extract ALL text content from these PDF pages (pages ${pageStart}-${pageEnd} of ${totalPages}) from "${filename}".
 
 INSTRUCTIONS:
 - Extract EVERY piece of text, equation, diagram label, table, and heading
@@ -66,12 +69,12 @@ INSTRUCTIONS:
       let extracted = "";
       for (const model of VISION_MODELS) {
         try {
-          const c = new AbortController();
-          const t = setTimeout(() => c.abort(), TIMEOUT_MS);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
           const res = await fetch(OPENROUTER_URL, {
             method: "POST",
-            signal: c.signal,
+            signal: controller.signal,
             headers: {
               Authorization: `Bearer ${OPENROUTER_API_KEY}`,
               "Content-Type": "application/json",
@@ -83,7 +86,7 @@ INSTRUCTIONS:
               temperature: 0.1,
             }),
           });
-          clearTimeout(t);
+          clearTimeout(timeout);
 
           if (!res.ok) {
             const errText = await res.text();
@@ -97,8 +100,11 @@ INSTRUCTIONS:
             continue;
           }
 
-          extracted = data.choices?.[0]?.message?.content || "";
-          if (extracted) {
+          extracted = typeof data.choices?.[0]?.message?.content === "string"
+            ? data.choices[0].message.content
+            : "";
+
+          if (extracted.trim()) {
             console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`);
             break;
           }
@@ -115,7 +121,7 @@ INSTRUCTIONS:
       }
     }
 
-    return new Response(JSON.stringify({ text: fullText.trim(), pages: images.length }), {
+    return new Response(JSON.stringify({ text: fullText.trim(), pages: images.length, totalPages, pageOffset }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
