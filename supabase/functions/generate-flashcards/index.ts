@@ -7,11 +7,10 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 function cleanJSON(raw: string): any {
-  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  text = text.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
   const start = text.search(/[\[{]/);
   if (start < 0) return null;
   const startChar = text[start];
@@ -31,12 +30,8 @@ async function callAI(apiKey: string, messages: any[], maxTokens = 2500): Promis
   for (const model of MODELS) {
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 12000);
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST", signal: c.signal,
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }),
-      });
+      const t = setTimeout(() => c.abort(), 15000);
+      const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }) });
       clearTimeout(t);
       if (!res.ok) { const e = await res.text(); console.error(`[flashcards] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
       const data = await res.json();
@@ -44,7 +39,7 @@ async function callAI(apiKey: string, messages: any[], maxTokens = 2500): Promis
       if (content) { console.log(`[flashcards] ✓ ${model}`); return content; }
     } catch (e) { console.error(`[flashcards] ${model}:`, e); }
   }
-  throw new Error("All models failed");
+  throw new Error("All models are busy — please try again in a moment");
 }
 
 serve(async (req) => {
@@ -64,15 +59,7 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const text = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Create ${count} flashcards that actually help retention — not just definitions. Mix these types:
-- "Why does X happen?" (understanding)
-- "What's the difference between X and Y?" (comparison)
-- "If X changes, what happens to Y?" (application)
-- Classic "What is X?" (recall)
-
-Make answers concise but insightful. Include mnemonics or memory hooks where helpful.
-
-Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}` },
+      { role: "system", content: `Create ${count} flashcards. Mix types: why, compare, apply, recall. Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}` },
       { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,30000)}` },
     ], 2500);
 

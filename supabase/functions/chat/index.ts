@@ -3,36 +3,25 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const TIMEOUT_MS = 12000;
 
-// Diversified free model chains — spread across providers to avoid shared rate limits
-// Priority: speed + no-thinking + provider diversity
-const FAST_MODELS: Record<string, string[]> = {
-  reasoning: ["minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  coding: ["qwen/qwen3-coder:free", "minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  general: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "google/gemma-3-27b-it:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  fast: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "z-ai/glm-4.5-air:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  study: ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  long_context: ["minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  creative: ["z-ai/glm-4.5-air:free", "minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
+const MODELS: Record<string, string[]> = {
+  reasoning: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  coding: ["openrouter/auto", "deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "google/gemma-3-27b-it:free"],
+  general: ["openrouter/auto", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.1-24b-instruct:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  fast: ["openrouter/auto", "mistralai/mistral-small-3.1-24b-instruct:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  study: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  long_context: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free"],
+  creative: ["openrouter/auto", "meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free"],
 };
 
-const TIMEOUT_MS = 9000;
-const CATEGORY_MAX_TOKENS: Record<Category, number> = {
-  reasoning: 1200,
-  coding: 1200,
-  general: 900,
-  fast: 420,
-  study: 1100,
-  long_context: 1400,
-  creative: 1100,
-};
+const MAX_TOKENS: Record<string, number> = { reasoning: 1400, coding: 1400, general: 1000, fast: 500, study: 1200, long_context: 1600, creative: 1200 };
 
 const CODING_KW = ["code","coding","program","function","bug","debug","javascript","python","typescript","react","html","css","api","algorithm","syntax","compile","class","array","loop","import","async","await","promise","fetch","database","sql"];
 const REASONING_KW = ["why","explain why","reason","logic","prove","proof","analyze","math","calculus","integral","derivative","equation","algebra","geometry","physics","chemistry","formula","solve","calculate","step by step"];
@@ -40,7 +29,7 @@ const STUDY_KW = ["study","learn","explain","concept","exam","test prep","revisi
 const CREATIVE_KW = ["write","essay","story","poem","creative","narrative","blog","article","letter","speech","script","dialogue"];
 const FAST_KW = ["quick","fast","short answer","yes or no","brief","simple","what is","define","translate","convert"];
 
-type Category = "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
+type Category = keyof typeof MAX_TOKENS;
 
 function detectCategory(text: string): Category {
   const lower = text.toLowerCase();
@@ -56,18 +45,15 @@ function detectCategory(text: string): Category {
   const max = Math.max(...Object.values(scores));
   if (max === 0) return "general";
   const priority: Category[] = ["coding", "reasoning", "long_context", "study", "creative", "fast", "general"];
-  for (const cat of priority) { if (scores[cat] === max) return cat; }
+  for (const cat of priority) if (scores[cat] === max) return cat;
   return "general";
 }
 
-async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...opts, signal: controller.signal });
-    clearTimeout(timer);
-    return res;
-  } catch (e) { clearTimeout(timer); throw e; }
+async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, { ...opts, signal: c.signal }); clearTimeout(t); return r; }
+  catch (e) { clearTimeout(t); throw e; }
 }
 
 serve(async (req) => {
@@ -75,23 +61,15 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!authHeader?.startsWith("Bearer ")) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
     const { data: { user }, error: authErr } = await sb.auth.getUser();
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.text();
-    if (body.length > MAX_PAYLOAD_BYTES) {
-      return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (body.length > MAX_PAYLOAD_BYTES) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { messages, mode } = JSON.parse(body);
-    if (!Array.isArray(messages) || messages.length > MAX_MESSAGES) {
-      return new Response(JSON.stringify({ error: "Invalid or too many messages (max 50)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!Array.isArray(messages) || messages.length > MAX_MESSAGES) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
@@ -100,8 +78,8 @@ serve(async (req) => {
     const queryText = lastMsg?.content || "";
     const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
     const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
-    const models = FAST_MODELS[category] || FAST_MODELS.general;
-    const maxTokens = CATEGORY_MAX_TOKENS[category] || CATEGORY_MAX_TOKENS.general;
+    const models = MODELS[category] || MODELS.general;
+    const maxTokens = MAX_TOKENS[category] || MAX_TOKENS.general;
 
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     let systemPrompt = `You are Lumina — a brilliant, adaptable AI study companion. You're NOT a textbook. You're like the smartest friend who happens to know everything and explains things in ways that actually click.
@@ -111,26 +89,20 @@ YOUR PERSONALITY:
 - Match the user's energy: casual question → casual answer, deep question → deep dive
 - Use analogies, real-world connections, and "aha moment" explanations
 - Be direct — get to the point fast, then elaborate if needed
-- Throw in unexpected insights that make people go "wait, that's cool"
-- If something is complex, break it down like you're explaining to a smart friend over coffee
 
 FORMATTING:
 - Use rich Markdown: **bold** key terms, headings for long answers, bullets for lists
 - Use LaTeX for math: $x^2$, $\\frac{a}{b}$, $$\\int_0^1 f(x)dx$$
-- Use markdown TABLES when comparing things, listing data, showing schedules, or when structure helps clarity
-- Add blank lines between paragraphs for readability
+- Use markdown TABLES when comparing things
 - Keep it scannable — no walls of text
-- For short questions, give short answers. Don't over-explain simple things.
+- For short questions, give short answers.
 
 RULES:
 - NEVER introduce yourself or say your name unless asked
 - If user says "hi" or "hello": respond with "Hey! What are we diving into today?" — nothing more
-- End academic answers with a thought-provoking follow-up question (not generic "any questions?")
-- If you're unsure, say so honestly — don't fake knowledge`;
+- End academic answers with a thought-provoking follow-up question`;
 
-    if (hasFiles) {
-      systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it. Prioritize the file content over the conversational context.`;
-    }
+    if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
@@ -161,11 +133,9 @@ RULES:
               if (done) break;
               await writer.write(value);
             }
-          } catch (streamError) {
-            console.warn("[chat] stream closed early:", streamError instanceof Error ? streamError.message : streamError);
-          } finally {
-            try { await writer.close(); } catch {}
-          }
+          } catch (e) {
+            console.warn("[chat] stream closed early:", e instanceof Error ? e.message : e);
+          } finally { try { await writer.close(); } catch {} }
         })();
         return new Response(readable, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
       } catch (e) {
@@ -173,7 +143,7 @@ RULES:
         console.error(`[chat] ${model} ${isTimeout ? "TIMEOUT" : "err"}:`, isTimeout ? `>${TIMEOUT_MS}ms` : e);
       }
     }
-    throw new Error("All models failed");
+    throw new Error("All models are busy — please try again in a moment");
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

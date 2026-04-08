@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -24,89 +24,38 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isExamMode) {
-      systemPrompt = `You are an expert exam preparation strategist. Create a DETAILED day-by-day study timetable in MARKDOWN format with tables.
-
-RULES:
-- Create a table for EACH day from today (${today}) to exam date
-- Include specific TIME SLOTS (e.g. 7:00 AM - 8:30 AM)
-- Distribute syllabus topics across days using spaced repetition
-- Include breaks, revision sessions, and practice tests
-- Last 2-3 days should be pure revision and mock tests
-- Be specific about WHAT to study in each slot
-- Use markdown tables with columns: Time | Topic | Activity | Duration
-- Add tips after each week's schedule
-- Make it realistic and achievable
-
-Return ONLY the markdown timetable. No JSON wrapping.`;
-
-      userPrompt = `Subject: ${subjects[0] || 'General'}
-Exam Date: ${examDate}
-Daily Study Hours: ${dailyHours}h
-Wake Up: ${wakeUpTime || '7:00 AM'}
-Sleep: ${sleepTime || '10:00 PM'}
-
-SYLLABUS:
-${syllabus}
-
-Create a detailed day-by-day timetable with time slots covering this entire syllabus before the exam.`;
+      systemPrompt = `You are an expert exam preparation strategist. Create a DETAILED day-by-day study timetable in MARKDOWN format with tables.\nRULES:\n- Create a table for EACH day from today (${today}) to exam date\n- Include specific TIME SLOTS\n- Use spaced repetition\n- Last 2-3 days = pure revision and mock tests\n- Use markdown tables: Time | Topic | Activity | Duration\n- Return ONLY markdown.`;
+      userPrompt = `Subject: ${subjects[0] || 'General'}\nExam Date: ${examDate}\nDaily Hours: ${dailyHours}h\nWake Up: ${wakeUpTime || '7:00 AM'}\nSleep: ${sleepTime || '10:00 PM'}\n\nSYLLABUS:\n${syllabus}`;
     } else {
-      systemPrompt = `Create a realistic, actionable study plan with timetable structure. Be strategic — prioritize weak areas, use spaced repetition, and include breaks.
-
-Return ONLY valid JSON in this EXACT format:
-{"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}
-
-RULES:
-- Include specific TIME slots for each task
-- Distribute subjects evenly across days
-- Add review sessions using spaced repetition (review day 1 material on day 3, day 7)
-- Include practice/test sessions every 3-4 days
-- Include short breaks between sessions
-- Make topics SPECIFIC (not just "Math" but "Quadratic Equations - Factoring")`;
-
+      systemPrompt = `Create a study plan. Return ONLY valid JSON: {"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}. Include spaced repetition. Make topics SPECIFIC.`;
       userPrompt = `Subjects: ${JSON.stringify(subjects)}\nTarget date: ${examDate}\nDaily hours: ${dailyHours}\nToday: ${today}`;
     }
 
     for (const model of MODELS) {
       try {
         const c = new AbortController();
-        const t = setTimeout(() => c.abort(), 25000);
+        const t = setTimeout(() => c.abort(), 30000);
         const res = await fetch(OPENROUTER_URL, {
-          method: "POST",
-          signal: c.signal,
+          method: "POST", signal: c.signal,
           headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            max_tokens: isExamMode ? 8000 : 4000,
-            temperature: 0.4,
-          }),
+          body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], max_tokens: isExamMode ? 8000 : 4000, temperature: 0.4 }),
         });
         clearTimeout(t);
         if (!res.ok) { const e = await res.text(); console.error(`[plan] ${model} ${res.status}: ${e.slice(0, 200)}`); continue; }
         const data = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (!content) continue;
-
         console.log(`[plan] ✓ ${model} (${mode || 'study'})`);
 
         if (isExamMode) {
-          // Return markdown directly
-          return new Response(JSON.stringify({ markdown: content }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(JSON.stringify({ markdown: content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         } else {
-          // Parse JSON
           const match = content.match(/\{[\s\S]*\}/);
-          if (match) {
-            return new Response(match[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-          }
+          if (match) return new Response(match[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       } catch (e) { console.error(`[plan] ${model}:`, e); }
     }
-    throw new Error("All models failed");
+    throw new Error("All models are busy — please try again in a moment");
   } catch (e) {
     console.error("generate-study-plan error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
