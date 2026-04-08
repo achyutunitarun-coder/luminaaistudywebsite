@@ -9,10 +9,13 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Free vision-capable models on OpenRouter
 const VISION_MODELS = [
-  "meta-llama/llama-4-maverick:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
-  "qwen/qwen-2.5-vl-72b-instruct:free",
-  "openrouter/auto",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-4b-it:free",
+  "openrouter/free",
+  "openrouter/healer-alpha",
 ];
 
 const TIMEOUT_MS = 30000;
