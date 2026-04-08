@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
+const MODELS = ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "openrouter/auto"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
