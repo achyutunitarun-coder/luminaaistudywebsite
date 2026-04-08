@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Heart, Shield, Zap, Trophy, Star, Target, Loader2, Sparkles } from 'lucide-react';
+import LiveLeaderboard from '@/components/LiveLeaderboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -221,15 +222,14 @@ const Quest = () => {
         </div>
       </motion.div>
 
-      {/* Leaderboard */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <h2 className="text-base font-display font-semibold text-foreground mb-4">Leaderboard</h2>
-        <div className="rounded-2xl liquid-glass p-6">
-          <div className="text-center py-8 text-muted-foreground">
-            <Trophy className="w-10 h-10 mx-auto mb-2 opacity-15" />
-            <p className="text-sm">Leaderboard updates weekly. Keep studying!</p>
-          </div>
-        </div>
+      {/* Live Global Leaderboard */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="rounded-[1.75rem] border border-border/15 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-3xl p-5 md:p-6"
+      >
+        <LiveLeaderboard maxEntries={15} />
       </motion.div>
     </div>
     </>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gamepad2, Swords, Zap, Brain, Shield, ArrowLeft, Trophy, Timer, CheckCircle2, XCircle, Lock } from 'lucide-react';
+import LiveLeaderboard from '@/components/LiveLeaderboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -291,6 +292,16 @@ const GameModes = () => {
             );
           })}
         </div>
+
+        {/* Live Global Leaderboard */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, ease }}
+          className="rounded-[1.75rem] border border-border/15 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-3xl p-5 md:p-6"
+        >
+          <LiveLeaderboard maxEntries={15} compact />
+        </motion.div>
       </div>
     );
   }
