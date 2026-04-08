@@ -6,101 +6,42 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const PRIMARY_MODELS = [
-  "minimax/minimax-m2.5:free",
-  "google/gemma-3-12b-it:free",
-  "z-ai/glm-4.5-air:free",
-  "google/gemma-3-27b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-];
-const FALLBACK_MODELS = [
-  "google/gemma-3-12b-it:free",
-];
-const ALL_MODELS = [...PRIMARY_MODELS, ...FALLBACK_MODELS];
-const TIMEOUT_MS = 14000;
-
-async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...opts, signal: controller.signal });
-    clearTimeout(timer);
-    return res;
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
-  }
-}
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
+const TIMEOUT_MS = 18000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
   try {
     const body = await req.text();
-    if (body.length > 100_000) {
-      return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { notes } = JSON.parse(body);
     const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
-    for (const model of ALL_MODELS) {
+    for (const model of MODELS) {
       try {
-        const res = await fetchWithTimeout(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), TIMEOUT_MS);
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST", signal: c.signal,
+          headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model,
-            stream: true,
-            max_tokens: 4000,
-            temperature: 0.75,
+            model, stream: true, max_tokens: 4000, temperature: 0.75,
             messages: [
-              { role: "system", content: `You are the writer for the most binge-worthy educational podcast on the internet. Create an ELECTRIFYING, LONG conversation between two hosts who are genuinely passionate about learning:
-
-- ALEX: The genius explainer who makes complex ideas feel like magic. Uses mind-blowing analogies, drops surprising facts, connects ideas across fields (physics to cooking, history to startups). Gets genuinely excited when explaining breakthroughs. Sometimes goes on fascinating tangents.
-- SAM: The brilliant curious mind who asks the questions everyone's thinking. Challenges Alex's explanations, connects ideas to everyday life, shares relatable "wait, so THAT'S why..." moments. Occasionally one-ups Alex with a fun fact.
-
-RULES:
-- Format EVERY line as "ALEX: ..." or "SAM: ..."
-- Make it AT LEAST 2500 words — this is a FULL episode, not a summary
-- Jump STRAIGHT into the topic — no "welcome to the show" garbage
-- Natural interruptions: "Wait wait wait—", "Hold on—", "Oh my god, that's like—", "No way!", "Okay but here's the crazy part—"
-- Include genuine debates, "aha!" moments, laughing reactions, mind-blown reactions
-- Reference pop culture, movies, everyday situations to make concepts stick
-- Build tension and reveals: "So you'd THINK it works like X... but actually..."
-- Make listeners feel like they're eavesdropping on the most interesting conversation at a party
-- NO markdown formatting, NO stage directions in brackets, NO emojis
-- End with a mind-blowing takeaway that makes listeners want to tell someone about it` },
-              { role: "user", content: `Turn these study notes into the most engaging podcast episode ever. Make it feel ALIVE — like two brilliant friends geeking out over fascinating ideas:\n\n${notes}` },
+              { role: "system", content: `Create an engaging educational podcast conversation between ALEX (expert explainer) and SAM (curious challenger). Format every line as "ALEX: ..." or "SAM: ...". Jump straight into the topic. Make it AT LEAST 2500 words. Include natural interruptions, debates, aha moments. NO markdown, NO stage directions, NO emojis.` },
+              { role: "user", content: `Turn these notes into a podcast episode:\n\n${notes}` },
             ],
           }),
         }, TIMEOUT_MS);
-
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error(`${model} error ${res.status}: ${errText}`);
-          continue;
-        }
-
-        console.log(`[generate-podcast-script] Success: ${model}`);
-
-        return new Response(res.body, {
-          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-        });
-      } catch (e) {
-        console.error(`${model} exception:`, e);
-      }
+        clearTimeout(t);
+        if (!res.ok) { const e = await res.text(); console.error(`[podcast] ${model} ${res.status}: ${e.slice(0, 200)}`); continue; }
+        console.log(`[podcast] ✓ ${model}`);
+        return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+      } catch (e) { console.error(`[podcast] ${model}:`, e); }
     }
-
-    throw new Error("All models failed");
+    throw new Error("All models are busy — please try again in a moment");
   } catch (e) {
     console.error("generate-podcast-script error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

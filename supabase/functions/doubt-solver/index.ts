@@ -7,15 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"];
-const TIMEOUT_MS = 9000;
-
-async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { ...opts, signal: c.signal }); clearTimeout(t); return r; }
-  catch (e) { clearTimeout(t); throw e; }
-}
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
+const TIMEOUT_MS = 12000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -42,26 +35,27 @@ YOUR APPROACH:
 - Use analogies: "Think of it like..." to make abstract concepts tangible
 - For math/science: show every step, use LaTeX ($x^2$, $$\\int f(x)dx$$), and explain the intuition
 - Highlight common traps: "⚠️ Students often mess up here because..."
-- End with a "Level Up" challenge — a slightly harder variation to test understanding
-
-PERSONALITY: Sharp, encouraging, never condescending. You celebrate clever questions.
+- End with a "Level Up" challenge — a slightly harder variation
 
 FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blank lines between sections.`;
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
     for (const model of MODELS) {
       try {
-        const res = await fetchWithTimeout(OPENROUTER_URL, {
-          method: "POST",
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), TIMEOUT_MS);
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST", signal: c.signal,
           headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1100, temperature: 0.55, stream: true }),
-        }, TIMEOUT_MS);
+          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 1200, temperature: 0.55, stream: true }),
+        });
+        clearTimeout(t);
         if (!res.ok) { const t = await res.text(); console.error(`[doubt] ${model} ${res.status}: ${t.slice(0, 200)}`); continue; }
         console.log(`[doubt] ✓ ${model}`);
         return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
       } catch (e) { console.error(`[doubt] ${model} err:`, e); }
     }
-    throw new Error("All models failed");
+    throw new Error("All models are busy — please try again in a moment");
   } catch (e) {
     console.error("doubt-solver error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -7,11 +7,11 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 function buildPrompts(type: string, curriculum: string, subject: string, topic: string, count?: number) {
   const cur = curriculum || "general";
-  if (type === "notes") return { system: `Generate comprehensive study notes in Markdown for ${cur} curriculum. Use headings, bold terms, tables, LaTeX ($...$), worked examples, exam tips, and summary.`, user: `Notes for: ${subject} - ${topic} (${cur})` };
+  if (type === "notes") return { system: `Generate comprehensive study notes in Markdown for ${cur} curriculum. Use headings, bold terms, tables, LaTeX, worked examples, exam tips, and summary.`, user: `Notes for: ${subject} - ${topic} (${cur})` };
   if (type === "flashcards") return { system: `Generate 15 flashcards. Return ONLY JSON: [{"front":"question","back":"answer"}]`, user: `Flashcards for: ${subject} - ${topic} (${cur})` };
   if (type === "questions") return { system: `Generate 10 mixed-difficulty questions. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"...","difficulty":"Easy|Medium|Hard"}]`, user: `Questions for: ${subject} - ${topic} (${cur})` };
   if (type === "test") return { system: `Generate 10 exam-style questions for ${cur}. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]`, user: `Practice test: ${subject} - ${topic} (${cur})` };
@@ -55,7 +55,7 @@ serve(async (req) => {
         if (content && content.trim().length > 20) { rawContent = content; console.log(`[resources] ✓ ${model}`); break; }
       } catch (e) { console.error(`[resources] ${model}:`, e); }
     }
-    if (!rawContent) throw new Error("All AI models failed");
+    if (!rawContent) throw new Error("All models are busy — please try again in a moment");
 
     let content: Record<string, unknown> = {};
     if (type === "notes") { content = { notes: rawContent }; }

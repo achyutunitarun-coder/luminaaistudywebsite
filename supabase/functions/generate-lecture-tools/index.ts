@@ -6,13 +6,13 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
   for (const model of MODELS) {
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 9000);
+      const t = setTimeout(() => c.abort(), 12000);
       const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }) });
       clearTimeout(t);
       if (!res.ok) { const e = await res.text(); console.error(`[lecture-tools] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
@@ -21,7 +21,7 @@ async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promis
       if (content) { console.log(`[lecture-tools] ✓ ${model}`); return content; }
     } catch (e) { console.error(`[lecture-tools] ${model}:`, e); }
   }
-  throw new Error("All models failed");
+  throw new Error("All models are busy — please try again in a moment");
 }
 
 serve(async (req) => {
@@ -34,9 +34,9 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const prompts: Record<string, string> = {
-      flashcards: `From lecture notes, generate 10-15 flashcards that test UNDERSTANDING, not just recall. Mix question types: why, how, compare, apply. Return ONLY JSON array: [{"front": "question", "back": "answer"}]`,
-      quiz: `From lecture notes, generate 8-10 challenging MCQ questions with tricky distractors. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]`,
-      summary: `Create a powerful "Exam Revision" summary that feels like your smartest friend giving you the ultimate cheat sheet. Use headers, **bold** terms, bullet points. Include formulas, mnemonics, "Top 5 Things to Remember", and common exam traps. Make it engaging — not a textbook. Keep under 600 words.`,
+      flashcards: `Generate 10-15 flashcards. Return ONLY JSON array: [{"front": "question", "back": "answer"}]`,
+      quiz: `Generate 8-10 MCQ questions. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]`,
+      summary: `Create a powerful "Exam Revision" summary with headers, **bold** terms, bullet points, formulas, mnemonics. Keep under 600 words.`,
     };
     const text = await callAI(OPENROUTER_API_KEY, [{ role: "system", content: prompts[type] || prompts.summary }, { role: "user", content: `Notes:\n${notes}` }], 2000);
     if (type === "flashcards" || type === "quiz") {

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["meta-llama/llama-3.3-70b-instruct:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-3-12b-it:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
@@ -48,7 +48,7 @@ async function callAI(apiKey: string, messages: any[], num: number, maxTokens = 
   for (const model of MODELS) {
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 15000);
+      const t = setTimeout(() => c.abort(), 18000);
       const res = await fetch(OPENROUTER_URL, {
         method: "POST", signal: c.signal,
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -64,7 +64,7 @@ async function callAI(apiKey: string, messages: any[], num: number, maxTokens = 
       if (valid.length > 0) { console.log(`[test] partial ${model} (${valid.length}/${num})`); return valid; }
     } catch (e) { console.error(`[test] ${model}:`, e); }
   }
-  throw new Error("All models failed");
+  throw new Error("All models are busy — please try again in a moment");
 }
 
 serve(async (req) => {
@@ -84,16 +84,7 @@ serve(async (req) => {
 
     const num = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
     const questions = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `You're creating exam questions that actually TEST understanding, not just memorization. Generate ${num} MCQs that mix difficulty levels.
-
-Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}
-
-RULES:
-- Include tricky distractors that expose common misconceptions
-- Mix question types: definition, application, analysis, comparison
-- Explanations should teach, not just state the answer
-- Use LaTeX for math ($x^2$)
-- Make questions feel like a real exam, not a textbook exercise` },
+      { role: "system", content: `Generate ${num} MCQs that test understanding. Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Use LaTeX for math ($x^2$).` },
       { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,10000)}` },
     ], num, Math.min(8192, Math.max(3500, num * 900)));
 

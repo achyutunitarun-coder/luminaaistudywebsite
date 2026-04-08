@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["minimax/minimax-m2.5:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "z-ai/glm-4.5-air:free", "qwen/qwen3-next-80b-a3b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"];
+const MODELS = ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "mistralai/mistral-small-3.1-24b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3-12b-it:free"];
 
 function cleanJSON(raw: string): any {
   let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim().replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
@@ -23,7 +23,7 @@ async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promis
   for (const model of MODELS) {
     try {
       const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 9000);
+      const t = setTimeout(() => c.abort(), 12000);
       const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5 }) });
       clearTimeout(t);
       if (!res.ok) { const e = await res.text(); console.error(`[note-to-quiz] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
@@ -32,7 +32,7 @@ async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promis
       if (content) { console.log(`[note-to-quiz] ✓ ${model}`); return content; }
     } catch (e) { console.error(`[note-to-quiz] ${model}:`, e); }
   }
-  throw new Error("All models failed");
+  throw new Error("All models are busy — please try again in a moment");
 }
 
 serve(async (req) => {
@@ -45,11 +45,7 @@ serve(async (req) => {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const text = await callAI(OPENROUTER_API_KEY, [
-      { role: "system", content: `Convert notes into a challenging quiz. Create questions that test UNDERSTANDING, not just recall. Include tricky options that expose common misconceptions.
-
-Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}
-
-Make explanations teach something — not just "the answer is B."` },
+      { role: "system", content: `Convert notes into a challenging quiz. Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}` },
       { role: "user", content: `Generate quiz from:\n\n${notes}` },
     ], 2000);
     const parsed = cleanJSON(text);
