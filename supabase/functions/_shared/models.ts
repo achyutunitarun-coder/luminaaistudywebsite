@@ -1,52 +1,19 @@
-// Shared free model fallback chains for all edge functions
-// Updated 2026-04-08 with currently available models on OpenRouter
+// Shared AI infrastructure — uses Lovable AI Gateway (reliable, no rate limits)
+// Updated 2026-04-08: Migrated from OpenRouter free tier to Lovable AI Gateway
 
-export const FREE_MODELS_FAST = [
-  "qwen/qwen3.6-plus:free",
-  "openai/gpt-oss-20b:free",
-  "stepfun/step-3.5-flash:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-3-12b-it:free",
-  "minimax/minimax-m2.5:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openrouter/auto",
-];
+export const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-export const FREE_MODELS_QUALITY = [
-  "qwen/qwen3.6-plus:free",
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "minimax/minimax-m2.5:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "z-ai/glm-4.5-air:free",
-  "openrouter/auto",
-];
+// Model tiers for different use cases
+export const MODELS_FAST = ["google/gemini-2.5-flash-lite", "google/gemini-2.5-flash"];
+export const MODELS_BALANCED = ["google/gemini-2.5-flash", "google/gemini-3-flash-preview"];
+export const MODELS_QUALITY = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
+export const MODELS_VISION = ["google/gemini-2.5-flash", "google/gemini-2.5-pro"];
 
-export const FREE_MODELS_LONG = [
-  "qwen/qwen3.6-plus:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "openai/gpt-oss-120b:free",
-  "minimax/minimax-m2.5:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "z-ai/glm-4.5-air:free",
-  "google/gemma-3-27b-it:free",
-  "openrouter/auto",
-];
-
-export const FREE_MODELS_CODE = [
-  "qwen/qwen3-coder:free",
-  "qwen/qwen3.6-plus:free",
-  "openai/gpt-oss-120b:free",
-  "minimax/minimax-m2.5:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openrouter/auto",
-];
-
-export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+export function getApiKey(): string {
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) throw new Error("LOVABLE_API_KEY not set");
+  return key;
+}
 
 export async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
@@ -62,7 +29,6 @@ export async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs
 }
 
 export async function callWithFallback(
-  apiKey: string,
   messages: any[],
   models: string[],
   maxTokens: number,
@@ -71,9 +37,10 @@ export async function callWithFallback(
   tag: string,
   extraOpts: Record<string, any> = {},
 ): Promise<Response> {
+  const apiKey = getApiKey();
   for (const model of models) {
     try {
-      const res = await fetchWithTimeout(OPENROUTER_URL, {
+      const res = await fetchWithTimeout(AI_GATEWAY_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature, ...extraOpts }),
@@ -92,11 +59,10 @@ export async function callWithFallback(
       console.error(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "err"}:`, isTimeout ? `>${timeoutMs}ms` : e);
     }
   }
-  throw new Error("All models failed — please try again in a moment");
+  throw new Error("AI is temporarily busy — please try again in a moment");
 }
 
 export async function callAIText(
-  apiKey: string,
   messages: any[],
   models: string[],
   maxTokens: number,
@@ -104,9 +70,20 @@ export async function callAIText(
   timeoutMs: number,
   tag: string,
 ): Promise<string> {
-  const res = await callWithFallback(apiKey, messages, models, maxTokens, temperature, timeoutMs, tag);
+  const res = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty AI response");
   return content;
+}
+
+export async function streamAI(
+  messages: any[],
+  models: string[],
+  maxTokens: number,
+  temperature: number,
+  timeoutMs: number,
+  tag: string,
+): Promise<Response> {
+  return callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true });
 }
