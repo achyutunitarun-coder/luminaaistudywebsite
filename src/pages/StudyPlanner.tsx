@@ -353,7 +353,7 @@ const StudyPlanner = () => {
                     </div>
                     <h3 className="font-display font-bold text-foreground">Your Exam Timetable</h3>
                   </div>
-                  <div className="prose prose-sm prose-invert max-w-none">
+                  <div className="max-w-none text-muted-foreground">
                     <MarkdownRenderer>{examPlanResult}</MarkdownRenderer>
                   </div>
                 </div>
