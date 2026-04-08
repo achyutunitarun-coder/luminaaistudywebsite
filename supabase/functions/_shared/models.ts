@@ -1,38 +1,48 @@
 // Shared free model fallback chains for all edge functions
-// Fastest models first, openrouter/auto as last-resort fallback
+// Updated 2026-04-08 with currently available models on OpenRouter
 
 export const FREE_MODELS_FAST = [
-  "meta-llama/llama-4-maverick:free",
-  "google/gemma-3-27b-it:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3.6-plus:free",
+  "openai/gpt-oss-20b:free",
+  "stepfun/step-3.5-flash:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-3-12b-it:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "qwen/qwen3-235b-a22b:free",
-  "nvidia/llama-3.1-nemotron-70b-instruct:free",
+  "minimax/minimax-m2.5:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
   "openrouter/auto",
 ];
 
 export const FREE_MODELS_QUALITY = [
-  "meta-llama/llama-4-maverick:free",
-  "qwen/qwen3-235b-a22b:free",
+  "qwen/qwen3.6-plus:free",
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "minimax/minimax-m2.5:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
   "google/gemma-3-27b-it:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "nvidia/llama-3.1-nemotron-70b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-12b-it:free",
+  "z-ai/glm-4.5-air:free",
   "openrouter/auto",
 ];
 
 export const FREE_MODELS_LONG = [
-  "qwen/qwen3-235b-a22b:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "meta-llama/llama-4-maverick:free",
+  "qwen/qwen3.6-plus:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
+  "minimax/minimax-m2.5:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "z-ai/glm-4.5-air:free",
   "google/gemma-3-27b-it:free",
-  "nvidia/llama-3.1-nemotron-70b-instruct:free",
+  "openrouter/auto",
+];
+
+export const FREE_MODELS_CODE = [
+  "qwen/qwen3-coder:free",
+  "qwen/qwen3.6-plus:free",
+  "openai/gpt-oss-120b:free",
+  "minimax/minimax-m2.5:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-12b-it:free",
   "openrouter/auto",
 ];
 
