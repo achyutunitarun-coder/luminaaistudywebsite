@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Heart, Shield, Zap, Trophy, Star, Target, Loader2, Sparkles } from 'lucide-react';
+import LiveLeaderboard from '@/components/LiveLeaderboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
