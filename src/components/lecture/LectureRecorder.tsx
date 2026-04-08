@@ -225,9 +225,14 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
     if (!file) return;
     event.target.value = '';
     setIsProcessing(true);
+    setPdfProgress(0);
     setProcessingLabel(file.name.toLowerCase().endsWith('.pdf') ? 'Extracting PDF text...' : 'Reading document...');
     try {
-      const text = await extractTextFromFile(file);
+      const onProgress: PdfProgressCallback = (info) => {
+        setProcessingLabel(info.stage);
+        setPdfProgress(info.total > 0 ? Math.round((info.current / info.total) * 100) : 0);
+      };
+      const text = await extractDocumentText(file, false, onProgress);
       if (!text || text.length < 20) throw new Error('Document appears empty or too short.');
       onTranscriptReady({ text, words: [] });
       if (onDocumentTextReady) onDocumentTextReady(text);
@@ -236,6 +241,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
       toast.error(e.message || 'Failed to read document');
     } finally {
       setIsProcessing(false);
+      setPdfProgress(0);
       setProcessingLabel('Analyzing audio and extracting speech...');
     }
   }, [onTranscriptReady, onDocumentTextReady, setIsProcessing]);
