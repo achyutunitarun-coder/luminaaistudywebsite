@@ -1,9 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
+
+const HTML_BREAK_TOKEN = '%%LUMINA_BR%%';
 
 function CodeBlock({ className, children }: { className?: string; children: string }) {
   const [copied, setCopied] = useState(false);
@@ -31,6 +34,29 @@ function CodeBlock({ className, children }: { className?: string; children: stri
   );
 }
 
+function renderBreaks(children: ReactNode): ReactNode {
+  return Children.map(children, (child, index) => {
+    if (typeof child === 'string') {
+      const parts = child.split(HTML_BREAK_TOKEN);
+      if (parts.length === 1) return child;
+
+      return parts.flatMap((part, partIndex) => (
+        partIndex < parts.length - 1
+          ? [part, <br key={`markdown-br-${index}-${partIndex}`} />]
+          : [part]
+      ));
+    }
+
+    if (isValidElement<{ children?: ReactNode }>(child) && child.props.children != null) {
+      return cloneElement(child, {
+        children: renderBreaks(child.props.children),
+      });
+    }
+
+    return child;
+  });
+}
+
 /**
  * Robust LaTeX preprocessor that handles all common AI model output formats:
  * - \( ... \) → $ ... $
@@ -44,10 +70,12 @@ function preprocessLatex(text: string): string {
 
   // Protect code blocks from LaTeX processing
   const codeBlocks: string[] = [];
-  let processed = text.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
+  let processed = text.replace(/\r\n?/g, '\n').replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
     codeBlocks.push(match);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
+
+  processed = processed.replace(/<br\s*\/?>/gi, HTML_BREAK_TOKEN);
 
   // Convert \( ... \) to inline math $ ... $ (non-greedy, single line)
   processed = processed.replace(/\\\((.+?)\\\)/g, (_, math) => `$${math.trim()}$`);
@@ -79,25 +107,25 @@ const markdownComponents = {
       </code>
     );
   },
-  p: ({ children }: any) => <p className="my-2.5 leading-[1.8]">{children}</p>,
-  h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 pb-2 border-b border-border/20">{children}</h1>,
-  h2: ({ children }: any) => <h2 className="text-xl font-bold mt-5 mb-2 pb-1.5 border-b border-border/15">{children}</h2>,
-  h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>,
-  h4: ({ children }: any) => <h4 className="text-base font-semibold mt-3 mb-1.5">{children}</h4>,
+  p: ({ children }: any) => <p className="my-2.5 leading-[1.8]">{renderBreaks(children)}</p>,
+  h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 pb-2 border-b border-border/20">{renderBreaks(children)}</h1>,
+  h2: ({ children }: any) => <h2 className="text-xl font-bold mt-5 mb-2 pb-1.5 border-b border-border/15">{renderBreaks(children)}</h2>,
+  h3: ({ children }: any) => <h3 className="text-lg font-semibold mt-4 mb-2">{renderBreaks(children)}</h3>,
+  h4: ({ children }: any) => <h4 className="text-base font-semibold mt-3 mb-1.5">{renderBreaks(children)}</h4>,
   ul: ({ children }: any) => <ul className="my-2.5 ml-5 space-y-1 list-disc marker:text-primary/50">{children}</ul>,
   ol: ({ children }: any) => <ol className="my-2.5 ml-5 space-y-1 list-decimal marker:text-primary/50">{children}</ol>,
-  li: ({ children }: any) => <li className="leading-[1.75] pl-1">{children}</li>,
+  li: ({ children }: any) => <li className="leading-[1.75] pl-1">{renderBreaks(children)}</li>,
   blockquote: ({ children }: any) => (
-    <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{children}</blockquote>
+    <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{renderBreaks(children)}</blockquote>
   ),
   table: ({ children }: any) => (
     <div className="my-4 overflow-x-auto rounded-xl border border-border/20 -mx-1"><table className="w-full text-sm border-collapse">{children}</table></div>
   ),
   thead: ({ children }: any) => <thead className="bg-muted/30">{children}</thead>,
-  th: ({ children }: any) => <th className="px-3 py-2 text-left font-semibold text-foreground border-b border-border/20 whitespace-nowrap">{children}</th>,
-  td: ({ children }: any) => <td className="px-3 py-2 border-b border-border/10">{children}</td>,
+  th: ({ children }: any) => <th className="px-3 py-2 align-top text-left font-semibold text-foreground border-b border-border/20 whitespace-nowrap">{renderBreaks(children)}</th>,
+  td: ({ children }: any) => <td className="px-3 py-2 align-top border-b border-border/10 leading-[1.7]">{renderBreaks(children)}</td>,
   hr: () => <hr className="my-6 border-border/20" />,
-  strong: ({ children }: any) => <strong className="font-semibold text-foreground">{children}</strong>,
+  strong: ({ children }: any) => <strong className="font-semibold text-foreground">{renderBreaks(children)}</strong>,
 };
 
 export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
@@ -111,7 +139,7 @@ export default function MarkdownRenderer({ children, className, streaming = fals
   return (
     <div className={`break-words markdown-content ${className || ''}`}>
       <ReactMarkdown
-        remarkPlugins={streaming ? [] : [remarkMath]}
+        remarkPlugins={streaming ? [remarkGfm] : [remarkGfm, remarkMath]}
         rehypePlugins={streaming ? [] : [rehypeKatex]}
         components={markdownComponents}
       >
