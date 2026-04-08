@@ -9,7 +9,8 @@ import {
   prepareAudioChunksForTranscription,
   type PreparedAudioChunk,
 } from '@/components/lecture/audioUtils';
-import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
+import { extractDocumentText, DOCUMENT_ACCEPT, type PdfProgressCallback } from '@/lib/extractDocumentText';
+import { Progress } from '@/components/ui/progress';
 
 interface Props {
   onTranscriptReady: (transcript: any) => void;
