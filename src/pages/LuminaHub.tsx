@@ -537,7 +537,7 @@ function HubSession({ module, onClose }: { module: Module; onClose: () => void }
                 <div className={`max-w-[85%] min-w-0 rounded-2xl px-4 py-3 ${
                   msg.role === 'user' ? 'gradient-primary text-primary-foreground rounded-tr-md' : 'liquid-glass rounded-tl-md'
                 }`}>
-                  <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>p]:mb-3 [&>h1]:mb-3 [&>h2]:mb-3 [&>h3]:mb-2 [&>ul]:mb-3 [&>ol]:mb-3 [&>table]:mb-3">
+                  <div className="text-sm max-w-none">
                     <MarkdownRenderer streaming={isLoading && msg.role === 'assistant' && i === messages.length - 1}>{msg.content}</MarkdownRenderer>
                   </div>
                 </div>

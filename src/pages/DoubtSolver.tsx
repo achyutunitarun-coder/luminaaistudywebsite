@@ -216,7 +216,7 @@ const DoubtSolver = () => {
                       ? 'gradient-primary text-primary-foreground rounded-tr-md shadow-lg shadow-primary/10'
                       : 'liquid-glass rounded-tl-md'
                   }`}>
-                    <div className="prose prose-sm prose-invert max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1">
+                    <div className="text-sm max-w-none">
                       <MarkdownRenderer streaming={!isUser && isLoading && i === messages.length - 1}>{msg.content}</MarkdownRenderer>
                     </div>
                   </div>
