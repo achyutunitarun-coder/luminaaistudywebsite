@@ -395,7 +395,18 @@
 .markdown-content .katex-display {
   margin: 1rem 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0;
+}
+.markdown-content .katex-display > .katex {
+  white-space: normal;
 }
 .markdown-content .katex {
   font-size: 1em;
+  overflow-wrap: break-word;
+}
+.markdown-content .katex-html {
+  overflow-x: auto;
+  overflow-y: hidden;
 }
