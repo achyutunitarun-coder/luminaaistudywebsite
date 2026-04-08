@@ -128,19 +128,17 @@ const markdownComponents = {
   strong: ({ children }: any) => <strong className="font-semibold text-foreground">{renderBreaks(children)}</strong>,
 };
 
+const remarkPluginsAll = [remarkGfm, remarkMath];
+const rehypePluginsAll = [rehypeKatex];
+
 export default function MarkdownRenderer({ children, className, streaming = false }: MarkdownRendererProps) {
-  // Always render markdown — the 32ms buffered accumulator already throttles re-renders during streaming
-  // Only skip heavy LaTeX processing while actively streaming to avoid jank
-  const processed = useMemo(() => {
-    if (streaming) return children; // skip LaTeX regex during streaming for perf
-    return preprocessLatex(children);
-  }, [children, streaming]);
+  const processed = useMemo(() => preprocessLatex(children), [children]);
 
   return (
     <div className={`break-words markdown-content ${className || ''}`}>
       <ReactMarkdown
-        remarkPlugins={streaming ? [remarkGfm] : [remarkGfm, remarkMath]}
-        rehypePlugins={streaming ? [] : [rehypeKatex]}
+        remarkPlugins={remarkPluginsAll}
+        rehypePlugins={rehypePluginsAll}
         components={markdownComponents}
       >
         {processed}
