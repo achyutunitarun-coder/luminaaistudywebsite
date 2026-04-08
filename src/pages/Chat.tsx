@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown } from 'lucide-react';
+import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown, Bot, Wand2, Search, GraduationCap } from 'lucide-react';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,27 @@ type Message = { id: string; role: string; content: string; created_at: string }
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const MAX_CONTEXT_MESSAGES = 12;
 
-/* ─── Chat History Sidebar Content ─── */
+const MODE_OPTIONS = [
+  { value: 'auto', label: 'Auto', icon: Zap, desc: 'AI picks best mode', color: 'from-violet-500 to-fuchsia-500' },
+  { value: 'reasoning', label: 'Reasoning', icon: Brain, desc: 'Math & logic', color: 'from-blue-500 to-cyan-500' },
+  { value: 'coding', label: 'Coding', icon: Code2, desc: 'Programming', color: 'from-green-500 to-emerald-500' },
+  { value: 'general', label: 'General', icon: MessagesSquare, desc: 'Chat & explain', color: 'from-orange-500 to-amber-500' },
+  { value: 'fast', label: 'Fast', icon: Zap, desc: 'Quick answers', color: 'from-yellow-500 to-orange-500' },
+  { value: 'study', label: 'Study', icon: BookOpen, desc: 'Structured learning', color: 'from-purple-500 to-pink-500' },
+  { value: 'long_context', label: 'Deep Dive', icon: FileText, desc: 'Long docs & summaries', color: 'from-teal-500 to-cyan-500' },
+  { value: 'creative', label: 'Creative', icon: Palette, desc: 'Writing & stories', color: 'from-pink-500 to-rose-500' },
+];
+
+const SUGGESTIONS = [
+  { text: 'Explain quantum entanglement', icon: '🔬' },
+  { text: 'Help me with calculus derivatives', icon: '📐' },
+  { text: 'Summarize World War II causes', icon: '📚' },
+  { text: 'Write a Python sorting algorithm', icon: '💻' },
+  { text: 'Quiz me on cell biology', icon: '🧬' },
+  { text: 'Explain supply & demand', icon: '📊' },
+];
+
+/* ─── Chat History Sidebar ─── */
 const ChatSidebar = ({
   chats, activeChat, editingChat, editTitle, setEditTitle, setEditingChat,
   setActiveChat, createChat, deleteChat, renameChat, onSelect,
@@ -31,72 +51,64 @@ const ChatSidebar = ({
   deleteChat: (id: string) => void; renameChat: (id: string) => void;
   onSelect?: () => void;
 }) => (
-  <div className="flex flex-col h-full">
-    <div className="p-4 pb-3">
+  <div className="flex flex-col h-full bg-background/50">
+    <div className="p-3 pb-2">
       <Button
         onClick={() => { createChat(); onSelect?.(); }}
-        className="w-full h-11 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all duration-200 font-medium text-sm"
+        className="w-full h-10 rounded-xl bg-gradient-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 text-primary border border-primary/20 hover:border-primary/30 transition-all duration-300 font-medium text-sm gap-2"
         variant="ghost"
       >
-        <Plus className="w-4 h-4 mr-2" /> New conversation
+        <Plus className="w-4 h-4" /> New Chat
       </Button>
     </div>
 
-    <div className="px-4 pb-2">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/50">Recent</span>
+    <div className="px-4 py-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/40">History</span>
     </div>
 
-    <div className="flex-1 overflow-auto px-2 space-y-0.5">
+    <div className="flex-1 overflow-auto px-2 space-y-0.5 scrollbar-thin scrollbar-thumb-border/10">
       {chats.map(chat => (
         <div
           key={chat.id}
-          className={`group flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-150 ${
-            activeChat === chat.id ? 'bg-muted/40 text-foreground' : 'hover:bg-muted/20 text-muted-foreground hover:text-foreground'
+          className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer transition-all duration-200 ${
+            activeChat === chat.id
+              ? 'bg-primary/10 text-foreground border-l-2 border-primary'
+              : 'hover:bg-muted/15 text-muted-foreground hover:text-foreground border-l-2 border-transparent'
           }`}
           onClick={() => { setActiveChat(chat.id); onSelect?.(); }}
         >
-          <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 opacity-50" />
+          <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 opacity-40" />
           {editingChat === chat.id ? (
-            <div className="flex-1 flex items-center gap-1.5">
+            <div className="flex-1 flex items-center gap-1">
               <Input
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
-                className="h-7 text-xs bg-background/80 rounded-lg border-border/30"
+                className="h-6 text-xs bg-background/80 rounded border-border/30"
                 onKeyDown={e => e.key === 'Enter' && renameChat(chat.id)}
                 autoFocus
               />
-              <button onClick={() => renameChat(chat.id)} className="p-0.5 hover:text-primary transition-colors">
-                <Check className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => setEditingChat(null)} className="p-0.5 hover:text-destructive transition-colors">
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <button onClick={() => renameChat(chat.id)} className="p-0.5 hover:text-primary"><Check className="w-3 h-3" /></button>
+              <button onClick={() => setEditingChat(null)} className="p-0.5 hover:text-destructive"><X className="w-3 h-3" /></button>
             </div>
           ) : (
             <>
-              <span className="flex-1 text-[13px] truncate">{chat.title}</span>
+              <span className="flex-1 text-[12px] truncate">{chat.title}</span>
               <div className="hidden group-hover:flex items-center gap-0.5">
-                <button
-                  className="p-1 rounded-md hover:bg-muted/40 transition-colors"
-                  onClick={e => { e.stopPropagation(); setEditingChat(chat.id); setEditTitle(chat.title); }}
-                >
-                  <Edit3 className="w-3 h-3" />
+                <button className="p-0.5 rounded hover:bg-muted/30" onClick={e => { e.stopPropagation(); setEditingChat(chat.id); setEditTitle(chat.title); }}>
+                  <Edit3 className="w-2.5 h-2.5" />
                 </button>
-                <button
-                  className="p-1 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}
-                >
-                  <Trash2 className="w-3 h-3" />
+                <button className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive" onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}>
+                  <Trash2 className="w-2.5 h-2.5" />
                 </button>
               </div>
             </>
           )}
         </div>
       ))}
-
       {chats.length === 0 && (
-        <div className="px-3 py-8 text-center">
-          <p className="text-xs text-muted-foreground/40">No conversations yet</p>
+        <div className="px-3 py-10 text-center">
+          <MessageSquare className="w-8 h-8 mx-auto mb-2 text-muted-foreground/20" />
+          <p className="text-[11px] text-muted-foreground/30">No conversations yet</p>
         </div>
       )}
     </div>
@@ -124,17 +136,6 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSendingRef = useRef(false);
-
-  const MODE_OPTIONS = [
-    { value: 'auto', label: 'Auto', icon: Zap, desc: 'AI picks best mode' },
-    { value: 'reasoning', label: 'Reasoning', icon: Brain, desc: 'Math & logic' },
-    { value: 'coding', label: 'Coding', icon: Code2, desc: 'Programming' },
-    { value: 'general', label: 'General', icon: MessagesSquare, desc: 'Chat & explain' },
-    { value: 'fast', label: 'Fast', icon: Zap, desc: 'Quick answers' },
-    { value: 'study', label: 'Study', icon: BookOpen, desc: 'Structured learning' },
-    { value: 'long_context', label: 'Long Context', icon: FileText, desc: 'Summaries' },
-    { value: 'creative', label: 'Creative', icon: Palette, desc: 'Writing & stories' },
-  ];
 
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
@@ -169,6 +170,12 @@ const ChatPage = () => {
     setEditingChat(null);
   };
 
+  const handleSuggestionClick = useCallback(async (text: string) => {
+    if (!activeChat) await createChat();
+    setInput(text);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [activeChat]);
+
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
 
@@ -185,32 +192,14 @@ const ChatPage = () => {
 
     try {
       const optimisticUserMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: userContent,
-        created_at: new Date().toISOString(),
+        id: crypto.randomUUID(), role: 'user', content: userContent, created_at: new Date().toISOString(),
       };
-
       setMessages(prev => [...prev, optimisticUserMessage]);
 
-      const persistedUserMessagePromise = (async () => {
-        try {
-          const { data } = await supabase
-            .from('chat_messages')
-            .insert({ chat_id: activeChat, role: 'user', content: userContent })
-            .select()
-            .single();
-
-          return data ?? null;
-        } catch (error) {
-          console.error('Failed to save user message:', error);
-          return null;
-        }
-      })();
-
-      void persistedUserMessagePromise.then((savedUserMsg) => {
-        if (!savedUserMsg) return;
-        setMessages(prev => prev.map(m => m.id === optimisticUserMessage.id ? savedUserMsg : m));
+      // Save user message in background
+      const persistPromise = supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent }).select().single();
+      void persistPromise.then(({ data }) => {
+        if (data) setMessages(prev => prev.map(m => m.id === optimisticUserMessage.id ? data : m));
       });
 
       if (messages.length === 0) {
@@ -221,10 +210,7 @@ const ChatPage = () => {
 
       const allMessages = [...messages, { role: 'user', content: userContent }]
         .slice(-MAX_CONTEXT_MESSAGES)
-        .map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
@@ -240,20 +226,11 @@ const ChatPage = () => {
 
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
-        if (resp.status === 429) {
-          toast.error('Rate limit exceeded. Please wait a moment and try again.');
-        } else if (resp.status === 402) {
-          toast.error('AI credits are exhausted right now. Please add credits and try again.');
-        } else {
-          toast.error(errorData.error || 'Failed to get AI response. Please try again.');
-        }
+        toast.error(resp.status === 429 ? 'Rate limit hit. Wait a moment.' : errorData.error || 'AI error. Try again.');
         return;
       }
 
-      if (!resp.body) {
-        toast.error('Failed to get AI response stream.');
-        return;
-      }
+      if (!resp.body) { toast.error('No response stream.'); return; }
 
       const placeholderId = crypto.randomUUID();
       setMessages(prev => [...prev, { id: placeholderId, role: 'assistant', content: '', created_at: new Date().toISOString() }]);
@@ -263,10 +240,7 @@ const ChatPage = () => {
       });
 
       await streamSSE(resp, {
-        onMeta: (meta) => {
-          setActiveMode(meta.mode ?? null);
-          setActiveModel(meta.model ?? null);
-        },
+        onMeta: (meta) => { setActiveMode(meta.mode ?? null); setActiveModel(meta.model ?? null); },
         onDelta: (chunk) => streamBuffer.push(chunk),
       });
 
@@ -274,20 +248,15 @@ const ChatPage = () => {
       const fullContent = streamBuffer.getText();
 
       if (fullContent) {
-        const { data: savedMsg } = await supabase
-          .from('chat_messages')
-          .insert({ chat_id: activeChat, role: 'assistant', content: fullContent })
-          .select()
-          .single();
-
+        const { data: savedMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'assistant', content: fullContent }).select().single();
         if (savedMsg) setMessages(prev => prev.map(m => m.id === placeholderId ? savedMsg : m));
       } else {
-        toast.error('AI returned an empty response. Please try again.');
+        toast.error('Empty response. Try again.');
         setMessages(prev => prev.filter(m => m.id !== placeholderId));
       }
     } catch (error) {
       console.error('Chat error:', error);
-      toast.error('Failed to connect to AI. Please try again.');
+      toast.error('Connection failed. Try again.');
     } finally {
       isSendingRef.current = false;
       setIsLoading(false);
@@ -295,175 +264,182 @@ const ChatPage = () => {
   };
 
   const activeChatTitle = chats.find(c => c.id === activeChat)?.title;
+  const sidebarProps = { chats, activeChat, editingChat, editTitle, setEditTitle, setEditingChat, setActiveChat, createChat, deleteChat, renameChat };
+  const currentMode = MODE_OPTIONS.find(o => o.value === selectedMode);
 
-  const sidebarProps = {
-    chats, activeChat, editingChat, editTitle, setEditTitle, setEditingChat,
-    setActiveChat, createChat, deleteChat, renameChat,
-  };
-
+  /* ─── Welcome / Empty State ─── */
   const welcomeView = (
-    <div className="flex-1 flex items-center justify-center px-4">
+    <div className="flex-1 flex items-center justify-center px-4 py-8">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center max-w-md w-full"
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center max-w-lg w-full"
       >
-        <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5 md:mb-6">
-          <Sparkles className="w-6 h-6 md:w-7 md:h-7 text-primary" />
-        </div>
-        <h2 className="text-xl md:text-2xl font-display font-semibold text-foreground mb-2 tracking-tight">
-          How can I help you study?
+        {/* Animated Logo */}
+        <motion.div
+          className="relative w-20 h-20 mx-auto mb-6"
+          animate={{ rotate: [0, 5, -5, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/5 backdrop-blur-xl border border-primary/20 shadow-[0_0_40px_-10px_hsl(var(--primary)/0.4)]" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles className="w-9 h-9 text-primary" />
+          </div>
+          <motion.div
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-background"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        </motion.div>
+
+        <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent mb-2">
+          What do you want to learn?
         </h2>
-        <p className="text-sm text-muted-foreground/60 mb-6 md:mb-8 leading-relaxed">
-          Ask me anything — from explaining complex topics to solving problems step by step.
+        <p className="text-sm text-muted-foreground/50 mb-8">
+          I can explain topics, solve problems, write code, create quizzes — anything you need.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-2.5 mb-6 md:mb-8">
-          {[
-            'Explain quantum mechanics simply',
-            'Help me solve calculus problems',
-            'Summarize the French Revolution',
-            'Quiz me on organic chemistry',
-          ].map((suggestion) => (
-            <button
-              key={suggestion}
-              onClick={async () => {
-                if (!activeChat) {
-                  await createChat();
-                }
-                setInput(suggestion);
-                setTimeout(() => inputRef.current?.focus(), 100);
-              }}
-              className="text-left px-4 py-3 rounded-xl border border-border/15 bg-muted/10 hover:bg-muted/25 hover:border-border/30 text-xs text-muted-foreground/70 hover:text-foreground transition-all duration-200"
+        {/* Suggestion chips */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-8">
+          {SUGGESTIONS.map((s, i) => (
+            <motion.button
+              key={s.text}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05 }}
+              onClick={() => handleSuggestionClick(s.text)}
+              className="group text-left px-3 py-2.5 rounded-xl border border-border/10 bg-muted/5 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300 hover:shadow-[0_0_20px_-8px_hsl(var(--primary)/0.2)]"
             >
-              {suggestion}
-            </button>
+              <span className="text-base mb-0.5 block">{s.icon}</span>
+              <span className="text-[11px] text-muted-foreground/60 group-hover:text-foreground/80 transition-colors leading-tight line-clamp-2">{s.text}</span>
+            </motion.button>
           ))}
         </div>
 
         <Button
           onClick={createChat}
-          className="h-11 px-8 rounded-2xl gradient-primary text-primary-foreground font-medium"
+          className="h-11 px-6 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-semibold shadow-[0_4px_20px_-4px_hsl(var(--primary)/0.4)] hover:shadow-[0_4px_30px_-4px_hsl(var(--primary)/0.6)] transition-all duration-300"
         >
-          <Plus className="w-4 h-4 mr-2" /> Start a conversation
+          <Plus className="w-4 h-4 mr-2" /> Start Chatting
         </Button>
       </motion.div>
     </div>
   );
 
+  /* ─── Active Chat View ─── */
   const activeChatView = (
     <>
-      {/* Header */}
-      <div className="h-12 md:h-14 border-b border-border/10 flex items-center px-4 md:px-6 gap-2">
+      {/* Header Bar */}
+      <div className="h-13 border-b border-border/8 flex items-center px-4 md:px-5 gap-3 bg-background/60 backdrop-blur-md">
         {isMobile && (
-          <button onClick={() => setActiveChat(null)} className="p-1.5 -ml-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setActiveChat(null)} className="p-1.5 -ml-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-all">
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
-        {!isMobile && (
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <button className="p-1.5 -ml-1 text-muted-foreground hover:text-foreground transition-colors md:hidden">
-                <Menu className="w-4 h-4" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] p-0">
-              <ChatSidebar {...sidebarProps} onSelect={() => setSheetOpen(false)} />
-            </SheetContent>
-          </Sheet>
-        )}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
-          <span className="text-sm font-medium text-foreground/80 truncate">
-            {activeChatTitle || 'New Chat'}
-          </span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="relative">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <div className="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping opacity-30" />
+          </div>
+          <span className="text-sm font-medium text-foreground/90 truncate">{activeChatTitle || 'New Chat'}</span>
           {activeMode && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium capitalize whitespace-nowrap">
-              {activeMode === 'long_context' ? 'Long Context' : activeMode}
+            <span className={`text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r ${MODE_OPTIONS.find(m => m.value === activeMode)?.color || 'from-primary to-primary'} text-white font-semibold capitalize whitespace-nowrap shadow-sm`}>
+              {activeMode === 'long_context' ? 'Deep Dive' : activeMode}
             </span>
           )}
         </div>
-        {messages.length > 0 && (
-          <button
-            onClick={() => {
-              const md = messages.map(m => 
-                `## ${m.role === 'user' ? '📝 You' : '✨ Lumina'}\n\n${m.content}`
-              ).join('\n\n---\n\n');
-              const header = `# Study Notes: ${activeChatTitle || 'Chat'}\n_Exported from Lumina AI on ${new Date().toLocaleDateString()}_\n\n---\n\n`;
-              const blob = new Blob([header + md], { type: 'text/markdown' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `lumina-notes-${(activeChatTitle || 'chat').slice(0, 30).replace(/\s+/g, '-')}.md`;
-              a.click();
-              URL.revokeObjectURL(url);
-              toast.success('Study notes exported!');
-            }}
-            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-            title="Export as study notes"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {activeModel && (
+            <span className="text-[9px] text-muted-foreground/30 truncate max-w-[120px] hidden md:block">
+              {activeModel.split('/').pop()?.replace(':free', '')}
+            </span>
+          )}
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                const md = messages.map(m => `## ${m.role === 'user' ? '📝 You' : '✨ Lumina'}\n\n${m.content}`).join('\n\n---\n\n');
+                const blob = new Blob([`# ${activeChatTitle || 'Chat'}\n\n---\n\n${md}`], { type: 'text/markdown' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = `lumina-${(activeChatTitle || 'chat').slice(0, 30).replace(/\s+/g, '-')}.md`;
+                a.click(); toast.success('Exported!');
+              }}
+              className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-muted/20 transition-all"
+              title="Export"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-border/20 scrollbar-track-transparent">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-4 md:space-y-5">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-border/15 scrollbar-track-transparent">
+        <div className="max-w-3xl mx-auto px-3 md:px-6 py-4 md:py-6 space-y-1">
           <AnimatePresence initial={false}>
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user';
+              const isStreaming = !isUser && isLoading && msg.id === messages[messages.length - 1]?.id;
               return (
                 <motion.div
                   key={msg.id}
-                  initial={{ opacity: 0, y: 16, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94], delay: idx === messages.length - 1 ? 0.05 : 0 }}
-                  className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className={`flex gap-2.5 py-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
                 >
                   {/* Avatar */}
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
-                    className={`w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-sm ${
-                      isUser
-                        ? 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
-                        : 'bg-gradient-to-br from-secondary/20 to-accent/20 text-secondary border border-border/10'
-                    }`}
-                  >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    isUser
+                      ? 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-sm shadow-primary/20'
+                      : 'bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 text-primary border border-primary/10'
+                  }`}>
                     {isUser ? <User className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  </motion.div>
+                  </div>
 
-                  {/* Message Bubble */}
-                  <div className={`max-w-[85%] md:max-w-[75%] min-w-0 overflow-hidden ${isUser ? 'items-end' : 'items-start'}`}>
-                    <span className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 block ${
-                      isUser ? 'text-right text-primary/50' : 'text-left text-secondary/50'
-                    }`}>
-                      {isUser ? 'You' : 'Lumina'}
-                    </span>
-                    <div className={`rounded-2xl px-4 py-3 transition-all duration-200 overflow-hidden ${
+                  {/* Message */}
+                  <div className={`max-w-[82%] md:max-w-[75%] min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
+                    <div className={`rounded-2xl px-4 py-2.5 ${
                       isUser
-                        ? 'bg-primary/10 border border-primary/15 rounded-tr-md'
-                        : 'bg-muted/20 border border-border/10 rounded-tl-md shadow-sm'
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-sm shadow-primary/10'
+                        : 'bg-muted/15 border border-border/8 rounded-tl-sm'
                     }`}>
-                      <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? 'text-foreground' : 'text-foreground/85'}`}>
-                        <div className="prose prose-sm prose-invert max-w-none
-                          prose-p:my-2 prose-p:leading-[1.75]
-                          prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-5 prose-headings:mb-2
-                          prose-strong:text-foreground prose-strong:font-semibold
-                          prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
-                          prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground prose-blockquote:py-1
-                          prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                        ">
-                          <MarkdownRenderer streaming={!isUser && isLoading && msg.id === messages[messages.length - 1]?.id}>{msg.content}</MarkdownRenderer>
-                        </div>
+                      <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? '' : 'text-foreground/90'}`}>
+                        {isUser ? (
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        ) : (
+                          <div className="prose prose-sm prose-invert max-w-none
+                            prose-p:my-1.5 prose-p:leading-[1.7]
+                            prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-1.5
+                            prose-strong:text-foreground
+                            prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5
+                            prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground
+                            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                          ">
+                            <MarkdownRenderer streaming={isStreaming}>{msg.content}</MarkdownRenderer>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <span className={`text-[9px] text-muted-foreground/25 mt-1 block ${isUser ? 'text-right' : 'text-left'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    {isStreaming && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex items-center gap-1 mt-1 ml-1"
+                      >
+                        <div className="flex gap-0.5">
+                          {[0,1,2].map(i => (
+                            <motion.span
+                              key={i}
+                              className="w-1 h-1 rounded-full bg-primary/50"
+                              animate={{ opacity: [0.3, 1, 0.3] }}
+                              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[9px] text-muted-foreground/30">streaming</span>
+                      </motion.div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -473,43 +449,26 @@ const ChatPage = () => {
           {/* Typing Indicator */}
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-              className="flex gap-3"
+              className="flex gap-2.5 py-3"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="w-7 h-7 md:w-8 md:h-8 rounded-xl bg-gradient-to-br from-secondary/20 to-accent/20 text-secondary border border-border/10 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-              </motion.div>
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-secondary/50 mb-1.5 block">Lumina</span>
-                <div className="rounded-2xl rounded-tl-md bg-muted/20 border border-border/10 px-5 py-3.5 shadow-sm">
-                  <div className="flex items-center gap-1">
-                    {[0, 1, 2].map(i => (
-                      <motion.span
-                        key={i}
-                        className="w-2 h-2 rounded-full bg-secondary/50"
-                        animate={{
-                          y: [0, -6, 0],
-                          opacity: [0.4, 1, 0.4],
-                          scale: [1, 1.2, 1],
-                        }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          delay: i * 0.15,
-                          ease: 'easeInOut',
-                        }}
-                      />
-                    ))}
-                    <span className="text-[11px] text-muted-foreground/40 ml-2 italic">thinking...</span>
-                  </div>
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 text-primary border border-primary/10 flex items-center justify-center flex-shrink-0">
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </motion.div>
+              </div>
+              <div className="rounded-2xl rounded-tl-sm bg-muted/15 border border-border/8 px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <motion.span
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full bg-primary/40"
+                      animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.12, ease: 'easeInOut' }}
+                    />
+                  ))}
+                  <span className="text-[10px] text-muted-foreground/30 ml-1.5">Lumina is thinking...</span>
                 </div>
               </div>
             </motion.div>
@@ -518,48 +477,29 @@ const ChatPage = () => {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="border-t border-border/10 bg-background/80 backdrop-blur-sm p-3 md:p-4">
+      {/* Input Area */}
+      <div className="border-t border-border/8 bg-background/70 backdrop-blur-xl p-3 md:p-4">
         <div className="max-w-3xl mx-auto">
-          {/* Mode selector */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="relative">
-              <button
-                onClick={() => setShowModeMenu(!showModeMenu)}
-                className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-muted/20 border border-border/15 text-muted-foreground hover:text-foreground hover:border-border/30 transition-all"
-              >
-                {(() => { const m = MODE_OPTIONS.find(o => o.value === selectedMode); const Icon = m?.icon || Zap; return <Icon className="w-3 h-3" />; })()}
-                {MODE_OPTIONS.find(o => o.value === selectedMode)?.label || 'Auto'}
-                <ChevronDown className="w-3 h-3 opacity-50" />
-              </button>
-              {showModeMenu && (
-                <div className="absolute bottom-full left-0 mb-1 w-48 bg-card border border-border/20 rounded-xl shadow-xl p-1 z-50">
-                  {MODE_OPTIONS.map(opt => {
-                    const Icon = opt.icon;
-                    return (
-                      <button
-                        key={opt.value}
-                        onClick={() => { setSelectedMode(opt.value); setShowModeMenu(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all text-xs ${
-                          selectedMode === opt.value ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                        <div>
-                          <div className="font-medium">{opt.label}</div>
-                          <div className="text-[10px] opacity-60">{opt.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {activeModel && (
-              <span className="text-[10px] text-muted-foreground/40 truncate">
-                {activeModel.split('/').pop()?.replace(':free', '')}
-              </span>
-            )}
+          {/* Mode Selector */}
+          <div className="flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-none pb-0.5">
+            {MODE_OPTIONS.map(opt => {
+              const Icon = opt.icon;
+              const isActive = selectedMode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedMode(opt.value)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium whitespace-nowrap transition-all duration-200 ${
+                    isActive
+                      ? `bg-gradient-to-r ${opt.color} text-white shadow-sm`
+                      : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/10'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
           {uploadedFiles.length > 0 && (
@@ -567,10 +507,9 @@ const ChatPage = () => {
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             </div>
           )}
-          <motion.div
-            className="flex items-center gap-2 bg-muted/10 border border-border/15 rounded-2xl px-3 md:px-4 py-1.5 transition-all duration-300 focus-within:border-primary/30 focus-within:bg-muted/20 focus-within:shadow-[0_0_20px_-5px_hsl(var(--primary)/0.15)]"
-            whileFocus={{ scale: 1.01 }}
-          >
+
+          {/* Input Bar */}
+          <div className="flex items-center gap-2 bg-muted/8 border border-border/12 rounded-2xl px-3 md:px-4 py-1 transition-all duration-300 focus-within:border-primary/25 focus-within:bg-muted/15 focus-within:shadow-[0_0_30px_-8px_hsl(var(--primary)/0.15)]">
             {uploadedFiles.length === 0 && (
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} compact />
             )}
@@ -578,43 +517,39 @@ const ChatPage = () => {
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Message Lumina..."
-              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/35 px-0"
+              placeholder="Ask Lumina anything..."
+              className="border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-10 text-sm placeholder:text-muted-foreground/30 px-0"
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
             />
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.9 }}>
               <Button
                 onClick={sendMessage}
                 disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
                 size="icon"
-                className="h-8 w-8 rounded-xl gradient-primary text-primary-foreground shrink-0 disabled:opacity-20 transition-all duration-200 shadow-sm"
+                className="h-8 w-8 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shrink-0 disabled:opacity-15 transition-all duration-200 shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30"
               >
                 <Send className="w-3.5 h-3.5" />
               </Button>
             </motion.div>
-          </motion.div>
-          <p className="text-[10px] text-muted-foreground/25 text-center mt-2.5 hidden md:block">
-            Lumina can make mistakes. Verify important information.
+          </div>
+          <p className="text-[9px] text-muted-foreground/20 text-center mt-2 hidden md:block">
+            Lumina can make mistakes · Verify important info
           </p>
         </div>
       </div>
     </>
   );
 
-  /* ─── Mobile Layout: show list OR chat ─── */
+  /* ─── Mobile: show list OR chat ─── */
   if (isMobile) {
     return (
       <>
         <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
         <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
-          {activeChat ? (
-            activeChatView
-          ) : (
+          {activeChat ? activeChatView : (
             <div className="flex-1 flex flex-col overflow-hidden">
               <ChatSidebar {...sidebarProps} />
-              <div className="border-t border-border/10">
-                {welcomeView}
-              </div>
+              <div className="border-t border-border/10">{welcomeView}</div>
             </div>
           )}
         </div>
@@ -622,12 +557,12 @@ const ChatPage = () => {
     );
   }
 
-  /* ─── Desktop Layout: sidebar + chat ─── */
+  /* ─── Desktop: sidebar + chat ─── */
   return (
     <>
       <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
       <div className="flex fixed inset-0 top-12 z-10 bg-background">
-        <div className="w-[280px] border-r border-border/10 bg-background flex flex-col">
+        <div className="w-[260px] border-r border-border/8 bg-background/50 flex flex-col">
           <ChatSidebar {...sidebarProps} />
         </div>
         <div className="flex-1 flex flex-col bg-background overflow-hidden">

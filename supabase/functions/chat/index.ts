@@ -9,16 +9,17 @@ const corsHeaders = {
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const TIMEOUT_MS = 12000;
+const TIMEOUT_MS = 10000;
 
+// Fastest models first, openrouter/auto as last-resort fallback
 const MODELS: Record<string, string[]> = {
-  reasoning: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  coding: ["openrouter/auto", "deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "google/gemma-3-27b-it:free"],
-  general: ["openrouter/auto", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.1-24b-instruct:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  fast: ["openrouter/auto", "mistralai/mistral-small-3.1-24b-instruct:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  study: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free"],
-  long_context: ["openrouter/auto", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free"],
-  creative: ["openrouter/auto", "meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free"],
+  reasoning: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  coding: ["deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "google/gemma-3-27b-it:free", "openrouter/auto"],
+  general: ["meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.1-24b-instruct:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  fast: ["mistralai/mistral-small-3.1-24b-instruct:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  study: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  long_context: ["qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "openrouter/auto"],
+  creative: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "openrouter/auto"],
 };
 
 const MAX_TOKENS: Record<string, number> = { reasoning: 1400, coding: 1400, general: 1000, fast: 500, study: 1200, long_context: 1600, creative: 1200 };
