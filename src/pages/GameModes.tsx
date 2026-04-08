@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gamepad2, Swords, Zap, Brain, Shield, ArrowLeft, Trophy, Timer, CheckCircle2, XCircle, Lock } from 'lucide-react';
+import LiveLeaderboard from '@/components/LiveLeaderboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
