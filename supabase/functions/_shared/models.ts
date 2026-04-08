@@ -1,33 +1,31 @@
 // Shared free model fallback chains for all edge functions
-// openrouter/auto auto-routes to the best available free model
-// The rest are manually curated high-quality free models spread across providers
+// Fastest models first, openrouter/auto as last-resort fallback
 
 export const FREE_MODELS_FAST = [
-  "openrouter/auto",
-  "google/gemma-3-27b-it:free",
   "meta-llama/llama-4-maverick:free",
+  "google/gemma-3-27b-it:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
-  "nvidia/llama-3.1-nemotron-70b-instruct:free",
-  "qwen/qwen3-235b-a22b:free",
-  "deepseek/deepseek-chat-v3-0324:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-12b-it:free",
+  "deepseek/deepseek-chat-v3-0324:free",
+  "qwen/qwen3-235b-a22b:free",
+  "nvidia/llama-3.1-nemotron-70b-instruct:free",
+  "openrouter/auto",
 ];
 
 export const FREE_MODELS_QUALITY = [
-  "openrouter/auto",
-  "qwen/qwen3-235b-a22b:free",
   "meta-llama/llama-4-maverick:free",
+  "qwen/qwen3-235b-a22b:free",
   "google/gemma-3-27b-it:free",
-  "nvidia/llama-3.1-nemotron-70b-instruct:free",
   "deepseek/deepseek-chat-v3-0324:free",
+  "nvidia/llama-3.1-nemotron-70b-instruct:free",
   "mistralai/mistral-small-3.1-24b-instruct:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-12b-it:free",
+  "openrouter/auto",
 ];
 
 export const FREE_MODELS_LONG = [
-  "openrouter/auto",
   "qwen/qwen3-235b-a22b:free",
   "deepseek/deepseek-chat-v3-0324:free",
   "meta-llama/llama-4-maverick:free",
@@ -35,6 +33,7 @@ export const FREE_MODELS_LONG = [
   "nvidia/llama-3.1-nemotron-70b-instruct:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-12b-it:free",
+  "openrouter/auto",
 ];
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
