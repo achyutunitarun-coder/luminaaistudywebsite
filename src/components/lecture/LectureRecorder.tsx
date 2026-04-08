@@ -9,7 +9,8 @@ import {
   prepareAudioChunksForTranscription,
   type PreparedAudioChunk,
 } from '@/components/lecture/audioUtils';
-import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
+import { extractDocumentText, DOCUMENT_ACCEPT, type PdfProgressCallback } from '@/lib/extractDocumentText';
+import { Progress } from '@/components/ui/progress';
 
 interface Props {
   onTranscriptReady: (transcript: any) => void;
@@ -34,6 +35,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [processingLabel, setProcessingLabel] = useState('Analyzing audio and extracting speech...');
+  const [pdfProgress, setPdfProgress] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -223,9 +225,14 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
     if (!file) return;
     event.target.value = '';
     setIsProcessing(true);
+    setPdfProgress(0);
     setProcessingLabel(file.name.toLowerCase().endsWith('.pdf') ? 'Extracting PDF text...' : 'Reading document...');
     try {
-      const text = await extractTextFromFile(file);
+      const onProgress: PdfProgressCallback = (info) => {
+        setProcessingLabel(info.stage);
+        setPdfProgress(info.total > 0 ? Math.round((info.current / info.total) * 100) : 0);
+      };
+      const text = await extractDocumentText(file, false, onProgress);
       if (!text || text.length < 20) throw new Error('Document appears empty or too short.');
       onTranscriptReady({ text, words: [] });
       if (onDocumentTextReady) onDocumentTextReady(text);
@@ -234,6 +241,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
       toast.error(e.message || 'Failed to read document');
     } finally {
       setIsProcessing(false);
+      setPdfProgress(0);
       setProcessingLabel('Analyzing audio and extracting speech...');
     }
   }, [onTranscriptReady, onDocumentTextReady, setIsProcessing]);
@@ -257,7 +265,13 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
           </div>
           <h2 className="text-xl font-display font-bold text-foreground mb-2">Processing</h2>
           <p className="text-muted-foreground text-sm text-center max-w-sm">{processingLabel}</p>
-          <div className="mt-6 flex gap-1">
+          {pdfProgress > 0 && (
+            <div className="mt-4 w-full max-w-xs">
+              <Progress value={pdfProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center mt-1">{pdfProgress}%</p>
+            </div>
+          )}
+          <div className="mt-4 flex gap-1">
             {[0, 1, 2, 3, 4].map(i => (
               <motion.div
                 key={i}
