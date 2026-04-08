@@ -15,7 +15,6 @@ const VISION_MODELS = [
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
   "openrouter/free",
-  "openrouter/healer-alpha",
 ];
 
 const TIMEOUT_MS = 30000;
