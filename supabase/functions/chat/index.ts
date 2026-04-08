@@ -9,17 +9,17 @@ const corsHeaders = {
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 12000;
 
-// Fastest models first, openrouter/auto as last-resort fallback
+// Updated 2026-04-08 — only currently available free models
 const MODELS: Record<string, string[]> = {
-  reasoning: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  coding: ["deepseek/deepseek-chat-v3-0324:free", "qwen/qwen3-235b-a22b:free", "meta-llama/llama-4-maverick:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "google/gemma-3-27b-it:free", "openrouter/auto"],
-  general: ["meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.1-24b-instruct:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  fast: ["mistralai/mistral-small-3.1-24b-instruct:free", "google/gemma-3-12b-it:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  study: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  long_context: ["qwen/qwen3-235b-a22b:free", "deepseek/deepseek-chat-v3-0324:free", "meta-llama/llama-4-maverick:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "openrouter/auto"],
-  creative: ["meta-llama/llama-4-maverick:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "nvidia/llama-3.1-nemotron-70b-instruct:free", "deepseek/deepseek-chat-v3-0324:free", "openrouter/auto"],
+  reasoning: ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  coding: ["qwen/qwen3-coder:free", "qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
+  general: ["qwen/qwen3.6-plus:free", "minimax/minimax-m2.5:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "openrouter/auto"],
+  fast: ["openai/gpt-oss-20b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "stepfun/step-3.5-flash:free", "google/gemma-3-12b-it:free", "qwen/qwen3.6-plus:free", "openrouter/auto"],
+  study: ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "nousresearch/hermes-3-llama-3.1-405b:free", "google/gemma-3-27b-it:free", "openrouter/auto"],
+  long_context: ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "nousresearch/hermes-3-llama-3.1-405b:free", "z-ai/glm-4.5-air:free", "openrouter/auto"],
+  creative: ["qwen/qwen3.6-plus:free", "arcee-ai/trinity-large-preview:free", "nousresearch/hermes-3-llama-3.1-405b:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "openrouter/auto"],
 };
 
 const MAX_TOKENS: Record<string, number> = { reasoning: 1400, coding: 1400, general: 1000, fast: 500, study: 1200, long_context: 1600, creative: 1200 };
@@ -83,10 +83,11 @@ serve(async (req) => {
     const maxTokens = MAX_TOKENS[category] || MAX_TOKENS.general;
 
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
-    let systemPrompt = `You are Lumina — a brilliant, adaptable AI study companion. You're NOT a textbook. You're like the smartest friend who happens to know everything and explains things in ways that actually click.
+    let systemPrompt = `You are Lumina — a brilliant, adaptable AI study companion. You're like the smartest friend who explains things in ways that click.
 
-YOUR PERSONALITY:
-- Warm, sharp, and genuinely helpful — never robotic or preachy
+CORE BEHAVIOR:
+- ALWAYS answer the user's question directly. Never deflect or give a greeting instead of an answer.
+- Be warm, sharp, and genuinely helpful — never robotic
 - Match the user's energy: casual question → casual answer, deep question → deep dive
 - Use analogies, real-world connections, and "aha moment" explanations
 - Be direct — get to the point fast, then elaborate if needed
@@ -96,11 +97,12 @@ FORMATTING:
 - Use LaTeX for math: $x^2$, $\\frac{a}{b}$, $$\\int_0^1 f(x)dx$$
 - Use markdown TABLES when comparing things
 - Keep it scannable — no walls of text
-- For short questions, give short answers.
+- For short questions, give short answers
 
 RULES:
 - NEVER introduce yourself or say your name unless asked
-- If user says "hi" or "hello": respond with "Hey! What are we diving into today?" — nothing more
+- ONLY if the user's ENTIRE message is just a greeting like "hi", "hello", "hey" with NO other content, respond with "Hey! What are we diving into today?"
+- If the user asks ANY question or makes ANY request, answer it fully — even if it also contains a greeting
 - End academic answers with a thought-provoking follow-up question`;
 
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
