@@ -12,6 +12,8 @@ const OCR_BATCH_SIZE = 4;
 const OCR_CONCURRENCY = 2;
 const SAMPLE_PAGES_BEFORE_OCR = 5;
 
+export type PdfProgressCallback = (info: { stage: string; current: number; total: number }) => void;
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const loadPdfjs = async () => {
@@ -41,9 +43,6 @@ const extractPdfPageText = async (page: any): Promise<string> => {
     .join(' ');
 };
 
-/**
- * Check if extracted text is mostly useless (e.g. just copyright notices repeated).
- */
 const isLowQualityText = (text: string, totalPages: number): boolean => {
   if (!text.trim()) return true;
   const cleaned = text.replace(/---\s*Page\s*\d+\s*---/g, '').trim();
@@ -98,20 +97,15 @@ const ocrPdfBatch = async (
 ): Promise<string> => {
   try {
     const { data, error } = await supabase.functions.invoke<{ text?: string; error?: string }>('ocr-pdf', {
-      body: {
-        images,
-        filename,
-        pageOffset,
-        totalPages,
-      },
+      body: { images, filename, pageOffset, totalPages },
     });
 
     if (error) throw error;
     if (data?.text?.trim()) return data.text;
     throw new Error(data?.error || 'OCR returned no text');
   } catch (e) {
-    if (attempt < 2) {
-      await delay(700 * attempt);
+    if (attempt < 3) {
+      await delay(800 * attempt);
       return ocrPdfBatch(images, filename, pageOffset, totalPages, attempt + 1);
     }
 
@@ -122,7 +116,7 @@ const ocrPdfBatch = async (
   }
 };
 
-const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
+const ocrPdfViaAI = async (pdf: any, filename: string, onProgress?: PdfProgressCallback): Promise<string> => {
   const totalPages = pdf.numPages;
   const batchRanges = Array.from(
     { length: Math.ceil(totalPages / OCR_BATCH_SIZE) },
@@ -137,6 +131,7 @@ const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
 
   const results = new Array<string>(batchRanges.length).fill('');
   let nextBatchIndex = 0;
+  let completedPages = 0;
 
   const worker = async () => {
     while (true) {
@@ -144,10 +139,18 @@ const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
       if (batchIndex >= batchRanges.length) return;
 
       const batch = batchRanges[batchIndex];
+      
+      onProgress?.({
+        stage: `Scanning pages ${batch.startPage}–${batch.endPage} of ${totalPages}`,
+        current: completedPages,
+        total: totalPages,
+      });
+
       const images = await renderPdfBatchToImages(pdf, batch.startPage, batch.endPage);
 
       if (!images.length) {
         results[batchIndex] = `[Pages ${batch.startPage}-${batch.endPage}: OCR failed - rendering failed]`;
+        completedPages += (batch.endPage - batch.startPage + 1);
         continue;
       }
 
@@ -157,6 +160,13 @@ const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
         batch.startPage - 1,
         totalPages
       );
+      
+      completedPages += (batch.endPage - batch.startPage + 1);
+      onProgress?.({
+        stage: `Scanned pages ${batch.startPage}–${batch.endPage} of ${totalPages}`,
+        current: completedPages,
+        total: totalPages,
+      });
     }
   };
 
@@ -170,12 +180,16 @@ const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
   return results.filter(Boolean).join('\n').trim();
 };
 
-const extractPdfText = async (file: File): Promise<string> => {
+const extractPdfText = async (file: File, onProgress?: PdfProgressCallback): Promise<string> => {
   let pdf: any = null;
 
   try {
+    onProgress?.({ stage: 'Loading PDF...', current: 0, total: 1 });
     pdf = await loadPdfDocument(file);
     const totalPages = pdf.numPages;
+    
+    onProgress?.({ stage: `Analyzing ${totalPages} pages...`, current: 0, total: totalPages });
+    
     const sampledPageCount = Math.min(totalPages, SAMPLE_PAGES_BEFORE_OCR);
     const sampledPageTexts: string[] = [];
 
@@ -193,11 +207,13 @@ const extractPdfText = async (file: File): Promise<string> => {
       .join('');
 
     if (isLowQualityText(fullText, sampledPageCount)) {
-      console.log(`[PDF] Low quality text in "${file.name}", using AI vision OCR early...`);
-      return await ocrPdfViaAI(pdf, file.name);
+      console.log(`[PDF] Low quality text in "${file.name}", using AI vision OCR...`);
+      onProgress?.({ stage: 'Scanned PDF detected — using AI OCR...', current: 0, total: totalPages });
+      return await ocrPdfViaAI(pdf, file.name, onProgress);
     }
 
     for (let i = sampledPageCount + 1; i <= totalPages; i++) {
+      onProgress?.({ stage: `Reading page ${i} of ${totalPages}`, current: i, total: totalPages });
       const page = await pdf.getPage(i);
       try {
         const pageText = await extractPdfPageText(page);
@@ -212,7 +228,8 @@ const extractPdfText = async (file: File): Promise<string> => {
     }
 
     console.log(`[PDF] Native extraction degraded in "${file.name}", switching to AI vision OCR...`);
-    return await ocrPdfViaAI(pdf, file.name);
+    onProgress?.({ stage: 'Switching to AI OCR for better results...', current: 0, total: totalPages });
+    return await ocrPdfViaAI(pdf, file.name, onProgress);
   } catch (e) {
     console.error('PDF extraction error:', e);
     return `[PDF: ${file.name} - could not extract text. Error: ${e instanceof Error ? e.message : 'unknown'}]`;
@@ -247,7 +264,11 @@ const extractExcelText = async (file: File): Promise<string> => {
  * Extract text content from a file.
  * For scanned/image-heavy PDFs, automatically uses AI vision OCR to extract real content.
  */
-export async function extractDocumentText(file: File, includeImageBase64 = false): Promise<string> {
+export async function extractDocumentText(
+  file: File, 
+  includeImageBase64 = false,
+  onProgress?: PdfProgressCallback
+): Promise<string> {
   if (file.type.startsWith('image/')) {
     if (includeImageBase64) {
       return new Promise((resolve) => {
@@ -260,7 +281,7 @@ export async function extractDocumentText(file: File, includeImageBase64 = false
   }
 
   if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-    return extractPdfText(file);
+    return extractPdfText(file, onProgress);
   }
 
   const excelExts = ['.xlsx', '.xls', '.csv'];
