@@ -265,7 +265,13 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
           </div>
           <h2 className="text-xl font-display font-bold text-foreground mb-2">Processing</h2>
           <p className="text-muted-foreground text-sm text-center max-w-sm">{processingLabel}</p>
-          <div className="mt-6 flex gap-1">
+          {pdfProgress > 0 && (
+            <div className="mt-4 w-full max-w-xs">
+              <Progress value={pdfProgress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center mt-1">{pdfProgress}%</p>
+            </div>
+          )}
+          <div className="mt-4 flex gap-1">
             {[0, 1, 2, 3, 4].map(i => (
               <motion.div
                 key={i}
