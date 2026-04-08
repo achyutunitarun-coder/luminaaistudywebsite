@@ -26,7 +26,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const navigateStudySession = useCallback(() => navigate('/study-session'), [navigate]);
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background page-ambient">
       {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex flex-col fixed top-0 left-0 h-screen z-40 border-r border-border/10 transition-all duration-300 ${
