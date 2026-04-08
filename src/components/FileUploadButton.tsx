@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Paperclip, X, FileText, Image, File, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 
 export type UploadedFile = {
@@ -36,24 +37,33 @@ export const FileUploadButton = ({ files, onFilesChange, maxFiles = 5, compact =
     setProcessing(true);
     const newFiles: UploadedFile[] = [];
 
-    for (let i = 0; i < Math.min(fileList.length, maxFiles - files.length); i++) {
-      const file = fileList[i];
-      if (file.size > MAX_SIZE) continue;
+    try {
+      for (let i = 0; i < Math.min(fileList.length, maxFiles - files.length); i++) {
+        const file = fileList[i];
+        if (file.size > MAX_SIZE) continue;
 
-      setProcessingName(file.name);
-      const content = await extractText(file);
-      newFiles.push({
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-        content,
-        size: file.size,
-      });
+        setProcessingName(file.name);
+
+        try {
+          const content = await extractText(file);
+          newFiles.push({
+            name: file.name,
+            type: file.type || 'application/octet-stream',
+            content,
+            size: file.size,
+          });
+        } catch (error) {
+          console.error(`Failed to process ${file.name}:`, error);
+          toast.error(`Failed to process ${file.name}`);
+        }
+      }
+
+      onFilesChange([...files, ...newFiles]);
+    } finally {
+      setProcessing(false);
+      setProcessingName('');
+      if (inputRef.current) inputRef.current.value = '';
     }
-
-    onFilesChange([...files, ...newFiles]);
-    setProcessing(false);
-    setProcessingName('');
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const removeFile = (index: number) => {

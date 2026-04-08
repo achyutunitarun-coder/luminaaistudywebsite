@@ -1,8 +1,18 @@
+import { supabase } from '@/integrations/supabase/client';
+
 /**
  * Shared document text extraction utility.
  * Supports: PDF (via pdfjs-dist with AI OCR fallback for scanned PDFs),
  *           Excel/CSV (via xlsx), and plain text files.
  */
+
+const OCR_RENDER_SCALE = 1.0;
+const OCR_RENDER_QUALITY = 0.5;
+const OCR_BATCH_SIZE = 4;
+const OCR_CONCURRENCY = 2;
+const SAMPLE_PAGES_BEFORE_OCR = 5;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const loadPdfjs = async () => {
   const [pdfjsLib, workerSrc] = await Promise.all([
@@ -11,6 +21,24 @@ const loadPdfjs = async () => {
   ]);
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.default;
   return pdfjsLib;
+};
+
+const loadPdfDocument = async (file: File) => {
+  const pdfjsLib = await loadPdfjs();
+  const arrayBuffer = await file.arrayBuffer();
+  return pdfjsLib.getDocument({
+    data: arrayBuffer,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  }).promise;
+};
+
+const extractPdfPageText = async (page: any): Promise<string> => {
+  const textContent = await page.getTextContent();
+  return textContent.items
+    .map((item: any) => item.str)
+    .join(' ');
 };
 
 /**
@@ -30,124 +58,170 @@ const isLowQualityText = (text: string, totalPages: number): boolean => {
   return false;
 };
 
-/**
- * Render PDF pages to base64 JPEG images using canvas.
- */
-const renderPdfPagesToImages = async (
-  file: File,
-  maxPages = 20,
-  scale = 1.0
-): Promise<string[]> => {
-  const pdfjsLib = await loadPdfjs();
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({
-    data: arrayBuffer,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise;
+const renderPdfPageToImage = async (page: any, scale = OCR_RENDER_SCALE): Promise<string | null> => {
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
 
-  const totalPages = Math.min(pdf.numPages, maxPages);
-  const images: string[] = new Array(totalPages);
-
-  // Process pages in parallel batches of 4 for speed
-  const batchSize = 4;
-  for (let batchStart = 0; batchStart < totalPages; batchStart += batchSize) {
-    const batchEnd = Math.min(batchStart + batchSize, totalPages);
-    const promises = [];
-    for (let i = batchStart; i < batchEnd; i++) {
-      promises.push(
-        (async (pageIdx: number) => {
-          try {
-            const page = await pdf.getPage(pageIdx + 1);
-            const viewport = page.getViewport({ scale });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            await page.render({ canvasContext: ctx, viewport }).promise;
-            images[pageIdx] = canvas.toDataURL('image/jpeg', 0.5);
-            canvas.width = 0;
-            canvas.height = 0;
-          } catch (e) {
-            console.warn(`Failed to render PDF page ${pageIdx + 1}:`, e);
-          }
-        })(i)
-      );
-    }
-    await Promise.all(promises);
-  }
-  return images.filter(Boolean);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const image = canvas.toDataURL('image/jpeg', OCR_RENDER_QUALITY);
+  canvas.width = 0;
+  canvas.height = 0;
+  return image;
 };
 
-/**
- * Send rendered PDF page images to the backend OCR function for AI-powered text extraction.
- */
-const ocrPdfViaAI = async (images: string[], filename: string): Promise<string> => {
+const renderPdfBatchToImages = async (pdf: any, startPage: number, endPage: number): Promise<string[]> => {
+  const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+  const rendered = await Promise.all(
+    pageNumbers.map(async (pageNumber) => {
+      const page = await pdf.getPage(pageNumber);
+      try {
+        return await renderPdfPageToImage(page);
+      } finally {
+        page.cleanup?.();
+      }
+    })
+  );
+
+  return rendered.filter((image): image is string => Boolean(image));
+};
+
+const ocrPdfBatch = async (
+  images: string[],
+  filename: string,
+  pageOffset: number,
+  totalPages: number,
+  attempt = 1
+): Promise<string> => {
   try {
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ocr-pdf`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    const { data, error } = await supabase.functions.invoke<{ text?: string; error?: string }>('ocr-pdf', {
+      body: {
+        images,
+        filename,
+        pageOffset,
+        totalPages,
       },
-      body: JSON.stringify({ images, filename }),
     });
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'OCR request failed' }));
-      console.error('[OCR] Failed:', err);
-      return `[PDF: ${filename} - OCR failed: ${err.error || resp.statusText}]`;
+    if (error) throw error;
+    if (data?.text?.trim()) return data.text;
+    throw new Error(data?.error || 'OCR returned no text');
+  } catch (e) {
+    if (attempt < 2) {
+      await delay(700 * attempt);
+      return ocrPdfBatch(images, filename, pageOffset, totalPages, attempt + 1);
     }
 
-    const data = await resp.json();
-    return data.text || `[PDF: ${filename} - OCR returned no text]`;
-  } catch (e) {
-    console.error('[OCR] Error:', e);
-    return `[PDF: ${filename} - OCR error: ${e instanceof Error ? e.message : 'unknown'}]`;
+    console.error('[OCR] Batch failed:', e);
+    const pageStart = pageOffset + 1;
+    const pageEnd = pageOffset + images.length;
+    return `[Pages ${pageStart}-${pageEnd}: OCR failed - ${e instanceof Error ? e.message : 'request failed'}]`;
   }
+};
+
+const ocrPdfViaAI = async (pdf: any, filename: string): Promise<string> => {
+  const totalPages = pdf.numPages;
+  const batchRanges = Array.from(
+    { length: Math.ceil(totalPages / OCR_BATCH_SIZE) },
+    (_, index) => {
+      const startPage = index * OCR_BATCH_SIZE + 1;
+      return {
+        startPage,
+        endPage: Math.min(startPage + OCR_BATCH_SIZE - 1, totalPages),
+      };
+    }
+  );
+
+  const results = new Array<string>(batchRanges.length).fill('');
+  let nextBatchIndex = 0;
+
+  const worker = async () => {
+    while (true) {
+      const batchIndex = nextBatchIndex++;
+      if (batchIndex >= batchRanges.length) return;
+
+      const batch = batchRanges[batchIndex];
+      const images = await renderPdfBatchToImages(pdf, batch.startPage, batch.endPage);
+
+      if (!images.length) {
+        results[batchIndex] = `[Pages ${batch.startPage}-${batch.endPage}: OCR failed - rendering failed]`;
+        continue;
+      }
+
+      results[batchIndex] = await ocrPdfBatch(
+        images,
+        filename,
+        batch.startPage - 1,
+        totalPages
+      );
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.max(1, Math.min(OCR_CONCURRENCY, batchRanges.length)) },
+      () => worker()
+    )
+  );
+
+  return results.filter(Boolean).join('\n').trim();
 };
 
 const extractPdfText = async (file: File): Promise<string> => {
+  let pdf: any = null;
+
   try {
-    const pdfjsLib = await loadPdfjs();
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({
-      data: arrayBuffer,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-    }).promise;
-
-    let fullText = '';
+    pdf = await loadPdfDocument(file);
     const totalPages = pdf.numPages;
+    const sampledPageCount = Math.min(totalPages, SAMPLE_PAGES_BEFORE_OCR);
+    const sampledPageTexts: string[] = [];
 
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= sampledPageCount; i++) {
       const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += `\n--- Page ${i} ---\n${pageText}`;
+      try {
+        sampledPageTexts.push(await extractPdfPageText(page));
+      } finally {
+        page.cleanup?.();
+      }
     }
 
-    // If text quality is good, return it
+    let fullText = sampledPageTexts
+      .map((pageText, index) => `\n--- Page ${index + 1} ---\n${pageText}`)
+      .join('');
+
+    if (isLowQualityText(fullText, sampledPageCount)) {
+      console.log(`[PDF] Low quality text in "${file.name}", using AI vision OCR early...`);
+      return await ocrPdfViaAI(pdf, file.name);
+    }
+
+    for (let i = sampledPageCount + 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      try {
+        const pageText = await extractPdfPageText(page);
+        fullText += `\n--- Page ${i} ---\n${pageText}`;
+      } finally {
+        page.cleanup?.();
+      }
+    }
+
     if (!isLowQualityText(fullText, totalPages)) {
       return fullText.trim();
     }
 
-    // Text is low quality — fall back to AI OCR
-    console.log(`[PDF] Low quality text in "${file.name}", using AI vision OCR...`);
-    const images = await renderPdfPagesToImages(file);
-    if (images.length === 0) {
-      return fullText.trim() || `[PDF: ${file.name} - ${totalPages} pages - no extractable text found]`;
-    }
-
-    return await ocrPdfViaAI(images, file.name);
+    console.log(`[PDF] Native extraction degraded in "${file.name}", switching to AI vision OCR...`);
+    return await ocrPdfViaAI(pdf, file.name);
   } catch (e) {
     console.error('PDF extraction error:', e);
     return `[PDF: ${file.name} - could not extract text. Error: ${e instanceof Error ? e.message : 'unknown'}]`;
+  } finally {
+    try {
+      await pdf?.destroy?.();
+    } catch {
+      // Ignore PDF cleanup issues.
+    }
   }
 };
 
