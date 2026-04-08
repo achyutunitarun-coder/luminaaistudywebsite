@@ -104,9 +104,9 @@ export default function MarkdownRenderer({ children, className, streaming = fals
           h2: ({ children }) => <h2 className="text-xl font-bold mt-8 mb-3 pb-2 border-b border-border/15">{children}</h2>,
           h3: ({ children }) => <h3 className="text-lg font-semibold mt-6 mb-2">{children}</h3>,
           h4: ({ children }) => <h4 className="text-base font-semibold mt-4 mb-2">{children}</h4>,
-          ul: ({ children }) => <ul className="my-3 ml-1 space-y-1.5 list-disc list-inside">{children}</ul>,
-          ol: ({ children }) => <ol className="my-3 ml-1 space-y-1.5 list-decimal list-inside">{children}</ol>,
-          li: ({ children }) => <li className="leading-[1.75]">{children}</li>,
+          ul: ({ children }) => <ul className="my-3 ml-5 space-y-1 list-disc">{children}</ul>,
+          ol: ({ children }) => <ol className="my-3 ml-5 space-y-1 list-decimal">{children}</ol>,
+          li: ({ children }) => <li className="leading-[1.75] pl-1">{children}</li>,
           blockquote: ({ children }) => (
             <blockquote className="my-4 border-l-3 border-primary/40 bg-primary/5 rounded-r-xl py-3 px-5 not-italic">{children}</blockquote>
           ),

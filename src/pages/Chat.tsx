@@ -408,16 +408,7 @@ const ChatPage = () => {
                         {isUser ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
                         ) : (
-                          <div className="prose prose-sm prose-invert max-w-none
-                            prose-p:my-1.5 prose-p:leading-[1.7]
-                            prose-headings:text-foreground prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-1.5
-                            prose-strong:text-foreground
-                            prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5
-                            prose-blockquote:border-primary/30 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:text-muted-foreground
-                            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                          ">
-                            <MarkdownRenderer streaming={isStreaming}>{msg.content}</MarkdownRenderer>
-                          </div>
+                          <MarkdownRenderer streaming={isStreaming}>{msg.content}</MarkdownRenderer>
                         )}
                       </div>
                     </div>
