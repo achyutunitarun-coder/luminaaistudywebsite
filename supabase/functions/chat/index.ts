@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AI_GATEWAY_URL, MODELS_BALANCED, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,54 +9,7 @@ const corsHeaders = {
 
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const TIMEOUT_MS = 12000;
-
-// Updated 2026-04-08 — only currently available free models
-const MODELS: Record<string, string[]> = {
-  reasoning: ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  coding: ["qwen/qwen3-coder:free", "qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "openrouter/auto"],
-  general: ["qwen/qwen3.6-plus:free", "minimax/minimax-m2.5:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "openrouter/auto"],
-  fast: ["openai/gpt-oss-20b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "stepfun/step-3.5-flash:free", "google/gemma-3-12b-it:free", "qwen/qwen3.6-plus:free", "openrouter/auto"],
-  study: ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "nousresearch/hermes-3-llama-3.1-405b:free", "google/gemma-3-27b-it:free", "openrouter/auto"],
-  long_context: ["qwen/qwen3.6-plus:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "minimax/minimax-m2.5:free", "nousresearch/hermes-3-llama-3.1-405b:free", "z-ai/glm-4.5-air:free", "openrouter/auto"],
-  creative: ["qwen/qwen3.6-plus:free", "arcee-ai/trinity-large-preview:free", "nousresearch/hermes-3-llama-3.1-405b:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "openrouter/auto"],
-};
-
-const MAX_TOKENS: Record<string, number> = { reasoning: 1400, coding: 1400, general: 1000, fast: 500, study: 1200, long_context: 1600, creative: 1200 };
-
-const CODING_KW = ["code","coding","program","function","bug","debug","javascript","python","typescript","react","html","css","api","algorithm","syntax","compile","class","array","loop","import","async","await","promise","fetch","database","sql"];
-const REASONING_KW = ["why","explain why","reason","logic","prove","proof","analyze","math","calculus","integral","derivative","equation","algebra","geometry","physics","chemistry","formula","solve","calculate","step by step"];
-const STUDY_KW = ["study","learn","explain","concept","exam","test prep","revision","flashcard","quiz","lecture","syllabus","notes","summary","key concepts"];
-const CREATIVE_KW = ["write","essay","story","poem","creative","narrative","blog","article","letter","speech","script","dialogue"];
-const FAST_KW = ["quick","fast","short answer","yes or no","brief","simple","what is","define","translate","convert"];
-
-type Category = keyof typeof MAX_TOKENS;
-
-function detectCategory(text: string): Category {
-  const lower = text.toLowerCase();
-  const scores: Record<Category, number> = { reasoning: 0, coding: 0, general: 0, fast: 0, study: 0, long_context: 0, creative: 0 };
-  for (const kw of CODING_KW) if (lower.includes(kw)) scores.coding++;
-  for (const kw of REASONING_KW) if (lower.includes(kw)) scores.reasoning++;
-  for (const kw of STUDY_KW) if (lower.includes(kw)) scores.study++;
-  for (const kw of CREATIVE_KW) if (lower.includes(kw)) scores.creative++;
-  for (const kw of FAST_KW) if (lower.includes(kw)) scores.fast++;
-  if (text.includes("```") || text.includes("function ") || text.includes("const ")) scores.coding += 3;
-  if (text.length > 3000) scores.long_context += 3;
-  if (text.length < 60 && !text.includes("```")) scores.fast += 2;
-  const max = Math.max(...Object.values(scores));
-  if (max === 0) return "general";
-  const priority: Category[] = ["coding", "reasoning", "long_context", "study", "creative", "fast", "general"];
-  for (const cat of priority) if (scores[cat] === max) return cat;
-  return "general";
-}
-
-async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { ...opts, signal: c.signal }); clearTimeout(t); return r; }
-  catch (e) { clearTimeout(t); throw e; }
-}
+const TIMEOUT_MS = 30000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -69,20 +23,14 @@ serve(async (req) => {
 
     const body = await req.text();
     if (body.length > MAX_PAYLOAD_BYTES) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { messages, mode } = JSON.parse(body);
+    const { messages } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > MAX_MESSAGES) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
-
+    const apiKey = getApiKey();
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
     const queryText = lastMsg?.content || "";
-    const validModes: Category[] = ["reasoning", "coding", "general", "fast", "study", "long_context", "creative"];
-    const category: Category = (mode && validModes.includes(mode)) ? mode : detectCategory(queryText);
-    const models = MODELS[category] || MODELS.general;
-    const maxTokens = MAX_TOKENS[category] || MAX_TOKENS.general;
-
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
+
     let systemPrompt = `You are Lumina — a brilliant, adaptable AI study companion. You're like the smartest friend who explains things in ways that click.
 
 CORE BEHAVIOR:
@@ -109,44 +57,24 @@ RULES:
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    for (const model of models) {
+    for (const model of MODELS_BALANCED) {
       try {
-        const res = await fetchWithTimeout(OPENROUTER_URL, {
+        const res = await fetchWithTimeout(AI_GATEWAY_URL, {
           method: "POST",
-          headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: aiMessages, max_tokens: maxTokens, temperature: 0.65, stream: true }),
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model, messages: aiMessages, max_tokens: 2000, temperature: 0.65, stream: true }),
         }, TIMEOUT_MS);
 
         if (!res.ok) { const t = await res.text(); console.error(`[chat] ${model} ${res.status}: ${t.slice(0, 200)}`); continue; }
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) { const j = await res.json(); if (j.error) { console.error(`[chat] ${model} body error:`, j.error); continue; } }
 
-        console.log(`[chat] ✓ ${model} (${category})`);
-        const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model, mode: category } })}\n\n`;
-        const metaBytes = new TextEncoder().encode(metaEvent);
-        const { readable, writable } = new TransformStream();
-        const writer = writable.getWriter();
-        void (async () => {
-          try {
-            await writer.write(metaBytes);
-            const reader = res.body?.getReader();
-            if (!reader) return;
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              await writer.write(value);
-            }
-          } catch (e) {
-            console.warn("[chat] stream closed early:", e instanceof Error ? e.message : e);
-          } finally { try { await writer.close(); } catch {} }
-        })();
-        return new Response(readable, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+        console.log(`[chat] ✓ ${model}`);
+        return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
       } catch (e) {
         const isTimeout = e instanceof DOMException && e.name === "AbortError";
-        console.error(`[chat] ${model} ${isTimeout ? "TIMEOUT" : "err"}:`, isTimeout ? `>${TIMEOUT_MS}ms` : e);
+        console.error(`[chat] ${model} ${isTimeout ? "TIMEOUT" : "err"}`);
       }
     }
-    throw new Error("All models are busy — please try again in a moment");
+    throw new Error("AI is temporarily busy — please try again");
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
