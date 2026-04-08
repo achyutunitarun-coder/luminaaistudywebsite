@@ -1,43 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAIText, streamAI, MODELS_FAST, MODELS_BALANCED } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "openrouter/auto"];
-
-async function callAI(apiKey: string, messages: any[], maxTokens = 2000): Promise<string> {
-  for (const model of MODELS) {
-    try {
-      const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 12000);
-      const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.6 }) });
-      clearTimeout(t);
-      if (!res.ok) { const e = await res.text(); console.error(`[notebook] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
-      const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (content) { console.log(`[notebook] ✓ ${model}`); return content; }
-    } catch (e) { console.error(`[notebook] ${model}:`, e); }
-  }
-  throw new Error("All models are busy — please try again in a moment");
-}
-
-async function streamAI(apiKey: string, messages: any[], maxTokens = 2500): Promise<Response> {
-  for (const model of MODELS) {
-    try {
-      const c = new AbortController();
-      const t = setTimeout(() => c.abort(), 12000);
-      const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.6, stream: true }) });
-      clearTimeout(t);
-      if (!res.ok) { const e = await res.text(); console.error(`[notebook] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
-      console.log(`[notebook] stream ✓ ${model}`);
-      return res;
-    } catch (e) { console.error(`[notebook] ${model}:`, e); }
-  }
-  throw new Error("All models are busy — please try again in a moment");
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -45,8 +12,6 @@ serve(async (req) => {
     const body = await req.text();
     if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { fileContent, fileName, mode, language } = JSON.parse(body);
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not set");
 
     const prompts: Record<string, { system: string; user: string }> = {
       notes: { system: `Create study notes with headings, **bold** terms, real-world analogies, formulas, and a "Quick Review" summary.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
@@ -58,11 +23,11 @@ serve(async (req) => {
     const msgs = [{ role: "system", content: p.system }, { role: "user", content: p.user }];
 
     if (mode === "flowchart") {
-      const text = await callAI(OPENROUTER_API_KEY, msgs, 2000);
+      const text = await callAIText(msgs, MODELS_FAST, 2000, 0.6, 30000, "notebook");
       const match = text.match(/\{[\s\S]*\}/);
       return new Response(JSON.stringify({ content: match ? match[0] : text.trim() }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const streamRes = await streamAI(OPENROUTER_API_KEY, msgs, 2500);
+    const streamRes = await streamAI(msgs, MODELS_BALANCED, 2500, 0.6, 30000, "notebook");
     return new Response(streamRes.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
     console.error("smart-notebook error:", e);

@@ -6,8 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODELS = ["qwen/qwen3.6-plus:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "google/gemma-3-27b-it:free", "meta-llama/llama-3.3-70b-instruct:free", "z-ai/glm-4.5-air:free", "openrouter/auto"];
+import { AI_GATEWAY_URL, MODELS_BALANCED, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
 
 function buildPrompts(type: string, curriculum: string, subject: string, topic: string, count?: number) {
   const cur = curriculum || "general";
@@ -39,15 +38,14 @@ serve(async (req) => {
     }
 
     const prompts = buildPrompts(type, curriculum, subject, topic, count);
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY not configured");
+    const apiKey = getApiKey();
 
     let rawContent = "";
-    for (const model of MODELS) {
+    for (const model of MODELS_BALANCED) {
       try {
         const c = new AbortController();
         const t = setTimeout(() => c.abort(), 20000);
-        const res = await fetch(OPENROUTER_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${OPENROUTER_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], max_tokens: type === "notes" ? 8000 : 4000, temperature: 0.7 }) });
+        const res = await fetch(AI_GATEWAY_URL, { method: "POST", signal: c.signal, headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], max_tokens: type === "notes" ? 8000 : 4000, temperature: 0.7 }) });
         clearTimeout(t);
         if (!res.ok) { const e = await res.text(); console.error(`[resources] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
         const data = await res.json();
