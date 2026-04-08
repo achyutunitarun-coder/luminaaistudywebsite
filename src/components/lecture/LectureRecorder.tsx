@@ -35,6 +35,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [processingLabel, setProcessingLabel] = useState('Analyzing audio and extracting speech...');
+  const [pdfProgress, setPdfProgress] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
