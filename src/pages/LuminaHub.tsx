@@ -595,6 +595,43 @@ function HubSession({ module, onClose }: { module: Module; onClose: () => void }
   );
 }
 
+// ─── Floating Particles ───────────────────────────────
+function FloatingParticles() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {Array.from({ length: 20 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: Math.random() * 4 + 2,
+            height: Math.random() * 4 + 2,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            background: i % 3 === 0
+              ? 'hsl(174 72% 56% / 0.3)'
+              : i % 3 === 1
+              ? 'hsl(264 67% 60% / 0.3)'
+              : 'hsl(47 100% 62% / 0.2)',
+          }}
+          animate={{
+            y: [0, -30 - Math.random() * 40, 0],
+            x: [0, Math.random() * 20 - 10, 0],
+            opacity: [0.2, 0.6, 0.2],
+            scale: [1, 1.5, 1],
+          }}
+          transition={{
+            duration: 4 + Math.random() * 4,
+            repeat: Infinity,
+            delay: Math.random() * 3,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Hub Page ───────────────────────────────
 const LuminaHub = () => {
   const { isPro, isProPlus } = useSubscription();
@@ -602,44 +639,70 @@ const LuminaHub = () => {
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const navigate = useNavigate();
 
-  // Hub access: PRO+ = unlimited, Ultimate = daily caps (same as basic), Basic = daily caps
   const hasFullHubAccess = isProPlus;
 
   const openModule = async (mod: Module) => {
-    // PRO+ gets unlimited Hub access
     if (hasFullHubAccess) {
       setActiveModule(mod);
       return;
     }
-    // Ultimate and Basic both have daily caps for Hub modules
     const allowed = await checkAndIncrement(mod.feature);
     if (!allowed) return;
     setActiveModule(mod);
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto relative">
       <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
 
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="flex items-center gap-4 mb-3">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shadow-xl shadow-violet-500/10">
-            <Brain className="w-7 h-7 text-violet-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground tracking-tight">Lumina Hub</h1>
-            <p className="text-muted-foreground text-sm">Neurocognitive brain gym — 7 science-backed modules</p>
-          </div>
+      {/* Ambient background orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <motion.div
+          className="absolute w-[600px] h-[600px] rounded-full"
+          style={{ background: 'radial-gradient(circle, hsl(264 67% 60% / 0.08), transparent 70%)', top: '-10%', right: '-15%' }}
+          animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute w-[500px] h-[500px] rounded-full"
+          style={{ background: 'radial-gradient(circle, hsl(174 72% 56% / 0.06), transparent 70%)', bottom: '-5%', left: '-10%' }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        />
+        <motion.div
+          className="absolute w-[300px] h-[300px] rounded-full"
+          style={{ background: 'radial-gradient(circle, hsl(47 100% 62% / 0.04), transparent 70%)', top: '40%', left: '50%' }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+        />
+      </div>
+
+      {/* Hero Header */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10 relative">
+        <FloatingParticles />
+        <div className="relative z-10 text-center py-8">
+          <motion.div
+            className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500/30 via-purple-500/20 to-indigo-500/30 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-violet-500/20 border border-violet-500/20"
+            animate={{ boxShadow: ['0 0 30px hsl(264 67% 60% / 0.2)', '0 0 60px hsl(264 67% 60% / 0.35)', '0 0 30px hsl(264 67% 60% / 0.2)'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Brain className="w-10 h-10 text-violet-400" />
+          </motion.div>
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground tracking-tight mb-3">
+            <span className="text-gradient-animated">Lumina Hub</span>
+          </h1>
+          <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
+            Your neurocognitive brain gym — 7 science-backed modules to supercharge learning
+          </p>
         </div>
 
-        {/* PRO+ upsell for non-PRO+ users */}
+        {/* PRO+ upsell */}
         {!hasFullHubAccess && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mt-4 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-purple-500/5 p-4 flex items-center justify-between gap-4"
+            transition={{ delay: 0.3 }}
+            className="mt-2 rounded-2xl border border-violet-500/20 liquid-glass-intense p-4 flex items-center justify-between gap-4 max-w-lg mx-auto"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
@@ -655,7 +718,7 @@ const LuminaHub = () => {
             <Button
               onClick={() => navigate('/upgrade')}
               size="sm"
-              className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-xs font-semibold hover:opacity-90"
+              className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90"
             >
               <Rocket className="w-3.5 h-3.5 mr-1" /> PRO+
             </Button>
@@ -667,49 +730,63 @@ const LuminaHub = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mb-8 liquid-glass-subtle rounded-2xl p-4 border border-border/10"
+        transition={{ delay: 0.15 }}
+        className="mb-10 liquid-glass-intense rounded-2xl p-5 border border-border/10 relative overflow-hidden"
       >
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Learning Loop</p>
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px]">
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-transparent to-primary/5 pointer-events-none" />
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.15em] mb-3 relative z-10">Neural Learning Loop</p>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[11px] relative z-10">
           {['Encode', 'Retrieve', 'Struggle', 'Correct', 'Reinforce', 'Space', 'Mix', 'Reflect'].map((step, i) => (
-            <span key={step} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="px-2 py-1 rounded-lg bg-primary/10 text-primary font-medium">{step}</span>
-              {i < 7 && <span className="text-muted-foreground/30">→</span>}
-            </span>
+            <motion.span
+              key={step}
+              className="flex items-center gap-2 whitespace-nowrap"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 + i * 0.05 }}
+            >
+              <span className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary/15 to-accent/10 text-primary font-semibold border border-primary/10 shadow-sm shadow-primary/5">
+                {step}
+              </span>
+              {i < 7 && <span className="text-primary/30">→</span>}
+            </motion.span>
           ))}
         </div>
       </motion.div>
 
       {/* Module Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {modules.map((mod, i) => {
           const Icon = mod.icon;
           return (
             <motion.button
               key={mod.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.06 }}
-              whileHover={{ scale: 1.02, y: -4 }}
-              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.2 + i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ scale: 1.04, y: -6 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => openModule(mod)}
-              className={`text-left rounded-2xl liquid-glass p-5 border border-border/10 hover:border-primary/20 transition-all duration-300 group relative overflow-hidden ${mod.bgGlow}`}
+              className="text-left rounded-3xl liquid-glass-elevated p-6 border border-border/10 hover:border-primary/25 transition-all duration-500 group relative overflow-hidden"
             >
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${mod.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                <Icon className={`w-6 h-6 ${mod.iconColor}`} />
+              {/* Hover glow */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                style={{ background: `radial-gradient(circle at 30% 30%, ${mod.id === 'recall' ? 'hsl(264 67% 60% / 0.08)' : mod.id === 'spaced' ? 'hsl(210 80% 50% / 0.08)' : mod.id === 'shuffle' ? 'hsl(160 60% 45% / 0.08)' : mod.id === 'explain' ? 'hsl(38 92% 50% / 0.08)' : mod.id === 'why' ? 'hsl(350 70% 50% / 0.08)' : mod.id === 'visualize' ? 'hsl(240 60% 60% / 0.08)' : 'hsl(190 80% 50% / 0.08)'}, transparent 70%)` }}
+              />
+
+              <div className={`relative z-10 w-14 h-14 rounded-2xl bg-gradient-to-br ${mod.color} flex items-center justify-center mb-5 group-hover:scale-110 group-hover:shadow-lg transition-all duration-500 border border-border/5`}>
+                <Icon className={`w-7 h-7 ${mod.iconColor}`} />
               </div>
-              <h3 className="text-base font-display font-semibold text-foreground mb-1">{mod.title}</h3>
-              <p className="text-xs text-muted-foreground/70 mb-2">{mod.desc}</p>
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary/5 text-primary/60 border border-primary/10">
+              <h3 className="relative z-10 text-lg font-display font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors duration-300">{mod.title}</h3>
+              <p className="relative z-10 text-xs text-muted-foreground/80 mb-3 leading-relaxed">{mod.desc}</p>
+              <span className="relative z-10 text-[10px] px-2.5 py-1 rounded-full bg-primary/8 text-primary/70 border border-primary/10 font-medium">
                 {mod.principle}
               </span>
               {!hasFullHubAccess && (
-                <span className="block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+                <span className="relative z-10 block mt-2.5 text-[10px] px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/15 w-fit font-medium">
                   Free: {mod.freeLimit}
                 </span>
               )}
-              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/20 group-hover:text-primary/50 transition-all group-hover:translate-x-1" />
+              <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/15 group-hover:text-primary/60 transition-all duration-300 group-hover:translate-x-1.5" />
             </motion.button>
           );
         })}

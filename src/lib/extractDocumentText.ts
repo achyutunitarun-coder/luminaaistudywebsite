@@ -36,7 +36,7 @@ const isLowQualityText = (text: string, totalPages: number): boolean => {
 const renderPdfPagesToImages = async (
   file: File,
   maxPages = 20,
-  scale = 1.5
+  scale = 1.0
 ): Promise<string[]> => {
   const pdfjsLib = await loadPdfjs();
   const arrayBuffer = await file.arrayBuffer();
@@ -48,27 +48,37 @@ const renderPdfPagesToImages = async (
   }).promise;
 
   const totalPages = Math.min(pdf.numPages, maxPages);
-  const images: string[] = [];
+  const images: string[] = new Array(totalPages);
 
-  for (let i = 1; i <= totalPages; i++) {
-    try {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) continue;
-
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      images.push(canvas.toDataURL('image/jpeg', 0.75));
-      canvas.width = 0;
-      canvas.height = 0;
-    } catch (e) {
-      console.warn(`Failed to render PDF page ${i}:`, e);
+  // Process pages in parallel batches of 4 for speed
+  const batchSize = 4;
+  for (let batchStart = 0; batchStart < totalPages; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, totalPages);
+    const promises = [];
+    for (let i = batchStart; i < batchEnd; i++) {
+      promises.push(
+        (async (pageIdx: number) => {
+          try {
+            const page = await pdf.getPage(pageIdx + 1);
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            images[pageIdx] = canvas.toDataURL('image/jpeg', 0.5);
+            canvas.width = 0;
+            canvas.height = 0;
+          } catch (e) {
+            console.warn(`Failed to render PDF page ${pageIdx + 1}:`, e);
+          }
+        })(i)
+      );
     }
+    await Promise.all(promises);
   }
-  return images;
+  return images.filter(Boolean);
 };
 
 /**

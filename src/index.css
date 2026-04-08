@@ -327,6 +327,22 @@
     z-index: 0;
   }
 
+  /* Premium page background with subtle animated gradient */
+  .page-ambient {
+    position: relative;
+  }
+  .page-ambient::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 50% at 20% 80%, hsl(174 72% 56% / 0.03), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 20%, hsl(264 67% 60% / 0.03), transparent),
+      radial-gradient(ellipse 50% 50% at 50% 50%, hsl(47 100% 62% / 0.015), transparent);
+    pointer-events: none;
+    z-index: -1;
+  }
+
   /* Noise texture overlay */
   .noise-overlay::after {
     content: '';
