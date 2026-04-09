@@ -536,7 +536,7 @@ const ChatPage = () => {
     return (
       <>
         <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
-        <div className="flex flex-col fixed inset-0 top-12 z-10 bg-background">
+        <div className="flex flex-col h-[calc(100vh-3.5rem)] -mx-4 -my-6 bg-background">
           {activeChat ? activeChatView : (
             <div className="flex-1 flex flex-col overflow-hidden">
               <ChatSidebar {...sidebarProps} />
@@ -552,11 +552,11 @@ const ChatPage = () => {
   return (
     <>
       <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
-      <div className="flex fixed inset-0 top-12 z-10 bg-background">
-        <div className="w-[260px] border-r border-border/8 bg-background/50 flex flex-col">
+      <div className="flex h-[calc(100vh-3.5rem)] -mx-4 md:-mx-8 -my-6 md:-my-8 bg-background">
+        <div className="w-[260px] border-r border-border/8 bg-background/50 flex-col hidden md:flex flex-shrink-0">
           <ChatSidebar {...sidebarProps} />
         </div>
-        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+        <div className="flex-1 flex flex-col bg-background overflow-hidden min-w-0">
           {activeChat ? activeChatView : welcomeView}
         </div>
       </div>
