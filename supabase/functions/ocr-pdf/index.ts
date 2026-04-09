@@ -39,6 +39,7 @@ serve(async (req) => {
     let extracted = "";
     let lastError = "";
 
+    // Try all vision models with fallback
     for (const model of MODELS_VISION) {
       try {
         const res = await fetchWithTimeout(OPENROUTER_URL, {
@@ -49,8 +50,13 @@ serve(async (req) => {
             "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
             "X-Title": "Lumina AI Study",
           },
-          body: JSON.stringify({ model, messages: [{ role: "user", content }], max_tokens: 8000, temperature: 0.1 }),
-        }, 60000);
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content }],
+            max_tokens: 8000,
+            temperature: 0.1,
+          }),
+        }, 55000); // 55s timeout for OCR
 
         if (!res.ok) {
           const e = await res.text();
@@ -59,7 +65,8 @@ serve(async (req) => {
           continue;
         }
         const data = await res.json();
-        extracted = typeof data.choices?.[0]?.message?.content === "string" ? data.choices[0].message.content : "";
+        extracted = typeof data.choices?.[0]?.message?.content === "string"
+          ? data.choices[0].message.content : "";
         if (extracted.trim()) {
           console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`);
           break;
@@ -68,6 +75,36 @@ serve(async (req) => {
         const isTimeout = e instanceof DOMException && e.name === "AbortError";
         lastError = `${model} ${isTimeout ? "TIMEOUT" : "err"}`;
         console.error(`[ocr-pdf] ${lastError}`);
+      }
+    }
+
+    // Final fallback: openrouter/free
+    if (!extracted.trim()) {
+      try {
+        console.log(`[ocr-pdf] → free router fallback`);
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
+            "X-Title": "Lumina AI Study",
+          },
+          body: JSON.stringify({
+            model: "openrouter/free",
+            messages: [{ role: "user", content }],
+            max_tokens: 8000,
+            temperature: 0.1,
+          }),
+        }, 55000);
+        if (res.ok) {
+          const data = await res.json();
+          extracted = typeof data.choices?.[0]?.message?.content === "string"
+            ? data.choices[0].message.content : "";
+          if (extracted.trim()) console.log(`[ocr-pdf] ✓ free-router pages ${pageStart}-${pageEnd}`);
+        }
+      } catch (e) {
+        console.error(`[ocr-pdf] free-router failed:`, e);
       }
     }
 
