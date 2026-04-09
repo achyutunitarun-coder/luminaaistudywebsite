@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { AI_GATEWAY_URL, MODELS_VISION, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
+import { OPENROUTER_URL, MODELS_VISION, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,16 +41,29 @@ serve(async (req) => {
 
     for (const model of MODELS_VISION) {
       try {
-        const res = await fetchWithTimeout(AI_GATEWAY_URL, {
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
+            "X-Title": "Lumina AI Study",
+          },
           body: JSON.stringify({ model, messages: [{ role: "user", content }], max_tokens: 8000, temperature: 0.1 }),
         }, 60000);
 
-        if (!res.ok) { const e = await res.text(); lastError = `${model} ${res.status}`; console.error(`[ocr-pdf] ${lastError}: ${e.slice(0, 200)}`); continue; }
+        if (!res.ok) {
+          const e = await res.text();
+          lastError = `${model} ${res.status}`;
+          console.error(`[ocr-pdf] ${lastError}: ${e.slice(0, 200)}`);
+          continue;
+        }
         const data = await res.json();
         extracted = typeof data.choices?.[0]?.message?.content === "string" ? data.choices[0].message.content : "";
-        if (extracted.trim()) { console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`); break; }
+        if (extracted.trim()) {
+          console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`);
+          break;
+        }
       } catch (e) {
         const isTimeout = e instanceof DOMException && e.name === "AbortError";
         lastError = `${model} ${isTimeout ? "TIMEOUT" : "err"}`;
