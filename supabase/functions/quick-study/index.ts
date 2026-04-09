@@ -15,7 +15,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Create a quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "engaging explanation with analogies"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}` },
+        { role: "system", content: `Create a quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "engaging explanation with analogies"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Quick study lesson on "${topic}".` },
       ],
       MODELS_FAST, 3000, 0.5, 30000, "quick-study"

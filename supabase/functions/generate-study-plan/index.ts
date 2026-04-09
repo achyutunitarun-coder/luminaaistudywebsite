@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAIText, MODELS_BALANCED } from "../_shared/models.ts";
+import { callAIText, MODELS_QUALITY } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +29,7 @@ serve(async (req) => {
 
     const content = await callAIText(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      MODELS_BALANCED, isExamMode ? 8000 : 4000, 0.4, 45000, "plan"
+      MODELS_QUALITY, isExamMode ? 8000 : 4000, 0.4, 45000, "plan"
     );
 
     if (isExamMode) {

@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const res = await streamAI(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }],
-      MODELS_BALANCED, 4000, 0.65, 60000, "notes"
+      MODELS_BALANCED, 4000, 0.65, 45000, "notes"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {

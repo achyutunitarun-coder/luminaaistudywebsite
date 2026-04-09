@@ -24,7 +24,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Create a boss battle with creative questions. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}` },
+        { role: "system", content: `Create a boss battle with creative questions. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Boss battle for "${topic}" with 5 challenging questions.` },
       ],
       MODELS_FAST, 1500, 0.7, 30000, "boss"

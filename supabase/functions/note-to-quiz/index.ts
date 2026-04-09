@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Convert notes into a challenging quiz. Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}` },
+        { role: "system", content: `Convert notes into a challenging quiz. Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Generate quiz from:\n\n${notes}` },
       ],
       MODELS_FAST, 2500, 0.5, 30000, "note-to-quiz"

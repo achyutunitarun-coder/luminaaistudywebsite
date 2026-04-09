@@ -15,7 +15,7 @@ serve(async (req) => {
 
     const prompts: Record<string, { system: string; user: string }> = {
       notes: { system: `Create study notes with headings, **bold** terms, real-world analogies, formulas, and a "Quick Review" summary.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
-      flowchart: { system: `Return ONLY JSON (no fences): {"nodes": [{"id": "1", "label": "Title", "description": "Brief", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. 6-12 nodes.`, user: `Create concept flowchart for "${fileName}":\n\n${fileContent}` },
+      flowchart: { system: `Return ONLY JSON (no fences): {"nodes": [{"id": "1", "label": "Title", "description": "Brief", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. 6-12 nodes. Do NOT include thinking tags.`, user: `Create concept flowchart for "${fileName}":\n\n${fileContent}` },
       overview: { system: `Create overview in ${language || "Spanish"}. Include key concepts, bullets, conclusion.`, user: `Create overview in ${language || "Spanish"} of "${fileName}":\n\n${fileContent}` },
     };
     const p = prompts[mode];
@@ -23,7 +23,7 @@ serve(async (req) => {
     const msgs = [{ role: "system", content: p.system }, { role: "user", content: p.user }];
 
     if (mode === "flowchart") {
-      const text = await callAIText(msgs, MODELS_FAST, 2000, 0.6, 45000, "notebook");
+      const text = await callAIText(msgs, MODELS_FAST, 2000, 0.6, 30000, "notebook");
       const match = text.match(/\{[\s\S]*\}/);
       return new Response(JSON.stringify({ content: match ? match[0] : text.trim() }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
