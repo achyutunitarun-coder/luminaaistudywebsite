@@ -43,7 +43,7 @@ serve(async (req) => {
         { role: "system", content: `Create ${count} flashcards. Mix types: why, compare, apply, recall. Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}` },
         { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,30000)}` },
       ],
-      MODELS_FAST, 3000, 0.5, 30000, "flashcards"
+      MODELS_FAST, 3000, 0.5, 45000, "flashcards"
     );
 
     const parsed = cleanJSON(text);
