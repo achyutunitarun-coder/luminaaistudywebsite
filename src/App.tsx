@@ -21,6 +21,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import StudyPlanner from "@/pages/StudyPlanner";
 import NoteToQuiz from "@/pages/NoteToQuiz";
 import QuickStudy from "@/pages/QuickStudy";
+import GuidedLesson from "@/pages/GuidedLesson";
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="/study-planner" element={<StudyPlanner />} />
               <Route path="/note-to-quiz" element={<NoteToQuiz />} />
               <Route path="/quick-study" element={<QuickStudy />} />
+              <Route path="/guided-lesson" element={<GuidedLesson />} />
               <Route path="/study-session" element={<StudySession />} />
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
