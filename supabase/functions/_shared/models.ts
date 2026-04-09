@@ -1,44 +1,44 @@
 // ═══════════════════════════════════════════════════════════════════
 // Lumina AI — OpenRouter FREE Model Router (April 2026)
-// 6-tier intelligent routing with parallel racing & auto-fallback
-// ALL models are :free — $0 cost
+// 6-tier intelligent routing · parallel racing · auto-fallback
+// ALL models verified available — $0 cost
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ─── TIER 1: ULTRA-FAST (80% of queries — <1.5s first token) ───
+// ─── TIER 1: ULTRA-FAST (80% of queries) ───
 export const MODELS_FAST = [
-  "stepfun/step-3.5-flash:free",                   // Most used free model
-  "arcee-ai/trinity-mini:free",                    // 26B MoE 3B active, blazing
-  "nvidia/nemotron-3-nano-30b-a3b:free",           // 30B MoE 3B active
+  "nvidia/nemotron-nano-9b-v2:free",               // 9B dense, fastest
+  "arcee-ai/trinity-mini:free",                    // 26B MoE 3B active
   "openai/gpt-oss-20b:free",                      // 21B MoE 3.6B active
-  "nvidia/nemotron-nano-9b-v2:free",               // 9B dense, smallest
+  "nvidia/nemotron-3-nano-30b-a3b:free",           // 30B MoE 3B active
+  "meta-llama/llama-3.2-3b-instruct:free",         // 3B, ultra-light
 ];
 
 // ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
 export const MODELS_BALANCED = [
-  "qwen/qwen3.6-plus:free",                       // Top ranked free model
+  "qwen/qwen3-next-80b-a3b-instruct:free",        // 80B MoE 3B active
   "openai/gpt-oss-20b:free",                      // Smart + fast
   "meta-llama/llama-3.3-70b-instruct:free",       // 70B, strong reasoning
-  "upstage/solar-pro-3:free",                     // Good balanced model
   "google/gemma-4-31b-it:free",                   // 31B dense, multimodal
+  "z-ai/glm-4.5-air:free",                        // 131K context
 ];
 
-// ─── TIER 3: QUALITY / DEEP REASONING (tests, analysis, plans) ───
+// ─── TIER 3: QUALITY / DEEP REASONING ───
 export const MODELS_QUALITY = [
-  "deepseek/deepseek-r1:free",                    // Deep reasoning champion
   "nvidia/nemotron-3-super-120b-a12b:free",       // 120B hybrid MoE
   "openai/gpt-oss-120b:free",                     // 117B MoE
+  "nousresearch/hermes-3-llama-3.1-405b:free",    // 405B powerhouse
   "arcee-ai/trinity-large-preview:free",          // 400B MoE 13B active
-  "qwen/qwen3-coder:free",                       // 480B code-focused
+  "qwen/qwen3-coder:free",                       // 480B, deep reasoning
 ];
 
 // ─── TIER 4: CODING ───
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",                       // 480B MoE code-focused
-  "mistral/devstral-2:free",                      // Strong coding model
-  "minimax/minimax-m2.5:free",                    // SWE-bench leader
   "openai/gpt-oss-120b:free",                    // Agentic + tool use
+  "minimax/minimax-m2.5:free",                    // SWE-bench leader
+  "nvidia/nemotron-3-super-120b-a12b:free",       // Strong general
 ];
 
 // ─── TIER 5: LONG CONTEXT (documents, notes, PDFs) ───
@@ -52,9 +52,11 @@ export const MODELS_LONG_CTX = [
 
 // ─── TIER 6: VISION (OCR, image analysis) ───
 export const MODELS_VISION = [
+  "google/gemma-4-31b-it:free",                   // text+image+video, 262K
   "google/gemma-4-26b-a4b-it:free",               // text+image+video, 262K
-  "google/gemma-4-31b-it:free",                   // text+image, 262K
-  "nvidia/nemotron-nano-12b-v2-vl:free",          // 12B VL, OCR-optimized
+  "google/gemma-3-27b-it:free",                   // text+image, 131K
+  "nvidia/nemotron-nano-12b-v2-vl:free",          // 12B VL
+  "google/gemma-3-12b-it:free",                   // text+image, 32K
 ];
 
 // ─── FREE ROUTER: OpenRouter's automatic selector (final fallback) ───
