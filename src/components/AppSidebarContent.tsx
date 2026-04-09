@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
+import { GraduationCap } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -59,6 +60,7 @@ const sidebarSections = [
       { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
       { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
       { title: 'Quick Study', url: '/quick-study', icon: Zap },
+      { title: 'Guided Lesson', url: '/guided-lesson', icon: GraduationCap },
       { title: 'Lecture AI', url: '/lecture-ai', icon: Mic },
       { title: 'Smart Notebook', url: '/smart-notebook', icon: PenTool },
       { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
