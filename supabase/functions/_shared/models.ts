@@ -1,59 +1,60 @@
 // ═══════════════════════════════════════════════════════════════════
 // Lumina AI — OpenRouter FREE Model Router (April 2026)
 // 6-tier intelligent routing with parallel racing & auto-fallback
-// ALL models are $0/M input & output tokens
+// ALL models are :free — $0 cost
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─── TIER 1: ULTRA-FAST (80% of queries — <1.5s first token) ───
 export const MODELS_FAST = [
-  "arcee-ai/trinity-mini:free",                   // 26B MoE 3B active, 131K — blazing fast
-  "openai/gpt-oss-20b:free",                      // 21B MoE 3.6B active, 131K
-  "nvidia/nemotron-nano-9b-v2:free",              // 9B dense, 128K — smallest/fastest
-  "nvidia/nemotron-3-nano-30b-a3b:free",          // 30B MoE 3B active, 256K
-  "google/gemma-4-26b-a4b-it:free",               // 26B MoE 4B active, 262K multimodal
+  "stepfun/step-3.5-flash:free",                   // Most used free model
+  "arcee-ai/trinity-mini:free",                    // 26B MoE 3B active, blazing
+  "nvidia/nemotron-3-nano-30b-a3b:free",           // 30B MoE 3B active
+  "openai/gpt-oss-20b:free",                      // 21B MoE 3.6B active
+  "nvidia/nemotron-nano-9b-v2:free",               // 9B dense, smallest
 ];
 
 // ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
 export const MODELS_BALANCED = [
-  "qwen/qwen3-next-80b-a3b-instruct:free",       // 80B MoE 3B active — fast + smart
-  "google/gemma-4-31b-it:free",                   // 31B dense, 262K, multimodal
-  "z-ai/glm-4.5-air:free",                        // MoE with thinking mode, 131K
-  "meta-llama/llama-3.3-70b-instruct:free",       // 70B, 66K ctx
-  "nvidia/nemotron-3-nano-30b-a3b:free",          // fallback fast
+  "qwen/qwen3.6-plus:free",                       // Top ranked free model
+  "openai/gpt-oss-20b:free",                      // Smart + fast
+  "meta-llama/llama-3.3-70b-instruct:free",       // 70B, strong reasoning
+  "upstage/solar-pro-3:free",                     // Good balanced model
+  "google/gemma-4-31b-it:free",                   // 31B dense, multimodal
 ];
 
 // ─── TIER 3: QUALITY / DEEP REASONING (tests, analysis, plans) ───
 export const MODELS_QUALITY = [
-  "nvidia/nemotron-3-super-120b-a12b:free",       // 120B hybrid MoE, 262K — top ranked
-  "openai/gpt-oss-120b:free",                     // 117B MoE, 131K
-  "arcee-ai/trinity-large-preview:free",          // 400B MoE 13B active, 131K
-  "minimax/minimax-m2.5:free",                    // strong SWE + office, 197K
-  "qwen/qwen3-coder:free",                        // 480B code-focused, 262K
+  "deepseek/deepseek-r1:free",                    // Deep reasoning champion
+  "nvidia/nemotron-3-super-120b-a12b:free",       // 120B hybrid MoE
+  "openai/gpt-oss-120b:free",                     // 117B MoE
+  "arcee-ai/trinity-large-preview:free",          // 400B MoE 13B active
+  "qwen/qwen3-coder:free",                       // 480B code-focused
 ];
 
 // ─── TIER 4: CODING ───
 export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",                        // 480B MoE code-focused
-  "minimax/minimax-m2.5:free",                     // SWE-bench leader
-  "openai/gpt-oss-120b:free",                     // agentic + tool use
+  "qwen/qwen3-coder:free",                       // 480B MoE code-focused
+  "mistral/devstral-2:free",                      // Strong coding model
+  "minimax/minimax-m2.5:free",                    // SWE-bench leader
+  "openai/gpt-oss-120b:free",                    // Agentic + tool use
 ];
 
 // ─── TIER 5: LONG CONTEXT (documents, notes, PDFs) ───
 export const MODELS_LONG_CTX = [
+  "minimax/minimax-m2.5:free",                    // 197K context
   "google/gemma-4-31b-it:free",                   // 262K
   "google/gemma-4-26b-a4b-it:free",               // 262K multimodal
   "nvidia/nemotron-3-super-120b-a12b:free",       // 262K
-  "qwen/qwen3-coder:free",                        // 262K
-  "nvidia/nemotron-3-nano-30b-a3b:free",          // 256K
+  "qwen/qwen3-coder:free",                       // 262K
 ];
 
 // ─── TIER 6: VISION (OCR, image analysis) ───
 export const MODELS_VISION = [
-  "google/gemma-4-26b-a4b-it:free",               // text+image+video, 262K, FASTEST vision
+  "google/gemma-4-26b-a4b-it:free",               // text+image+video, 262K
   "google/gemma-4-31b-it:free",                   // text+image, 262K
-  "nvidia/nemotron-nano-12b-v2-vl:free",          // 12B VL, OCR-optimized, 128K
+  "nvidia/nemotron-nano-12b-v2-vl:free",          // 12B VL, OCR-optimized
 ];
 
 // ─── FREE ROUTER: OpenRouter's automatic selector (final fallback) ───
@@ -88,8 +89,7 @@ export async function fetchWithTimeout(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PARALLEL RACE — Send to 2-3 models, return FIRST valid response
-// Massive speed boost for latency-sensitive paths
+// PARALLEL RACE — Send to 2 models, return FIRST valid response
 // ═══════════════════════════════════════════════════════════════════
 
 async function raceModels(
@@ -101,7 +101,6 @@ async function raceModels(
   const apiKey = getApiKey();
   const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
 
-  // Race top 2 models simultaneously
   const racers = models.slice(0, 2).map(async (model) => {
     const res = await fetchWithTimeout(OPENROUTER_URL, {
       method: "POST",
@@ -110,7 +109,7 @@ async function raceModels(
     }, timeoutMs);
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 150)}`);
+      console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
       throw new Error(`${model} failed: ${res.status}`);
     }
     console.log(`[${tag}] ✓ ${model} (race winner)`);
@@ -120,14 +119,13 @@ async function raceModels(
   try {
     return await Promise.any(racers);
   } catch {
-    // All racers failed — continue to sequential fallback
-    console.log(`[${tag}] Race failed, falling back sequentially...`);
+    console.log(`[${tag}] Race failed, falling back...`);
     throw new Error("race_failed");
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN DISPATCHER — Race → Sequential fallback → Free router
+// MAIN DISPATCHER — Race → Sequential → Free router
 // ═══════════════════════════════════════════════════════════════════
 
 export async function callWithFallback(
@@ -143,16 +141,14 @@ export async function callWithFallback(
   const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
   const baseBody = { messages, max_tokens: maxTokens, temperature, ...extraOpts };
 
-  // PHASE 1: Parallel race (top 2 models)
+  // PHASE 1: Parallel race (top 2)
   if (models.length >= 2) {
     try {
       return await raceModels(models, baseBody, timeoutMs, tag);
-    } catch {
-      // Race failed, continue
-    }
+    } catch { /* continue */ }
   }
 
-  // PHASE 2: Sequential fallback (remaining models)
+  // PHASE 2: Sequential fallback (remaining)
   const remaining = models.length >= 2 ? models.slice(2) : models;
   for (const model of remaining) {
     try {
@@ -160,10 +156,9 @@ export async function callWithFallback(
         method: "POST", headers,
         body: JSON.stringify({ ...baseBody, model }),
       }, timeoutMs);
-
       if (!res.ok) {
         const e = await res.text();
-        console.error(`[${tag}] ${model} ${res.status}: ${e.slice(0, 150)}`);
+        console.error(`[${tag}] ${model} ${res.status}: ${e.slice(0, 120)}`);
         continue;
       }
       console.log(`[${tag}] ✓ ${model}`);
@@ -186,7 +181,7 @@ export async function callWithFallback(
       return res;
     }
     const errText = await res.text();
-    console.error(`[${tag}] free-router ${res.status}: ${errText.slice(0, 150)}`);
+    console.error(`[${tag}] free-router ${res.status}: ${errText.slice(0, 120)}`);
   } catch (e) {
     console.error(`[${tag}] free-router failed:`, e);
   }
@@ -228,34 +223,27 @@ export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
 
-  // Greeting: very short, no question marks
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
     return "greeting";
   }
 
-  // Motivation: emotional keywords
   if (/\b(stressed|anxious|worried|scared|nervous|can't do|give up|hopeless|overwhelmed|struggling|failing|depressed|sad|unmotivated|lazy|tired of studying)\b/.test(lower)) {
     return "motivation";
   }
 
-  // Deep: complex reasoning indicators
   if (/\b(explain why|prove that|derive|compare and contrast|analyze|evaluate|critically|in depth|detailed|comprehensive|step by step|root cause|how does .+ work)\b/.test(lower) || wordCount > 80) {
     return "deep";
   }
 
-  // Study: academic content indicators
   if (/\b(study|learn|teach|concept|formula|theorem|equation|definition|chapter|syllabus|exam|test|quiz|practice|revision|notes|flashcard|topic|subject|lecture|homework|assignment)\b/.test(lower)) {
     return "study";
   }
 
-  // Conversational: casual chat
   if (wordCount <= 8 && /\b(thanks|thank you|ok|okay|got it|cool|nice|great|awesome|perfect|lol|haha|hmm|oh|wow|sure|yep|nope|alright)\b/.test(lower)) {
     return "conversational";
   }
 
-  // Quick: short direct questions
   if (wordCount <= 25) return "quick";
-
   return "study";
 }
 
