@@ -10,10 +10,10 @@ const corsHeaders = {
 function buildPrompts(type: string, curriculum: string, subject: string, topic: string, count?: number) {
   const cur = curriculum || "general";
   if (type === "notes") return { system: `Generate comprehensive study notes in Markdown for ${cur} curriculum. Use headings, bold terms, tables, LaTeX, worked examples, exam tips, and summary.`, user: `Notes for: ${subject} - ${topic} (${cur})` };
-  if (type === "flashcards") return { system: `Generate 15 flashcards. Return ONLY JSON: [{"front":"question","back":"answer"}]`, user: `Flashcards for: ${subject} - ${topic} (${cur})` };
-  if (type === "questions") return { system: `Generate 10 mixed-difficulty questions. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"...","difficulty":"Easy|Medium|Hard"}]`, user: `Questions for: ${subject} - ${topic} (${cur})` };
-  if (type === "test") return { system: `Generate 10 exam-style questions for ${cur}. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]`, user: `Practice test: ${subject} - ${topic} (${cur})` };
-  return { system: `Generate ${count||10} quiz questions. Return ONLY JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"answer":0}]}`, user: `${count||10} quiz questions about: ${topic || subject}` };
+  if (type === "flashcards") return { system: `Generate 15 flashcards. Return ONLY JSON: [{"front":"question","back":"answer"}]. Do NOT include thinking tags.`, user: `Flashcards for: ${subject} - ${topic} (${cur})` };
+  if (type === "questions") return { system: `Generate 10 mixed-difficulty questions. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"...","difficulty":"Easy|Medium|Hard"}]. Do NOT include thinking tags.`, user: `Questions for: ${subject} - ${topic} (${cur})` };
+  if (type === "test") return { system: `Generate 10 exam-style questions for ${cur}. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]. Do NOT include thinking tags.`, user: `Practice test: ${subject} - ${topic} (${cur})` };
+  return { system: `Generate ${count||10} quiz questions. Return ONLY JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"answer":0}]}. Do NOT include thinking tags.`, user: `${count||10} quiz questions about: ${topic || subject}` };
 }
 
 function cleanAndParse(raw: string) {

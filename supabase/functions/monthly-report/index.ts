@@ -15,12 +15,13 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Generate a monthly learning report. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["tip"],"overall_grade":"A/B/C/D"}` },
+        { role: "system", content: `Generate a monthly learning report. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["tip"],"overall_grade":"A/B/C/D"}. Do NOT include thinking tags.` },
         { role: "user", content: `Monthly report from:\n\n${JSON.stringify(userData)}` },
       ],
       MODELS_FAST, 1500, 0.5, 30000, "report"
     );
-    const match = text.match(/\{[\s\S]*\}/);
+    const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) return new Response(JSON.stringify(JSON.parse(match[0])), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     return new Response(JSON.stringify({ error: "Failed to parse report" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

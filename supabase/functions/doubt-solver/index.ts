@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, MODELS_BALANCED } from "../_shared/models.ts";
+import { streamAI, MODELS_FAST } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +35,7 @@ FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blan
 
     const res = await streamAI(
       [{ role: "system", content: systemPrompt }, ...messages],
-      MODELS_BALANCED, 2000, 0.55, 45000, "doubt"
+      MODELS_FAST, 2000, 0.55, 30000, "doubt"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
