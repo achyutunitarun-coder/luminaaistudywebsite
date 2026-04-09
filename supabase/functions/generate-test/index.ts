@@ -61,7 +61,7 @@ serve(async (req) => {
         { role: "system", content: `Generate ${num} MCQs that test understanding. Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Use LaTeX for math ($x^2$).` },
         { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,10000)}` },
       ],
-      MODELS_BALANCED, Math.min(8192, Math.max(3500, num * 900)), 0.4, 30000, "test"
+      MODELS_BALANCED, Math.min(8192, Math.max(3500, num * 900)), 0.4, 45000, "test"
     );
 
     const valid = sanitize(cleanJSON(text));

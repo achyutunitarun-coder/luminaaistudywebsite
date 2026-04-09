@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AI_GATEWAY_URL, MODELS_BALANCED, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
+import { OPENROUTER_URL, MODELS_BALANCED, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const MAX_PAYLOAD_BYTES = 50_000;
 const MAX_MESSAGES = 50;
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 45000;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -59,9 +59,14 @@ RULES:
 
     for (const model of MODELS_BALANCED) {
       try {
-        const res = await fetchWithTimeout(AI_GATEWAY_URL, {
+        const res = await fetchWithTimeout(OPENROUTER_URL, {
           method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
+            "X-Title": "Lumina AI Study",
+          },
           body: JSON.stringify({ model, messages: aiMessages, max_tokens: 2000, temperature: 0.65, stream: true }),
         }, TIMEOUT_MS);
 

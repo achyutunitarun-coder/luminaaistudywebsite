@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
-import { ChevronLeft, ChevronRight, Flame, Menu, Sparkles, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Menu, Sparkles, X, Brain } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppSidebarContent } from '@/components/AppSidebarContent';
@@ -26,13 +26,25 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const navigateStudySession = useCallback(() => navigate('/study-session'), [navigate]);
 
   return (
-    <div className="min-h-screen flex bg-background page-ambient">
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen flex bg-background relative overflow-hidden">
+      {/* Ambient Background — Living Cosmos */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.03] blur-[120px] bg-primary -top-40 -left-40 animate-pulse-glow" />
+        <div className="absolute w-[500px] h-[500px] rounded-full opacity-[0.025] blur-[100px] bg-secondary bottom-0 right-0 animate-pulse-glow" style={{ animationDelay: '1s' }} />
+        <div className="absolute w-[300px] h-[300px] rounded-full opacity-[0.02] blur-[80px] bg-xp top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-float" />
+      </div>
+
+      {/* Desktop Sidebar — Navigation Spine */}
       <aside
-        className={`hidden md:flex flex-col fixed top-0 left-0 h-screen z-40 border-r border-border/10 transition-all duration-300 ${
+        className={`hidden md:flex flex-col fixed top-0 left-0 h-screen z-40 transition-all duration-500 ease-out ${
           collapsed ? 'w-[72px]' : 'w-[240px]'
         }`}
-        style={{ background: 'hsl(230 22% 8% / 0.95)', backdropFilter: 'blur(24px)' }}
+        style={{
+          background: 'linear-gradient(180deg, hsl(230 25% 7% / 0.97) 0%, hsl(230 22% 9% / 0.95) 100%)',
+          backdropFilter: 'blur(40px) saturate(1.8)',
+          borderRight: '1px solid hsl(0 0% 100% / 0.04)',
+          boxShadow: '4px 0 24px hsl(0 0% 0% / 0.3)',
+        }}
       >
         <AppSidebarContent
           collapsed={collapsed}
@@ -47,19 +59,24 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         />
         <button
           onClick={toggleCollapsed}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-muted border border-border/20 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-50"
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border/20 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/30 transition-all z-50 shadow-lg"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-4 vibrancy border-b border-border/10">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-4 border-b border-border/10"
+        style={{
+          background: 'hsl(230 25% 7% / 0.9)',
+          backdropFilter: 'blur(48px) saturate(2)',
+        }}
+      >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
+          <div className="w-8 h-8 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <Brain className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-sm text-foreground">Lumina</span>
+          <span className="font-display font-bold text-sm text-foreground tracking-tight">Lumina</span>
         </div>
         <div className="flex items-center gap-3">
           {profile && (
@@ -71,7 +88,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
           )}
-          <button onClick={toggleMobile} className="p-1.5 text-muted-foreground">
+          <button onClick={toggleMobile} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
@@ -94,7 +111,10 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="md:hidden fixed left-0 top-0 bottom-0 w-[280px] z-50 border-r border-border/10"
-              style={{ background: 'hsl(230 22% 8% / 0.98)' }}
+              style={{
+                background: 'linear-gradient(180deg, hsl(230 25% 7% / 0.98) 0%, hsl(230 22% 9% / 0.96) 100%)',
+                backdropFilter: 'blur(40px)',
+              }}
             >
               <AppSidebarContent
                 collapsed={collapsed}
@@ -113,8 +133,8 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'} mt-14 md:mt-0`}>
+      {/* Main Content — Primary Intelligence Zone */}
+      <main className={`flex-1 overflow-auto transition-all duration-500 ease-out relative z-10 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'} mt-14 md:mt-0`}>
         <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8">
           {children}
         </div>

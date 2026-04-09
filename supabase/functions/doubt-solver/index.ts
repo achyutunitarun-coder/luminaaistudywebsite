@@ -35,7 +35,7 @@ FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blan
 
     const res = await streamAI(
       [{ role: "system", content: systemPrompt }, ...messages],
-      MODELS_BALANCED, 2000, 0.55, 30000, "doubt"
+      MODELS_BALANCED, 2000, 0.55, 45000, "doubt"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {

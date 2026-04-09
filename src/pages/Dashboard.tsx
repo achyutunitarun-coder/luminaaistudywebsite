@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown, Zap, BookOpen, Layers, Activity } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -17,12 +17,9 @@ const Dashboard = () => {
   const { seconds: liveSeconds } = useStudyTimer();
   const navigate = useNavigate();
 
-  // Parse user preferences for personalization
   const userPrefs = useMemo(() => {
     if (!profile?.extra_preferences) return null;
-    try {
-      return JSON.parse(profile.extra_preferences as string);
-    } catch { return null; }
+    try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
   }, [profile?.extra_preferences]);
 
   const userName = profile?.display_name?.split(' ')[0] || 'there';
@@ -33,11 +30,7 @@ const Dashboard = () => {
     queryKey: ['today-study-minutes', user?.id],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase
-        .from('study_sessions')
-        .select('duration_minutes')
-        .eq('user_id', user!.id)
-        .gte('started_at', today);
+      const { data } = await supabase.from('study_sessions').select('duration_minutes').eq('user_id', user!.id).gte('started_at', today);
       return data?.reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
     },
     enabled: !!user,
@@ -46,13 +39,7 @@ const Dashboard = () => {
   const { data: recentTests } = useQuery({
     queryKey: ['recent-tests-insight', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('tests')
-        .select('score, subject, created_at, correct_answers, total_questions')
-        .eq('user_id', user!.id)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const { data } = await supabase.from('tests').select('score, subject, created_at, correct_answers, total_questions').eq('user_id', user!.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(10);
       return data || [];
     },
     enabled: !!user,
@@ -62,11 +49,7 @@ const Dashboard = () => {
     queryKey: ['weekly-study-minutes', user?.id],
     queryFn: async () => {
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-      const { data } = await supabase
-        .from('study_sessions')
-        .select('duration_minutes, started_at')
-        .eq('user_id', user!.id)
-        .gte('started_at', weekAgo);
+      const { data } = await supabase.from('study_sessions').select('duration_minutes, started_at').eq('user_id', user!.id).gte('started_at', weekAgo);
       return data || [];
     },
     enabled: !!user,
@@ -75,25 +58,13 @@ const Dashboard = () => {
   const { data: mistakeData } = useQuery({
     queryKey: ['weakness-insight', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('mistakes')
-        .select('topic, subject, mistake_type')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const { data } = await supabase.from('mistakes').select('topic, subject, mistake_type').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(50);
       return data || [];
     },
     enabled: !!user,
   });
 
-  // Streak calculation from profile
   const streakDays = profile?.streak_days || 0;
-
-  // Memoized computations (must be before early return)
-  const userPrefsData = useMemo(() => {
-    if (!profile?.extra_preferences) return null;
-    try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
-  }, [profile?.extra_preferences]);
 
   const subjectScoresData = useMemo(() => {
     if (!recentTests?.length) return {};
@@ -137,7 +108,6 @@ const Dashboard = () => {
     ? Math.round(recentTests.reduce((s, t) => s + (t.score || 0), 0) / recentTests.length)
     : null;
 
-  // Score trend
   const scoreTrend = (() => {
     if (!recentTests || recentTests.length < 4) return null;
     const recent3 = recentTests.slice(0, 3).reduce((s, t) => s + (t.score || 0), 0) / 3;
@@ -147,245 +117,275 @@ const Dashboard = () => {
 
   const subjectScores = subjectScoresData;
   const weakSubjects = weakSubjectsData;
-
   const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
   const consistency = Math.round((daysStudied / 7) * 100);
+  const readinessScore = avgScore ?? 0;
 
-  // Personalized insight message
-  const insightMessage = (() => {
-    const parts: string[] = [];
-
+  // AI Insight
+  const insightObservation = (() => {
     if (avgScore !== null && recentTests && recentTests.length > 0) {
-      const lastTest = recentTests[0];
-      const trendText = scoreTrend !== null
-        ? (scoreTrend >= 0 ? ` — trending up ${scoreTrend}%` : ` — dropped ${Math.abs(scoreTrend)}%`)
-        : '';
-      parts.push(`Average score: ${avgScore}%${trendText}. Last test: ${lastTest.subject || 'General'} (${lastTest.score}%).`);
+      const trendText = scoreTrend !== null ? (scoreTrend >= 0 ? `, trending up ${scoreTrend}%` : `, dropped ${Math.abs(scoreTrend)}%`) : '';
+      return `Your average score is ${avgScore}%${trendText} across ${recentTests.length} tests.`;
     }
+    return `You've studied ${totalToday > 0 ? `${hrs}h ${mins}m today` : 'haven\'t started today yet'}.`;
+  })();
 
+  const insightInterpretation = (() => {
     if (weakSubjects.length > 0) {
-      const weakest = weakSubjects[0];
-      parts.push(`${weakest.subject} needs attention — ${weakest.count} mistakes, mostly ${weakest.topMistakeType}.`);
+      return `${weakSubjects[0].subject} is your weakest area with ${weakSubjects[0].count} mistakes — mostly ${weakSubjects[0].topMistakeType} errors. This pattern suggests gaps in foundational understanding.`;
     }
-
-    if (streakDays >= 3) {
-      parts.push(`${streakDays}-day streak! Keep the momentum going.`);
-    } else if (streakDays === 0 && totalToday === 0) {
-      parts.push(`Start studying today to build your streak.`);
-    }
-
-    if (consistency > 0 && consistency < 100) {
-      parts.push(`${consistency}% consistency this week (${daysStudied}/7 days).`);
-    }
-
-    if (parts.length === 0) {
-      return `Hey ${userName}! ${userGoal === 'exams' ? 'Ready to prep for exams?' : 'Ready to learn something new?'} Start a study session or take a test to get personalized insights.`;
-    }
-
-    return parts.join(' ');
+    if (avgScore !== null && avgScore < 70) return 'Your scores suggest conceptual gaps that need targeted attention before they compound.';
+    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency. Consistency compounds — each day builds neural pathways.`;
+    return 'Building a study habit is the most important first step. Even 15 minutes of focused practice creates momentum.';
   })();
 
   const insightAction = weakSubjects.length > 0
-    ? { label: `Practice ${weakSubjects[0].subject}`, url: '/tests' }
+    ? { text: `Focus on ${weakSubjects[0].subject} — do 20 mins of targeted practice to close the gap.`, label: `Practice ${weakSubjects[0].subject}`, url: '/tests' }
     : avgScore !== null && avgScore < 70
-    ? { label: 'Improve Your Score', url: '/tests' }
-    : { label: 'Start Studying', url: '/study-session' };
-
-  const readinessScore = avgScore ?? 0;
+    ? { text: 'Take a diagnostic test to pinpoint exactly where your understanding breaks down.', label: 'Take Diagnostic', url: '/tests' }
+    : { text: 'Start a focused study session to build momentum and earn XP.', label: 'Start Session', url: '/study-session' };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* AI Insight Panel */}
+      {/* ═══ HERO: AI Neural Insight Panel ═══ */}
       <motion.div
-        initial={{ opacity: 0, y: -12 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease }}
-        className="relative rounded-[2rem] liquid-glass-elevated noise-overlay p-8 overflow-hidden"
+        transition={{ duration: 0.7, ease }}
+        className="relative rounded-[2rem] overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, hsl(230 20% 10% / 0.6) 0%, hsl(230 20% 12% / 0.5) 100%)',
+          backdropFilter: 'blur(60px) saturate(2)',
+          border: '1px solid hsl(0 0% 100% / 0.06)',
+          boxShadow: '0 24px 80px -12px hsl(0 0% 0% / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.08)',
+        }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/6 via-transparent to-secondary/4 z-[1]" />
-        <div className="ambient-orb w-[400px] h-[400px] bg-primary/5 -top-20 -right-20" />
-        <div className="ambient-orb w-[300px] h-[300px] bg-secondary/4 -bottom-20 -left-20" />
+        {/* Ambient orbs */}
+        <div className="absolute w-[500px] h-[500px] rounded-full bg-primary/[0.06] blur-[100px] -top-32 -right-32" />
+        <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/[0.04] blur-[80px] -bottom-24 -left-24" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-secondary/[0.02]" />
 
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-          <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/15 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[11px] font-semibold text-primary uppercase tracking-wide">AI Insight</span>
-            </div>
-            <h2 className="text-xl md:text-2xl font-display font-bold text-foreground leading-snug mb-2">
-              {avgScore !== null
-                ? (
-                  <span className="flex items-center gap-2">
-                    {avgScore >= 70 ? `Strong performance, ${userName}` : `Room to grow, ${userName}`}
+        <div className="relative z-10 p-8 md:p-10">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
+            {/* Left: AI Insight Content */}
+            <div className="flex-1 min-w-0 space-y-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/15"
+                style={{ background: 'hsl(174 72% 56% / 0.08)' }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <Brain className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[11px] font-semibold text-primary uppercase tracking-widest">Neural Insight</span>
+              </div>
+
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight">
+                {avgScore !== null ? (
+                  <span className="flex items-center gap-3">
+                    {avgScore >= 70 ? `Strong progress, ${userName}` : `Building momentum, ${userName}`}
                     {scoreTrend !== null && (
-                      scoreTrend >= 0
-                        ? <TrendingUp className="w-5 h-5 text-success inline" />
-                        : <TrendingDown className="w-5 h-5 text-destructive inline" />
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${
+                        scoreTrend >= 0 ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
+                      }`}>
+                        {scoreTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {scoreTrend >= 0 ? '+' : ''}{scoreTrend}%
+                      </span>
                     )}
                   </span>
-                )
-                : `Welcome back, ${userName}!`}
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
-              {insightMessage}
-            </p>
+                ) : (
+                  `Welcome back, ${userName}`
+                )}
+              </h1>
 
-            {/* Subject performance chips */}
-            {Object.keys(subjectScores).length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {Object.entries(subjectScores).map(([sub, score]) => (
-                  <motion.div
-                    key={sub}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border ${
-                      score >= 70
-                        ? 'bg-success/10 text-success border-success/20'
-                        : score >= 50
-                        ? 'bg-warning/10 text-warning border-warning/20'
-                        : 'bg-destructive/10 text-destructive border-destructive/20'
-                    }`}
-                  >
-                    <span className="capitalize">{sub}</span>
-                    <span className="font-bold tabular-nums">{score}%</span>
-                  </motion.div>
-                ))}
+              {/* Observation → Interpretation → Action */}
+              <div className="space-y-3 max-w-xl">
+                <p className="text-sm text-foreground/80 leading-relaxed">
+                  <span className="text-muted-foreground font-medium">Observation: </span>
+                  {insightObservation}
+                </p>
+                <p className="text-sm text-foreground/70 leading-relaxed">
+                  <span className="text-muted-foreground font-medium">Interpretation: </span>
+                  {insightInterpretation}
+                </p>
+                <p className="text-sm text-primary/90 leading-relaxed font-medium">
+                  <span className="text-muted-foreground font-medium">Action: </span>
+                  {insightAction.text}
+                </p>
               </div>
-            )}
 
-            <Button
-              onClick={() => navigate(insightAction.url)}
-              size="sm"
-              className="mt-4 gradient-primary text-primary-foreground px-6 rounded-xl shadow-lg shadow-primary/15 hover:shadow-xl hover:shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </Button>
-          </div>
+              {/* Subject Score Chips */}
+              {Object.keys(subjectScores).length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(subjectScores).map(([sub, score]) => (
+                    <motion.div
+                      key={sub}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border backdrop-blur-sm ${
+                        score >= 70 ? 'bg-success/8 text-success border-success/15' :
+                        score >= 50 ? 'bg-warning/8 text-warning border-warning/15' :
+                        'bg-destructive/8 text-destructive border-destructive/15'
+                      }`}
+                    >
+                      <span className="capitalize">{sub}</span>
+                      <span className="font-bold tabular-nums">{score}%</span>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
 
-          <div className="flex-shrink-0">
-            <div className="relative w-28 h-28">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted) / 0.3)" strokeWidth="6" />
-                <motion.circle
-                  cx="50" cy="50" r="42" fill="none"
-                  stroke="url(#readiness-grad)" strokeWidth="6" strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 42}`}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
-                  transition={{ duration: 1.2, delay: 0.3, ease }}
-                />
-                <defs>
-                  <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" />
-                    <stop offset="100%" stopColor="hsl(var(--secondary))" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-display font-bold text-foreground tabular-nums">{avgScore ?? '—'}%</span>
-                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Ready</span>
+              <Button
+                onClick={() => navigate(insightAction.url)}
+                size="sm"
+                className="gradient-primary text-primary-foreground px-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </div>
+
+            {/* Right: Readiness Ring */}
+            <div className="flex-shrink-0 flex flex-col items-center gap-3">
+              <div className="relative w-32 h-32">
+                {/* Outer glow */}
+                <div className="absolute inset-0 rounded-full opacity-20 blur-xl gradient-primary" />
+                <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(230 15% 16% / 0.5)" strokeWidth="5" />
+                  <motion.circle
+                    cx="50" cy="50" r="42" fill="none"
+                    stroke="url(#readiness-grad)" strokeWidth="5" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 42}`}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
+                    transition={{ duration: 1.5, delay: 0.3, ease }}
+                  />
+                  <defs>
+                    <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="hsl(174 72% 56%)" />
+                      <stop offset="50%" stopColor="hsl(200 80% 50%)" />
+                      <stop offset="100%" stopColor="hsl(264 67% 60%)" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                  <span className="text-3xl font-display font-bold text-foreground tabular-nums">{avgScore ?? '—'}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Readiness</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
+      {/* ═══ STATS: Neural Metrics Grid ═══ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/${100} XP`, color: 'text-xp', bg: 'bg-xp/8' },
-          { icon: Flame, label: 'Streak', value: `${streakDays}d`, sub: streakDays >= 3 ? '🔥 On fire!' : 'Keep going', color: 'text-warning', bg: 'bg-warning/8' },
-          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, sub: totalToday > 30 ? 'Great progress' : 'Just started', color: 'text-primary', bg: 'bg-primary/8' },
-          { icon: Target, label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', sub: `${recentTests?.length || 0} tests taken`, color: 'text-secondary', bg: 'bg-secondary/8' },
+          { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/100 XP`, color: 'text-xp', bg: 'from-xp/10 to-xp/5', glow: 'shadow-xp/10' },
+          { icon: Flame, label: 'Streak', value: `${streakDays}d`, sub: streakDays >= 7 ? '🔥 Unstoppable' : streakDays >= 3 ? '🔥 On fire' : 'Build it up', color: 'text-warning', bg: 'from-warning/10 to-warning/5', glow: 'shadow-warning/10' },
+          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, sub: totalToday >= 60 ? 'Deep work' : totalToday > 0 ? 'Getting started' : 'Not yet', color: 'text-primary', bg: 'from-primary/10 to-primary/5', glow: 'shadow-primary/10' },
+          { icon: Target, label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', sub: `${recentTests?.length || 0} tests`, color: 'text-secondary', bg: 'from-secondary/10 to-secondary/5', glow: 'shadow-secondary/10' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.05, ease }}
-            className="rounded-2xl liquid-glass p-4 card-hover"
+            transition={{ delay: 0.15 + i * 0.06, ease }}
+            className={`relative rounded-2xl p-4 card-hover cursor-default overflow-hidden group`}
+            style={{
+              background: 'hsl(230 20% 11% / 0.5)',
+              backdropFilter: 'blur(24px)',
+              border: '1px solid hsl(0 0% 100% / 0.05)',
+              boxShadow: '0 4px 16px hsl(0 0% 0% / 0.2)',
+            }}
           >
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
             <div className="relative z-10 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.bg} flex items-center justify-center shadow-lg ${stat.glow}`}>
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground">{stat.label}</p>
-                <p className="text-lg font-display font-bold text-foreground tabular-nums">{stat.value}</p>
-                <p className="text-[10px] text-muted-foreground/70">{stat.sub}</p>
+                <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-xl font-display font-bold text-foreground tabular-nums leading-tight">{stat.value}</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-0.5">{stat.sub}</p>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Weak Areas — By SUBJECT */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
-            <Brain className="w-4 h-4 text-primary" /> Areas to Improve
+      {/* ═══ WEAKNESS RADAR: The Truth Engine ═══ */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-destructive" />
+            </div>
+            Weakness Radar
           </h2>
           <Button variant="ghost" size="sm" onClick={() => navigate('/weakness-radar')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
-            Details <ArrowRight className="w-3 h-3 ml-1" />
+            Full Analysis <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
         {weakSubjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {(() => {
+            {weakSubjects.map((w, i) => {
+              const severity = w.count >= 10 ? 'Critical' : w.count >= 5 ? 'Needs Work' : 'Watch';
               const colors = [
-                { border: 'border-l-rose-500/40', bg: 'from-rose-500/8 to-transparent', badge: 'bg-rose-500/15 text-rose-400' },
-                { border: 'border-l-amber-500/40', bg: 'from-amber-500/8 to-transparent', badge: 'bg-amber-500/15 text-amber-400' },
-                { border: 'border-l-orange-500/40', bg: 'from-orange-500/8 to-transparent', badge: 'bg-orange-500/15 text-orange-400' },
+                { border: 'border-l-rose-500/50', icon: 'text-rose-400', badge: 'bg-rose-500/15 text-rose-400', glow: 'from-rose-500/5' },
+                { border: 'border-l-amber-500/50', icon: 'text-amber-400', badge: 'bg-amber-500/15 text-amber-400', glow: 'from-amber-500/5' },
+                { border: 'border-l-orange-500/50', icon: 'text-orange-400', badge: 'bg-orange-500/15 text-orange-400', glow: 'from-orange-500/5' },
               ];
-              return weakSubjects.map((w, i) => {
-                const c = colors[i] || colors[2];
-                const severity = w.count >= 10 ? 'Critical' : w.count >= 5 ? 'Needs Work' : 'Watch';
-                const subjectScore = subjectScores[w.subject];
-                return (
-                  <motion.button
-                    key={w.subject}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.1, ease }}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/tests')}
-                    className={`rounded-2xl liquid-glass p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${c.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.badge}`}>
-                          <AlertTriangle className="w-3 h-3" />
-                          {severity}
-                        </div>
-                        {subjectScore !== undefined && (
-                          <span className="text-xs text-muted-foreground tabular-nums">{subjectScore}% avg</span>
-                        )}
+              const c = colors[i] || colors[2];
+              const subjectScore = subjectScores[w.subject];
+
+              return (
+                <motion.button
+                  key={w.subject}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 + i * 0.1, ease }}
+                  whileHover={{ y: -3, scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate('/tests')}
+                  className={`rounded-2xl p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
+                  style={{
+                    background: 'hsl(230 20% 11% / 0.45)',
+                    backdropFilter: 'blur(24px)',
+                    border: '1px solid hsl(0 0% 100% / 0.05)',
+                  }}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${c.glow} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.badge}`}>
+                        <AlertTriangle className="w-3 h-3" />
+                        {severity}
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors capitalize">{w.subject}</h3>
-                      <p className="text-[11px] text-muted-foreground">{w.count} mistakes · mostly {w.topMistakeType}</p>
-                      <div className="mt-3 h-1 rounded-full bg-muted/20 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-destructive/40 transition-[width] duration-700 ease-out"
-                          style={{ width: `${Math.min(w.count * 5, 100)}%` }}
-                        />
-                      </div>
+                      {subjectScore !== undefined && (
+                        <span className="text-xs text-muted-foreground tabular-nums">{subjectScore}%</span>
+                      )}
                     </div>
-                  </motion.button>
-                );
-              });
-            })()}
+                    <h3 className="text-sm font-semibold text-foreground mb-1 group-hover:text-primary transition-colors capitalize">{w.subject}</h3>
+                    <p className="text-[11px] text-muted-foreground">{w.count} mistakes · {w.topMistakeType}</p>
+                    <div className="mt-3 h-1 rounded-full bg-muted/15 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(w.count * 5, 100)}%` }}
+                        transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease }}
+                        className="h-full rounded-full bg-gradient-to-r from-destructive/60 to-destructive/30"
+                      />
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
           </div>
         ) : (
-          <div className="rounded-2xl liquid-glass p-8 text-center">
+          <div className="rounded-2xl p-8 text-center" style={{ background: 'hsl(230 20% 11% / 0.4)', border: '1px solid hsl(0 0% 100% / 0.05)' }}>
             <div className="relative z-10">
               <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-7 h-7 text-success" />
               </div>
               <p className="text-sm font-medium text-foreground mb-1">Looking good!</p>
-              <p className="text-xs text-muted-foreground">Take some tests to discover areas for improvement</p>
-              <Button variant="outline" size="sm" onClick={() => navigate('/tests')} className="mt-4 rounded-xl text-xs">
+              <p className="text-xs text-muted-foreground">Take tests to discover areas for improvement</p>
+              <Button variant="outline" size="sm" onClick={() => navigate('/tests')} className="mt-4 rounded-xl text-xs border-border/20">
                 Take a Test <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
@@ -393,57 +393,78 @@ const Dashboard = () => {
         )}
       </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, ease }}>
-        <h2 className="text-[15px] font-display font-semibold text-foreground mb-3">Quick Actions</h2>
+      {/* ═══ INTELLIGENCE GRID: Quick Actions ═══ */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, ease }}>
+        <h2 className="text-base font-display font-semibold text-foreground mb-4 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-primary" />
+          </div>
+          Intelligence Hub
+        </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', color: 'text-primary', bg: 'bg-primary/8' },
-            { name: 'Generate Test', desc: userSubjects[0] ? `Try ${userSubjects[0]}` : 'Any topic', icon: Target, url: '/tests', color: 'text-secondary', bg: 'bg-secondary/8' },
-            { name: 'Brain Hub', desc: 'Active recall', icon: Brain, url: '/hub', color: 'text-xp', bg: 'bg-xp/8' },
-            { name: 'AI Tools', desc: 'All tools', icon: Sparkles, url: '/ai-tools', color: 'text-primary', bg: 'bg-primary/8' },
+            { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', gradient: 'from-primary/12 to-primary/4', iconColor: 'text-primary' },
+            { name: 'Generate Test', desc: userSubjects[0] ? `Try ${userSubjects[0]}` : 'Any topic', icon: Target, url: '/tests', gradient: 'from-secondary/12 to-secondary/4', iconColor: 'text-secondary' },
+            { name: 'Brain Hub', desc: 'Active recall', icon: Brain, url: '/hub', gradient: 'from-xp/12 to-xp/4', iconColor: 'text-xp' },
+            { name: 'All Tools', desc: '9 AI tools', icon: Sparkles, url: '/ai-tools', gradient: 'from-primary/8 to-secondary/8', iconColor: 'text-primary' },
           ].map((action, i) => (
             <motion.button
               key={action.name}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + i * 0.05, ease }}
+              transition={{ delay: 0.45 + i * 0.06, ease }}
+              whileHover={{ y: -3, scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => navigate(action.url)}
-              className="rounded-2xl liquid-glass p-4 text-left transition-all duration-300 group card-hover"
+              className="rounded-2xl p-5 text-left transition-all duration-300 group overflow-hidden relative"
+              style={{
+                background: 'hsl(230 20% 11% / 0.45)',
+                backdropFilter: 'blur(24px)',
+                border: '1px solid hsl(0 0% 100% / 0.05)',
+              }}
             >
+              <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
               <div className="relative z-10">
-                <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
-                  <action.icon className={`w-5 h-5 ${action.color}`} />
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110`}>
+                  <action.icon className={`w-5 h-5 ${action.iconColor}`} />
                 </div>
-                <h3 className="font-semibold text-foreground text-sm mb-0.5">{action.name}</h3>
-                <p className="text-[11px] text-muted-foreground">{action.desc}</p>
+                <h3 className="font-semibold text-foreground text-sm mb-0.5 group-hover:text-primary transition-colors">{action.name}</h3>
+                <p className="text-[11px] text-muted-foreground/70">{action.desc}</p>
               </div>
             </motion.button>
           ))}
         </div>
       </motion.div>
 
-      {/* Weekly Activity */}
+      {/* ═══ WEEKLY EVOLUTION TRACKER ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45, ease }}
-        className="rounded-[1.75rem] liquid-glass p-6"
+        transition={{ delay: 0.5, ease }}
+        className="rounded-[1.75rem] p-6 relative overflow-hidden"
+        style={{
+          background: 'hsl(230 20% 11% / 0.45)',
+          backdropFilter: 'blur(24px)',
+          border: '1px solid hsl(0 0% 100% / 0.05)',
+        }}
       >
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-[15px] font-display font-semibold text-foreground flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" /> This Week
+              <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                </div>
+                Weekly Evolution
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{daysStudied}/7 days · {consistency}% consistency</p>
+              <p className="text-xs text-muted-foreground mt-1 ml-10">{daysStudied}/7 days · {consistency}% consistency</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate('/pulse')} className="text-primary text-xs rounded-xl hover:bg-primary/8">
               Analytics <ArrowRight className="w-3 h-3 ml-1" />
             </Button>
           </div>
 
-          <div className="flex items-end justify-between gap-2 h-24">
+          <div className="flex items-end justify-between gap-2 h-28">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
               const dayMins = weeklyMinutes?.filter(s => {
                 const d = new Date(s.started_at);
@@ -458,16 +479,16 @@ const Dashboard = () => {
               const today = new Date().getDay() === (i + 1) % 7;
 
               return (
-                <div key={day} className="flex flex-col items-center gap-1.5 flex-1">
+                <div key={day} className="flex flex-col items-center gap-2 flex-1">
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${height}%` }}
-                    transition={{ duration: 0.6, delay: 0.1 * i, ease }}
-                    className={`w-full max-w-[32px] rounded-lg ${
-                      dayMins > 0 ? 'gradient-primary' : 'bg-muted/20'
-                    } ${today ? 'ring-2 ring-primary/30' : ''}`}
+                    transition={{ duration: 0.8, delay: 0.15 * i, ease }}
+                    className={`w-full max-w-[36px] rounded-lg ${
+                      dayMins > 0 ? 'gradient-primary shadow-lg shadow-primary/10' : 'bg-muted/15'
+                    } ${today ? 'ring-2 ring-primary/25 ring-offset-2 ring-offset-background' : ''}`}
                   />
-                  <span className={`text-[9px] font-medium ${today ? 'text-primary' : 'text-muted-foreground/50'}`}>{day}</span>
+                  <span className={`text-[10px] font-medium ${today ? 'text-primary font-semibold' : 'text-muted-foreground/50'}`}>{day}</span>
                 </div>
               );
             })}
