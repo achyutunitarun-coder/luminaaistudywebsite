@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { OPENROUTER_URL, MODELS_VISION, getApiKey, fetchWithTimeout } from "../_shared/models.ts";
+import { callWithFallback, MODELS_VISION } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +22,6 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = getApiKey();
     const pageStart = pageOffset + 1;
     const pageEnd = pageOffset + images.length;
 
@@ -39,73 +38,22 @@ serve(async (req) => {
     let extracted = "";
     let lastError = "";
 
-    // Try all vision models with fallback
-    for (const model of MODELS_VISION) {
-      try {
-        const res = await fetchWithTimeout(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
-            "X-Title": "Lumina AI Study",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: "user", content }],
-            max_tokens: 8000,
-            temperature: 0.1,
-          }),
-        }, 55000); // 55s timeout for OCR
-
-        if (!res.ok) {
-          const e = await res.text();
-          lastError = `${model} ${res.status}`;
-          console.error(`[ocr-pdf] ${lastError}: ${e.slice(0, 200)}`);
-          continue;
-        }
-        const data = await res.json();
-        extracted = typeof data.choices?.[0]?.message?.content === "string"
-          ? data.choices[0].message.content : "";
-        if (extracted.trim()) {
-          console.log(`[ocr-pdf] ✓ ${model} pages ${pageStart}-${pageEnd}`);
-          break;
-        }
-      } catch (e) {
-        const isTimeout = e instanceof DOMException && e.name === "AbortError";
-        lastError = `${model} ${isTimeout ? "TIMEOUT" : "err"}`;
-        console.error(`[ocr-pdf] ${lastError}`);
-      }
-    }
-
-    // Final fallback: openrouter/free
-    if (!extracted.trim()) {
-      try {
-        console.log(`[ocr-pdf] → free router fallback`);
-        const res = await fetchWithTimeout(OPENROUTER_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
-            "X-Title": "Lumina AI Study",
-          },
-          body: JSON.stringify({
-            model: "openrouter/free",
-            messages: [{ role: "user", content }],
-            max_tokens: 8000,
-            temperature: 0.1,
-          }),
-        }, 55000);
-        if (res.ok) {
-          const data = await res.json();
-          extracted = typeof data.choices?.[0]?.message?.content === "string"
-            ? data.choices[0].message.content : "";
-          if (extracted.trim()) console.log(`[ocr-pdf] ✓ free-router pages ${pageStart}-${pageEnd}`);
-        }
-      } catch (e) {
-        console.error(`[ocr-pdf] free-router failed:`, e);
-      }
+    try {
+      const res = await callWithFallback(
+        [{ role: "user", content }],
+        MODELS_VISION,
+        6000,
+        0.1,
+        28_000,
+        "ocr-pdf",
+      );
+      const data = await res.json();
+      extracted = typeof data?.choices?.[0]?.message?.content === "string"
+        ? data.choices[0].message.content
+        : "";
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "unavailable";
+      console.error("[ocr-pdf] routing error:", e);
     }
 
     if (!extracted.trim()) extracted = `[Pages ${pageStart}-${pageEnd}: OCR failed - ${lastError || "unavailable"}]`;

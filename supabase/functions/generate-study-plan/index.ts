@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAIText, MODELS_QUALITY } from "../_shared/models.ts";
+import { callAIText, MODELS_BALANCED, MODELS_LONG_CTX } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,22 +20,25 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isExamMode) {
-      systemPrompt = `You are an expert exam preparation strategist. Create a DETAILED day-by-day study timetable in MARKDOWN format with tables.\nRULES:\n- Create a table for EACH day from today (${today}) to exam date\n- Include specific TIME SLOTS\n- Use spaced repetition\n- Last 2-3 days = pure revision and mock tests\n- Use markdown tables: Time | Topic | Activity | Duration\n- Return ONLY markdown.`;
+      systemPrompt = `You are an expert exam preparation strategist. Create a DETAILED but concise day-by-day study timetable in MARKDOWN format with tables.\nRULES:\n- Create a table for EACH day from today (${today}) to exam date\n- Include specific TIME SLOTS\n- Use spaced repetition\n- Keep each day to 3-5 focused study blocks\n- Last 2-3 days = pure revision and mock tests\n- Use markdown tables: Time | Topic | Activity | Duration\n- Return ONLY markdown.`;
       userPrompt = `Subject: ${subjects[0] || 'General'}\nExam Date: ${examDate}\nDaily Hours: ${dailyHours}h\nWake Up: ${wakeUpTime || '7:00 AM'}\nSleep: ${sleepTime || '10:00 PM'}\n\nSYLLABUS:\n${syllabus}`;
     } else {
-      systemPrompt = `Create a study plan. Return ONLY valid JSON: {"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}. Include spaced repetition. Make topics SPECIFIC.`;
+      systemPrompt = `Create a fast, high-quality study plan. Return ONLY valid JSON: {"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}. Include spaced repetition. Make topics SPECIFIC and concise.`;
       userPrompt = `Subjects: ${JSON.stringify(subjects)}\nTarget date: ${examDate}\nDaily hours: ${dailyHours}\nToday: ${today}`;
     }
 
+    const models = isExamMode ? MODELS_LONG_CTX : MODELS_BALANCED;
+
     const content = await callAIText(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      MODELS_QUALITY, isExamMode ? 8000 : 4000, 0.4, 45000, "plan"
+      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 18_000 : 12_000, "plan"
     );
 
     if (isExamMode) {
       return new Response(JSON.stringify({ markdown: content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
-      const match = content.match(/\{[\s\S]*\}/);
+      const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+      const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) return new Response(match[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ error: "Failed to parse plan" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
