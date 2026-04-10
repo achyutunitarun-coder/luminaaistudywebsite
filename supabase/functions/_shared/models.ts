@@ -283,8 +283,9 @@ export async function callWithFallback(
   throw new Error(sawRateLimit
     ? "Lumina is experiencing high demand right now. Please try again in a few minutes."
     : "AI is temporarily busy — please try again in a moment");
+}
 
-// ═══════════════════════════════════════════════════════════════════
+
 // HIGH-LEVEL HELPERS
 // ═══════════════════════════════════════════════════════════════════
 
