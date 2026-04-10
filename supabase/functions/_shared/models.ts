@@ -129,6 +129,41 @@ export async function fetchWithTimeout(
 // PARALLEL RACE — Send to N models, return FIRST valid response
 // ═══════════════════════════════════════════════════════════════════
 
+/** Try a single model+key combo, rotating key on 429 */
+async function tryCall(
+  model: string, body: Record<string, unknown>, timeoutMs: number, tag: string,
+): Promise<Response | null> {
+  // Try each key for this model
+  for (let k = 0; k < ALL_KEYS.length; k++) {
+    const key = getApiKey();
+    const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
+    try {
+      const res = await fetchWithTimeout(OPENROUTER_URL, {
+        method: "POST", headers,
+        body: JSON.stringify({ ...body, model }),
+      }, timeoutMs);
+      if (res.status === 429) {
+        console.warn(`[${tag}] 429 on key#${_keyIndex} ${model}, rotating key`);
+        rotateKey();
+        continue;
+      }
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
+        return null;
+      }
+      console.log(`[${tag}] ✓ ${model} key#${_keyIndex}`);
+      rotateKeyOnSuccess();
+      return res;
+    } catch (e) {
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      console.error(`[${tag}] ${model} key#${_keyIndex} ${isTimeout ? "TIMEOUT" : "err"}`);
+      rotateKey();
+    }
+  }
+  return null;
+}
+
 async function raceModels(
   models: string[],
   body: Record<string, unknown>,
@@ -136,22 +171,23 @@ async function raceModels(
   tag: string,
   onRateLimit?: () => void,
 ): Promise<Response> {
-  const apiKey = getApiKey();
-  const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
-
+  // Each racer tries all keys internally
   const racers = models.slice(0, PARALLEL_RACE_COUNT).map(async (model) => {
+    const key = getApiKey();
+    const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
     const res = await fetchWithTimeout(OPENROUTER_URL, {
-      method: "POST",
-      headers,
+      method: "POST", headers,
       body: JSON.stringify({ ...body, model }),
     }, timeoutMs);
     if (!res.ok) {
-      if (res.status === 429) onRateLimit?.();
-      const errText = await res.text();
-      console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
+      if (res.status === 429) {
+        onRateLimit?.();
+        rotateKey();
+      }
       throw new Error(`${model} failed: ${res.status}`);
     }
-    console.log(`[${tag}] ✓ ${model} (race winner)`);
+    console.log(`[${tag}] ✓ ${model} (race winner) key#${_keyIndex}`);
+    rotateKeyOnSuccess();
     return res;
   });
 
@@ -164,7 +200,7 @@ async function raceModels(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN DISPATCHER — Race → Sequential → Extra → Free router
+// MAIN DISPATCHER — Race → Sequential (with key rotation) → Extra → Free router
 // ═══════════════════════════════════════════════════════════════════
 
 export async function callWithFallback(
@@ -176,8 +212,6 @@ export async function callWithFallback(
   tag: string,
   extraOpts: Record<string, any> = {},
 ): Promise<Response> {
-  const apiKey = getApiKey();
-  const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
   const baseBody = { messages, max_tokens: maxTokens, temperature, ...extraOpts };
   const isStreaming = extraOpts.stream === true;
   const totalBudget = Math.min(
@@ -203,71 +237,52 @@ export async function callWithFallback(
     } catch { /* continue */ }
   }
 
-  // PHASE 2: Sequential fallback (remaining from primary tier)
+  // PHASE 2: Sequential fallback with key rotation per model
   const remaining = models.length >= PARALLEL_RACE_COUNT ? models.slice(PARALLEL_RACE_COUNT) : models;
   for (const model of remaining) {
     const phaseTimeout = sequentialTimeout();
     if (phaseTimeout <= 0) break;
-    try {
-      const res = await fetchWithTimeout(OPENROUTER_URL, {
-        method: "POST", headers,
-        body: JSON.stringify({ ...baseBody, model }),
-      }, phaseTimeout);
-      if (!res.ok) {
-        if (res.status === 429) sawRateLimit = true;
-        const e = await res.text();
-        console.error(`[${tag}] ${model} ${res.status}: ${e.slice(0, 120)}`);
-        continue;
-      }
-      console.log(`[${tag}] ✓ ${model}`);
-      return res;
-    } catch (e) {
-      const isTimeout = e instanceof DOMException && e.name === "AbortError";
-      console.error(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "err"}`);
-    }
+    const res = await tryCall(model, baseBody, phaseTimeout, tag);
+    if (res) return res;
   }
 
-  // PHASE 3: Extra fallback pool
+  // PHASE 3: Extra fallback pool with key rotation
   for (const model of MODELS_EXTRA) {
     const phaseTimeout = sequentialTimeout();
     if (phaseTimeout <= 0) break;
-    try {
-      const res = await fetchWithTimeout(OPENROUTER_URL, {
-        method: "POST", headers,
-        body: JSON.stringify({ ...baseBody, model }),
-      }, phaseTimeout);
-      if (!res.ok) {
-        if (res.status === 429) sawRateLimit = true;
-        continue;
-      }
+    const res = await tryCall(model, baseBody, phaseTimeout, tag);
+    if (res) {
       console.log(`[${tag}] ✓ ${model} (extra)`);
       return res;
-    } catch { /* continue */ }
+    }
   }
 
-  // PHASE 4: Free router as last resort
+  // PHASE 4: Free router as last resort — try each key
   const finalTimeout = fallbackTimeout;
-  try {
-    console.log(`[${tag}] → free router fallback`);
-    const res = await fetchWithTimeout(OPENROUTER_URL, {
-      method: "POST", headers,
-      body: JSON.stringify({ ...baseBody, model: MODEL_FREE_ROUTER }),
-    }, finalTimeout > 0 ? finalTimeout : 2_500);
-    if (res.ok) {
-      console.log(`[${tag}] ✓ free-router`);
-      return res;
+  console.log(`[${tag}] → free router fallback`);
+  for (let k = 0; k < ALL_KEYS.length; k++) {
+    const key = getApiKey();
+    try {
+      const res = await fetchWithTimeout(OPENROUTER_URL, {
+        method: "POST",
+        headers: { ...HEADERS_BASE, Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ ...baseBody, model: MODEL_FREE_ROUTER }),
+      }, finalTimeout > 0 ? finalTimeout : 2_500);
+      if (res.ok) {
+        console.log(`[${tag}] ✓ free-router key#${_keyIndex}`);
+        rotateKeyOnSuccess();
+        return res;
+      }
+      if (res.status === 429) { sawRateLimit = true; rotateKey(); continue; }
+      break;
+    } catch {
+      rotateKey();
     }
-    if (res.status === 429) sawRateLimit = true;
-    const errText = await res.text();
-    console.error(`[${tag}] free-router ${res.status}: ${errText.slice(0, 120)}`);
-  } catch (e) {
-    console.error(`[${tag}] free-router failed:`, e);
   }
 
   throw new Error(sawRateLimit
-    ? "Free AI models are busy right now — please retry in a few seconds"
+    ? "Lumina is experiencing high demand right now. Please try again in a few minutes."
     : "AI is temporarily busy — please try again in a moment");
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // HIGH-LEVEL HELPERS
