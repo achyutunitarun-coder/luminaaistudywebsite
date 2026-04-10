@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAIText, MODELS_BALANCED, MODELS_FAST } from "../_shared/models.ts";
+import { callAIText, MODELS_BALANCED, MODELS_FAST, MODELS_QUALITY } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +18,12 @@ function extractJson(raw: string): string | null {
   return arrMatch ? arrMatch[0] : null;
 }
 
+function safeJsonParse(raw: string, fallback: any = null): any {
+  const json = extractJson(raw);
+  if (!json) return fallback;
+  try { return JSON.parse(json); } catch { return fallback; }
+}
+
 const SYSTEM = `You are Lumina, a brilliant study tutor who explains like a smart older friend. You use analogies, bold **key terms**, and keep explanations digestible (150-250 words max per step). Never be condescending. Return ONLY valid JSON — no markdown fences, no thinking tags.`;
 
 serve(async (req) => {
@@ -28,7 +34,7 @@ serve(async (req) => {
     const params = JSON.parse(body);
     const mode = params.mode || "outline";
 
-    // ── OUTLINE ──
+    // ── OUTLINE — use FAST models, small token count for speed ──
     if (mode === "outline") {
       const { topic, difficulty } = params;
       if (!topic) return new Response(JSON.stringify({ error: "Topic required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -53,14 +59,14 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 900, 0.35, 12_000, "guided-outline"
+        MODELS_FAST, 700, 0.35, 30_000, "guided-outline"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ error: "Failed to generate outline" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text);
+      if (!parsed) return new Response(JSON.stringify({ error: "Failed to generate outline" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── STEP ──
+    // ── STEP — use BALANCED for quality teaching ──
     if (mode === "step") {
       const { topic, step, totalSteps, difficulty, stepTitle } = params;
       const prompt = `You are teaching "${topic}", Step ${step + 1} of ${totalSteps}. Step title: "${stepTitle || ""}".
@@ -96,14 +102,14 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 2200, 0.4, 14_000, `guided-step-${step}`
+        MODELS_BALANCED, 2000, 0.4, 30_000, `guided-step-${step}`
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ error: "Failed to generate step" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text);
+      if (!parsed) return new Response(JSON.stringify({ error: "Failed to generate step" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── SIMPLIFY ──
+    // ── SIMPLIFY — FAST, small response ──
     if (mode === "simplify") {
       const { topic, stepTitle, originalExplanation } = params;
       const prompt = `The student didn't understand this explanation about "${stepTitle}" (topic: ${topic}):
@@ -115,14 +121,13 @@ Return ONLY JSON: {"explanation": "your simpler explanation here"}`;
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_FAST, 600, 0.4, 8_000, "guided-simplify"
+        MODELS_FAST, 400, 0.4, 15_000, "guided-simplify"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ explanation: "Let me try a simpler way: " + (params.originalExplanation || "").substring(0, 200) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text, { explanation: "Let me try again in simpler terms..." });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── DEEPER ──
+    // ── DEEPER — BALANCED ──
     if (mode === "deeper") {
       const { topic, stepTitle, originalExplanation } = params;
       const prompt = `The student wants MORE DETAIL about "${stepTitle}" (topic: ${topic}). Original:
@@ -134,14 +139,13 @@ Return ONLY JSON: {"explanation": "your deeper explanation here"}`;
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 800, 0.4, 10_000, "guided-deeper"
+        MODELS_BALANCED, 600, 0.4, 20_000, "guided-deeper"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ explanation: "Here's more detail..." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text, { explanation: "Here's more detail on this topic..." });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── EXAMPLE ──
+    // ── EXAMPLE — FAST ──
     if (mode === "example") {
       const { topic, stepTitle } = params;
       const prompt = `Give a NEW, creative real-world example for "${stepTitle}" (topic: ${topic}). Make it relatable and concrete. 2-4 sentences.
@@ -150,14 +154,13 @@ Return ONLY JSON: {"example": "your example here"}`;
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_FAST, 400, 0.5, 6_000, "guided-example"
+        MODELS_FAST, 300, 0.5, 12_000, "guided-example"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ example: "Think of it like..." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text, { example: "Think of it like this..." });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── EVALUATE ──
+    // ── EVALUATE — FAST ──
     if (mode === "evaluate") {
       const { question, modelAnswer, studentAnswer } = params;
       const prompt = `A student answered this question:
@@ -165,25 +168,25 @@ Question: "${question}"
 Expected answer should cover: "${modelAnswer}"
 Student wrote: "${studentAnswer}"
 
-Evaluate: is it correct, partially correct, or wrong? Give specific feedback — what they got right, what they missed. Be encouraging, not condescending.
+Evaluate: is it correct, partially correct, or wrong? Give specific feedback. Be encouraging.
 
 Return ONLY JSON:
 {
-  "verdict": "correct" | "partial" | "wrong",
+  "verdict": "correct",
   "feedback": "Your specific feedback here",
-  "score": 0-100
-}`;
+  "score": 75
+}
+verdict must be one of: "correct", "partial", "wrong"`;
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_FAST, 500, 0.3, 8_000, "guided-evaluate"
+        MODELS_FAST, 400, 0.3, 15_000, "guided-evaluate"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ verdict: "partial", feedback: "Good attempt! Let me review...", score: 50 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text, { verdict: "partial", feedback: "Good attempt! Keep going.", score: 50 });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── FINAL QUIZ ──
+    // ── FINAL QUIZ — BALANCED ──
     if (mode === "final_quiz") {
       const { topic, steps, difficulty } = params;
       const stepsStr = (steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
@@ -212,16 +215,20 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 2000, 0.35, 14_000, "guided-final-quiz"
+        MODELS_BALANCED, 1800, 0.35, 30_000, "guided-final-quiz"
       );
-      const json = extractJson(text);
-      if (!json) return new Response(JSON.stringify({ error: "Failed to generate quiz" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const parsed = safeJsonParse(text);
+      if (!parsed) return new Response(JSON.stringify({ error: "Failed to generate quiz" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: `Unknown mode: ${mode}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("guided-lesson error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    const userMsg = msg.includes("high demand") || msg.includes("busy")
+      ? msg
+      : "Something went wrong — please try again.";
+    return new Response(JSON.stringify({ error: userMsg }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
