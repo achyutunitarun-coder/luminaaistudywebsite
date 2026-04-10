@@ -252,6 +252,51 @@ export type Database = {
         }
         Relationships: []
       }
+      guided_lessons: {
+        Row: {
+          completed_at: string | null
+          correct_answers: number | null
+          created_at: string | null
+          difficulty: string | null
+          id: string
+          lesson_data: Json | null
+          score: number | null
+          steps_completed: number | null
+          topic: string
+          total_questions: number | null
+          total_steps: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          correct_answers?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          lesson_data?: Json | null
+          score?: number | null
+          steps_completed?: number | null
+          topic: string
+          total_questions?: number | null
+          total_steps?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          correct_answers?: number | null
+          created_at?: string | null
+          difficulty?: string | null
+          id?: string
+          lesson_data?: Json | null
+          score?: number | null
+          steps_completed?: number | null
+          topic?: string
+          total_questions?: number | null
+          total_steps?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       leaderboard_entries: {
         Row: {
           avatar_url: string | null
