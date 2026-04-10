@@ -314,7 +314,7 @@ const GuidedLesson = () => {
     const correctA = scores.reduce((a, s) => a + s.correct, 0);
     const score = totalQ > 0 ? Math.round((correctA / totalQ) * 100) : 0;
     try {
-      await supabase.from('guided_lessons').insert({
+      await (supabase.from('guided_lessons' as any) as any).insert({
         user_id: user.id,
         topic: outline.title || topic,
         difficulty,
