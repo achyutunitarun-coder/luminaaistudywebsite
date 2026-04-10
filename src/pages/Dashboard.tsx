@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown, Zap, BookOpen, Layers, Activity } from 'lucide-react';
+import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown, Zap, BookOpen, Layers, Activity, Crown, Rocket, Timer, GitBranch, Calendar, Shuffle } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useMemo } from 'react';
 
 const ease = [0.25, 0.1, 0.25, 1] as const;
@@ -15,6 +16,7 @@ const Dashboard = () => {
   const { profile, xpForNextLevel } = useProfile();
   const { user } = useAuth();
   const { seconds: liveSeconds } = useStudyTimer();
+  const { isPro, isProPlus } = useSubscription();
   const navigate = useNavigate();
 
   const userPrefs = useMemo(() => {
@@ -24,7 +26,6 @@ const Dashboard = () => {
 
   const userName = profile?.display_name?.split(' ')[0] || 'there';
   const userSubjects = userPrefs?.subjects || [];
-  const userGoal = userPrefs?.goal || 'learning';
 
   const { data: todayMinutes } = useQuery({
     queryKey: ['today-study-minutes', user?.id],
@@ -121,7 +122,6 @@ const Dashboard = () => {
   const consistency = Math.round((daysStudied / 7) * 100);
   const readinessScore = avgScore ?? 0;
 
-  // AI Insight
   const insightObservation = (() => {
     if (avgScore !== null && recentTests && recentTests.length > 0) {
       const trendText = scoreTrend !== null ? (scoreTrend >= 0 ? `, trending up ${scoreTrend}%` : `, dropped ${Math.abs(scoreTrend)}%`) : '';
@@ -132,17 +132,17 @@ const Dashboard = () => {
 
   const insightInterpretation = (() => {
     if (weakSubjects.length > 0) {
-      return `${weakSubjects[0].subject} is your weakest area with ${weakSubjects[0].count} mistakes — mostly ${weakSubjects[0].topMistakeType} errors. This pattern suggests gaps in foundational understanding.`;
+      return `${weakSubjects[0].subject} is your weakest area with ${weakSubjects[0].count} mistakes — mostly ${weakSubjects[0].topMistakeType} errors.`;
     }
-    if (avgScore !== null && avgScore < 70) return 'Your scores suggest conceptual gaps that need targeted attention before they compound.';
-    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency. Consistency compounds — each day builds neural pathways.`;
-    return 'Building a study habit is the most important first step. Even 15 minutes of focused practice creates momentum.';
+    if (avgScore !== null && avgScore < 70) return 'Your scores suggest conceptual gaps that need targeted attention.';
+    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency. Each day builds neural pathways.`;
+    return 'Building a study habit is the most important first step. Even 15 minutes creates momentum.';
   })();
 
   const insightAction = weakSubjects.length > 0
-    ? { text: `Focus on ${weakSubjects[0].subject} — do 20 mins of targeted practice to close the gap.`, label: `Practice ${weakSubjects[0].subject}`, url: '/tests' }
+    ? { text: `Focus on ${weakSubjects[0].subject} — do 20 mins of targeted practice.`, label: `Practice ${weakSubjects[0].subject}`, url: '/tests' }
     : avgScore !== null && avgScore < 70
-    ? { text: 'Take a diagnostic test to pinpoint exactly where your understanding breaks down.', label: 'Take Diagnostic', url: '/tests' }
+    ? { text: 'Take a diagnostic test to pinpoint where your understanding breaks down.', label: 'Take Diagnostic', url: '/tests' }
     : { text: 'Start a focused study session to build momentum and earn XP.', label: 'Start Session', url: '/study-session' };
 
   return (
@@ -160,14 +160,12 @@ const Dashboard = () => {
           boxShadow: '0 24px 80px -12px hsl(0 0% 0% / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.08)',
         }}
       >
-        {/* Ambient orbs */}
         <div className="absolute w-[500px] h-[500px] rounded-full bg-primary/[0.06] blur-[100px] -top-32 -right-32" />
         <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/[0.04] blur-[80px] -bottom-24 -left-24" />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-secondary/[0.02]" />
 
         <div className="relative z-10 p-8 md:p-10">
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
-            {/* Left: AI Insight Content */}
             <div className="flex-1 min-w-0 space-y-5">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/15"
                 style={{ background: 'hsl(174 72% 56% / 0.08)' }}
@@ -195,7 +193,6 @@ const Dashboard = () => {
                 )}
               </h1>
 
-              {/* Observation → Interpretation → Action */}
               <div className="space-y-3 max-w-xl">
                 <p className="text-sm text-foreground/80 leading-relaxed">
                   <span className="text-muted-foreground font-medium">Observation: </span>
@@ -211,7 +208,6 @@ const Dashboard = () => {
                 </p>
               </div>
 
-              {/* Subject Score Chips */}
               {Object.keys(subjectScores).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(subjectScores).map(([sub, score]) => (
@@ -241,10 +237,9 @@ const Dashboard = () => {
               </Button>
             </div>
 
-            {/* Right: Readiness Ring */}
+            {/* Readiness Ring */}
             <div className="flex-shrink-0 flex flex-col items-center gap-3">
               <div className="relative w-32 h-32">
-                {/* Outer glow */}
                 <div className="absolute inset-0 rounded-full opacity-20 blur-xl gradient-primary" />
                 <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(230 15% 16% / 0.5)" strokeWidth="5" />
@@ -274,7 +269,7 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* ═══ STATS: Neural Metrics Grid ═══ */}
+      {/* ═══ STATS ═══ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/100 XP`, color: 'text-xp', bg: 'from-xp/10 to-xp/5', glow: 'shadow-xp/10' },
@@ -287,7 +282,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.06, ease }}
-            className={`relative rounded-2xl p-4 card-hover cursor-default overflow-hidden group`}
+            className="relative rounded-2xl p-4 card-hover cursor-default overflow-hidden group"
             style={{
               background: 'hsl(230 20% 11% / 0.5)',
               backdropFilter: 'blur(24px)',
@@ -310,7 +305,65 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ═══ WEAKNESS RADAR: The Truth Engine ═══ */}
+      {/* ═══ LUMINA HUB SHOWCASE (for free users) ═══ */}
+      {!isProPlus && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, ease }}
+          className="rounded-[2rem] relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, hsl(264 30% 12% / 0.6) 0%, hsl(264 20% 10% / 0.5) 100%)',
+            border: '1px solid hsl(264 67% 60% / 0.15)',
+            boxShadow: '0 12px 40px -8px hsl(264 67% 60% / 0.1)',
+          }}
+        >
+          <div className="absolute w-[400px] h-[400px] rounded-full bg-violet-500/[0.06] blur-[80px] -top-20 -right-20" />
+          <div className="p-6 md:p-8 relative z-10">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="w-5 h-5 text-violet-400" />
+                  <h2 className="text-lg font-display font-bold text-foreground">Lumina Hub — PRO+</h2>
+                </div>
+                <p className="text-sm text-muted-foreground">10 science-backed brain engines for ₹499/mo</p>
+              </div>
+              <Button
+                onClick={() => navigate('/upgrade')}
+                size="sm"
+                className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90 px-5"
+              >
+                <Rocket className="w-3.5 h-3.5 mr-1.5" /> Upgrade
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { icon: Brain, label: 'Active Recall', color: 'text-violet-400' },
+                { icon: Calendar, label: 'Spaced Rep', color: 'text-blue-400' },
+                { icon: Shuffle, label: 'Interleaving', color: 'text-emerald-400' },
+                { icon: Timer, label: 'Pomodoro', color: 'text-red-400' },
+                { icon: GitBranch, label: 'Mind Maps', color: 'text-teal-400' },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 + i * 0.06, ease }}
+                  onClick={() => navigate('/hub')}
+                  className="rounded-xl p-3 text-center cursor-pointer hover:bg-white/[0.03] transition-colors"
+                  style={{ border: '1px solid hsl(0 0% 100% / 0.05)' }}
+                >
+                  <item.icon className={`w-5 h-5 ${item.color} mx-auto mb-1.5`} />
+                  <p className="text-[10px] text-muted-foreground font-medium">{item.label}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ═══ WEAKNESS RADAR ═══ */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2.5">
@@ -379,21 +432,19 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="rounded-2xl p-8 text-center" style={{ background: 'hsl(230 20% 11% / 0.4)', border: '1px solid hsl(0 0% 100% / 0.05)' }}>
-            <div className="relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle2 className="w-7 h-7 text-success" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">Looking good!</p>
-              <p className="text-xs text-muted-foreground">Take tests to discover areas for improvement</p>
-              <Button variant="outline" size="sm" onClick={() => navigate('/tests')} className="mt-4 rounded-xl text-xs border-border/20">
-                Take a Test <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
+            <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-7 h-7 text-success" />
             </div>
+            <p className="text-sm font-medium text-foreground mb-1">Looking good!</p>
+            <p className="text-xs text-muted-foreground">Take tests to discover areas for improvement</p>
+            <Button variant="outline" size="sm" onClick={() => navigate('/tests')} className="mt-4 rounded-xl text-xs border-border/20">
+              Take a Test <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
           </div>
         )}
       </motion.div>
 
-      {/* ═══ INTELLIGENCE GRID: Quick Actions ═══ */}
+      {/* ═══ INTELLIGENCE GRID ═══ */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, ease }}>
         <h2 className="text-base font-display font-semibold text-foreground mb-4 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -405,7 +456,7 @@ const Dashboard = () => {
           {[
             { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', gradient: 'from-primary/12 to-primary/4', iconColor: 'text-primary' },
             { name: 'Generate Test', desc: userSubjects[0] ? `Try ${userSubjects[0]}` : 'Any topic', icon: Target, url: '/tests', gradient: 'from-secondary/12 to-secondary/4', iconColor: 'text-secondary' },
-            { name: 'Brain Hub', desc: 'Active recall', icon: Brain, url: '/hub', gradient: 'from-xp/12 to-xp/4', iconColor: 'text-xp' },
+            { name: 'Brain Hub', desc: '10 brain engines', icon: Brain, url: '/hub', gradient: 'from-xp/12 to-xp/4', iconColor: 'text-xp' },
             { name: 'All Tools', desc: '9 AI tools', icon: Sparkles, url: '/ai-tools', gradient: 'from-primary/8 to-secondary/8', iconColor: 'text-primary' },
           ].map((action, i) => (
             <motion.button
@@ -436,7 +487,7 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* ═══ WEEKLY EVOLUTION TRACKER ═══ */}
+      {/* ═══ WEEKLY EVOLUTION ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

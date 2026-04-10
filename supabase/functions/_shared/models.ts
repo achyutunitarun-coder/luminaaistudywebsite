@@ -1,53 +1,73 @@
 // ═══════════════════════════════════════════════════════════════════
 // Lumina AI — OpenRouter FREE Model Router
-// User-requested free model set · fast race routing · hard fallback
+// Full 24-model pool · parallel race · smart tier routing
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─── TIER 1: ULTRA-FAST TEXT ───
 export const MODELS_FAST = [
-  "google/gemma-3n-e2b-it:free",                  // Smallest / fastest
-  "google/gemma-3n-e4b-it:free",                  // Fast + stronger than 2B
-  "meta-llama/llama-3.2-3b-instruct:free",        // Reliable long-context fast text
+  "google/gemma-3n-e2b-it:free",
+  "google/gemma-3n-e4b-it:free",
+  "google/gemma-3-4b-it:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "liquid/lfm-2.5-1.2b-instruct:free",
 ];
 
 // ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
 export const MODELS_BALANCED = [
-  "google/gemma-3-4b-it:free",                    // Fast multimodal generalist
-  "meta-llama/llama-3.2-3b-instruct:free",        // Strong fallback
-  "google/gemma-3n-e4b-it:free",                  // Fast lower-cost backup
-  "google/gemma-3n-e2b-it:free",                  // Emergency ultra-fast backup
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-20b:free",
+  "z-ai/glm-4.5-air:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-4b-it:free",
 ];
 
 // ─── TIER 3: QUALITY / DEEP REASONING ───
 export const MODELS_QUALITY = [
-  "google/gemma-3-12b-it:free",                   // Highest quality in requested set
-  "google/gemma-3-4b-it:free",                    // Faster reasoning fallback
-  "meta-llama/llama-3.2-3b-instruct:free",        // Reliable backup
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-3-27b-it:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "google/gemma-3-12b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
 // ─── TIER 4: CODING ───
 export const MODELS_CODE = [
-  "google/gemma-3-12b-it:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-3-4b-it:free",
+  "qwen/qwen3-coder:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
 // ─── TIER 5: LONG CONTEXT (documents, notes, plans) ───
 export const MODELS_LONG_CTX = [
-  "meta-llama/llama-3.2-3b-instruct:free",        // 131K context
-  "google/gemma-3-12b-it:free",                   // Higher quality long responses
-  "google/gemma-3-4b-it:free",                    // Faster fallback
+  "minimax/minimax-m2.5:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 // ─── TIER 6: VISION / OCR ───
 export const MODELS_VISION = [
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-12b-it:free",
-  "google/gemma-3-4b-it:free",
 ];
 
-// ─── FREE ROUTER: OpenRouter's automatic selector (final fallback) ───
+// ─── EXTRA FALLBACK POOL ───
+export const MODELS_EXTRA = [
+  "arcee-ai/trinity-large-preview:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
+];
+
+// ─── FREE ROUTER: OpenRouter's automatic selector (nuclear fallback) ───
 export const MODEL_FREE_ROUTER = "openrouter/free";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -84,7 +104,7 @@ export async function fetchWithTimeout(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PARALLEL RACE — Send to 2 models, return FIRST valid response
+// PARALLEL RACE — Send to N models, return FIRST valid response
 // ═══════════════════════════════════════════════════════════════════
 
 async function raceModels(
@@ -122,7 +142,7 @@ async function raceModels(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN DISPATCHER — Race → Sequential → Free router
+// MAIN DISPATCHER — Race → Sequential → Extra → Free router
 // ═══════════════════════════════════════════════════════════════════
 
 export async function callWithFallback(
@@ -161,7 +181,7 @@ export async function callWithFallback(
     } catch { /* continue */ }
   }
 
-  // PHASE 2: Sequential fallback (remaining)
+  // PHASE 2: Sequential fallback (remaining from primary tier)
   const remaining = models.length >= PARALLEL_RACE_COUNT ? models.slice(PARALLEL_RACE_COUNT) : models;
   for (const model of remaining) {
     const phaseTimeout = sequentialTimeout();
@@ -185,7 +205,25 @@ export async function callWithFallback(
     }
   }
 
-  // PHASE 3: Free router as last resort
+  // PHASE 3: Extra fallback pool
+  for (const model of MODELS_EXTRA) {
+    const phaseTimeout = sequentialTimeout();
+    if (phaseTimeout <= 0) break;
+    try {
+      const res = await fetchWithTimeout(OPENROUTER_URL, {
+        method: "POST", headers,
+        body: JSON.stringify({ ...baseBody, model }),
+      }, phaseTimeout);
+      if (!res.ok) {
+        if (res.status === 429) sawRateLimit = true;
+        continue;
+      }
+      console.log(`[${tag}] ✓ ${model} (extra)`);
+      return res;
+    } catch { /* continue */ }
+  }
+
+  // PHASE 4: Free router as last resort
   const finalTimeout = fallbackTimeout;
   try {
     console.log(`[${tag}] → free router fallback`);
