@@ -35,6 +35,7 @@ const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   pomodoro_timer:     { limit: 5,   period: 'daily' },
   mind_mapping:       { limit: 3,   period: 'daily' },
   sq3r_method:        { limit: 2,   period: 'daily' },
+  guided_lesson:      { limit: 5,   period: 'daily' },
 };
 
 export const useUsageLimits = () => {
