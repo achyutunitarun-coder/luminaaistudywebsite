@@ -74,10 +74,32 @@ export const MODEL_FREE_ROUTER = "openrouter/free";
 // CORE UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 
+// ─── KEY ROTATION ───
+const ALL_KEYS: string[] = [
+  Deno.env.get("OPENROUTER_API_KEY"),
+  Deno.env.get("OPENROUTER_KEY_2"),
+  Deno.env.get("OPENROUTER_KEY_3"),
+].filter(Boolean) as string[];
+
+if (ALL_KEYS.length === 0) {
+  console.error("No OpenRouter API keys configured!");
+}
+console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
+
+let _keyIndex = 0;
+
 export function getApiKey(): string {
-  const key = Deno.env.get("OPENROUTER_API_KEY");
-  if (!key) throw new Error("OPENROUTER_API_KEY not set");
+  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
+  const key = ALL_KEYS[_keyIndex];
   return key;
+}
+
+function rotateKey(): void {
+  _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
+}
+
+function rotateKeyOnSuccess(): void {
+  if (ALL_KEYS.length > 1) rotateKey();
 }
 
 const HEADERS_BASE = {
