@@ -31,6 +31,10 @@ const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
   why_engine:         { limit: 3,   period: 'daily' },
   visualize_mode:     { limit: 1,   period: 'daily' },
   cognitive_dashboard:{ limit: 3,   period: 'daily' },
+  // New Hub modules
+  pomodoro_timer:     { limit: 5,   period: 'daily' },
+  mind_mapping:       { limit: 3,   period: 'daily' },
+  sq3r_method:        { limit: 2,   period: 'daily' },
 };
 
 export const useUsageLimits = () => {
