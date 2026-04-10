@@ -324,7 +324,7 @@ const GuidedLesson = () => {
         total_questions: totalQ,
         correct_answers: Math.round(correctA),
         completed_at: new Date().toISOString(),
-      } as Record<string, unknown>);
+      });
       // Award XP
       await supabase.rpc('award_xp_coins', { p_user_id: user.id, p_xp: stepsCompleted * 15, p_coins: stepsCompleted * 3 });
     } catch (e) { console.error('Failed to save lesson:', e); }
@@ -380,7 +380,7 @@ const GuidedLesson = () => {
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] relative overflow-hidden">
       <style>{shakeKeyframes}{glowPulseKeyframes}{ringExpandKeyframes}</style>
-      <UpgradePopup open={showUpgrade} onOpenChange={setShowUpgrade} />
+      <UpgradePopup open={showUpgrade} onClose={() => setShowUpgrade(false)} />
 
       {/* Milestone Toast */}
       <AnimatePresence>
@@ -601,7 +601,7 @@ const GuidedLesson = () => {
 
                       {/* Explanation */}
                       <div className="p-5 rounded-xl bg-card/50 border border-border/30 backdrop-blur-sm">
-                        <MarkdownRenderer content={stepContent.explanation} />
+                        <MarkdownRenderer>{stepContent.explanation}</MarkdownRenderer>
                       </div>
 
                       {/* Example */}
@@ -617,7 +617,7 @@ const GuidedLesson = () => {
                         <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                           className="p-4 rounded-xl bg-card/30 border border-[#00d4c8]/20">
                           <p className="text-xs font-semibold text-[#00d4c8] mb-1">{ec.type}</p>
-                          <MarkdownRenderer content={ec.text} />
+                          <MarkdownRenderer>{ec.text}</MarkdownRenderer>
                         </motion.div>
                       ))}
 
@@ -821,7 +821,7 @@ const GuidedLesson = () => {
                   </h3>
                   {content ? (
                     <div className="text-sm text-foreground/80">
-                      <MarkdownRenderer content={content.explanation} />
+                      <MarkdownRenderer>{content.explanation}</MarkdownRenderer>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground italic">Step not loaded</p>
