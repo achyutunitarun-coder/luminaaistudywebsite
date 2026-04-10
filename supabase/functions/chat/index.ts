@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent } from "../_shared/models.ts";
+import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +19,7 @@ serve(async (req) => {
 
     const body = await req.text();
     if (body.length > 50_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { messages } = JSON.parse(body);
+    const { messages, mode } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > 50) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Adaptive intent classification
@@ -31,12 +31,21 @@ serve(async (req) => {
     let systemPrompt = getSystemPromptForIntent(intent);
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
-    const models = getModelsForIntent(intent);
-    const maxTokens = intent === "greeting" || intent === "conversational" ? 200 : intent === "deep" ? 3000 : 2000;
+    const requestedMode = typeof mode === "string" ? mode : "auto";
+    const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
+    const maxTokens = requestedMode === "long_context"
+      ? 3000
+      : intent === "greeting" || intent === "conversational"
+        ? 200
+        : intent === "deep"
+          ? 3000
+          : 2000;
+    const temperature = requestedMode === "creative" ? 0.85 : 0.65;
+    const timeoutMs = requestedMode === "long_context" ? 16_000 : 12_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    const res = await streamAI(aiMessages, models, maxTokens, 0.65, 30000, `chat/${intent}`);
+    const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${intent}`);
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
     console.error("chat error:", e);

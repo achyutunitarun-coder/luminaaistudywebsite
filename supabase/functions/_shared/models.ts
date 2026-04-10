@@ -1,62 +1,50 @@
 // ═══════════════════════════════════════════════════════════════════
-// Lumina AI — OpenRouter FREE Model Router (April 2026)
-// 6-tier intelligent routing · parallel racing · auto-fallback
-// ALL models verified available — $0 cost
+// Lumina AI — OpenRouter FREE Model Router
+// User-requested free model set · fast race routing · hard fallback
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ─── TIER 1: ULTRA-FAST (80% of queries) ───
+// ─── TIER 1: ULTRA-FAST TEXT ───
 export const MODELS_FAST = [
-  "nvidia/nemotron-nano-9b-v2:free",               // 9B dense, fastest
-  "arcee-ai/trinity-mini:free",                    // 26B MoE 3B active
-  "openai/gpt-oss-20b:free",                      // 21B MoE 3.6B active
-  "nvidia/nemotron-3-nano-30b-a3b:free",           // 30B MoE 3B active
-  "meta-llama/llama-3.2-3b-instruct:free",         // 3B, ultra-light
+  "google/gemma-3n-e2b-it:free",                  // Smallest / fastest
+  "google/gemma-3n-e4b-it:free",                  // Fast + stronger than 2B
+  "meta-llama/llama-3.2-3b-instruct:free",        // Reliable long-context fast text
 ];
 
 // ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
 export const MODELS_BALANCED = [
-  "qwen/qwen3-next-80b-a3b-instruct:free",        // 80B MoE 3B active
-  "openai/gpt-oss-20b:free",                      // Smart + fast
-  "meta-llama/llama-3.3-70b-instruct:free",       // 70B, strong reasoning
-  "google/gemma-4-31b-it:free",                   // 31B dense, multimodal
-  "z-ai/glm-4.5-air:free",                        // 131K context
+  "google/gemma-3-4b-it:free",                    // Fast multimodal generalist
+  "meta-llama/llama-3.2-3b-instruct:free",        // Strong fallback
+  "google/gemma-3n-e4b-it:free",                  // Fast lower-cost backup
+  "google/gemma-3n-e2b-it:free",                  // Emergency ultra-fast backup
 ];
 
 // ─── TIER 3: QUALITY / DEEP REASONING ───
 export const MODELS_QUALITY = [
-  "nvidia/nemotron-3-super-120b-a12b:free",       // 120B hybrid MoE
-  "openai/gpt-oss-120b:free",                     // 117B MoE
-  "nousresearch/hermes-3-llama-3.1-405b:free",    // 405B powerhouse
-  "arcee-ai/trinity-large-preview:free",          // 400B MoE 13B active
-  "qwen/qwen3-coder:free",                       // 480B, deep reasoning
+  "google/gemma-3-12b-it:free",                   // Highest quality in requested set
+  "google/gemma-3-4b-it:free",                    // Faster reasoning fallback
+  "meta-llama/llama-3.2-3b-instruct:free",        // Reliable backup
 ];
 
 // ─── TIER 4: CODING ───
 export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",                       // 480B MoE code-focused
-  "openai/gpt-oss-120b:free",                    // Agentic + tool use
-  "minimax/minimax-m2.5:free",                    // SWE-bench leader
-  "nvidia/nemotron-3-super-120b-a12b:free",       // Strong general
+  "google/gemma-3-12b-it:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "google/gemma-3-4b-it:free",
 ];
 
-// ─── TIER 5: LONG CONTEXT (documents, notes, PDFs) ───
+// ─── TIER 5: LONG CONTEXT (documents, notes, plans) ───
 export const MODELS_LONG_CTX = [
-  "minimax/minimax-m2.5:free",                    // 197K context
-  "google/gemma-4-31b-it:free",                   // 262K
-  "google/gemma-4-26b-a4b-it:free",               // 262K multimodal
-  "nvidia/nemotron-3-super-120b-a12b:free",       // 262K
-  "qwen/qwen3-coder:free",                       // 262K
+  "meta-llama/llama-3.2-3b-instruct:free",        // 131K context
+  "google/gemma-3-12b-it:free",                   // Higher quality long responses
+  "google/gemma-3-4b-it:free",                    // Faster fallback
 ];
 
-// ─── TIER 6: VISION (OCR, image analysis) ───
+// ─── TIER 6: VISION / OCR ───
 export const MODELS_VISION = [
-  "google/gemma-4-31b-it:free",                   // text+image+video, 262K
-  "google/gemma-4-26b-a4b-it:free",               // text+image+video, 262K
-  "google/gemma-3-27b-it:free",                   // text+image, 131K
-  "nvidia/nemotron-nano-12b-v2-vl:free",          // 12B VL
-  "google/gemma-3-12b-it:free",                   // text+image, 32K
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-4b-it:free",
 ];
 
 // ─── FREE ROUTER: OpenRouter's automatic selector (final fallback) ───
@@ -77,6 +65,11 @@ const HEADERS_BASE = {
   "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
   "X-Title": "Lumina AI Study",
 };
+
+const PARALLEL_RACE_COUNT = 3;
+const STREAM_TOTAL_BUDGET_MS = 12_000;
+const TEXT_TOTAL_BUDGET_MS = 18_000;
+const OCR_TOTAL_BUDGET_MS = 28_000;
 
 export async function fetchWithTimeout(
   url: string, opts: RequestInit, timeoutMs: number
@@ -99,17 +92,19 @@ async function raceModels(
   body: Record<string, unknown>,
   timeoutMs: number,
   tag: string,
+  onRateLimit?: () => void,
 ): Promise<Response> {
   const apiKey = getApiKey();
   const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
 
-  const racers = models.slice(0, 2).map(async (model) => {
+  const racers = models.slice(0, PARALLEL_RACE_COUNT).map(async (model) => {
     const res = await fetchWithTimeout(OPENROUTER_URL, {
       method: "POST",
       headers,
       body: JSON.stringify({ ...body, model }),
     }, timeoutMs);
     if (!res.ok) {
+      if (res.status === 429) onRateLimit?.();
       const errText = await res.text();
       console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
       throw new Error(`${model} failed: ${res.status}`);
@@ -142,23 +137,42 @@ export async function callWithFallback(
   const apiKey = getApiKey();
   const headers = { ...HEADERS_BASE, Authorization: `Bearer ${apiKey}` };
   const baseBody = { messages, max_tokens: maxTokens, temperature, ...extraOpts };
+  const isStreaming = extraOpts.stream === true;
+  const totalBudget = Math.min(
+    timeoutMs,
+    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? STREAM_TOTAL_BUDGET_MS : TEXT_TOTAL_BUDGET_MS,
+  );
+  const deadline = Date.now() + totalBudget;
+  const remainingBudget = () => deadline - Date.now();
+  const nextPhaseTimeout = (preferredMs: number) => {
+    const remaining = remainingBudget();
+    if (remaining <= 1_200) return 0;
+    return Math.min(preferredMs, remaining);
+  };
+  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 12_000 : isStreaming ? 4_500 : 8_000);
+  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 9_000 : isStreaming ? 3_500 : 6_000);
+  const fallbackTimeout = nextPhaseTimeout(tag.includes("ocr") ? 7_000 : isStreaming ? 4_000 : 5_000);
+  let sawRateLimit = false;
 
-  // PHASE 1: Parallel race (top 2)
-  if (models.length >= 2) {
+  // PHASE 1: Parallel race (top 3 max)
+  if (models.length >= 2 && raceTimeout > 0) {
     try {
-      return await raceModels(models, baseBody, timeoutMs, tag);
+      return await raceModels(models, baseBody, raceTimeout, tag, () => { sawRateLimit = true; });
     } catch { /* continue */ }
   }
 
   // PHASE 2: Sequential fallback (remaining)
-  const remaining = models.length >= 2 ? models.slice(2) : models;
+  const remaining = models.length >= PARALLEL_RACE_COUNT ? models.slice(PARALLEL_RACE_COUNT) : models;
   for (const model of remaining) {
+    const phaseTimeout = sequentialTimeout();
+    if (phaseTimeout <= 0) break;
     try {
       const res = await fetchWithTimeout(OPENROUTER_URL, {
         method: "POST", headers,
         body: JSON.stringify({ ...baseBody, model }),
-      }, timeoutMs);
+      }, phaseTimeout);
       if (!res.ok) {
+        if (res.status === 429) sawRateLimit = true;
         const e = await res.text();
         console.error(`[${tag}] ${model} ${res.status}: ${e.slice(0, 120)}`);
         continue;
@@ -172,23 +186,27 @@ export async function callWithFallback(
   }
 
   // PHASE 3: Free router as last resort
+  const finalTimeout = fallbackTimeout;
   try {
     console.log(`[${tag}] → free router fallback`);
     const res = await fetchWithTimeout(OPENROUTER_URL, {
       method: "POST", headers,
       body: JSON.stringify({ ...baseBody, model: MODEL_FREE_ROUTER }),
-    }, timeoutMs);
+    }, finalTimeout > 0 ? finalTimeout : 2_500);
     if (res.ok) {
       console.log(`[${tag}] ✓ free-router`);
       return res;
     }
+    if (res.status === 429) sawRateLimit = true;
     const errText = await res.text();
     console.error(`[${tag}] free-router ${res.status}: ${errText.slice(0, 120)}`);
   } catch (e) {
     console.error(`[${tag}] free-router failed:`, e);
   }
 
-  throw new Error("AI is temporarily busy — please try again in a moment");
+  throw new Error(sawRateLimit
+    ? "Free AI models are busy right now — please retry in a few seconds"
+    : "AI is temporarily busy — please try again in a moment");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -220,6 +238,7 @@ export async function streamAI(
 // ═══════════════════════════════════════════════════════════════════
 
 export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational";
+export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
 
 export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
@@ -310,5 +329,24 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_BALANCED;
     case "deep":
       return MODELS_QUALITY;
+  }
+}
+
+export function getModelsForMode(mode?: string): string[] | null {
+  switch (mode as ModelRouteMode | undefined) {
+    case "reasoning":
+      return MODELS_QUALITY;
+    case "coding":
+      return MODELS_CODE;
+    case "general":
+    case "study":
+    case "creative":
+      return MODELS_BALANCED;
+    case "fast":
+      return MODELS_FAST;
+    case "long_context":
+      return MODELS_LONG_CTX;
+    default:
+      return null;
   }
 }

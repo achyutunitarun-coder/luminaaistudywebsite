@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { OPENROUTER_URL, MODELS_BALANCED, getApiKey } from "../_shared/models.ts";
+import { callAIText, MODELS_BALANCED, MODELS_LONG_CTX } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,32 +37,15 @@ serve(async (req) => {
     }
 
     const prompts = buildPrompts(type, curriculum, subject, topic, count);
-    const apiKey = getApiKey();
-
-    let rawContent = "";
-    for (const model of MODELS_BALANCED) {
-      try {
-        const c = new AbortController();
-        const t = setTimeout(() => c.abort(), 45000);
-        const res = await fetch(OPENROUTER_URL, {
-          method: "POST",
-          signal: c.signal,
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
-            "X-Title": "Lumina AI Study",
-          },
-          body: JSON.stringify({ model, messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], max_tokens: type === "notes" ? 8000 : 4000, temperature: 0.7 }),
-        });
-        clearTimeout(t);
-        if (!res.ok) { const e = await res.text(); console.error(`[resources] ${model} ${res.status}: ${e.slice(0,200)}`); continue; }
-        const data = await res.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (content && content.trim().length > 20) { rawContent = content; console.log(`[resources] ✓ ${model}`); break; }
-      } catch (e) { console.error(`[resources] ${model}:`, e); }
-    }
-    if (!rawContent) throw new Error("All models are busy — please try again in a moment");
+    const models = type === "notes" ? MODELS_LONG_CTX : MODELS_BALANCED;
+    const rawContent = await callAIText(
+      [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }],
+      models,
+      type === "notes" ? 5000 : 2800,
+      type === "notes" ? 0.55 : 0.45,
+      type === "notes" ? 18_000 : 12_000,
+      `resources/${type}`,
+    );
 
     let content: Record<string, unknown> = {};
     if (type === "notes") { content = { notes: rawContent }; }

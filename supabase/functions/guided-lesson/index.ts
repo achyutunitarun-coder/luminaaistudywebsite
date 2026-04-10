@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAIText, MODELS_FAST, MODELS_BALANCED } from "../_shared/models.ts";
+import { callAIText, MODELS_BALANCED, MODELS_QUALITY } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function extractJson(raw: string): string | null {
+  const cleaned = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/```(?:json)?\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  return match ? match[0] : null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -37,11 +47,11 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: "You are an expert curriculum designer. Return ONLY valid JSON." }, { role: "user", content: outlinePrompt }],
-        MODELS_FAST, 1500, 0.4, 25000, "guided-outline"
+        MODELS_BALANCED, 900, 0.35, 12_000, "guided-outline"
       );
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return new Response(JSON.stringify({ error: "Failed to generate outline" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(jsonMatch[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const json = extractJson(text);
+      if (!json) return new Response(JSON.stringify({ error: "Failed to generate outline" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // STEP N: Generate micro-lesson + 4 questions
@@ -102,16 +112,16 @@ CRITICAL RULES:
 - Options must be plausible
 - ${diff === "beginner" ? "Use very simple language" : diff === "advanced" ? "Make Q4 genuinely challenging" : "Balance clarity and depth"}`;
 
-    const models = diff === "advanced" ? MODELS_BALANCED : MODELS_FAST;
+    const models = diff === "advanced" ? MODELS_QUALITY : MODELS_BALANCED;
     const text = await callAIText(
       [{ role: "system", content: "You are Lumina, an expert step-by-step tutor. Return ONLY valid JSON. No thinking tags." }, { role: "user", content: stepPrompt }],
-      models, 2500, 0.5, 30000, `guided-step-${step}`
+      models, 2200, 0.45, 14_000, `guided-step-${step}`
     );
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return new Response(JSON.stringify({ error: "Failed to generate step" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const json = extractJson(text);
+    if (!json) return new Response(JSON.stringify({ error: "Failed to generate step" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     
-    return new Response(jsonMatch[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(json, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("guided-lesson error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
