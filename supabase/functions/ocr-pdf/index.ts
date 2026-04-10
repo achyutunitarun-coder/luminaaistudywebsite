@@ -22,16 +22,18 @@ serve(async (req) => {
       });
     }
 
+    // Limit batch size to 3 pages at a time for speed
+    const batch = images.slice(0, 3);
     const pageStart = pageOffset + 1;
-    const pageEnd = pageOffset + images.length;
+    const pageEnd = pageOffset + batch.length;
 
     const content: any[] = [
       {
         type: "text",
-        text: `Extract ALL text from these PDF pages (pages ${pageStart}-${pageEnd} of ${totalPages}) from "${filename}". Extract EVERY piece of text, equation, diagram label, table, heading. Use LaTeX for math. Preserve structure. Format as clean markdown. Label each page.`,
+        text: `Extract ALL text from these PDF pages (pages ${pageStart}-${pageEnd} of ${totalPages}) from "${filename}". Extract every piece of text, equation, diagram label, table, heading. Use LaTeX for math. Format as clean markdown. Be fast and thorough.`,
       },
     ];
-    for (const img of images) {
+    for (const img of batch) {
       content.push({ type: "image_url", image_url: { url: img } });
     }
 
@@ -42,9 +44,9 @@ serve(async (req) => {
       const res = await callWithFallback(
         [{ role: "user", content }],
         MODELS_VISION,
-        6000,
+        5000,
         0.1,
-        28_000,
+        45_000,
         "ocr-pdf",
       );
       const data = await res.json();
@@ -53,17 +55,23 @@ serve(async (req) => {
         : "";
     } catch (e) {
       lastError = e instanceof Error ? e.message : "unavailable";
-      console.error("[ocr-pdf] routing error:", e);
+      console.error("[ocr-pdf] routing error:", lastError);
     }
 
-    if (!extracted.trim()) extracted = `[Pages ${pageStart}-${pageEnd}: OCR failed - ${lastError || "unavailable"}]`;
+    if (!extracted.trim()) {
+      extracted = `[Pages ${pageStart}-${pageEnd}: Text extraction incomplete — ${lastError || "model unavailable"}]`;
+    }
 
-    return new Response(JSON.stringify({ text: extracted.trim(), pages: images.length, totalPages, pageOffset }), {
+    return new Response(JSON.stringify({ text: extracted.trim(), pages: batch.length, totalPages, pageOffset }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[ocr-pdf] error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "OCR failed" }), {
+    const msg = e instanceof Error ? e.message : "OCR failed";
+    const userMsg = msg.includes("high demand") || msg.includes("busy")
+      ? "OCR is busy right now — please try again in a moment."
+      : "OCR processing failed — please try again.";
+    return new Response(JSON.stringify({ error: userMsg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
