@@ -79,6 +79,7 @@ const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
   Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
 ].filter(Boolean) as string[];
 
 if (ALL_KEYS.length === 0) {
@@ -109,7 +110,7 @@ const HEADERS_BASE = {
 };
 
 const PARALLEL_RACE_COUNT = 3;
-const STREAM_TOTAL_BUDGET_MS = 15_000;
+const STREAM_TOTAL_BUDGET_MS = 25_000;
 const TEXT_TOTAL_BUDGET_MS = 35_000;
 const OCR_TOTAL_BUDGET_MS = 50_000;
 

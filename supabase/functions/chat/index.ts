@@ -34,14 +34,14 @@ serve(async (req) => {
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
     const maxTokens = requestedMode === "long_context"
-      ? 3000
+      ? 4000
       : intent === "greeting" || intent === "conversational"
-        ? 200
+        ? 300
         : intent === "deep"
-          ? 3000
-          : 2000;
+          ? 4000
+          : 3000;
     const temperature = requestedMode === "creative" ? 0.85 : 0.65;
-    const timeoutMs = requestedMode === "long_context" ? 16_000 : 12_000;
+    const timeoutMs = requestedMode === "long_context" ? 25_000 : 20_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
