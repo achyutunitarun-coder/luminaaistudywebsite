@@ -644,6 +644,24 @@ const GuidedLesson = () => {
                           {isSpeaking ? 'Stop' : 'Read Aloud'}
                         </Button>
                       </div>
+
+                      {/* Continue to Questions Button */}
+                      <Button
+                        onClick={() => {
+                          if (stepContent?.check_questions && stepContent.check_questions.length > 0) {
+                            setPhase('check');
+                          } else {
+                            // No questions — skip directly to next step
+                            completeStep();
+                          }
+                        }}
+                        className="w-full h-12 rounded-xl bg-[#00d4c8] hover:bg-[#00d4c8]/90 text-background font-semibold mt-4"
+                      >
+                        {stepContent?.check_questions && stepContent.check_questions.length > 0
+                          ? <>Ready — Test Me <ChevronRight className="w-4 h-4 ml-2" /></>
+                          : <>Next Step <ArrowRight className="w-4 h-4 ml-2" /></>
+                        }
+                      </Button>
                     </>
                   )}
 
@@ -654,7 +672,7 @@ const GuidedLesson = () => {
                         <Target className="w-5 h-5 text-[#00d4c8]" /> Check Your Understanding
                       </h3>
 
-                      {stepContent.check_questions.map((q, qi) => (
+                      {(stepContent.check_questions || []).map((q, qi) => (
                         <div key={qi} className="space-y-3">
                           {q.type === 'mcq' && q.options && (
                             <div className="space-y-3">
@@ -738,6 +756,30 @@ const GuidedLesson = () => {
                           )}
                         </div>
                       ))}
+
+                      {/* Next Step Button — show when all questions answered */}
+                      {(() => {
+                        const questions = stepContent.check_questions || [];
+                        const mcqQ = questions.find(q => q.type === 'mcq');
+                        const shortQ = questions.find(q => q.type === 'short_answer');
+                        const mcqDone = !mcqQ || mcqSubmitted;
+                        const shortDone = !shortQ || shortSubmitted;
+                        const allDone = mcqDone && shortDone;
+                        if (!allDone) return null;
+                        return (
+                          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="pt-4">
+                            <Button
+                              onClick={completeStep}
+                              className="w-full h-12 rounded-xl bg-[#00d4c8] hover:bg-[#00d4c8]/90 text-background font-semibold"
+                            >
+                              {outline && currentStep < outline.steps.length - 1
+                                ? <>Next Step <ArrowRight className="w-4 h-4 ml-2" /></>
+                                : <>Complete Lesson <Trophy className="w-4 h-4 ml-2" /></>
+                              }
+                            </Button>
+                          </motion.div>
+                        );
+                      })()}
                     </div>
                   )}
                 </motion.div>
