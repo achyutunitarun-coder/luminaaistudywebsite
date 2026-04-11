@@ -226,9 +226,9 @@ export async function callWithFallback(
     if (remaining <= 1_200) return 0;
     return Math.min(preferredMs, remaining);
   };
-  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 12_000 : isStreaming ? 4_500 : 8_000);
-  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 9_000 : isStreaming ? 3_500 : 6_000);
-  const fallbackTimeout = nextPhaseTimeout(tag.includes("ocr") ? 7_000 : isStreaming ? 4_000 : 5_000);
+  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 12_000 : isStreaming ? 8_000 : 8_000);
+  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 9_000 : isStreaming ? 6_000 : 6_000);
+  const fallbackTimeout = nextPhaseTimeout(tag.includes("ocr") ? 7_000 : isStreaming ? 6_000 : 5_000);
   let sawRateLimit = false;
 
   // PHASE 1: Parallel race (top 3 max)
