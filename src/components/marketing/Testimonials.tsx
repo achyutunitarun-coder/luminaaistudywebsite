@@ -3,25 +3,25 @@ import { Star } from 'lucide-react';
 
 const testimonials = [
   {
-    name: 'Sarah',
+    name: 'Sarah Johnson',
     major: 'Medical Student',
-    initials: 'S',
+    initials: 'SJ',
     color: '#2dd4bf',
-    text: 'Lumina completely changed how I study for anatomy. The AI-generated flashcards and spaced repetition helped me retain 40% more information before exams.',
+    text: 'Lumina has completely changed how I study for my boards. The AI-generated tests are incredibly accurate and help me focus on my weak areas.',
   },
   {
-    name: 'David',
+    name: 'David Chen',
     major: 'Computer Science Major',
-    initials: 'D',
+    initials: 'DC',
     color: '#a855f7',
-    text: 'The doubt solver is incredible. I can ask complex algorithm questions and get step-by-step explanations instantly. It\'s like having a tutor available 24/7.',
+    text: 'The smart flashcards feature is a lifesaver. I can just upload my lecture slides and have a full deck ready in seconds. Highly recommended!',
   },
   {
-    name: 'Emily',
+    name: 'Emily Rodriguez',
     major: 'High School Senior',
-    initials: 'E',
+    initials: 'ER',
     color: '#fbbf24',
-    text: 'I improved my physics score from 52% to 84% in just two months. The performance analytics showed me exactly where to focus my energy.',
+    text: "I used to struggle with staying motivated, but the gamified progress in Lumina makes studying feel like a game. My grades have never been better.",
   },
 ];
 
@@ -44,24 +44,29 @@ export const Testimonials = () => (
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: i * 0.1 }}
-          className="rounded-[14px] p-5 hover:translate-y-[-2px] transition-transform"
+          className="rounded-[14px] p-6 hover:translate-y-[-2px] transition-transform"
           style={{
             background: '#111827',
             border: '0.5px solid rgba(255,255,255,0.07)',
           }}
         >
-          <div className="flex gap-0.5 mb-3">
+          <div className="flex gap-0.5 mb-4">
             {[...Array(5)].map((_, j) => (
-              <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: '#fbbf24' }} />
+              <Star key={j} className="w-4 h-4 fill-current" style={{ color: '#fbbf24' }} />
             ))}
           </div>
-          <p className="text-[13px] leading-relaxed mb-4" style={{ color: '#94a3b8' }}>"{t.text}"</p>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-bold" style={{ background: `${t.color}20`, color: t.color }}>
+          <p className="text-[15px] leading-relaxed mb-6 italic" style={{ color: '#cbd5e1' }}>
+            "{t.text}"
+          </p>
+          <div className="flex items-center gap-3 mt-auto">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold"
+              style={{ background: `${t.color}20`, color: t.color }}
+            >
               {t.initials}
             </div>
             <div>
-              <p className="text-[13px] font-semibold" style={{ color: '#f1f5f9' }}>{t.name}</p>
+              <p className="text-[13px] font-bold" style={{ color: '#f1f5f9' }}>{t.name}</p>
               <p className="text-[11px]" style={{ color: '#64748b' }}>{t.major}</p>
             </div>
           </div>
