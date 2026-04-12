@@ -78,6 +78,7 @@ const sidebarSections = [
   {
     label: 'Analytics',
     items: [
+      { title: 'Performance', url: '/performance', icon: BarChart3 },
       { title: 'Pulse', url: '/pulse', icon: BarChart3 },
       { title: 'Weakness Radar', url: '/weakness-radar', icon: Brain },
       { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },

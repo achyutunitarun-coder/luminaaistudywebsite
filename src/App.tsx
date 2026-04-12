@@ -33,6 +33,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
+import Performance from "@/pages/Performance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -106,6 +107,7 @@ const App = () => (
               <Route path="/resources" element={<Resources />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/game-modes" element={<GameModes />} />
+              <Route path="/performance" element={<Performance />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
