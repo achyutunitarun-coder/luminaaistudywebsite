@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion';
 import { Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain, Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp, TrendingDown, Zap, BookOpen, Layers, Activity, Crown, Rocket, Timer, GitBranch, Calendar, Shuffle } from 'lucide-react';
+import { CTASection } from '@/components/marketing/CTASection';
+import { Testimonials } from '@/components/marketing/Testimonials';
+import { FAQ } from '@/components/marketing/FAQ';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -546,6 +549,11 @@ const Dashboard = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* ═══ MARKETING SECTIONS ═══ */}
+      <CTASection />
+      <Testimonials />
+      <FAQ />
     </div>
   );
 };
