@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar, Plus, X, Loader2, Sparkles, BookOpen, Clock, Wand2,
@@ -131,6 +131,12 @@ const StudyPlanner = () => {
 
       if (data.markdown) {
         setExamPlanResult(data.markdown);
+        // Auto-save exam markdown plan to DB
+        await supabase.from('study_plans').insert({
+          user_id: user.id, exam_date: examDateExam, subjects: [examSubject],
+          daily_hours: examDailyHours, plan_data: { markdown: data.markdown },
+        });
+        queryClient.invalidateQueries({ queryKey: ['study_plans'] });
       } else if (data.plan || data.days) {
         await supabase.from('study_plans').insert({
           user_id: user.id, exam_date: examDateExam, subjects: [examSubject],
@@ -139,7 +145,7 @@ const StudyPlanner = () => {
         queryClient.invalidateQueries({ queryKey: ['study_plans'] });
         setExamPlanResult(data.markdown || '✅ Exam plan generated! Check your plans below.');
       }
-      toast.success('Exam plan created!');
+      toast.success('Exam plan saved automatically!');
     } catch {
       toast.error('Failed to generate exam plan');
     }

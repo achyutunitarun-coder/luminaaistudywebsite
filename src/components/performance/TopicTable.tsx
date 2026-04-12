@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { TopicData } from '@/data/performanceData';
+import type { TopicData } from '@/hooks/usePerformanceData';
 
 const statusConfig = {
   strong: { label: 'Strong', bg: 'rgba(45,212,191,0.12)', color: '#2dd4bf' },

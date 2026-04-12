@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import type { SubjectData } from '@/data/performanceData';
+import type { SubjectData } from '@/hooks/usePerformanceData';
 
 type Props = { data: SubjectData };
 
