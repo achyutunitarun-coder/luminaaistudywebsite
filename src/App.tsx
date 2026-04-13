@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
+import { MemoryProvider } from "@/hooks/useMemory";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
@@ -34,6 +35,12 @@ import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import Performance from "@/pages/Performance";
+import MistakeDNA from "@/pages/MistakeDNA";
+import SmartPaper from "@/pages/SmartPaper";
+import SRSInbox from "@/pages/SRSInbox";
+import Squad from "@/pages/Squad";
+import ConceptMap from "@/pages/ConceptMap";
+import ParentDashboard from "@/pages/ParentDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,13 +61,15 @@ const ProtectedLayout = () => {
   return (
     <SubscriptionProvider>
       <StudyTimerProvider>
-        {needsOnboarding && (
-          <Onboarding onComplete={() => setNeedsOnboarding(false)} />
-        )}
-        <MonthlyReportModal />
-        <AppLayout>
-          <Outlet />
-        </AppLayout>
+        <MemoryProvider>
+          {needsOnboarding && (
+            <Onboarding onComplete={() => setNeedsOnboarding(false)} />
+          )}
+          <MonthlyReportModal />
+          <AppLayout>
+            <Outlet />
+          </AppLayout>
+        </MemoryProvider>
       </StudyTimerProvider>
     </SubscriptionProvider>
   );
@@ -82,6 +91,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
+            <Route path="/parent/:code" element={<ParentDashboard />} />
 
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
@@ -108,6 +118,11 @@ const App = () => (
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
+              <Route path="/mistake-dna" element={<MistakeDNA />} />
+              <Route path="/smart-paper" element={<SmartPaper />} />
+              <Route path="/inbox" element={<SRSInbox />} />
+              <Route path="/squad" element={<Squad />} />
+              <Route path="/concept-map" element={<ConceptMap />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
