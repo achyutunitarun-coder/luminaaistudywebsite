@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const content = await callAIText(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 18_000 : 12_000, "plan"
+      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 45_000 : 35_000, "plan"
     );
 
     if (isExamMode) {
