@@ -73,6 +73,7 @@ const sidebarSections = [
       { title: 'Flashcards', url: '/flashcards', icon: Layers },
       { title: 'Game Modes', url: '/game-modes', icon: Swords },
       { title: 'Quest', url: '/quest', icon: Gamepad2 },
+      { title: 'Squad', url: '/squad', icon: Users },
     ],
   },
   {
