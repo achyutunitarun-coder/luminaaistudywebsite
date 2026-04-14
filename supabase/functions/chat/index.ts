@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode } from "../_shared/models.ts";
+import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_FAST } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,12 +32,13 @@ serve(async (req) => {
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     const requestedMode = typeof mode === "string" ? mode : "auto";
-    const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
+    // Default to FAST models for speed unless user explicitly picks a mode
+    const models = getModelsForMode(requestedMode) ?? (intent === "deep" ? getModelsForIntent(intent) : [...MODELS_FAST, ...getModelsForIntent(intent).slice(0, 3)]);
     const maxTokens = intent === "greeting" || intent === "conversational"
         ? 400
         : 4096;
-    const temperature = requestedMode === "creative" ? 0.85 : 0.65;
-    const timeoutMs = 40_000;
+    const temperature = requestedMode === "creative" ? 0.85 : 0.55;
+    const timeoutMs = 50_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
