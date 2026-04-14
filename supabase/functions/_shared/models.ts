@@ -110,8 +110,8 @@ const HEADERS_BASE = {
 };
 
 const PARALLEL_RACE_COUNT = 3;
-const STREAM_TOTAL_BUDGET_MS = 55_000;
-const TEXT_TOTAL_BUDGET_MS = 50_000;
+const STREAM_TOTAL_BUDGET_MS = 45_000;
+const TEXT_TOTAL_BUDGET_MS = 40_000;
 const OCR_TOTAL_BUDGET_MS = 50_000;
 
 export async function fetchWithTimeout(

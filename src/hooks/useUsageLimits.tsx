@@ -5,7 +5,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
 const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
-  chat_messages:      { limit: 200, period: 'daily' },
+  chat_messages:      { limit: 50,  period: 'daily' },
   study_sessions:     { limit: 3,   period: 'daily' },
   test_generations:   { limit: 10,  period: 'daily' },
   flashcard_sets:     { limit: 10,  period: 'daily' },
