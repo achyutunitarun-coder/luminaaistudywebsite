@@ -33,6 +33,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
+import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import NotFound from "./pages/NotFound";
 
@@ -108,6 +109,7 @@ const App = () => (
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
+              <Route path="/squad" element={<Squad />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
