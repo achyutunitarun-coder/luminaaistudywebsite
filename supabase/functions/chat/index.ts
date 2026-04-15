@@ -20,7 +20,7 @@ serve(async (req) => {
     const body = await req.text();
     if (body.length > 50_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { messages, mode } = JSON.parse(body);
-    if (!Array.isArray(messages) || messages.length > 50) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!Array.isArray(messages) || messages.length > 60) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Adaptive intent classification
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
@@ -37,7 +37,7 @@ serve(async (req) => {
         ? 400
         : 4096;
     const temperature = requestedMode === "creative" ? 0.85 : 0.65;
-    const timeoutMs = 40_000;
+    const timeoutMs = 45_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
