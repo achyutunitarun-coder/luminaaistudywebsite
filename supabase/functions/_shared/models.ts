@@ -1,54 +1,55 @@
 // ═══════════════════════════════════════════════════════════════════
-// Lumina AI — OpenRouter FREE Model Router
-// Full 24-model pool · parallel race · smart tier routing
+// Lumina AI — OpenRouter FREE Model Router (Apr 2026 refresh)
+// Proper key rotation · parallel race · smart tier routing
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─── TIER 1: ULTRA-FAST TEXT ───
 export const MODELS_FAST = [
-  "google/gemma-3n-e2b-it:free",
-  "google/gemma-3n-e4b-it:free",
   "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e4b-it:free",
   "meta-llama/llama-3.2-3b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
 ];
 
 // ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
 export const MODELS_BALANCED = [
   "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
-  "z-ai/glm-4.5-air:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
   "google/gemma-3-12b-it:free",
-  "google/gemma-3-4b-it:free",
 ];
 
 // ─── TIER 3: QUALITY / DEEP REASONING ───
 export const MODELS_QUALITY = [
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-3-27b-it:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
-  "google/gemma-3-12b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
 // ─── TIER 4: CODING ───
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",
-  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
   "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
-// ─── TIER 5: LONG CONTEXT (documents, notes, plans) ───
+// ─── TIER 5: LONG CONTEXT (documents, notes, deep dive, plans) ───
 export const MODELS_LONG_CTX = [
+  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "minimax/minimax-m2.5:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-12b-it:free",
-  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-120b:free",
 ];
 
 // ─── TIER 6: VISION / OCR ───
@@ -56,7 +57,7 @@ export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
-  "google/gemma-3-12b-it:free",
+  "google/gemma-3-27b-it:free",
 ];
 
 // ─── EXTRA FALLBACK POOL ───
@@ -64,7 +65,8 @@ export const MODELS_EXTRA = [
   "arcee-ai/trinity-large-preview:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "nvidia/nemotron-nano-9b-v2:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
+  "z-ai/glm-4.5-air:free",
+  "google/gemma-3-12b-it:free",
 ];
 
 // ─── FREE ROUTER: OpenRouter's automatic selector (nuclear fallback) ───
@@ -74,7 +76,7 @@ export const MODEL_FREE_ROUTER = "openrouter/free";
 // CORE UTILITIES
 // ═══════════════════════════════════════════════════════════════════
 
-// ─── KEY ROTATION ───
+// ─── KEY ROTATION (true round-robin across all keys) ───
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
@@ -89,18 +91,21 @@ console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
 let _keyIndex = 0;
 
+export function getNextKey(): string {
+  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
+  const key = ALL_KEYS[_keyIndex % ALL_KEYS.length];
+  _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
+  return key;
+}
+
+// Legacy compat
 export function getApiKey(): string {
   if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  const key = ALL_KEYS[_keyIndex];
-  return key;
+  return ALL_KEYS[_keyIndex % ALL_KEYS.length];
 }
 
 function rotateKey(): void {
   _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
-}
-
-function rotateKeyOnSuccess(): void {
-  if (ALL_KEYS.length > 1) rotateKey();
 }
 
 const HEADERS_BASE = {
@@ -110,9 +115,9 @@ const HEADERS_BASE = {
 };
 
 const PARALLEL_RACE_COUNT = 3;
-const STREAM_TOTAL_BUDGET_MS = 45_000;
-const TEXT_TOTAL_BUDGET_MS = 40_000;
-const OCR_TOTAL_BUDGET_MS = 50_000;
+const STREAM_TOTAL_BUDGET_MS = 50_000;
+const TEXT_TOTAL_BUDGET_MS = 45_000;
+const OCR_TOTAL_BUDGET_MS = 55_000;
 
 export async function fetchWithTimeout(
   url: string, opts: RequestInit, timeoutMs: number
@@ -127,16 +132,14 @@ export async function fetchWithTimeout(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PARALLEL RACE — Send to N models, return FIRST valid response
+// PARALLEL RACE — Send to N models with DIFFERENT keys, return FIRST
 // ═══════════════════════════════════════════════════════════════════
 
-/** Try a single model+key combo, rotating key on 429 */
 async function tryCall(
   model: string, body: Record<string, unknown>, timeoutMs: number, tag: string,
 ): Promise<Response | null> {
-  // Try each key for this model
   for (let k = 0; k < ALL_KEYS.length; k++) {
-    const key = getApiKey();
+    const key = getNextKey();
     const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
     try {
       const res = await fetchWithTimeout(OPENROUTER_URL, {
@@ -144,22 +147,19 @@ async function tryCall(
         body: JSON.stringify({ ...body, model }),
       }, timeoutMs);
       if (res.status === 429) {
-        console.warn(`[${tag}] 429 on key#${_keyIndex} ${model}, rotating key`);
-        rotateKey();
+        console.warn(`[${tag}] 429 on ${model}, rotating`);
         continue;
       }
       if (!res.ok) {
-        const errText = await res.text();
+        const errText = await res.text().catch(() => "");
         console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
         return null;
       }
-      console.log(`[${tag}] ✓ ${model} key#${_keyIndex}`);
-      rotateKeyOnSuccess();
+      console.log(`[${tag}] ✓ ${model}`);
       return res;
     } catch (e) {
       const isTimeout = e instanceof DOMException && e.name === "AbortError";
-      console.error(`[${tag}] ${model} key#${_keyIndex} ${isTimeout ? "TIMEOUT" : "err"}`);
-      rotateKey();
+      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "err"}`);
     }
   }
   return null;
@@ -170,38 +170,30 @@ async function raceModels(
   body: Record<string, unknown>,
   timeoutMs: number,
   tag: string,
-  onRateLimit?: () => void,
 ): Promise<Response> {
-  // Each racer tries all keys internally
-  const racers = models.slice(0, PARALLEL_RACE_COUNT).map(async (model) => {
-    const key = getApiKey();
+  // Each racer gets a DIFFERENT key for true rotation
+  const racers = models.slice(0, PARALLEL_RACE_COUNT).map((model) => {
+    const key = getNextKey(); // Each racer gets next key in rotation
     const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
-    const res = await fetchWithTimeout(OPENROUTER_URL, {
+    return fetchWithTimeout(OPENROUTER_URL, {
       method: "POST", headers,
       body: JSON.stringify({ ...body, model }),
-    }, timeoutMs);
-    if (!res.ok) {
-      if (res.status === 429) {
-        onRateLimit?.();
-        rotateKey();
-      }
-      throw new Error(`${model} failed: ${res.status}`);
-    }
-    console.log(`[${tag}] ✓ ${model} (race winner) key#${_keyIndex}`);
-    rotateKeyOnSuccess();
-    return res;
+    }, timeoutMs).then(res => {
+      if (!res.ok) throw new Error(`${model} failed: ${res.status}`);
+      console.log(`[${tag}] ✓ ${model} (race winner)`);
+      return res;
+    });
   });
 
   try {
     return await Promise.any(racers);
   } catch {
-    console.log(`[${tag}] Race failed, falling back...`);
     throw new Error("race_failed");
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MAIN DISPATCHER — Race → Sequential (with key rotation) → Extra → Free router
+// MAIN DISPATCHER — Race → Sequential → Extra → Free router
 // ═══════════════════════════════════════════════════════════════════
 
 export async function callWithFallback(
@@ -223,67 +215,61 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const nextPhaseTimeout = (preferredMs: number) => {
     const remaining = remainingBudget();
-    if (remaining <= 1_200) return 0;
+    if (remaining <= 1_500) return 0;
     return Math.min(preferredMs, remaining);
   };
-  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 12_000 : isStreaming ? 8_000 : 8_000);
-  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 9_000 : isStreaming ? 6_000 : 6_000);
-  const fallbackTimeout = nextPhaseTimeout(tag.includes("ocr") ? 7_000 : isStreaming ? 6_000 : 5_000);
-  let sawRateLimit = false;
 
-  // PHASE 1: Parallel race (top 3 max)
+  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 14_000 : isStreaming ? 10_000 : 10_000);
+  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 10_000 : isStreaming ? 8_000 : 8_000);
+  const fallbackTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 8_000 : 6_000);
+
+  // PHASE 1: Parallel race (top 3)
   if (models.length >= 2 && raceTimeout > 0) {
     try {
-      return await raceModels(models, baseBody, raceTimeout, tag, () => { sawRateLimit = true; });
+      return await raceModels(models, baseBody, raceTimeout, tag);
     } catch { /* continue */ }
   }
 
-  // PHASE 2: Sequential fallback with key rotation per model
+  // PHASE 2: Sequential fallback with key rotation
   const remaining = models.length >= PARALLEL_RACE_COUNT ? models.slice(PARALLEL_RACE_COUNT) : models;
   for (const model of remaining) {
-    const phaseTimeout = sequentialTimeout();
-    if (phaseTimeout <= 0) break;
-    const res = await tryCall(model, baseBody, phaseTimeout, tag);
+    const t = sequentialTimeout();
+    if (t <= 0) break;
+    const res = await tryCall(model, baseBody, t, tag);
     if (res) return res;
   }
 
-  // PHASE 3: Extra fallback pool with key rotation
+  // PHASE 3: Extra fallback pool
   for (const model of MODELS_EXTRA) {
-    const phaseTimeout = sequentialTimeout();
-    if (phaseTimeout <= 0) break;
-    const res = await tryCall(model, baseBody, phaseTimeout, tag);
-    if (res) {
-      console.log(`[${tag}] ✓ ${model} (extra)`);
-      return res;
-    }
+    const t = sequentialTimeout();
+    if (t <= 0) break;
+    const res = await tryCall(model, baseBody, t, tag);
+    if (res) return res;
   }
 
-  // PHASE 4: Free router as last resort — try each key
-  const finalTimeout = fallbackTimeout;
+  // PHASE 4: Free router — try each key
+  const ft = fallbackTimeout();
   console.log(`[${tag}] → free router fallback`);
   for (let k = 0; k < ALL_KEYS.length; k++) {
-    const key = getApiKey();
+    const key = getNextKey();
     try {
       const res = await fetchWithTimeout(OPENROUTER_URL, {
         method: "POST",
         headers: { ...HEADERS_BASE, Authorization: `Bearer ${key}` },
         body: JSON.stringify({ ...baseBody, model: MODEL_FREE_ROUTER }),
-      }, finalTimeout > 0 ? finalTimeout : 2_500);
+      }, ft > 0 ? ft : 3_000);
       if (res.ok) {
-        console.log(`[${tag}] ✓ free-router key#${_keyIndex}`);
-        rotateKeyOnSuccess();
+        console.log(`[${tag}] ✓ free-router`);
         return res;
       }
-      if (res.status === 429) { sawRateLimit = true; rotateKey(); continue; }
+      if (res.status === 429) continue;
       break;
     } catch {
-      rotateKey();
+      continue;
     }
   }
 
-  throw new Error(sawRateLimit
-    ? "Lumina is experiencing high demand right now. Please try again in a few minutes."
-    : "AI is temporarily busy — please try again in a moment");
+  throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
 }
 
 
@@ -401,7 +387,7 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_FAST;
     case "quick":
     case "motivation":
-      return MODELS_FAST;
+      return MODELS_BALANCED;
     case "study":
       return MODELS_BALANCED;
     case "deep":

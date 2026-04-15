@@ -18,7 +18,8 @@ type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-const MAX_CONTEXT_MESSAGES = 12;
+const MAX_CONTEXT_MESSAGES = 20;
+const MAX_MESSAGES_PER_CONVERSATION = 60;
 
 const MODE_OPTIONS = [
   { value: 'auto', label: 'Auto', icon: Zap, desc: 'AI picks best mode', color: 'from-violet-500 to-fuchsia-500' },
