@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Users } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -73,7 +73,7 @@ const sidebarSections = [
       { title: 'Flashcards', url: '/flashcards', icon: Layers },
       { title: 'Game Modes', url: '/game-modes', icon: Swords },
       { title: 'Quest', url: '/quest', icon: Gamepad2 },
-      { title: 'Study Squads', url: '/squad', icon: Trophy },
+      { title: 'Study Squads', url: '/squad', icon: Users },
     ],
   },
   {
