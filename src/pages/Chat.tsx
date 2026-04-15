@@ -180,6 +180,12 @@ const ChatPage = () => {
   const sendMessage = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || !activeChat || isLoading || isSendingRef.current) return;
 
+    // Enforce 60 messages per conversation
+    if (messages.length >= MAX_MESSAGES_PER_CONVERSATION) {
+      toast.error(`Conversation limit reached (${MAX_MESSAGES_PER_CONVERSATION} messages). Start a new chat.`);
+      return;
+    }
+
     const allowed = await checkAndIncrement('chat_messages');
     if (!allowed) return;
 
