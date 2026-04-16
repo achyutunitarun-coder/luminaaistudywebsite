@@ -62,11 +62,11 @@ export const MODELS_VISION = [
 
 // ─── EXTRA FALLBACK POOL ───
 export const MODELS_EXTRA = [
-  "arcee-ai/trinity-large-preview:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
   "z-ai/glm-4.5-air:free",
-  "google/gemma-3-12b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "minimax/minimax-m2.5:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "google/gemma-3-4b-it:free",
 ];
 
 // ─── FREE ROUTER: OpenRouter's automatic selector (nuclear fallback) ───
@@ -81,7 +81,6 @@ const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
   Deno.env.get("OPENROUTER_KEY_3"),
-  Deno.env.get("OPENROUTER_KEY_4"),
 ].filter(Boolean) as string[];
 
 if (ALL_KEYS.length === 0) {
@@ -115,9 +114,9 @@ const HEADERS_BASE = {
 };
 
 const PARALLEL_RACE_COUNT = 3;
-const STREAM_TOTAL_BUDGET_MS = 50_000;
-const TEXT_TOTAL_BUDGET_MS = 45_000;
-const OCR_TOTAL_BUDGET_MS = 55_000;
+const STREAM_TOTAL_BUDGET_MS = 55_000;
+const TEXT_TOTAL_BUDGET_MS = 50_000;
+const OCR_TOTAL_BUDGET_MS = 60_000;
 
 export async function fetchWithTimeout(
   url: string, opts: RequestInit, timeoutMs: number
