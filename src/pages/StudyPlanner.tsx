@@ -446,7 +446,7 @@ const StudyPlanner = () => {
                       ))}
                     </div>
 
-                    {days.length > 7 && (
+                    {!isMarkdownPlan && days.length > 7 && (
                       <button
                         onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
                         className="w-full mt-3 py-3 text-xs font-medium text-primary hover:bg-primary/5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
@@ -454,7 +454,6 @@ const StudyPlanner = () => {
                         {isExpanded ? 'Show less' : `Show all ${days.length} days`}
                         <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
-                    )}
                     )}
                   </div>
                 </div>
