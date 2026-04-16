@@ -417,6 +417,163 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_answers: {
+        Row: {
+          answer_text: string
+          created_at: string | null
+          id: string
+          is_final: boolean | null
+          model_used: string | null
+          quality_score: number | null
+          question_id: string | null
+        }
+        Insert: {
+          answer_text: string
+          created_at?: string | null
+          id?: string
+          is_final?: boolean | null
+          model_used?: string | null
+          quality_score?: number | null
+          question_id?: string | null
+        }
+        Update: {
+          answer_text?: string
+          created_at?: string | null
+          id?: string
+          is_final?: boolean | null
+          model_used?: string | null
+          quality_score?: number | null
+          question_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "learning_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_corrections: {
+        Row: {
+          corrected_answer: string
+          correction_source: string | null
+          created_at: string | null
+          id: string
+          original_answer_id: string | null
+          question_id: string | null
+        }
+        Insert: {
+          corrected_answer: string
+          correction_source?: string | null
+          created_at?: string | null
+          id?: string
+          original_answer_id?: string | null
+          question_id?: string | null
+        }
+        Update: {
+          corrected_answer?: string
+          correction_source?: string | null
+          created_at?: string | null
+          id?: string
+          original_answer_id?: string | null
+          question_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_corrections_original_answer_id_fkey"
+            columns: ["original_answer_id"]
+            isOneToOne: false
+            referencedRelation: "learning_answers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_corrections_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "learning_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_performance: {
+        Row: {
+          attempts_count: number | null
+          created_at: string | null
+          id: string
+          question_id: string | null
+          time_taken: number | null
+          user_id: string | null
+          was_correct: boolean | null
+        }
+        Insert: {
+          attempts_count?: number | null
+          created_at?: string | null
+          id?: string
+          question_id?: string | null
+          time_taken?: number | null
+          user_id?: string | null
+          was_correct?: boolean | null
+        }
+        Update: {
+          attempts_count?: number | null
+          created_at?: string | null
+          id?: string
+          question_id?: string | null
+          time_taken?: number | null
+          user_id?: string | null
+          was_correct?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_performance_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "learning_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_questions: {
+        Row: {
+          created_at: string | null
+          difficulty_level: string | null
+          id: string
+          question_hash: string | null
+          question_text: string
+          source: string | null
+          subject: string | null
+          subtopic: string | null
+          topic: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty_level?: string | null
+          id?: string
+          question_hash?: string | null
+          question_text: string
+          source?: string | null
+          subject?: string | null
+          subtopic?: string | null
+          topic?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          difficulty_level?: string | null
+          id?: string
+          question_hash?: string | null
+          question_text?: string
+          source?: string | null
+          subject?: string | null
+          subtopic?: string | null
+          topic?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       mistake_tags: {
         Row: {
           ai_explanation: string | null
@@ -815,6 +972,44 @@ export type Database = {
           },
         ]
       }
+      squad_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          display_name: string | null
+          id: string
+          role: string
+          squad_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          role?: string
+          squad_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          role?: string
+          squad_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_messages_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       squads: {
         Row: {
           created_at: string | null
@@ -867,6 +1062,38 @@ export type Database = {
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "flashcard_srs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      step_by_step_solutions: {
+        Row: {
+          created_at: string | null
+          final_answer: string | null
+          id: string
+          question_id: string | null
+          steps: Json
+        }
+        Insert: {
+          created_at?: string | null
+          final_answer?: string | null
+          id?: string
+          question_id?: string | null
+          steps?: Json
+        }
+        Update: {
+          created_at?: string | null
+          final_answer?: string | null
+          id?: string
+          question_id?: string | null
+          steps?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_by_step_solutions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "learning_questions"
             referencedColumns: ["id"]
           },
         ]
