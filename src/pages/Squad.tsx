@@ -21,6 +21,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 type Squad = { id: string; name: string; invite_code: string | null; created_by: string | null; created_at: string | null };
 type Member = { id: string; user_id: string; display_name: string | null; joined_at: string | null };
 type Activity = { id: string; user_id: string; activity_type: string | null; description: string | null; xp_earned: number | null; created_at: string | null };
+type SquadMessage = { id: string; squad_id: string; user_id: string; display_name: string | null; role: string; content: string; created_at: string };
 
 const AI_TOOLS = [
   { name: 'AI Chat', icon: MessageSquare, color: 'from-violet-500 to-fuchsia-500', desc: 'Ask anything', route: '/chat' },
@@ -49,12 +50,34 @@ const SquadPage = () => {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string; user_name?: string }[]>([]);
+  const [persistedMessages, setPersistedMessages] = useState<SquadMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (user) loadSquads(); }, [user]);
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages, persistedMessages]);
+
+  // Real-time subscription for squad messages
+  useEffect(() => {
+    if (!activeSquad) return;
+    const channel = supabase
+      .channel(`squad-${activeSquad.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'squad_messages',
+        filter: `squad_id=eq.${activeSquad.id}`,
+      }, (payload) => {
+        const msg = payload.new as SquadMessage;
+        setPersistedMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeSquad?.id]);
 
   const loadSquads = async () => {
     if (!user) return;
@@ -71,6 +94,14 @@ const SquadPage = () => {
   const openSquad = async (squad: Squad) => {
     setActiveSquad(squad);
     setChatMessages([]);
+    // Load persisted messages
+    const { data: msgs } = await supabase
+      .from('squad_messages')
+      .select('*')
+      .eq('squad_id', squad.id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    setPersistedMessages((msgs as SquadMessage[]) || []);
     const { data: m } = await supabase.from('squad_members').select('*').eq('squad_id', squad.id);
     if (m) setMembers(m);
     const { data: a } = await supabase.from('squad_activity').select('*').eq('squad_id', squad.id).order('created_at', { ascending: false }).limit(20);
@@ -128,20 +159,19 @@ const SquadPage = () => {
     if (!chatInput.trim() || chatLoading || !activeSquad) return;
     setChatLoading(true);
     const userMsg = { role: 'user', content: chatInput.trim(), user_name: profile?.display_name || 'You' };
-    setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
 
-    // Log activity
-    void supabase.from('squad_activity').insert({
-      squad_id: activeSquad.id, user_id: user!.id,
-      activity_type: 'chat', description: `Asked: ${userMsg.content.slice(0, 50)}...`,
-      xp_earned: 2,
-    });
+    // Persist user message to DB (will appear via realtime)
+    await supabase.from('squad_messages').insert({
+      squad_id: activeSquad.id, user_id: user!.id, display_name: profile?.display_name || 'Student',
+      role: 'user', content: userMsg.content,
+    } as any);
 
     try {
-      const allMsgs = chatMessages.filter(m => m.role === 'user' || m.role === 'assistant')
-        .slice(-10).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      allMsgs.push({ role: 'user', content: userMsg.content });
+      const recentMsgs = persistedMessages.slice(-10).map(m => ({
+        role: m.role as 'user' | 'assistant', content: m.content,
+      }));
+      recentMsgs.push({ role: 'user', content: userMsg.content });
 
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
@@ -149,12 +179,11 @@ const SquadPage = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMsgs, mode: 'study' }),
+        body: JSON.stringify({ messages: recentMsgs, mode: 'study' }),
       });
 
       if (!resp.ok || !resp.body) { toast.error('AI error'); setChatLoading(false); return; }
 
-      const placeholderId = crypto.randomUUID();
       setChatMessages(prev => [...prev, { role: 'assistant', content: '', user_name: 'Lumina' }]);
 
       const buffer = createBufferedTextAccumulator((text) => {
@@ -167,6 +196,21 @@ const SquadPage = () => {
 
       await streamSSE(resp, { onDelta: (chunk) => buffer.push(chunk) });
       buffer.flushNow();
+
+      // Get the final AI content and persist it
+      const finalContent = chatMessages[chatMessages.length - 1]?.content;
+      // We need to get it from the buffer directly
+      setChatMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.role === 'assistant' && lastMsg.content) {
+          // Persist AI response
+          supabase.from('squad_messages').insert({
+            squad_id: activeSquad.id, user_id: user!.id, display_name: 'Lumina',
+            role: 'assistant', content: lastMsg.content,
+          } as any);
+        }
+        return prev;
+      });
     } catch {
       toast.error('Connection error');
     }
@@ -212,7 +256,7 @@ const SquadPage = () => {
           {/* Left: Chat */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
-              {chatMessages.length === 0 && (
+              {persistedMessages.length === 0 && chatMessages.length === 0 && (
                 <div className="flex-1 flex items-center justify-center py-16">
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
@@ -223,8 +267,8 @@ const SquadPage = () => {
                   </div>
                 </div>
               )}
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              {persistedMessages.map((msg) => (
+                <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     msg.role === 'user'
                       ? 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
@@ -237,9 +281,30 @@ const SquadPage = () => {
                       ? 'bg-primary text-primary-foreground rounded-tr-sm'
                       : 'bg-muted/15 border border-border/8 rounded-tl-sm'
                   }`}>
-                    {msg.user_name && msg.role === 'user' && (
-                      <p className="text-[10px] opacity-70 mb-0.5 font-medium">{msg.user_name}</p>
+                    {msg.display_name && msg.role === 'user' && (
+                      <p className="text-[10px] opacity-70 mb-0.5 font-medium">{msg.display_name}</p>
                     )}
+                    <div className="text-[13px] leading-relaxed">
+                      {msg.role === 'assistant' ? <MarkdownRenderer>{msg.content}</MarkdownRenderer> : msg.content}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Streaming messages (not yet persisted) */}
+              {chatMessages.map((msg, i) => (
+                <div key={`stream-${i}`} className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
+                      : 'bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 text-primary border border-primary/10'
+                  }`}>
+                    {msg.role === 'user' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                  </div>
+                  <div className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
+                    msg.role === 'user'
+                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                      : 'bg-muted/15 border border-border/8 rounded-tl-sm'
+                  }`}>
                     <div className="text-[13px] leading-relaxed">
                       {msg.role === 'assistant' ? <MarkdownRenderer>{msg.content}</MarkdownRenderer> : msg.content}
                     </div>

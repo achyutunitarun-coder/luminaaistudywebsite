@@ -375,10 +375,13 @@ const StudyPlanner = () => {
             <Layers className="w-5 h-5 text-primary" /> Your Plans
           </h2>
           {plans.map((plan, pi) => {
-            const days = (plan.plan_data as PlanDay[]) || [];
+            const rawPlanData = plan.plan_data as any;
+            // Handle markdown-format exam plans
+            const isMarkdownPlan = rawPlanData && typeof rawPlanData === 'object' && !Array.isArray(rawPlanData) && rawPlanData.markdown;
+            const days: PlanDay[] = Array.isArray(rawPlanData) ? rawPlanData : [];
             const isExpanded = expandedPlan === plan.id;
             const displayDays = isExpanded ? days : days.slice(0, 7);
-            const totalTasks = days.reduce((sum, d) => sum + (d.tasks?.length || 0), 0);
+            const totalTasks = days.reduce((sum: number, d: PlanDay) => sum + (d.tasks?.length || 0), 0);
 
             return (
               <motion.div
@@ -399,14 +402,20 @@ const StudyPlanner = () => {
                         <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {plan.exam_date}</span>
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {plan.daily_hours}h/day</span>
-                          <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {totalTasks} tasks</span>
+                          {!isMarkdownPlan && <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {totalTasks} tasks</span>}
+                          {isMarkdownPlan && <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> Exam Timetable</span>}
                         </div>
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">{days.length}d</span>
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">{isMarkdownPlan ? 'Exam' : `${days.length}d`}</span>
                   </div>
 
                   <div className="px-6 pb-4">
+                    {isMarkdownPlan ? (
+                      <div className="max-w-none text-muted-foreground">
+                        <MarkdownRenderer>{rawPlanData.markdown}</MarkdownRenderer>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                       {displayDays.map((day, di) => (
                         <motion.div
@@ -445,6 +454,7 @@ const StudyPlanner = () => {
                         {isExpanded ? 'Show less' : `Show all ${days.length} days`}
                         <ChevronRight className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
+                    )}
                     )}
                   </div>
                 </div>
