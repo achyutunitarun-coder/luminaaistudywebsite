@@ -445,7 +445,7 @@ const StudyPlanner = () => {
                         </motion.div>
                       ))}
                     </div>
-
+                    )}
                     {!isMarkdownPlan && days.length > 7 && (
                       <button
                         onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
