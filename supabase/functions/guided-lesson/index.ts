@@ -30,7 +30,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 300_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const params = JSON.parse(body);
     const mode = params.mode || "outline";
 
@@ -102,7 +102,7 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 2000, 0.4, 30_000, `guided-step-${step}`
+        MODELS_BALANCED, 2000, 0.4, 40_000, `guided-step-${step}`
       );
       const parsed = safeJsonParse(text);
       if (!parsed) return new Response(JSON.stringify({ error: "Failed to generate step" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -215,7 +215,7 @@ Rules:
 
       const text = await callAIText(
         [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-        MODELS_BALANCED, 1800, 0.35, 30_000, "guided-final-quiz"
+        MODELS_BALANCED, 1800, 0.35, 45_000, "guided-final-quiz"
       );
       const parsed = safeJsonParse(text);
       if (!parsed) return new Response(JSON.stringify({ error: "Failed to generate quiz" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });

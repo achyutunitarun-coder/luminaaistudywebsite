@@ -19,7 +19,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 10_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 1_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic } = JSON.parse(body);
 
     const text = await callAIText(
@@ -27,7 +27,7 @@ serve(async (req) => {
         { role: "system", content: `Create a boss battle with creative questions. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Boss battle for "${topic}" with 5 challenging questions.` },
       ],
-      MODELS_FAST, 1500, 0.7, 30000, "boss"
+      MODELS_FAST, 1500, 0.7, 40_000, "boss"
     );
     const parsed = cleanJSON(text);
     if (parsed?.questions) return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

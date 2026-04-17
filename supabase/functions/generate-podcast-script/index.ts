@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { notes } = JSON.parse(body);
 
     const res = await streamAI(
@@ -18,7 +18,7 @@ serve(async (req) => {
         { role: "system", content: `Create an engaging educational podcast conversation between ALEX (expert explainer) and SAM (curious challenger). Format every line as "ALEX: ..." or "SAM: ...". Jump straight into the topic. Make it AT LEAST 2500 words. Include natural interruptions, debates, aha moments. NO markdown, NO stage directions, NO emojis.` },
         { role: "user", content: `Turn these notes into a podcast episode:\n\n${notes}` },
       ],
-      MODELS_BALANCED, 4000, 0.75, 60000, "podcast"
+      MODELS_BALANCED, 4000, 0.75, 75_000, "podcast"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {

@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 50_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 1_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { userData } = JSON.parse(body);
 
     const text = await callAIText(
@@ -18,7 +18,7 @@ serve(async (req) => {
         { role: "system", content: `Generate a monthly learning report. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["tip"],"overall_grade":"A/B/C/D"}. Do NOT include thinking tags.` },
         { role: "user", content: `Monthly report from:\n\n${JSON.stringify(userData)}` },
       ],
-      MODELS_FAST, 1500, 0.5, 30000, "report"
+      MODELS_FAST, 1500, 0.5, 40_000, "report"
     );
     const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
     const match = cleaned.match(/\{[\s\S]*\}/);

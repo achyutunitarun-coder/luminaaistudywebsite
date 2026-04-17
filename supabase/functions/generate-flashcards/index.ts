@@ -34,16 +34,16 @@ serve(async (req) => {
     if (error || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { content, title, cardCount = 20 } = JSON.parse(body);
     const count = Math.min(Math.max(Number(cardCount) || 20, 5), 80);
 
     const text = await callAIText(
       [
         { role: "system", content: `Create ${count} flashcards. Mix types: why, compare, apply, recall. Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}. Do NOT include thinking tags.` },
-        { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,30000)}` },
+        { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,120000)}` },
       ],
-      MODELS_FAST, 3000, 0.5, 30000, "flashcards"
+      MODELS_FAST, 3000, 0.5, 45_000, "flashcards"
     );
 
     const parsed = cleanJSON(text);

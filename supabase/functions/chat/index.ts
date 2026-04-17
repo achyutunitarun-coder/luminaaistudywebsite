@@ -18,7 +18,7 @@ serve(async (req) => {
     if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.text();
-    if (body.length > 500_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 5_000_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { messages, mode } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > 60) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -37,7 +37,7 @@ serve(async (req) => {
         ? 400
         : 4096;
     const temperature = requestedMode === "creative" ? 0.85 : 0.65;
-    const timeoutMs = 45_000;
+    const timeoutMs = 65_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 

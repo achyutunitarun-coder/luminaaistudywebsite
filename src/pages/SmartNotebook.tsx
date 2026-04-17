@@ -45,7 +45,7 @@ const SmartNotebook = () => {
     try {
       const text = await extractDocumentText(f);
       // Truncate very large files to ~30k chars for the AI
-      setFileContent(text.slice(0, 30000));
+      setFileContent(text.slice(0, 150000));
     } catch (e) {
       console.error('File extraction error:', e);
       toast.error('Failed to read file. Try a different format.');

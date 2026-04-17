@@ -17,7 +17,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { notes } = JSON.parse(body);
 
     const text = await callAIText(
@@ -25,7 +25,7 @@ serve(async (req) => {
         { role: "system", content: `Convert notes into a challenging quiz. Return ONLY JSON: {"mcq": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}], "short_answer": [{"question": "...", "answer": "..."}], "conceptual": [{"question": "...", "answer": "..."}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Generate quiz from:\n\n${notes}` },
       ],
-      MODELS_FAST, 2500, 0.5, 30000, "note-to-quiz"
+      MODELS_FAST, 2500, 0.5, 45_000, "note-to-quiz"
     );
     const parsed = cleanJSON(text);
     if (parsed) return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

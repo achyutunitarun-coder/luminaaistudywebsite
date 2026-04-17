@@ -84,7 +84,7 @@ export async function streamSSE(resp: Response, options: StreamOptions = {}) {
 
 export function createBufferedTextAccumulator(
   onFlush: (text: string) => void,
-  flushMs = 32,
+  flushMs = 16,
 ) {
   let fullText = '';
   let timer: ReturnType<typeof setTimeout> | null = null;

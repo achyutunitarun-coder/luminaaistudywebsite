@@ -17,9 +17,9 @@ serve(async (req) => {
     if (error || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.text();
-    if (body.length > 500_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 5_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { messages } = JSON.parse(body);
-    if (!Array.isArray(messages) || messages.length > 50) return new Response(JSON.stringify({ error: 'Invalid messages' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!Array.isArray(messages) || messages.length > 60) return new Response(JSON.stringify({ error: 'Invalid messages' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const systemPrompt = `You are Lumina — a brilliant problem-solving tutor who makes "impossible" questions feel conquerable.
 
@@ -35,7 +35,7 @@ FORMATTING: Use **bold** for key terms, numbered steps, LaTeX for formulas, blan
 
     const res = await streamAI(
       [{ role: "system", content: systemPrompt }, ...messages],
-      MODELS_FAST, 2000, 0.55, 30000, "doubt"
+      MODELS_FAST, 2000, 0.55, 45_000, "doubt"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {

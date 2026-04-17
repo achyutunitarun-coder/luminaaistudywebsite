@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { fileContent, fileName, mode, language } = JSON.parse(body);
 
     const prompts: Record<string, { system: string; user: string }> = {
@@ -23,11 +23,11 @@ serve(async (req) => {
     const msgs = [{ role: "system", content: p.system }, { role: "user", content: p.user }];
 
     if (mode === "flowchart") {
-      const text = await callAIText(msgs, MODELS_FAST, 2000, 0.6, 30000, "notebook");
+      const text = await callAIText(msgs, MODELS_FAST, 2000, 0.6, 40_000, "notebook");
       const match = text.match(/\{[\s\S]*\}/);
       return new Response(JSON.stringify({ content: match ? match[0] : text.trim() }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const streamRes = await streamAI(msgs, MODELS_BALANCED, 2500, 0.6, 45000, "notebook");
+    const streamRes = await streamAI(msgs, MODELS_BALANCED, 2500, 0.6, 60_000, "notebook");
     return new Response(streamRes.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
     console.error("smart-notebook error:", e);

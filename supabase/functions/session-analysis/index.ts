@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAX_PAYLOAD_BYTES = 50_000;
+const MAX_PAYLOAD_BYTES = 1_000_000;
 
 type Strength = {
   topic: string;
