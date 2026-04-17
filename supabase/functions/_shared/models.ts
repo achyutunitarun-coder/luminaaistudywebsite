@@ -1,40 +1,37 @@
 // ═══════════════════════════════════════════════════════════════════
-// Lumina AI — OpenRouter FREE Model Router (Apr 2026 refresh)
-// Proper key rotation · parallel race · smart tier routing
+// Lumina AI — OpenRouter FREE Model Router
+// Fast-first routing · proper key rotation · resilient fallbacks
 // ═══════════════════════════════════════════════════════════════════
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ─── TIER 1: ULTRA-FAST TEXT ───
 export const MODELS_FAST = [
   "google/gemma-3-4b-it:free",
   "google/gemma-3n-e4b-it:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
   "nvidia/nemotron-nano-9b-v2:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
-];
-
-// ─── TIER 2: BALANCED (study, chat, notes, flashcards) ───
-export const MODELS_BALANCED = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
   "google/gemma-3-12b-it:free",
 ];
 
-// ─── TIER 3: QUALITY / DEEP REASONING ───
-export const MODELS_QUALITY = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
+export const MODELS_BALANCED = [
+  "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-20b:free",
+  "google/gemma-3-27b-it:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
 ];
 
-// ─── TIER 4: CODING ───
+export const MODELS_QUALITY = [
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-3-27b-it:free",
+];
+
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",
@@ -42,17 +39,15 @@ export const MODELS_CODE = [
   "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
-// ─── TIER 5: LONG CONTEXT (documents, notes, deep dive, plans) ───
 export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "minimax/minimax-m2.5:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "minimax/minimax-m2.5:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 
-// ─── TIER 6: VISION / OCR ───
 export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
@@ -60,23 +55,17 @@ export const MODELS_VISION = [
   "google/gemma-3-27b-it:free",
 ];
 
-// ─── EXTRA FALLBACK POOL ───
 export const MODELS_EXTRA = [
+  "openai/gpt-oss-20b:free",
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
-  "nvidia/nemotron-nano-9b-v2:free",
+  "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
 ];
 
-// ─── FREE ROUTER: OpenRouter's automatic selector (nuclear fallback) ───
 export const MODEL_FREE_ROUTER = "openrouter/free";
 
-// ═══════════════════════════════════════════════════════════════════
-// CORE UTILITIES
-// ═══════════════════════════════════════════════════════════════════
-
-// ─── KEY ROTATION (true round-robin across all keys) ───
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
@@ -97,29 +86,38 @@ export function getNextKey(): string {
   return key;
 }
 
-// Legacy compat
 export function getApiKey(): string {
-  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  return ALL_KEYS[_keyIndex % ALL_KEYS.length];
-}
-
-function rotateKey(): void {
-  _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
+  return getNextKey();
 }
 
 const HEADERS_BASE = {
   "Content-Type": "application/json",
-  "HTTP-Referer": "https://luminaaistudywebsite.lovable.app",
-  "X-Title": "Lumina AI Study",
+  "HTTP-Referer": "https://luminaai.co.in",
+  "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 3;
-const STREAM_TOTAL_BUDGET_MS = 55_000;
-const TEXT_TOTAL_BUDGET_MS = 50_000;
-const OCR_TOTAL_BUDGET_MS = 60_000;
+const PARALLEL_RACE_COUNT = 2;
+const STREAM_TOTAL_BUDGET_MS = 75_000;
+const TEXT_TOTAL_BUDGET_MS = 65_000;
+const OCR_TOTAL_BUDGET_MS = 85_000;
+
+type RouteMeta = {
+  model: string;
+  mode: string;
+};
+
+function sanitizeMessages(messages: any[]) {
+  return messages.map((message) => {
+    const role = message?.role === "assistant" || message?.role === "system" ? message.role : "user";
+    const content = typeof message?.content === "string" ? message.content : String(message?.content ?? "");
+    return { role, content };
+  });
+}
 
 export async function fetchWithTimeout(
-  url: string, opts: RequestInit, timeoutMs: number
+  url: string,
+  opts: RequestInit,
+  timeoutMs: number,
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -130,37 +128,57 @@ export async function fetchWithTimeout(
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// PARALLEL RACE — Send to N models with DIFFERENT keys, return FIRST
-// ═══════════════════════════════════════════════════════════════════
+async function readErrorText(res: Response) {
+  try {
+    return (await res.text()).slice(0, 180);
+  } catch {
+    return "";
+  }
+}
 
-async function tryCall(
-  model: string, body: Record<string, unknown>, timeoutMs: number, tag: string,
+async function callModel(
+  model: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+  tag: string,
 ): Promise<Response | null> {
-  for (let k = 0; k < ALL_KEYS.length; k++) {
+  for (let attempt = 0; attempt < ALL_KEYS.length; attempt++) {
     const key = getNextKey();
-    const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
     try {
-      const res = await fetchWithTimeout(OPENROUTER_URL, {
-        method: "POST", headers,
-        body: JSON.stringify({ ...body, model }),
-      }, timeoutMs);
+      const res = await fetchWithTimeout(
+        OPENROUTER_URL,
+        {
+          method: "POST",
+          headers: { ...HEADERS_BASE, Authorization: `Bearer ${key}` },
+          body: JSON.stringify({ ...body, model }),
+        },
+        timeoutMs,
+      );
+
+      if (res.ok) {
+        console.log(`[${tag}] ✓ ${model}`);
+        return res;
+      }
+
       if (res.status === 429) {
-        console.warn(`[${tag}] 429 on ${model}, rotating`);
+        console.warn(`[${tag}] 429 ${model} on key ${attempt + 1}/${ALL_KEYS.length}`);
         continue;
       }
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        console.error(`[${tag}] ${model} ${res.status}: ${errText.slice(0, 120)}`);
-        return null;
+
+      const errorText = await readErrorText(res);
+      console.warn(`[${tag}] ${model} -> ${res.status} ${errorText}`);
+
+      if (res.status >= 500 || res.status === 408 || res.status === 524) {
+        continue;
       }
-      console.log(`[${tag}] ✓ ${model}`);
-      return res;
-    } catch (e) {
-      const isTimeout = e instanceof DOMException && e.name === "AbortError";
-      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "err"}`);
+
+      return null;
+    } catch (error) {
+      const isTimeout = error instanceof DOMException && error.name === "AbortError";
+      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "NETWORK"}`);
     }
   }
+
   return null;
 }
 
@@ -169,31 +187,50 @@ async function raceModels(
   body: Record<string, unknown>,
   timeoutMs: number,
   tag: string,
-): Promise<Response> {
-  // Each racer gets a DIFFERENT key for true rotation
-  const racers = models.slice(0, PARALLEL_RACE_COUNT).map((model) => {
-    const key = getNextKey(); // Each racer gets next key in rotation
-    const headers = { ...HEADERS_BASE, Authorization: `Bearer ${key}` };
-    return fetchWithTimeout(OPENROUTER_URL, {
-      method: "POST", headers,
-      body: JSON.stringify({ ...body, model }),
-    }, timeoutMs).then(res => {
-      if (!res.ok) throw new Error(`${model} failed: ${res.status}`);
-      console.log(`[${tag}] ✓ ${model} (race winner)`);
-      return res;
-    });
+): Promise<{ response: Response; model: string }> {
+  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const racers = selected.map(async (model) => {
+    const res = await callModel(model, body, timeoutMs, tag);
+    if (!res) throw new Error(`${model} failed`);
+    return { response: res, model };
   });
 
-  try {
-    return await Promise.any(racers);
-  } catch {
-    throw new Error("race_failed");
-  }
+  return Promise.any(racers);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN DISPATCHER — Race → Sequential → Extra → Free router
-// ═══════════════════════════════════════════════════════════════════
+function encodeSseData(data: unknown) {
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
+
+function withMetaStream(response: Response, meta: RouteMeta): Response {
+  if (!response.body) return response;
+
+  const source = response.body.getReader();
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(encoder.encode(encodeSseData({ lumina_meta: meta })));
+
+      try {
+        while (true) {
+          const { done, value } = await source.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+      } finally {
+        controller.close();
+        source.releaseLock();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
 
 export async function callWithFallback(
   messages: any[],
@@ -203,8 +240,14 @@ export async function callWithFallback(
   timeoutMs: number,
   tag: string,
   extraOpts: Record<string, any> = {},
-): Promise<Response> {
-  const baseBody = { messages, max_tokens: maxTokens, temperature, ...extraOpts };
+): Promise<{ response: Response; model: string }> {
+  const safeMessages = sanitizeMessages(messages);
+  const baseBody = {
+    messages: safeMessages,
+    max_tokens: maxTokens,
+    temperature,
+    ...extraOpts,
+  };
   const isStreaming = extraOpts.stream === true;
   const totalBudget = Math.min(
     timeoutMs,
@@ -212,92 +255,66 @@ export async function callWithFallback(
   );
   const deadline = Date.now() + totalBudget;
   const remainingBudget = () => deadline - Date.now();
-  const nextPhaseTimeout = (preferredMs: number) => {
-    const remaining = remainingBudget();
-    if (remaining <= 1_500) return 0;
-    return Math.min(preferredMs, remaining);
-  };
+  const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const raceTimeout = nextPhaseTimeout(tag.includes("ocr") ? 14_000 : isStreaming ? 10_000 : 10_000);
-  const sequentialTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 10_000 : isStreaming ? 8_000 : 8_000);
-  const fallbackTimeout = () => nextPhaseTimeout(tag.includes("ocr") ? 8_000 : 6_000);
-
-  // PHASE 1: Parallel race (top 3)
-  if (models.length >= 2 && raceTimeout > 0) {
+  const primaryRaceTimeout = phaseTimeout(isStreaming ? 12_000 : 11_000);
+  if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
-      return await raceModels(models, baseBody, raceTimeout, tag);
-    } catch { /* continue */ }
-  }
-
-  // PHASE 2: Sequential fallback with key rotation
-  const remaining = models.length >= PARALLEL_RACE_COUNT ? models.slice(PARALLEL_RACE_COUNT) : models;
-  for (const model of remaining) {
-    const t = sequentialTimeout();
-    if (t <= 0) break;
-    const res = await tryCall(model, baseBody, t, tag);
-    if (res) return res;
-  }
-
-  // PHASE 3: Extra fallback pool
-  for (const model of MODELS_EXTRA) {
-    const t = sequentialTimeout();
-    if (t <= 0) break;
-    const res = await tryCall(model, baseBody, t, tag);
-    if (res) return res;
-  }
-
-  // PHASE 4: Free router — try each key
-  const ft = fallbackTimeout();
-  console.log(`[${tag}] → free router fallback`);
-  for (let k = 0; k < ALL_KEYS.length; k++) {
-    const key = getNextKey();
-    try {
-      const res = await fetchWithTimeout(OPENROUTER_URL, {
-        method: "POST",
-        headers: { ...HEADERS_BASE, Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ ...baseBody, model: MODEL_FREE_ROUTER }),
-      }, ft > 0 ? ft : 3_000);
-      if (res.ok) {
-        console.log(`[${tag}] ✓ free-router`);
-        return res;
-      }
-      if (res.status === 429) continue;
-      break;
+      return await raceModels(models, baseBody, primaryRaceTimeout, tag);
     } catch {
-      continue;
+      console.warn(`[${tag}] race failed, moving to sequential`);
     }
+  }
+
+  for (const model of models) {
+    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
+    if (timeout <= 0) break;
+    const response = await callModel(model, baseBody, timeout, tag);
+    if (response) return { response, model };
+  }
+
+  for (const model of MODELS_EXTRA) {
+    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+    if (timeout <= 0) break;
+    const response = await callModel(model, baseBody, timeout, tag);
+    if (response) return { response, model };
+  }
+
+  const freeRouterTimeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+  if (freeRouterTimeout > 0) {
+    const response = await callModel(MODEL_FREE_ROUTER, baseBody, freeRouterTimeout, `${tag}/free-router`);
+    if (response) return { response, model: MODEL_FREE_ROUTER };
   }
 
   throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
 }
 
-
-// HIGH-LEVEL HELPERS
-// ═══════════════════════════════════════════════════════════════════
-
-/** Non-streaming text completion */
 export async function callAIText(
-  messages: any[], models: string[], maxTokens: number,
-  temperature: number, timeoutMs: number, tag: string,
+  messages: any[],
+  models: string[],
+  maxTokens: number,
+  temperature: number,
+  timeoutMs: number,
+  tag: string,
 ): Promise<string> {
-  const res = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
-  const data = await res.json();
+  const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
+  const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty AI response");
   return content;
 }
 
-/** Streaming SSE response */
 export async function streamAI(
-  messages: any[], models: string[], maxTokens: number,
-  temperature: number, timeoutMs: number, tag: string,
+  messages: any[],
+  models: string[],
+  maxTokens: number,
+  temperature: number,
+  timeoutMs: number,
+  tag: string,
 ): Promise<Response> {
-  return callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true });
+  const { response, model } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true });
+  return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// INTENT CLASSIFIER — For adaptive tutor behavior
-// ═══════════════════════════════════════════════════════════════════
 
 export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational";
 export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
@@ -386,11 +403,11 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_FAST;
     case "quick":
     case "motivation":
-      return MODELS_BALANCED;
+      return MODELS_FAST;
     case "study":
       return MODELS_BALANCED;
     case "deep":
-      return MODELS_QUALITY;
+      return MODELS_LONG_CTX;
   }
 }
 
