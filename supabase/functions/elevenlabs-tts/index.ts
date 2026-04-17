@@ -14,7 +14,7 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    if (body.length > 50_000) {
+    if (body.length > 500_000) {
       return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const { text, voice } = JSON.parse(body);
