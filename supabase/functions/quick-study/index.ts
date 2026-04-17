@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 200_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 2_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic } = JSON.parse(body);
 
     const text = await callAIText(
@@ -18,7 +18,7 @@ serve(async (req) => {
         { role: "system", content: `Create a quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "engaging explanation with analogies"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Quick study lesson on "${topic}".` },
       ],
-      MODELS_FAST, 3000, 0.5, 30000, "quick-study"
+      MODELS_FAST, 3000, 0.5, 40_000, "quick-study"
     );
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return new Response(JSON.stringify(JSON.parse(jsonMatch[0])), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

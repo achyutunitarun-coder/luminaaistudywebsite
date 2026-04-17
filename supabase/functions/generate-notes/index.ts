@@ -23,7 +23,7 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic, sourceText, style, isRefinement } = JSON.parse(body);
 
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const res = await streamAI(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }],
-      MODELS_BALANCED, 4000, 0.65, 45000, "notes"
+      MODELS_BALANCED, 4000, 0.65, 60_000, "notes"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {

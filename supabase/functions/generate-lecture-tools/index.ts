@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 100_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { notes, type } = JSON.parse(body);
 
     const prompts: Record<string, string> = {
@@ -20,7 +20,7 @@ serve(async (req) => {
     };
     const text = await callAIText(
       [{ role: "system", content: prompts[type] || prompts.summary }, { role: "user", content: `Notes:\n${notes}` }],
-      MODELS_FAST, 2500, 0.5, 30000, "lecture-tools"
+      MODELS_FAST, 2500, 0.5, 45_000, "lecture-tools"
     );
     if (type === "flashcards" || type === "quiz") {
       const match = text.replace(/<think>[\s\S]*?<\/think>/gi, "").match(/\[[\s\S]*\]/);

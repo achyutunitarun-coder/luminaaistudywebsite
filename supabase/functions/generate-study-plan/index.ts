@@ -10,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.text();
-    if (body.length > 300_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 5_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { subjects, examDate, dailyHours, mode, syllabus, wakeUpTime, sleepTime } = JSON.parse(body);
 
     const isExamMode = mode === 'exam';
@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const content = await callAIText(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 18_000 : 12_000, "plan"
+      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 45_000 : 25_000, "plan"
     );
 
     if (isExamMode) {

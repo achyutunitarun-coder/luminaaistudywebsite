@@ -52,16 +52,16 @@ serve(async (req) => {
     if (error || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.text();
-    if (body.length > 500_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (body.length > 5_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { syllabus, subject, numQuestions } = JSON.parse(body);
 
     const num = Math.min(Math.max(Number(numQuestions) || 5, 1), 20);
     const text = await callAIText(
       [
         { role: "system", content: `Generate ${num} MCQs that test understanding. Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Use LaTeX for math ($x^2$). Do NOT include any thinking or reasoning tags.` },
-        { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,10000)}` },
+        { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,120000)}` },
       ],
-      MODELS_QUALITY, Math.min(8192, Math.max(3500, num * 900)), 0.4, 45000, "test"
+      MODELS_QUALITY, Math.min(8192, Math.max(3500, num * 900)), 0.4, 60_000, "test"
     );
 
     const valid = sanitize(cleanJSON(text));
