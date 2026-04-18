@@ -158,8 +158,26 @@ const ChatPage = () => {
   const createChat = async () => {
     if (!user) return;
     const { data } = await supabase.from('chats').insert({ user_id: user.id, title: 'New Chat' }).select().single();
-    if (data) { setChats(prev => [data, ...prev]); setActiveChat(data.id); setMessages([]); }
+    if (data) {
+      setChats(prev => [data, ...prev]);
+      setActiveChat(data.id);
+      setMessages([]);
+      sessionIdRef.current = crypto.randomUUID(); // new analytics session per chat
+      interactionMapRef.current = {};
+      setFeedbackMap({});
+    }
   };
+
+  const handleFeedback = useCallback(async (messageId: string, kind: 'up' | 'down') => {
+    const interactionId = interactionMapRef.current[messageId];
+    if (!interactionId) { toast.error('Feedback not available yet'); return; }
+    setFeedbackMap(prev => ({ ...prev, [messageId]: kind }));
+    const { error } = await supabase.functions.invoke('learning-pipeline', {
+      body: { action: 'feedback', interactionId, type: kind === 'up' ? 'thumbs_up' : 'thumbs_down' },
+    });
+    if (error) { toast.error('Could not save feedback'); return; }
+    toast.success(kind === 'up' ? 'Thanks — glad it helped!' : 'Thanks — we\'ll improve.');
+  }, []);
 
   const deleteChat = async (chatId: string) => {
     await supabase.from('chats').delete().eq('id', chatId);
