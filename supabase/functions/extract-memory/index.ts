@@ -39,13 +39,12 @@ serve(async (req) => {
 
     const prompt = `STUDENT MESSAGE:\n${userText}\n\nAI REPLY (for context):\n${aiText}\n\nExtract durable memories as JSON.`;
 
-    const out = await callOpenRouter(
+    const raw = await callAIText(
       [{ role: "system", content: SYS }, { role: "user", content: prompt }],
       ["google/gemma-3-4b-it:free", "meta-llama/llama-3.2-3b-instruct:free", "google/gemma-3-12b-it:free"],
       400, 0.2, 20000, "extract-memory",
-    );
+    ).catch(() => "{}");
 
-    const raw = out?.choices?.[0]?.message?.content || "{}";
     const m = raw.match(/\{[\s\S]*\}/);
     let parsed: any = {};
     try { parsed = JSON.parse(m?.[0] || "{}"); } catch { parsed = { memories: [] }; }
