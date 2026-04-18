@@ -478,11 +478,32 @@ const ChatPage = () => {
                         <span className="text-[9px] text-muted-foreground/30">streaming</span>
                       </motion.div>
                     )}
+                    {!isUser && !isStreaming && msg.content.length > 30 && (
+                      <div className="flex items-center gap-1 mt-1.5 ml-1 opacity-60 hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleFeedback(msg.id, 'up')}
+                          className={`p-1 rounded-md transition-colors ${feedbackMap[msg.id] === 'up' ? 'bg-primary/15 text-primary' : 'hover:bg-muted/30 text-muted-foreground'}`}
+                          aria-label="Helpful"
+                          title="Helpful"
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(msg.id, 'down')}
+                          className={`p-1 rounded-md transition-colors ${feedbackMap[msg.id] === 'down' ? 'bg-destructive/15 text-destructive' : 'hover:bg-muted/30 text-muted-foreground'}`}
+                          aria-label="Not helpful"
+                          title="Not helpful"
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
+
 
           {/* Typing Indicator */}
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
