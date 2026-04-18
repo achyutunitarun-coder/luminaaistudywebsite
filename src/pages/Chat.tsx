@@ -134,8 +134,11 @@ const ChatPage = () => {
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [showModeMenu, setShowModeMenu] = useState(false);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'up'|'down'>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
+  const interactionMapRef = useRef<Record<string, string>>({}); // messageId -> interactionId
   const isSendingRef = useRef(false);
 
   useEffect(() => { if (user) loadChats(); }, [user]);
