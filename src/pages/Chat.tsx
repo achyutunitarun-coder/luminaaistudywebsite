@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown, Bot, Wand2, Search, GraduationCap } from 'lucide-react';
+import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown, Bot, Wand2, Search, GraduationCap, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -134,8 +134,11 @@ const ChatPage = () => {
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const [showModeMenu, setShowModeMenu] = useState(false);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'up'|'down'>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
+  const interactionMapRef = useRef<Record<string, string>>({}); // messageId -> interactionId
   const isSendingRef = useRef(false);
 
   useEffect(() => { if (user) loadChats(); }, [user]);
@@ -155,8 +158,26 @@ const ChatPage = () => {
   const createChat = async () => {
     if (!user) return;
     const { data } = await supabase.from('chats').insert({ user_id: user.id, title: 'New Chat' }).select().single();
-    if (data) { setChats(prev => [data, ...prev]); setActiveChat(data.id); setMessages([]); }
+    if (data) {
+      setChats(prev => [data, ...prev]);
+      setActiveChat(data.id);
+      setMessages([]);
+      sessionIdRef.current = crypto.randomUUID(); // new analytics session per chat
+      interactionMapRef.current = {};
+      setFeedbackMap({});
+    }
   };
+
+  const handleFeedback = useCallback(async (messageId: string, kind: 'up' | 'down') => {
+    const interactionId = interactionMapRef.current[messageId];
+    if (!interactionId) { toast.error('Feedback not available yet'); return; }
+    setFeedbackMap(prev => ({ ...prev, [messageId]: kind }));
+    const { error } = await supabase.functions.invoke('learning-pipeline', {
+      body: { action: 'feedback', interactionId, type: kind === 'up' ? 'thumbs_up' : 'thumbs_down' },
+    });
+    if (error) { toast.error('Could not save feedback'); return; }
+    toast.success(kind === 'up' ? 'Thanks — glad it helped!' : 'Thanks — we\'ll improve.');
+  }, []);
 
   const deleteChat = async (chatId: string) => {
     await supabase.from('chats').delete().eq('id', chatId);
@@ -197,6 +218,7 @@ const ChatPage = () => {
     setInput('');
     setUploadedFiles([]);
 
+    const startedAt = Date.now();
     try {
       const optimisticUserMessage: Message = {
         id: crypto.randomUUID(), role: 'user', content: userContent, created_at: new Date().toISOString(),
@@ -223,20 +245,16 @@ const ChatPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
         },
-        body: JSON.stringify({
-          messages: allMessages,
-          ...(selectedMode !== 'auto' ? { mode: selectedMode } : {}),
-        }),
+        body: JSON.stringify({ messages: allMessages, mode: selectedMode }),
       });
 
       if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
-        toast.error(resp.status === 429 ? 'Rate limit hit. Wait a moment.' : errorData.error || 'AI error. Try again.');
+        const errText = await resp.text().catch(() => '');
+        toast.error(`Chat failed: ${resp.status} ${errText.slice(0, 100)}`);
         return;
       }
-
       if (!resp.body) { toast.error('No response stream.'); return; }
 
       const placeholderId = crypto.randomUUID();
@@ -253,18 +271,32 @@ const ChatPage = () => {
 
       streamBuffer.flushNow();
       const fullContent = streamBuffer.getText();
+      const latencyMs = Date.now() - startedAt;
 
       if (fullContent) {
         const { data: savedMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'assistant', content: fullContent }).select().single();
+        const finalMsgId = savedMsg?.id ?? placeholderId;
         if (savedMsg) setMessages(prev => prev.map(m => m.id === placeholderId ? savedMsg : m));
 
-        // Fire-and-forget: extract durable memory + ingest learning data
+        // Fire-and-forget: extract durable memory
         void supabase.functions.invoke('extract-memory', {
           body: { userMessage: userContent, assistantMessage: fullContent },
         }).catch((e) => console.warn('extract-memory failed:', e));
-        void supabase.functions.invoke('ingest-learning-data', {
-          body: { question: userContent, answer: fullContent, source: 'chat' },
-        }).catch((e) => console.warn('ingest-learning-data failed:', e));
+
+        // Production training-data pipeline (PII-scrubbed, anonymized, quality-scored)
+        void supabase.functions.invoke('learning-pipeline', {
+          body: {
+            action: 'capture',
+            question: userContent,
+            answer: fullContent,
+            sessionId: sessionIdRef.current,
+            source: 'chat',
+            modelUsed: activeModel ?? undefined,
+            latencyMs,
+          },
+        }).then(({ data }) => {
+          if (data?.id) interactionMapRef.current[finalMsgId] = data.id;
+        }).catch((e) => console.warn('learning-pipeline failed:', e));
       } else {
         toast.error('Empty response. Try again.');
         setMessages(prev => prev.filter(m => m.id !== placeholderId));
@@ -446,11 +478,32 @@ const ChatPage = () => {
                         <span className="text-[9px] text-muted-foreground/30">streaming</span>
                       </motion.div>
                     )}
+                    {!isUser && !isStreaming && msg.content.length > 30 && (
+                      <div className="flex items-center gap-1 mt-1.5 ml-1 opacity-60 hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleFeedback(msg.id, 'up')}
+                          className={`p-1 rounded-md transition-colors ${feedbackMap[msg.id] === 'up' ? 'bg-primary/15 text-primary' : 'hover:bg-muted/30 text-muted-foreground'}`}
+                          aria-label="Helpful"
+                          title="Helpful"
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(msg.id, 'down')}
+                          className={`p-1 rounded-md transition-colors ${feedbackMap[msg.id] === 'down' ? 'bg-destructive/15 text-destructive' : 'hover:bg-muted/30 text-muted-foreground'}`}
+                          aria-label="Not helpful"
+                          title="Not helpful"
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
+
 
           {/* Typing Indicator */}
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
