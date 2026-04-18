@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown, Bot, Wand2, Search, GraduationCap } from 'lucide-react';
+import { Plus, Send, Trash2, Edit3, Check, X, MessageSquare, Sparkles, User, Menu, ArrowLeft, Download, Brain, Code2, Zap, BookOpen, FileText, Palette, MessagesSquare, ChevronDown, Bot, Wand2, Search, GraduationCap, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
