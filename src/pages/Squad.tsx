@@ -111,13 +111,34 @@ const SquadPage = () => {
   const createSquad = async () => {
     if (!newSquadName.trim() || !user) return;
     setCreating(true);
-    const { data: squad } = await supabase.from('squads').insert({ name: newSquadName.trim(), created_by: user.id }).select().single();
-    if (squad) {
-      await supabase.from('squad_members').insert({ squad_id: squad.id, user_id: user.id, display_name: profile?.display_name || 'You' });
+    try {
+      // Generate invite code client-side to ensure it's always set
+      const inviteCode = Math.random().toString(36).substring(2, 9).toUpperCase();
+      const { data: squad, error: sqErr } = await supabase
+        .from('squads')
+        .insert({ name: newSquadName.trim(), created_by: user.id, invite_code: inviteCode })
+        .select()
+        .single();
+      if (sqErr || !squad) {
+        console.error('Squad creation failed:', sqErr);
+        toast.error(`Failed to create squad: ${sqErr?.message || 'Unknown error'}`);
+        setCreating(false);
+        return;
+      }
+      const { error: memErr } = await supabase
+        .from('squad_members')
+        .insert({ squad_id: squad.id, user_id: user.id, display_name: profile?.display_name || 'You' });
+      if (memErr) {
+        console.error('Squad member insert failed:', memErr);
+        toast.error(`Couldn't add you as member: ${memErr.message}`);
+      }
       setNewSquadName('');
       await loadSquads();
       setTab('my');
-      toast.success('Squad created!');
+      toast.success(`Squad "${squad.name}" created! Share code: ${squad.invite_code}`);
+    } catch (e: any) {
+      console.error('Squad create exception:', e);
+      toast.error(e?.message || 'Failed to create squad');
     }
     setCreating(false);
   };
@@ -125,7 +146,9 @@ const SquadPage = () => {
   const joinSquad = async () => {
     if (!joinCode.trim() || !user) return;
     setJoining(true);
-    const { data: squad } = await supabase.from('squads').select('*').eq('invite_code', joinCode.trim()).maybeSingle();
+    const code = joinCode.trim().toUpperCase();
+    const { data: squad, error: lookupErr } = await supabase.from('squads').select('*').eq('invite_code', code).maybeSingle();
+    if (lookupErr) console.error('Squad lookup error:', lookupErr);
     if (!squad) { toast.error('Invalid invite code'); setJoining(false); return; }
     const { data: existing } = await supabase.from('squad_members').select('id').eq('squad_id', squad.id).eq('user_id', user.id).maybeSingle();
     if (existing) { toast.info('Already in this squad'); setJoining(false); return; }
