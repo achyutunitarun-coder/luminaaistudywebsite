@@ -175,6 +175,54 @@ export type Database = {
         }
         Relationships: []
       }
+      data_access_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          filters: Json | null
+          id: string
+          record_count: number | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          record_count?: number | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          filters?: Json | null
+          id?: string
+          record_count?: number | null
+        }
+        Relationships: []
+      }
+      data_consent: {
+        Row: {
+          consented_at: string
+          training_data_opt_in: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consented_at?: string
+          training_data_opt_in?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consented_at?: string
+          training_data_opt_in?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       flashcard_decks: {
         Row: {
           card_count: number
@@ -496,6 +544,119 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      learning_feedback: {
+        Row: {
+          correction_text: string | null
+          created_at: string
+          feedback_type: string
+          id: string
+          interaction_id: string
+          user_id: string
+        }
+        Insert: {
+          correction_text?: string | null
+          created_at?: string
+          feedback_type: string
+          id?: string
+          interaction_id: string
+          user_id: string
+        }
+        Update: {
+          correction_text?: string | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          interaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_feedback_interaction_id_fkey"
+            columns: ["interaction_id"]
+            isOneToOne: false
+            referencedRelation: "learning_interactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_interactions: {
+        Row: {
+          ai_response: string
+          concepts: string[] | null
+          created_at: string
+          device_type: string | null
+          difficulty: string | null
+          exported_at: string | null
+          feedback: string | null
+          follow_up: boolean | null
+          id: string
+          language: string | null
+          latency_ms: number | null
+          model_used: string | null
+          pii_scrubbed: boolean
+          quality_score: number | null
+          session_id: string
+          source: string | null
+          steps: Json | null
+          subject: string | null
+          topic: string | null
+          understood: string | null
+          user_correction: string | null
+          user_id: string | null
+          user_input: string
+        }
+        Insert: {
+          ai_response: string
+          concepts?: string[] | null
+          created_at?: string
+          device_type?: string | null
+          difficulty?: string | null
+          exported_at?: string | null
+          feedback?: string | null
+          follow_up?: boolean | null
+          id?: string
+          language?: string | null
+          latency_ms?: number | null
+          model_used?: string | null
+          pii_scrubbed?: boolean
+          quality_score?: number | null
+          session_id: string
+          source?: string | null
+          steps?: Json | null
+          subject?: string | null
+          topic?: string | null
+          understood?: string | null
+          user_correction?: string | null
+          user_id?: string | null
+          user_input: string
+        }
+        Update: {
+          ai_response?: string
+          concepts?: string[] | null
+          created_at?: string
+          device_type?: string | null
+          difficulty?: string | null
+          exported_at?: string | null
+          feedback?: string | null
+          follow_up?: boolean | null
+          id?: string
+          language?: string | null
+          latency_ms?: number | null
+          model_used?: string | null
+          pii_scrubbed?: boolean
+          quality_score?: number | null
+          session_id?: string
+          source?: string | null
+          steps?: Json | null
+          subject?: string | null
+          topic?: string | null
+          understood?: string | null
+          user_correction?: string | null
+          user_id?: string | null
+          user_input?: string
+        }
+        Relationships: []
       }
       learning_performance: {
         Row: {
