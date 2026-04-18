@@ -31,6 +31,22 @@ serve(async (req) => {
     let systemPrompt = getSystemPromptForIntent(intent);
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
+    // Inject persistent user memory so the AI recalls past context
+    try {
+      const { data: mems } = await sb
+        .from("user_memory")
+        .select("memory_type,key,value")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (mems && mems.length > 0) {
+        const memBlock = mems.map((m: any) => `- [${m.memory_type}] ${m.key}: ${m.value}`).join("\n");
+        systemPrompt += `\n\n## What you remember about this student\n${memBlock}\n\nUse this naturally — don't list it back. Just personalize.`;
+      }
+    } catch (memErr) {
+      console.warn("memory fetch failed:", memErr);
+    }
+
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
     const maxTokens = intent === "greeting" || intent === "conversational"
