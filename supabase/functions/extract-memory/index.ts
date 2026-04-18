@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callOpenRouter } from "../_shared/models.ts";
+import { callAIText } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
