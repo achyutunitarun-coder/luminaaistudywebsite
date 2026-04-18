@@ -257,6 +257,14 @@ const ChatPage = () => {
       if (fullContent) {
         const { data: savedMsg } = await supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'assistant', content: fullContent }).select().single();
         if (savedMsg) setMessages(prev => prev.map(m => m.id === placeholderId ? savedMsg : m));
+
+        // Fire-and-forget: extract durable memory + ingest learning data
+        void supabase.functions.invoke('extract-memory', {
+          body: { userMessage: userContent, assistantMessage: fullContent },
+        }).catch((e) => console.warn('extract-memory failed:', e));
+        void supabase.functions.invoke('ingest-learning-data', {
+          body: { question: userContent, answer: fullContent, source: 'chat' },
+        }).catch((e) => console.warn('ingest-learning-data failed:', e));
       } else {
         toast.error('Empty response. Try again.');
         setMessages(prev => prev.filter(m => m.id !== placeholderId));
