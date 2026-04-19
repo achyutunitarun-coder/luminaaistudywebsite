@@ -41,6 +41,51 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_artifacts: {
+        Row: {
+          artifact_type: string
+          chat_id: string
+          created_at: string
+          generation_time_ms: number
+          html: string
+          id: string
+          line_count: number
+          message_id: string | null
+          model_used: string | null
+          theme: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          artifact_type: string
+          chat_id: string
+          created_at?: string
+          generation_time_ms?: number
+          html: string
+          id?: string
+          line_count?: number
+          message_id?: string | null
+          model_used?: string | null
+          theme?: string
+          title?: string
+          user_id: string
+        }
+        Update: {
+          artifact_type?: string
+          chat_id?: string
+          created_at?: string
+          generation_time_ms?: number
+          html?: string
+          id?: string
+          line_count?: number
+          message_id?: string | null
+          model_used?: string | null
+          theme?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           chat_id: string
