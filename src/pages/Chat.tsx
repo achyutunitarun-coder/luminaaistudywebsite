@@ -13,9 +13,21 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 import { toast } from 'sonner';
+import { GenerationTerminal, type TerminalLine } from '@/components/chat/GenerationTerminal';
+import { ArtifactCard, type ArtifactPayload } from '@/components/chat/ArtifactCard';
+import { GenerateSetupCard, type GenerateConfig } from '@/components/chat/GenerateSetupCard';
+import { detectGenerateIntent } from '@/lib/artifactThemes';
 
 type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
+type GenJob = {
+  id: string;
+  stage: 'setup' | 'running' | 'done' | 'error';
+  initialTopic: string;
+  lines: TerminalLine[];
+  artifacts: ArtifactPayload[];
+  error?: string;
+};
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const MAX_CONTEXT_MESSAGES = 20;
@@ -140,6 +152,47 @@ const ChatPage = () => {
   const sessionIdRef = useRef<string>(crypto.randomUUID());
   const interactionMapRef = useRef<Record<string, string>>({}); // messageId -> interactionId
   const isSendingRef = useRef(false);
+  const [genJobs, setGenJobs] = useState<Record<string, GenJob>>({});
+
+  const startGeneration = useCallback(async (jobId: string, cfg: GenerateConfig) => {
+    if (!activeChat || !session) return;
+    setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], stage: 'running', lines: [{ type: 'command', text: `lumina generate --types=${cfg.types.join(',')}`, ts: Date.now() }], artifacts: [], error: undefined } }));
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-html-artifact`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ ...cfg, chatId: activeChat }),
+      });
+      if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const events = buf.split('\n\n');
+        buf = events.pop() || '';
+        for (const ev of events) {
+          const lines = ev.split('\n');
+          const eName = lines.find(l => l.startsWith('event:'))?.slice(6).trim();
+          const dRaw = lines.find(l => l.startsWith('data:'))?.slice(5).trim();
+          if (!dRaw) continue;
+          try {
+            const payload = JSON.parse(dRaw);
+            if (eName === 'log') {
+              setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], lines: [...prev[jobId].lines, { ...payload, ts: Date.now() }] } }));
+            } else if (eName === 'done') {
+              setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], stage: payload.error ? 'error' : 'done', artifacts: payload.artifacts || [], error: payload.error } }));
+            }
+          } catch {}
+        }
+      }
+    } catch (e: any) {
+      setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], stage: 'error', error: e?.message || 'Failed' } }));
+    }
+  }, [activeChat, session]);
 
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
@@ -225,7 +278,22 @@ const ChatPage = () => {
       };
       setMessages(prev => [...prev, optimisticUserMessage]);
 
-      // Save user message in background
+      if (detectGenerateIntent(userContent)) {
+        const jobId = crypto.randomUUID();
+        const placeholder: Message = { id: jobId, role: 'assistant', content: '__GEN_JOB__', created_at: new Date().toISOString() };
+        setMessages(prev => [...prev, placeholder]);
+        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'setup', initialTopic: userContent.replace(/^(generate|make|create)\s+(notes|exam|paper|study notes|a paper)\s*(for|on|about)?\s*/i, '').trim() || userContent, lines: [], artifacts: [] } }));
+        void supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent });
+        if (messages.length === 0) {
+          const title = userContent.slice(0, 50);
+          setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
+          void supabase.from('chats').update({ title }).eq('id', activeChat);
+        }
+        isSendingRef.current = false;
+        setIsLoading(false);
+        return;
+      }
+
       const persistPromise = supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent }).select().single();
       void persistPromise.then(({ data }) => {
         if (data) setMessages(prev => prev.map(m => m.id === optimisticUserMessage.id ? data : m));
@@ -454,6 +522,29 @@ const ChatPage = () => {
                       <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? '' : 'text-foreground/90'}`}>
                         {isUser ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
+                        ) : msg.content === '__GEN_JOB__' && genJobs[msg.id] ? (
+                          <div className="space-y-3 min-w-[280px] md:min-w-[480px]">
+                            {genJobs[msg.id].stage === 'setup' && (
+                              <GenerateSetupCard
+                                initialTopic={genJobs[msg.id].initialTopic}
+                                onConfirm={(cfg) => startGeneration(msg.id, cfg)}
+                                onCancel={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
+                              />
+                            )}
+                            {(genJobs[msg.id].stage === 'running' || genJobs[msg.id].stage === 'done' || genJobs[msg.id].stage === 'error') && (
+                              <GenerationTerminal
+                                lines={genJobs[msg.id].lines}
+                                done={genJobs[msg.id].stage !== 'running'}
+                                error={genJobs[msg.id].error}
+                                onRetry={() => setGenJobs(prev => ({ ...prev, [msg.id]: { ...prev[msg.id], stage: 'setup', error: undefined } }))}
+                              />
+                            )}
+                            {genJobs[msg.id].artifacts.length > 0 && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {genJobs[msg.id].artifacts.map(a => <ArtifactCard key={a.id} artifact={a} />)}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <MarkdownRenderer streaming={isStreaming}>{msg.content}</MarkdownRenderer>
                         )}

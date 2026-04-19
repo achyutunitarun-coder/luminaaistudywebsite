@@ -35,6 +35,8 @@ import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
+import PrivacySettings from "@/pages/PrivacySettings";
+import { ConsentBanner } from "@/components/ConsentBanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +60,7 @@ const ProtectedLayout = () => {
         {needsOnboarding && (
           <Onboarding onComplete={() => setNeedsOnboarding(false)} />
         )}
+        <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
           <Outlet />
@@ -110,6 +113,7 @@ const App = () => (
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/squad" element={<Squad />} />
+              <Route path="/settings/privacy" element={<PrivacySettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
