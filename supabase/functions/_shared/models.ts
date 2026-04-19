@@ -66,10 +66,20 @@ export const MODELS_EXTRA = [
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
 
+// ═══════════════════════════════════════════════════════════════════
+// Smart key rotation with per-key cooldown
+// - Round-robin across HEALTHY keys only
+// - On 429: quarantine that key for KEY_COOLDOWN_MS
+// - On 401/403: long cooldown (key is bad)
+// - Auto-heal after cooldown expires
+// ═══════════════════════════════════════════════════════════════════
+
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
   Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
+  Deno.env.get("OPENROUTER_KEY_5"),
 ].filter(Boolean) as string[];
 
 if (ALL_KEYS.length === 0) {
@@ -77,17 +87,55 @@ if (ALL_KEYS.length === 0) {
 }
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
-let _keyIndex = 0;
+const KEY_COOLDOWN_MS = 60_000;        // 429 / rate limit
+const KEY_BAD_COOLDOWN_MS = 10 * 60_000; // 401/403 / invalid
+
+// cooledUntil[i] = epoch ms when key i becomes usable again (0 = healthy)
+const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
+let _keyCursor = 0;
+
+function _isHealthy(i: number): boolean {
+  return _cooledUntil[i] <= Date.now();
+}
+
+function _healthyCount(): number {
+  let n = 0;
+  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i)) n++;
+  return n;
+}
+
+export function getNextKeyIndex(): number {
+  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
+  // Try up to ALL_KEYS.length steps to find a healthy key
+  for (let step = 0; step < ALL_KEYS.length; step++) {
+    const i = (_keyCursor + step) % ALL_KEYS.length;
+    if (_isHealthy(i)) {
+      _keyCursor = (i + 1) % ALL_KEYS.length;
+      return i;
+    }
+  }
+  // All keys cooling — pick the one closest to recovery
+  let best = 0, bestUntil = _cooledUntil[0];
+  for (let i = 1; i < ALL_KEYS.length; i++) {
+    if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
+  }
+  console.warn(`[keys] all cooling, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
+  _keyCursor = (best + 1) % ALL_KEYS.length;
+  return best;
+}
 
 export function getNextKey(): string {
-  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  const key = ALL_KEYS[_keyIndex % ALL_KEYS.length];
-  _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
-  return key;
+  return ALL_KEYS[getNextKeyIndex()];
 }
 
 export function getApiKey(): string {
   return getNextKey();
+}
+
+function markKeyCooled(i: number, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  if (until > _cooledUntil[i]) _cooledUntil[i] = until;
+  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
 }
 
 const HEADERS_BASE = {
