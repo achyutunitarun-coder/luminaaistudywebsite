@@ -190,8 +190,10 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
-  for (let attempt = 0; attempt < ALL_KEYS.length; attempt++) {
-    const key = getNextKey();
+  const maxAttempts = Math.max(1, ALL_KEYS.length);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const keyIdx = getNextKeyIndex();
+    const key = ALL_KEYS[keyIdx];
     try {
       const res = await fetchWithTimeout(
         OPENROUTER_URL,
@@ -204,17 +206,24 @@ async function callModel(
       );
 
       if (res.ok) {
-        console.log(`[${tag}] ✓ ${model}`);
+        console.log(`[${tag}] ✓ ${model} (key ${keyIdx + 1})`);
         return res;
       }
 
       if (res.status === 429) {
-        console.warn(`[${tag}] 429 ${model} on key ${attempt + 1}/${ALL_KEYS.length}`);
+        markKeyCooled(keyIdx, KEY_COOLDOWN_MS, `429 on ${model}`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        continue;
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        markKeyCooled(keyIdx, KEY_BAD_COOLDOWN_MS, `${res.status} invalid/forbidden`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
         continue;
       }
 
       const errorText = await readErrorText(res);
-      console.warn(`[${tag}] ${model} -> ${res.status} ${errorText}`);
+      console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
       if (res.status >= 500 || res.status === 408 || res.status === 524) {
         continue;
@@ -223,7 +232,7 @@ async function callModel(
       return null;
     } catch (error) {
       const isTimeout = error instanceof DOMException && error.name === "AbortError";
-      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "NETWORK"}`);
+      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "NETWORK"} (key ${keyIdx + 1})`);
     }
   }
 
