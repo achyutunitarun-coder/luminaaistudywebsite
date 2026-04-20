@@ -115,6 +115,7 @@ const App = () => (
               <Route path="/performance" element={<Performance />} />
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
+              <Route path="/training-data" element={<TrainingData />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
