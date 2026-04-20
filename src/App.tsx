@@ -36,6 +36,7 @@ import LuminaHub from "@/pages/LuminaHub";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
+import TrainingData from "@/pages/TrainingData";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import NotFound from "./pages/NotFound";
 
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/performance" element={<Performance />} />
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
+              <Route path="/training-data" element={<TrainingData />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
