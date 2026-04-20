@@ -144,10 +144,11 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 2;
+const PARALLEL_RACE_COUNT = 3;        // race 3 models for fastest first-token
 const STREAM_TOTAL_BUDGET_MS = 75_000;
 const TEXT_TOTAL_BUDGET_MS = 65_000;
 const OCR_TOTAL_BUDGET_MS = 85_000;
+const PRIMARY_RACE_TIMEOUT_MS = 8_000; // tighter primary race for snappier UX
 
 type RouteMeta = {
   model: string;
@@ -314,7 +315,7 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const primaryRaceTimeout = phaseTimeout(isStreaming ? 12_000 : 11_000);
+  const primaryRaceTimeout = phaseTimeout(PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
