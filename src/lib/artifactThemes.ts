@@ -50,3 +50,26 @@ export function detectGenerateIntent(message: string): boolean {
   const l = message.toLowerCase();
   return GENERATE_KEYWORDS.some(kw => l.includes(kw));
 }
+
+const SLIDE_PATTERNS = [
+  /\b(make|create|generate|build|do)\s+(?:a\s+|me\s+|some\s+)?(?:beautiful\s+|nice\s+|cool\s+)?(?:slide|slides|slideshow|presentation|ppt|pptx|deck)\b/i,
+  /\bslideshow\s+(?:on|about|for)\b/i,
+  /\bppt\s+(?:on|about|for)\b/i,
+  /\bpresentation\s+(?:on|about|for)\b/i,
+  /\bslides?\s+(?:on|about|for)\b/i,
+];
+
+export function detectSlideIntent(message: string): boolean {
+  const trimmed = message.trim();
+  if (trimmed.length < 4) return false;
+  return SLIDE_PATTERNS.some(rx => rx.test(trimmed));
+}
+
+export function extractSlideTopic(message: string): string {
+  let t = message.trim();
+  t = t.replace(/^(?:please\s+|hey\s+|hi\s+|can\s+you\s+|could\s+you\s+|i\s+want\s+|i'd\s+like\s+|let's\s+)/i, "");
+  t = t.replace(/\b(?:make|create|generate|build|do)\s+(?:a\s+|me\s+|some\s+)?(?:beautiful\s+|nice\s+|cool\s+|quick\s+)?(?:slide|slides|slideshow|presentation|ppt|pptx|deck)\s*(?:on|about|for|of)?\s*/i, "");
+  t = t.replace(/\b(slideshow|presentation|slides?|ppt|deck)\s+(?:on|about|for|of)\s+/i, "");
+  t = t.replace(/[?.!]+$/, "").trim();
+  return t || message.trim();
+}
