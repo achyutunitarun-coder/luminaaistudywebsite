@@ -37,6 +37,8 @@ import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
+import StudyNotesGenerator from "@/pages/StudyNotesGenerator";
+import ExamPacks from "@/pages/ExamPacks";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import NotFound from "./pages/NotFound";
 
@@ -116,6 +118,8 @@ const App = () => (
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/training-data" element={<TrainingData />} />
+              <Route path="/notes-pro" element={<StudyNotesGenerator />} />
+              <Route path="/exam-packs" element={<ExamPacks />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
