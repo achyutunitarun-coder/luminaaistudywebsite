@@ -1,5 +1,5 @@
 // Reusable callAI() with 12-model OpenRouter waterfall (8s timeout each)
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,7 +107,7 @@ const PACK_SYSTEM = `You are Lumina AI Exam Pack Author. Return ONE complete sel
 
 Match the THEME variables (bg, primary, accent, fonts) passed in. Beautiful typography, crisp answer boxes, color-coded sections. Output ONLY the HTML.`;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
