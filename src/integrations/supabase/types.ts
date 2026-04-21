@@ -268,6 +268,60 @@ export type Database = {
         }
         Relationships: []
       }
+      exam_packs: {
+        Row: {
+          active: boolean
+          created_at: string
+          currency: string
+          description: string
+          emoji: string
+          id: string
+          level: string
+          original_price_cents: number
+          price_cents: number
+          product_id: string
+          sort_order: number
+          subject: string
+          title: string
+          updated_at: string
+          whats_inside: Json
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          emoji?: string
+          id?: string
+          level: string
+          original_price_cents?: number
+          price_cents?: number
+          product_id: string
+          sort_order?: number
+          subject: string
+          title: string
+          updated_at?: string
+          whats_inside?: Json
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          emoji?: string
+          id?: string
+          level?: string
+          original_price_cents?: number
+          price_cents?: number
+          product_id?: string
+          sort_order?: number
+          subject?: string
+          title?: string
+          updated_at?: string
+          whats_inside?: Json
+        }
+        Relationships: []
+      }
       flashcard_decks: {
         Row: {
           card_count: number
@@ -1674,6 +1728,50 @@ export type Database = {
           value?: string
         }
         Relationships: []
+      }
+      user_unlocked_packs: {
+        Row: {
+          generated_at: string | null
+          html_storage_path: string | null
+          id: string
+          pack_id: string
+          payment_id: string | null
+          payment_status: string
+          product_id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          generated_at?: string | null
+          html_storage_path?: string | null
+          id?: string
+          pack_id: string
+          payment_id?: string | null
+          payment_status?: string
+          product_id: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          generated_at?: string | null
+          html_storage_path?: string | null
+          id?: string
+          pack_id?: string
+          payment_id?: string | null
+          payment_status?: string
+          product_id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_unlocked_packs_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "exam_packs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_stats: {
         Row: {
