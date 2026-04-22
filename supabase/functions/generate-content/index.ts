@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
     } else if (mode === "exam-pack") {
       system = PACK_SYSTEM;
       user = `Pack Title: ${packTitle}\nSubject: ${subject}\nDifficulty: ${packLevel}\n\nGenerate the COMPLETE exam pack HTML now. Include ALL 21 sections in order. Real exam-quality questions. Cosmos design system exactly. Output only HTML.`;
-      maxTokens = 16000;
+      maxTokens = 12000;
     } else {
       return new Response(JSON.stringify({ error: "Invalid mode" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
