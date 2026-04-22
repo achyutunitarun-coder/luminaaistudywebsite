@@ -214,8 +214,8 @@ export default function ExamPacks() {
 
       {/* Fullscreen pack modal */}
       <Dialog open={!!openPack} onOpenChange={(o) => { if (!o) { setOpenPack(null); setPackHtml(null); } }}>
-        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b border-border/30 flex flex-row items-center justify-between">
+        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden flex flex-col gap-0">
+          <DialogHeader className="px-6 py-4 border-b border-border/30 flex flex-row items-center justify-between shrink-0 space-y-0">
             <DialogTitle className="flex items-center gap-2"><span className="text-2xl">{openPack?.emoji}</span>{openPack?.title}</DialogTitle>
             <div className="flex gap-2">
               {packHtml && (
@@ -226,12 +226,14 @@ export default function ExamPacks() {
               )}
             </div>
           </DialogHeader>
-          <div className="overflow-auto h-full">
+          <div className="flex-1 min-h-0 overflow-auto">
             {generating ? (
               <PackGeneratingLoader title={openPack?.title || ""} />
             ) : packHtml ? (
               <div className="px-6 py-4"><HtmlArtifactFrame html={packHtml} title={openPack?.title} /></div>
-            ) : null}
+            ) : (
+              <PackGeneratingLoader title={openPack?.title || ""} />
+            )}
           </div>
         </DialogContent>
       </Dialog>
