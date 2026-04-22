@@ -16,7 +16,8 @@ import { toast } from 'sonner';
 import { GenerationTerminal, type TerminalLine } from '@/components/chat/GenerationTerminal';
 import { ArtifactCard, type ArtifactPayload } from '@/components/chat/ArtifactCard';
 import { GenerateSetupCard, type GenerateConfig } from '@/components/chat/GenerateSetupCard';
-import { detectGenerateIntent } from '@/lib/artifactThemes';
+import { SlideArtifactCard, type SlideArtifactPayload } from '@/components/chat/SlideArtifactCard';
+import { detectGenerateIntent, detectSlideIntent, extractSlideTopic } from '@/lib/artifactThemes';
 
 type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
