@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Lock, Check, Sparkles, X, Loader2, Download, Printer } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Lock, Check, Sparkles, X, Loader2, Download, Printer, Brain, Wand2, FileText, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -78,16 +78,29 @@ export default function ExamPacks() {
     }
   }
 
-  async function handleMockUnlock(pack: Pack) {
-    if (!user) return;
-    const { error } = await supabase.functions.invoke("unlock-pack-mock", { body: { pack_id: pack.id, product_id: pack.product_id } });
-    if (error) { toast.error("Mock unlock failed"); return; }
-    setUnlocked((s) => new Set([...s, pack.id]));
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 2500);
-    toast.success("Unlocked! Generating your pack…");
-    openPackHtml(pack);
-  }
+  // Poll for payment completion when user returns from Dodo checkout
+  const pollRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!user || !unlocking) return;
+    pollRef.current = window.setInterval(async () => {
+      const { data } = await supabase
+        .from("user_unlocked_packs")
+        .select("pack_id, payment_status")
+        .eq("user_id", user.id)
+        .eq("payment_status", "paid");
+      const paidIds = new Set((data || []).map((u: { pack_id: string }) => u.pack_id));
+      if (paidIds.has(unlocking)) {
+        setUnlocked(paidIds);
+        const justPaid = packs.find((p) => p.id === unlocking);
+        setUnlocking(null);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2500);
+        toast.success("Payment confirmed! Generating your pack…");
+        if (justPaid) openPackHtml(justPaid);
+      }
+    }, 4000);
+    return () => { if (pollRef.current) window.clearInterval(pollRef.current); };
+  }, [user, unlocking, packs]);
 
   async function openPackHtml(pack: Pack) {
     if (!user) return;
