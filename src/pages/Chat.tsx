@@ -16,8 +16,7 @@ import { toast } from 'sonner';
 import { GenerationTerminal, type TerminalLine } from '@/components/chat/GenerationTerminal';
 import { ArtifactCard, type ArtifactPayload } from '@/components/chat/ArtifactCard';
 import { GenerateSetupCard, type GenerateConfig } from '@/components/chat/GenerateSetupCard';
-import { SlideArtifactCard, type SlideArtifactPayload } from '@/components/chat/SlideArtifactCard';
-import { detectGenerateIntent, detectSlideIntent, extractSlideTopic } from '@/lib/artifactThemes';
+import { detectGenerateIntent } from '@/lib/artifactThemes';
 
 type Chat = { id: string; title: string; created_at: string };
 type Message = { id: string; role: string; content: string; created_at: string };
@@ -28,8 +27,6 @@ type GenJob = {
   lines: TerminalLine[];
   artifacts: ArtifactPayload[];
   error?: string;
-  kind?: 'notes' | 'slides';
-  slideArtifact?: SlideArtifactPayload;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -200,58 +197,6 @@ const ChatPage = () => {
     }
   }, [activeChat, session]);
 
-  const startSlideGeneration = useCallback(async (jobId: string, topic: string) => {
-    setGenJobs(prev => ({
-      ...prev,
-      [jobId]: {
-        ...prev[jobId],
-        stage: 'running',
-        kind: 'slides',
-        lines: [
-          { type: 'command', text: `lumina slides --topic="${topic}"`, ts: Date.now() },
-          { type: 'info', text: 'Generating 13-slide deck…', ts: Date.now() },
-        ],
-        artifacts: [],
-        error: undefined,
-      },
-    }));
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-slides', { body: { topic } });
-      if (error) throw error;
-      if (!data?.html) throw new Error('No HTML returned');
-      const slide: SlideArtifactPayload = {
-        id: jobId,
-        title: data.title || topic,
-        html: data.html,
-        topic,
-        model_used: data.model,
-      };
-      setGenJobs(prev => ({
-        ...prev,
-        [jobId]: {
-          ...prev[jobId],
-          stage: 'done',
-          slideArtifact: slide,
-          lines: [
-            ...prev[jobId].lines,
-            { type: 'success', text: `✅ 13 slides ready · via ${(data.model || 'AI').split('/').pop()}`, ts: Date.now() },
-          ],
-        },
-      }));
-      if (activeChat) {
-        void supabase.from('chat_messages').insert({
-          chat_id: activeChat,
-          role: 'assistant',
-          content: `__SLIDES__${JSON.stringify(slide)}`,
-        });
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Slide generation failed';
-      setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], stage: 'error', error: msg } }));
-      toast.error(msg);
-    }
-  }, [activeChat]);
-
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' }); }, [messages, isLoading]);
@@ -343,30 +288,11 @@ const ChatPage = () => {
       };
       setMessages(prev => [...prev, optimisticUserMessage]);
 
-      // Slide intent — route to generate-slides
-      if (detectSlideIntent(userContent)) {
-        const jobId = crypto.randomUUID();
-        const topic = extractSlideTopic(userContent);
-        const placeholder: Message = { id: jobId, role: 'assistant', content: '__GEN_JOB__', created_at: new Date().toISOString() };
-        setMessages(prev => [...prev, placeholder]);
-        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'running', kind: 'slides', initialTopic: topic, lines: [], artifacts: [] } }));
-        void supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent });
-        if (messages.length === 0) {
-          const title = `Slides · ${topic.slice(0, 40)}`;
-          setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
-          void supabase.from('chats').update({ title }).eq('id', activeChat);
-        }
-        void startSlideGeneration(jobId, topic);
-        isSendingRef.current = false;
-        setIsLoading(false);
-        return;
-      }
-
       if (detectGenerateIntent(userContent)) {
         const jobId = crypto.randomUUID();
         const placeholder: Message = { id: jobId, role: 'assistant', content: '__GEN_JOB__', created_at: new Date().toISOString() };
         setMessages(prev => [...prev, placeholder]);
-        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'setup', kind: 'notes', initialTopic: userContent.replace(/^(generate|make|create)\s+(notes|exam|paper|study notes|a paper)\s*(for|on|about)?\s*/i, '').trim() || userContent, lines: [], artifacts: [] } }));
+        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'setup', initialTopic: userContent.replace(/^(generate|make|create)\s+(notes|exam|paper|study notes|a paper)\s*(for|on|about)?\s*/i, '').trim() || userContent, lines: [], artifacts: [] } }));
         void supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent });
         if (messages.length === 0) {
           const title = userContent.slice(0, 50);
@@ -606,42 +532,21 @@ const ChatPage = () => {
                       <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? '' : 'text-foreground/90'}`}>
                         {isUser ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
-                        ) : msg.content.startsWith('__SLIDES__') ? (
-                          (() => {
-                            try {
-                              const slide = JSON.parse(msg.content.slice('__SLIDES__'.length)) as SlideArtifactPayload;
-                              return <SlideArtifactCard artifact={slide} />;
-                            } catch {
-                              return <span className="text-xs text-muted-foreground">Could not load slides.</span>;
-                            }
-                          })()
                         ) : msg.content === '__GEN_JOB__' && genJobs[msg.id] ? (
                           <div className="space-y-3 min-w-[280px] md:min-w-[480px]">
-                            {genJobs[msg.id].kind !== 'slides' && genJobs[msg.id].stage === 'setup' && (
+                            {genJobs[msg.id].stage === 'setup' && (
                               <GenerateSetupCard
                                 initialTopic={genJobs[msg.id].initialTopic}
                                 onConfirm={(cfg) => startGeneration(msg.id, cfg)}
                                 onCancel={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
                               />
                             )}
-                            {(genJobs[msg.id].stage === 'running' || genJobs[msg.id].stage === 'error' || (genJobs[msg.id].stage === 'done' && !genJobs[msg.id].slideArtifact)) && (
+                            {(genJobs[msg.id].stage === 'running' || genJobs[msg.id].stage === 'done' || genJobs[msg.id].stage === 'error') && (
                               <GenerationTerminal
                                 lines={genJobs[msg.id].lines}
                                 done={genJobs[msg.id].stage !== 'running'}
                                 error={genJobs[msg.id].error}
-                                onRetry={() => {
-                                  if (genJobs[msg.id].kind === 'slides') {
-                                    void startSlideGeneration(msg.id, genJobs[msg.id].initialTopic);
-                                  } else {
-                                    setGenJobs(prev => ({ ...prev, [msg.id]: { ...prev[msg.id], stage: 'setup', error: undefined } }));
-                                  }
-                                }}
-                              />
-                            )}
-                            {genJobs[msg.id].slideArtifact && (
-                              <SlideArtifactCard
-                                artifact={genJobs[msg.id].slideArtifact!}
-                                onRegenerate={() => startSlideGeneration(msg.id, genJobs[msg.id].initialTopic)}
+                                onRetry={() => setGenJobs(prev => ({ ...prev, [msg.id]: { ...prev[msg.id], stage: 'setup', error: undefined } }))}
                               />
                             )}
                             {genJobs[msg.id].artifacts.length > 0 && (
