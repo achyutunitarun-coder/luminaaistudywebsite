@@ -88,6 +88,7 @@ const sidebarSections = [
   {
     label: 'More',
     items: [
+      { title: 'Exam Packs', url: '/exam-packs', icon: Trophy },
       { title: 'Study Planner', url: '/study-planner', icon: Calendar },
       { title: 'Study Session', url: '/study-session', icon: Clock },
       { title: 'Resources', url: '/resources', icon: BookOpen },
