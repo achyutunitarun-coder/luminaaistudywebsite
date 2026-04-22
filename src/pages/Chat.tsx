@@ -343,11 +343,30 @@ const ChatPage = () => {
       };
       setMessages(prev => [...prev, optimisticUserMessage]);
 
+      // Slide intent — route to generate-slides
+      if (detectSlideIntent(userContent)) {
+        const jobId = crypto.randomUUID();
+        const topic = extractSlideTopic(userContent);
+        const placeholder: Message = { id: jobId, role: 'assistant', content: '__GEN_JOB__', created_at: new Date().toISOString() };
+        setMessages(prev => [...prev, placeholder]);
+        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'running', kind: 'slides', initialTopic: topic, lines: [], artifacts: [] } }));
+        void supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent });
+        if (messages.length === 0) {
+          const title = `Slides · ${topic.slice(0, 40)}`;
+          setChats(prev => prev.map(c => c.id === activeChat ? { ...c, title } : c));
+          void supabase.from('chats').update({ title }).eq('id', activeChat);
+        }
+        void startSlideGeneration(jobId, topic);
+        isSendingRef.current = false;
+        setIsLoading(false);
+        return;
+      }
+
       if (detectGenerateIntent(userContent)) {
         const jobId = crypto.randomUUID();
         const placeholder: Message = { id: jobId, role: 'assistant', content: '__GEN_JOB__', created_at: new Date().toISOString() };
         setMessages(prev => [...prev, placeholder]);
-        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'setup', initialTopic: userContent.replace(/^(generate|make|create)\s+(notes|exam|paper|study notes|a paper)\s*(for|on|about)?\s*/i, '').trim() || userContent, lines: [], artifacts: [] } }));
+        setGenJobs(prev => ({ ...prev, [jobId]: { id: jobId, stage: 'setup', kind: 'notes', initialTopic: userContent.replace(/^(generate|make|create)\s+(notes|exam|paper|study notes|a paper)\s*(for|on|about)?\s*/i, '').trim() || userContent, lines: [], artifacts: [] } }));
         void supabase.from('chat_messages').insert({ chat_id: activeChat, role: 'user', content: userContent });
         if (messages.length === 0) {
           const title = userContent.slice(0, 50);
