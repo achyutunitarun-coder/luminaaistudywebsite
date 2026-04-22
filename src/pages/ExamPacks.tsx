@@ -255,3 +255,102 @@ export default function ExamPacks() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Cinematic loader — multi-stage progress while the AI builds the pack
+// ─────────────────────────────────────────────────────────────────
+function PackGeneratingLoader({ title }: { title: string }) {
+  const stages = [
+    { icon: Brain, label: "Analyzing syllabus", detail: "Mapping every concept and sub-topic" },
+    { icon: FileText, label: "Drafting Master Notes", detail: "2500+ words of exam-ready prose" },
+    { icon: Wand2, label: "Generating MCQs & flashcards", detail: "25 questions · 20 flashcards · 5 essays" },
+    { icon: Sparkles, label: "Polishing visuals", detail: "Animations, gradients, particle field" },
+    { icon: Zap, label: "Final assembly", detail: "Stitching all 21 sections together" },
+  ];
+  const [stage, setStage] = useState(0);
+  const [pct, setPct] = useState(4);
+
+  useEffect(() => {
+    const stageMs = [9000, 22000, 30000, 25000, 999999];
+    const t = window.setTimeout(() => {
+      setStage((s) => (s < stages.length - 1 ? s + 1 : s));
+    }, stageMs[stage] || 20000);
+    return () => clearTimeout(t);
+  }, [stage]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setPct((p) => (p < 96 ? p + (p < 60 ? 0.6 : 0.18) : p));
+    }, 220);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="relative h-full w-full overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[10%] left-[15%] w-72 h-72 rounded-full bg-primary/20 blur-[80px] animate-pulse" />
+        <div className="absolute bottom-[10%] right-[12%] w-80 h-80 rounded-full bg-accent/20 blur-[90px] animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-[40%] right-[30%] w-56 h-56 rounded-full bg-primary/10 blur-[70px] animate-pulse" style={{ animationDelay: "2s" }} />
+      </div>
+
+      <div className="relative z-10 max-w-lg w-full px-8 text-center space-y-8">
+        <div className="relative w-28 h-28 mx-auto">
+          <div className="absolute inset-0 rounded-full border-2 border-primary/15" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary border-r-accent animate-spin" style={{ animationDuration: "1.6s" }} />
+          <div className="absolute inset-2 rounded-full border border-transparent border-b-primary/60 animate-spin" style={{ animationDuration: "2.4s", animationDirection: "reverse" }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles className="w-9 h-9 text-primary animate-pulse" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Lumina AI</p>
+          <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_4s_linear_infinite]">
+            Crafting {title}
+          </h2>
+          <p className="text-sm text-muted-foreground">This pack is being built from scratch — usually 30–90 seconds.</p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground tracking-wider">
+            <span>STEP {stage + 1} / {stages.length}</span>
+            <span>{Math.round(pct)}%</span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-left">
+          {stages.map((s, i) => {
+            const Icon = s.icon;
+            const isDone = i < stage;
+            const isActive = i === stage;
+            return (
+              <div
+                key={i}
+                className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-500 ${
+                  isActive
+                    ? "border-primary/40 bg-primary/5 shadow-[0_0_24px_rgba(123,97,255,0.15)]"
+                    : isDone
+                    ? "border-border/30 opacity-50"
+                    : "border-border/20 opacity-30"
+                }`}
+              >
+                <div className={`mt-0.5 ${isActive ? "text-primary animate-pulse" : isDone ? "text-accent" : "text-muted-foreground"}`}>
+                  {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
+                  <p className="text-[11px] text-muted-foreground/70">{s.detail}</p>
+                </div>
+                {isActive && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary mt-1" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <style>{`@keyframes shimmer { to { background-position: 200% center } }`}</style>
+    </div>
+  );
+}
