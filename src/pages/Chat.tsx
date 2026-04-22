@@ -606,21 +606,42 @@ const ChatPage = () => {
                       <div className={`text-[13px] md:text-[14px] leading-[1.7] ${isUser ? '' : 'text-foreground/90'}`}>
                         {isUser ? (
                           <span className="whitespace-pre-wrap">{msg.content}</span>
+                        ) : msg.content.startsWith('__SLIDES__') ? (
+                          (() => {
+                            try {
+                              const slide = JSON.parse(msg.content.slice('__SLIDES__'.length)) as SlideArtifactPayload;
+                              return <SlideArtifactCard artifact={slide} />;
+                            } catch {
+                              return <span className="text-xs text-muted-foreground">Could not load slides.</span>;
+                            }
+                          })()
                         ) : msg.content === '__GEN_JOB__' && genJobs[msg.id] ? (
                           <div className="space-y-3 min-w-[280px] md:min-w-[480px]">
-                            {genJobs[msg.id].stage === 'setup' && (
+                            {genJobs[msg.id].kind !== 'slides' && genJobs[msg.id].stage === 'setup' && (
                               <GenerateSetupCard
                                 initialTopic={genJobs[msg.id].initialTopic}
                                 onConfirm={(cfg) => startGeneration(msg.id, cfg)}
                                 onCancel={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
                               />
                             )}
-                            {(genJobs[msg.id].stage === 'running' || genJobs[msg.id].stage === 'done' || genJobs[msg.id].stage === 'error') && (
+                            {(genJobs[msg.id].stage === 'running' || genJobs[msg.id].stage === 'error' || (genJobs[msg.id].stage === 'done' && !genJobs[msg.id].slideArtifact)) && (
                               <GenerationTerminal
                                 lines={genJobs[msg.id].lines}
                                 done={genJobs[msg.id].stage !== 'running'}
                                 error={genJobs[msg.id].error}
-                                onRetry={() => setGenJobs(prev => ({ ...prev, [msg.id]: { ...prev[msg.id], stage: 'setup', error: undefined } }))}
+                                onRetry={() => {
+                                  if (genJobs[msg.id].kind === 'slides') {
+                                    void startSlideGeneration(msg.id, genJobs[msg.id].initialTopic);
+                                  } else {
+                                    setGenJobs(prev => ({ ...prev, [msg.id]: { ...prev[msg.id], stage: 'setup', error: undefined } }));
+                                  }
+                                }}
+                              />
+                            )}
+                            {genJobs[msg.id].slideArtifact && (
+                              <SlideArtifactCard
+                                artifact={genJobs[msg.id].slideArtifact!}
+                                onRegenerate={() => startSlideGeneration(msg.id, genJobs[msg.id].initialTopic)}
                               />
                             )}
                             {genJobs[msg.id].artifacts.length > 0 && (
