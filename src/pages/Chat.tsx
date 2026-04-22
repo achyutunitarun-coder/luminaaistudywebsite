@@ -200,6 +200,58 @@ const ChatPage = () => {
     }
   }, [activeChat, session]);
 
+  const startSlideGeneration = useCallback(async (jobId: string, topic: string) => {
+    setGenJobs(prev => ({
+      ...prev,
+      [jobId]: {
+        ...prev[jobId],
+        stage: 'running',
+        kind: 'slides',
+        lines: [
+          { type: 'command', text: `lumina slides --topic="${topic}"`, ts: Date.now() },
+          { type: 'info', text: 'Generating 13-slide deck…', ts: Date.now() },
+        ],
+        artifacts: [],
+        error: undefined,
+      },
+    }));
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-slides', { body: { topic } });
+      if (error) throw error;
+      if (!data?.html) throw new Error('No HTML returned');
+      const slide: SlideArtifactPayload = {
+        id: jobId,
+        title: data.title || topic,
+        html: data.html,
+        topic,
+        model_used: data.model,
+      };
+      setGenJobs(prev => ({
+        ...prev,
+        [jobId]: {
+          ...prev[jobId],
+          stage: 'done',
+          slideArtifact: slide,
+          lines: [
+            ...prev[jobId].lines,
+            { type: 'success', text: `✅ 13 slides ready · via ${(data.model || 'AI').split('/').pop()}`, ts: Date.now() },
+          ],
+        },
+      }));
+      if (activeChat) {
+        void supabase.from('chat_messages').insert({
+          chat_id: activeChat,
+          role: 'assistant',
+          content: `__SLIDES__${JSON.stringify(slide)}`,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Slide generation failed';
+      setGenJobs(prev => ({ ...prev, [jobId]: { ...prev[jobId], stage: 'error', error: msg } }));
+      toast.error(msg);
+    }
+  }, [activeChat]);
+
   useEffect(() => { if (user) loadChats(); }, [user]);
   useEffect(() => { if (activeChat) loadMessages(activeChat); }, [activeChat]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' }); }, [messages, isLoading]);
