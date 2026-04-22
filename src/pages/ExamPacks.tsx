@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Lock, Check, Sparkles, X, Loader2, Download, Printer } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Lock, Check, Sparkles, X, Loader2, Download, Printer, Brain, Wand2, FileText, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -68,26 +68,39 @@ export default function ExamPacks() {
       if (data?.checkout_url) {
         window.open(data.checkout_url, "_blank");
         toast.success("Complete payment in the new tab. Your pack will unlock automatically once paid.");
+        // Keep `unlocking` set so the polling effect runs until webhook flips status to "paid"
       } else {
         throw new Error("No checkout URL");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Checkout failed");
-    } finally {
       setUnlocking(null);
     }
   }
 
-  async function handleMockUnlock(pack: Pack) {
-    if (!user) return;
-    const { error } = await supabase.functions.invoke("unlock-pack-mock", { body: { pack_id: pack.id, product_id: pack.product_id } });
-    if (error) { toast.error("Mock unlock failed"); return; }
-    setUnlocked((s) => new Set([...s, pack.id]));
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 2500);
-    toast.success("Unlocked! Generating your pack…");
-    openPackHtml(pack);
-  }
+  // Poll for payment completion when user returns from Dodo checkout
+  const pollRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!user || !unlocking) return;
+    pollRef.current = window.setInterval(async () => {
+      const { data } = await supabase
+        .from("user_unlocked_packs")
+        .select("pack_id, payment_status")
+        .eq("user_id", user.id)
+        .eq("payment_status", "paid");
+      const paidIds = new Set((data || []).map((u: { pack_id: string }) => u.pack_id));
+      if (paidIds.has(unlocking)) {
+        setUnlocked(paidIds);
+        const justPaid = packs.find((p) => p.id === unlocking);
+        setUnlocking(null);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2500);
+        toast.success("Payment confirmed! Generating your pack…");
+        if (justPaid) openPackHtml(justPaid);
+      }
+    }, 4000);
+    return () => { if (pollRef.current) window.clearInterval(pollRef.current); };
+  }, [user, unlocking, packs]);
 
   async function openPackHtml(pack: Pack) {
     if (!user) return;
@@ -189,12 +202,9 @@ export default function ExamPacks() {
                 {isUnlocked ? (
                   <Button onClick={() => openPackHtml(pack)} className="w-full mt-3 rounded-xl h-10" variant="outline">View Pack →</Button>
                 ) : (
-                  <div className="flex gap-2 mt-3">
-                    <Button onClick={() => handleUnlock(pack)} disabled={unlocking === pack.id} className="flex-1 rounded-xl h-10 font-semibold" style={{ background: THEMES[theme].swatch, color: "#fff" }}>
-                      {unlocking === pack.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-3.5 h-3.5 mr-1.5" />Unlock Pack →</>}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleMockUnlock(pack)} className="text-[10px] opacity-60 hover:opacity-100" title="Dev: skip payment">demo</Button>
-                  </div>
+                  <Button onClick={() => handleUnlock(pack)} disabled={unlocking === pack.id} className="w-full mt-3 rounded-xl h-10 font-semibold" style={{ background: THEMES[theme].swatch, color: "#fff" }}>
+                    {unlocking === pack.id ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Awaiting payment…</> : <><Lock className="w-3.5 h-3.5 mr-1.5" />Unlock for ₹{pack.price_cents / 100}</>}
+                  </Button>
                 )}
               </div>
             );
@@ -216,14 +226,11 @@ export default function ExamPacks() {
               )}
             </div>
           </DialogHeader>
-          <div className="overflow-auto h-full px-6 py-4">
+          <div className="overflow-auto h-full">
             {generating ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4">
-                <Sparkles className="w-10 h-10 animate-pulse text-primary" />
-                <p className="text-sm text-muted-foreground">Building your exam pack with the model waterfall…</p>
-              </div>
+              <PackGeneratingLoader title={openPack?.title || ""} />
             ) : packHtml ? (
-              <HtmlArtifactFrame html={packHtml} title={openPack?.title} />
+              <div className="px-6 py-4"><HtmlArtifactFrame html={packHtml} title={openPack?.title} /></div>
             ) : null}
           </div>
         </DialogContent>
@@ -245,6 +252,105 @@ export default function ExamPacks() {
         </div>
       )}
       <style>{`@keyframes confetti-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0 } }`}</style>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Cinematic loader — multi-stage progress while the AI builds the pack
+// ─────────────────────────────────────────────────────────────────
+function PackGeneratingLoader({ title }: { title: string }) {
+  const stages = [
+    { icon: Brain, label: "Analyzing syllabus", detail: "Mapping every concept and sub-topic" },
+    { icon: FileText, label: "Drafting Master Notes", detail: "2500+ words of exam-ready prose" },
+    { icon: Wand2, label: "Generating MCQs & flashcards", detail: "25 questions · 20 flashcards · 5 essays" },
+    { icon: Sparkles, label: "Polishing visuals", detail: "Animations, gradients, particle field" },
+    { icon: Zap, label: "Final assembly", detail: "Stitching all 21 sections together" },
+  ];
+  const [stage, setStage] = useState(0);
+  const [pct, setPct] = useState(4);
+
+  useEffect(() => {
+    const stageMs = [9000, 22000, 30000, 25000, 999999];
+    const t = window.setTimeout(() => {
+      setStage((s) => (s < stages.length - 1 ? s + 1 : s));
+    }, stageMs[stage] || 20000);
+    return () => clearTimeout(t);
+  }, [stage]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setPct((p) => (p < 96 ? p + (p < 60 ? 0.6 : 0.18) : p));
+    }, 220);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="relative h-full w-full overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[10%] left-[15%] w-72 h-72 rounded-full bg-primary/20 blur-[80px] animate-pulse" />
+        <div className="absolute bottom-[10%] right-[12%] w-80 h-80 rounded-full bg-accent/20 blur-[90px] animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-[40%] right-[30%] w-56 h-56 rounded-full bg-primary/10 blur-[70px] animate-pulse" style={{ animationDelay: "2s" }} />
+      </div>
+
+      <div className="relative z-10 max-w-lg w-full px-8 text-center space-y-8">
+        <div className="relative w-28 h-28 mx-auto">
+          <div className="absolute inset-0 rounded-full border-2 border-primary/15" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary border-r-accent animate-spin" style={{ animationDuration: "1.6s" }} />
+          <div className="absolute inset-2 rounded-full border border-transparent border-b-primary/60 animate-spin" style={{ animationDuration: "2.4s", animationDirection: "reverse" }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles className="w-9 h-9 text-primary animate-pulse" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Lumina AI</p>
+          <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_4s_linear_infinite]">
+            Crafting {title}
+          </h2>
+          <p className="text-sm text-muted-foreground">This pack is being built from scratch — usually 30–90 seconds.</p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="h-1.5 w-full rounded-full bg-muted/40 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground tracking-wider">
+            <span>STEP {stage + 1} / {stages.length}</span>
+            <span>{Math.round(pct)}%</span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-left">
+          {stages.map((s, i) => {
+            const Icon = s.icon;
+            const isDone = i < stage;
+            const isActive = i === stage;
+            return (
+              <div
+                key={i}
+                className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-500 ${
+                  isActive
+                    ? "border-primary/40 bg-primary/5 shadow-[0_0_24px_rgba(123,97,255,0.15)]"
+                    : isDone
+                    ? "border-border/30 opacity-50"
+                    : "border-border/20 opacity-30"
+                }`}
+              >
+                <div className={`mt-0.5 ${isActive ? "text-primary animate-pulse" : isDone ? "text-accent" : "text-muted-foreground"}`}>
+                  {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
+                  <p className="text-[11px] text-muted-foreground/70">{s.detail}</p>
+                </div>
+                {isActive && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary mt-1" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <style>{`@keyframes shimmer { to { background-position: 200% center } }`}</style>
     </div>
   );
 }
