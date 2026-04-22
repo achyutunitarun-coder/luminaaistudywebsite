@@ -6,19 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Ordered fastest-first to fit within Supabase's 150s edge timeout.
 const MODELS = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "openrouter/elephant-alpha",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-preview:free",
   "z-ai/glm-4.5-air:free",
-  "minimax/minimax-m2.5:free",
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-coder:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-20b:free",
-  "openrouter/free",
 ];
 
 const KEYS = [
@@ -56,10 +50,17 @@ async function tryModel(model: string, key: string, system: string, user: string
 
 async function callAI(systemPrompt: string, userPrompt: string, maxTokens = 12000) {
   const fallbacks: string[] = [];
+  const globalDeadline = Date.now() + 135000; // leave 15s headroom under the 150s edge cap
+  const PER_ATTEMPT_MS = 45000;
+
   for (const model of MODELS) {
     for (const key of KEYS) {
+      const remaining = globalDeadline - Date.now();
+      if (remaining < 8000) {
+        throw new Error(`Deadline reached after fallbacks: ${fallbacks.join(", ")}`);
+      }
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 60000); // generous; the SHORT 8s was killing 120B models
+      const t = setTimeout(() => ctrl.abort(), Math.min(PER_ATTEMPT_MS, remaining));
       try {
         const out = await tryModel(model, key, systemPrompt, userPrompt, maxTokens, ctrl.signal);
         clearTimeout(t);
@@ -68,7 +69,7 @@ async function callAI(systemPrompt: string, userPrompt: string, maxTokens = 1200
       } catch (e) {
         clearTimeout(t);
         const msg = e instanceof Error ? e.message : String(e);
-        console.log(`❌ ${msg}`);
+        console.log(`❌ ${model}: ${msg}`);
         fallbacks.push(model);
       }
     }
