@@ -28,6 +28,8 @@ type GenJob = {
   lines: TerminalLine[];
   artifacts: ArtifactPayload[];
   error?: string;
+  kind?: 'notes' | 'slides';
+  slideArtifact?: SlideArtifactPayload;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
