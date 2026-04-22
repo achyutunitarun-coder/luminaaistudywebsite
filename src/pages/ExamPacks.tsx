@@ -68,12 +68,12 @@ export default function ExamPacks() {
       if (data?.checkout_url) {
         window.open(data.checkout_url, "_blank");
         toast.success("Complete payment in the new tab. Your pack will unlock automatically once paid.");
+        // Keep `unlocking` set so the polling effect runs until webhook flips status to "paid"
       } else {
         throw new Error("No checkout URL");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Checkout failed");
-    } finally {
       setUnlocking(null);
     }
   }
@@ -202,12 +202,9 @@ export default function ExamPacks() {
                 {isUnlocked ? (
                   <Button onClick={() => openPackHtml(pack)} className="w-full mt-3 rounded-xl h-10" variant="outline">View Pack →</Button>
                 ) : (
-                  <div className="flex gap-2 mt-3">
-                    <Button onClick={() => handleUnlock(pack)} disabled={unlocking === pack.id} className="flex-1 rounded-xl h-10 font-semibold" style={{ background: THEMES[theme].swatch, color: "#fff" }}>
-                      {unlocking === pack.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-3.5 h-3.5 mr-1.5" />Unlock Pack →</>}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleMockUnlock(pack)} className="text-[10px] opacity-60 hover:opacity-100" title="Dev: skip payment">demo</Button>
-                  </div>
+                  <Button onClick={() => handleUnlock(pack)} disabled={unlocking === pack.id} className="w-full mt-3 rounded-xl h-10 font-semibold" style={{ background: THEMES[theme].swatch, color: "#fff" }}>
+                    {unlocking === pack.id ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Awaiting payment…</> : <><Lock className="w-3.5 h-3.5 mr-1.5" />Unlock for ₹{pack.price_cents / 100}</>}
+                  </Button>
                 )}
               </div>
             );
@@ -229,14 +226,11 @@ export default function ExamPacks() {
               )}
             </div>
           </DialogHeader>
-          <div className="overflow-auto h-full px-6 py-4">
+          <div className="overflow-auto h-full">
             {generating ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4">
-                <Sparkles className="w-10 h-10 animate-pulse text-primary" />
-                <p className="text-sm text-muted-foreground">Building your exam pack with the model waterfall…</p>
-              </div>
+              <PackGeneratingLoader title={openPack?.title || ""} />
             ) : packHtml ? (
-              <HtmlArtifactFrame html={packHtml} title={openPack?.title} />
+              <div className="px-6 py-4"><HtmlArtifactFrame html={packHtml} title={openPack?.title} /></div>
             ) : null}
           </div>
         </DialogContent>
