@@ -118,15 +118,15 @@ const SUMMARY_SYSTEM = `You are Lumina AI's Summary Generator. Output a clear, s
 - End with a short "Quick Recap" bulleted list`;
 
 const FEATURE_CONFIG: Record<string, { system: string; models: string[]; json: boolean; maxTokens: number; temperature: number }> = {
-  notes_generate:   { system: NOTES_SYSTEM, models: MODELS_LONG_CTX, json: true, maxTokens: 3000, temperature: 0.5 },
-  predict_exam:     { system: PREDICT_EXAM_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 2000, temperature: 0.4 },
-  mindmap_generate: { system: MINDMAP_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 1800, temperature: 0.5 },
-  quiz_generate:    { system: QUIZ_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 2500, temperature: 0.5 },
-  flashcards:       { system: FLASHCARD_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 2200, temperature: 0.5 },
-  focus_plan:       { system: FOCUS_PLAN_SYSTEM, models: MODELS_QUALITY, json: true, maxTokens: 2500, temperature: 0.4 },
-  teach_classmate:  { system: TEACH_PHASE1_SYSTEM, models: MODELS_FAST, json: false, maxTokens: 200, temperature: 0.85 },
-  teach_eval:       { system: TEACH_EVAL_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 1200, temperature: 0.3 },
-  summary:          { system: SUMMARY_SYSTEM, models: MODELS_LONG_CTX, json: false, maxTokens: 2500, temperature: 0.6 },
+  notes_generate:   { system: NOTES_SYSTEM, models: MODELS_LONG_CTX, json: true, maxTokens: 12000, temperature: 0.5 },
+  predict_exam:     { system: PREDICT_EXAM_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 8000, temperature: 0.4 },
+  mindmap_generate: { system: MINDMAP_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 6000, temperature: 0.5 },
+  quiz_generate:    { system: QUIZ_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 8000, temperature: 0.5 },
+  flashcards:       { system: FLASHCARD_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 8000, temperature: 0.5 },
+  focus_plan:       { system: FOCUS_PLAN_SYSTEM, models: MODELS_QUALITY, json: true, maxTokens: 8000, temperature: 0.4 },
+  teach_classmate:  { system: TEACH_PHASE1_SYSTEM, models: MODELS_FAST, json: false, maxTokens: 600, temperature: 0.85 },
+  teach_eval:       { system: TEACH_EVAL_SYSTEM, models: MODELS_BALANCED, json: true, maxTokens: 4000, temperature: 0.3 },
+  summary:          { system: SUMMARY_SYSTEM, models: MODELS_LONG_CTX, json: false, maxTokens: 12000, temperature: 0.6 },
 };
 
 const TEMPLATE_HINTS: Record<string, string> = {

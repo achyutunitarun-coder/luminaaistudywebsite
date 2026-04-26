@@ -182,11 +182,13 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 3;        // race 3 models for fastest first-token
-const STREAM_TOTAL_BUDGET_MS = 75_000;
-const TEXT_TOTAL_BUDGET_MS = 65_000;
-const OCR_TOTAL_BUDGET_MS = 85_000;
-const PRIMARY_RACE_TIMEOUT_MS = 8_000; // tighter primary race for snappier UX
+const PARALLEL_RACE_COUNT = 3;          // race 3 models for fastest first-token
+// Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
+// for full games / long files to finish streaming through the gateway.
+const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
+const TEXT_TOTAL_BUDGET_MS = 180_000;   // 3 min for non-streamed JSON tools
+const OCR_TOTAL_BUDGET_MS = 120_000;
+const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
 
 type RouteMeta = {
   model: string;

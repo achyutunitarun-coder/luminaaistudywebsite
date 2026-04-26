@@ -49,11 +49,16 @@ serve(async (req) => {
 
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
-    const maxTokens = intent === "greeting" || intent === "conversational"
-        ? 400
-        : 4096;
-    const temperature = requestedMode === "creative" ? 0.85 : 0.65;
-    const timeoutMs = 65_000;
+    // No artificial cap — let the model write as long as the task requires.
+    // Coding/long-form gets the biggest budget so full games & files stream end-to-end.
+    const maxTokens =
+      intent === "greeting" || intent === "conversational" ? 800 :
+      intent === "coding" || requestedMode === "coding" ? 32_000 :
+      intent === "deep" || requestedMode === "long_context" || requestedMode === "reasoning" ? 16_000 :
+      12_000;
+    const temperature = requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
+    // Long completions need a longer wall-clock budget than the default.
+    const timeoutMs = intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
