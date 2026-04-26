@@ -99,13 +99,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           {ROLES.map((r, i) => (
             <motion.button
               key={r.id}
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, ease }}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setRole(r.id)}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 ${
+              className={`relative p-4 rounded-2xl border text-left transition-all duration-300 ${
                 role === r.id
                   ? 'border-primary/50 bg-primary/10 shadow-lg shadow-primary/10'
                   : 'border-border/30 bg-card/30 hover:border-primary/20'
