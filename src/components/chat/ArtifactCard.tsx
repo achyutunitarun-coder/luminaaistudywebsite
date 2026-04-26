@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Maximize2, Download, X, FileText, FileEdit } from "lucide-react";
+import { Maximize2, Download, X, FileText, FileEdit, Presentation } from "lucide-react";
 
 export interface ArtifactPayload {
   id: string;
-  artifact_type: "notes" | "exam";
+  artifact_type: "notes" | "exam" | "slides";
   theme: string;
   title: string;
   html: string;
