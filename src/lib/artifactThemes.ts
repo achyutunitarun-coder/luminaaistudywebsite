@@ -1,5 +1,5 @@
-// Theme registry for HTML notes & exam paper generation
-export type ThemeKind = "notes" | "exam";
+// Theme registry for HTML notes, exam paper & slide deck generation
+export type ThemeKind = "notes" | "exam" | "slides";
 
 export interface ThemePreview {
   key: string;
