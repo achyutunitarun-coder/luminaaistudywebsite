@@ -231,7 +231,7 @@ async function callModel(
 ): Promise<Response | null> {
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const keyIdx = getNextKeyIndex();
+    const keyIdx = getNextKeyIndex(model);
     const key = ALL_KEYS[keyIdx];
     try {
       const res = await fetchWithTimeout(
@@ -250,7 +250,8 @@ async function callModel(
       }
 
       if (res.status === 429) {
-        markKeyCooled(keyIdx, KEY_COOLDOWN_MS, `429 on ${model}`);
+        // Per-model cooldown so this key can still serve other models
+        markKeyModelCooled(keyIdx, model, KEY_MODEL_COOLDOWN_MS, `429`);
         try { await res.body?.cancel(); } catch { /* ignore */ }
         continue;
       }
