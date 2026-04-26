@@ -12,18 +12,24 @@ export const MODELS_FAST = [
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
   "google/gemma-3-12b-it:free",
+  "qwen/qwen3-4b:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_BALANCED = [
-  "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_QUALITY = [
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -32,16 +38,26 @@ export const MODELS_QUALITY = [
   "google/gemma-3-27b-it:free",
 ];
 
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Stacked with the strongest free coding/reasoning models on OpenRouter.
+// Order = priority. We race the top 3, fall back through the rest.
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "openai/gpt-oss-20b:free",
 ];
 
 export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
@@ -53,6 +69,7 @@ export const MODELS_VISION = [
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
+  "qwen/qwen2.5-vl-72b-instruct:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -62,6 +79,8 @@ export const MODELS_EXTRA = [
   "minimax/minimax-m2.5:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
