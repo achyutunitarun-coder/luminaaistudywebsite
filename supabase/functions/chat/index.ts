@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX } from "../_shared/models.ts";
-import { detectArtifactFeature, buildArtifactSystemPrompt } from "../_shared/artifact-prompts.ts";
+// artifact-prompts intentionally not imported here — artifact generation is handled by generate-html-artifact
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
