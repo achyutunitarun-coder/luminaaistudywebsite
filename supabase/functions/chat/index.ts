@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode } from "../_shared/models.ts";
+import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX } from "../_shared/models.ts";
+import { detectArtifactFeature, buildArtifactSystemPrompt } from "../_shared/artifact-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +29,16 @@ serve(async (req) => {
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
 
-    let systemPrompt = getSystemPromptForIntent(intent);
+    // Detect artifact requests (slides / notes / exam) and use the master prompt system
+    // when the user explicitly asks for one in chat. Produces a single self-contained HTML file.
+    const artifactFeature = !hasFiles ? detectArtifactFeature(queryText) : null;
+
+    let systemPrompt: string;
+    if (artifactFeature) {
+      systemPrompt = buildArtifactSystemPrompt(artifactFeature);
+    } else {
+      systemPrompt = getSystemPromptForIntent(intent);
+    }
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     // Inject persistent user memory so the AI recalls past context
@@ -48,21 +58,22 @@ serve(async (req) => {
     }
 
     const requestedMode = typeof mode === "string" ? mode : "auto";
-    const models = getModelsForMode(requestedMode) ?? getModelsForIntent(intent);
+    const models = artifactFeature
+      ? MODELS_LONG_CTX
+      : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
     // No artificial cap — let the model write as long as the task requires.
-    // Coding/long-form gets the biggest budget so full games & files stream end-to-end.
     const maxTokens =
+      artifactFeature ? 32_000 :
       intent === "greeting" || intent === "conversational" ? 800 :
       intent === "coding" || requestedMode === "coding" ? 32_000 :
       intent === "deep" || requestedMode === "long_context" || requestedMode === "reasoning" ? 16_000 :
       12_000;
-    const temperature = requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
-    // Long completions need a longer wall-clock budget than the default.
-    const timeoutMs = intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000;
+    const temperature = artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
+    const timeoutMs = artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${intent}`);
+    const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${artifactFeature ?? intent}`);
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
     console.error("chat error:", e);
