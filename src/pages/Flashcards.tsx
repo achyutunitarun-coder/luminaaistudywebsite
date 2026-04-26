@@ -203,7 +203,7 @@ const Flashcards = () => {
                 className="bg-muted/20 border-border/30 rounded-xl h-13 px-5 text-base"
               />
               <Textarea
-                placeholder="Paste your notes, textbook content, or syllabus here..."
+                placeholder="Optional — paste notes, textbook content, or syllabus. Leave empty to generate from the title alone."
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
