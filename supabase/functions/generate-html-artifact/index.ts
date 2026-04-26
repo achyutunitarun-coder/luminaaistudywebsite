@@ -156,9 +156,11 @@ serve(async (req) => {
       topic = "Study Material",
       subject = "General",
       grade = "MYP 5",
-      types = ["notes"], // ["notes"] | ["exam"] | ["notes","exam"]
+      types = ["notes"], // any subset of ["notes","exam","slides"]
       notesTheme = "academic-dark",
       examTheme = "classic-paper",
+      slidesTheme = "lumina-dark",
+      slideCount = 10,
       totalMarks = 100,
       durationMin = 120,
       chatId,
@@ -178,18 +180,37 @@ serve(async (req) => {
 
           const artifacts: any[] = [];
 
-          for (const type of types) {
-            const isNotes = type === "notes";
-            const themeKey = isNotes ? notesTheme : examTheme;
-            const themeDesc = isNotes ? NOTES_THEMES[themeKey] : EXAM_THEMES[themeKey];
-            const sysPrompt = isNotes
-              ? buildNotesPrompt(themeDesc || NOTES_THEMES["academic-dark"], themeKey)
-              : buildExamPrompt(themeDesc || EXAM_THEMES["classic-paper"], themeKey, totalMarks, durationMin);
-            const userPrompt = isNotes
-              ? `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`
-              : `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
+          for (const type of types as ArtifactFeature[]) {
+            let themeKey = "";
+            let themeDesc = "";
+            let sysPrompt = "";
+            let userPrompt = "";
+            let label = "";
 
-            send("log", { type: "command", text: `generate.${type}() — building ${isNotes ? "study notes" : "exam paper"}` });
+            if (type === "notes") {
+              themeKey = notesTheme;
+              themeDesc = NOTES_THEMES[themeKey] || NOTES_THEMES["academic-dark"];
+              sysPrompt = buildNotesPrompt(themeDesc, themeKey);
+              userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`;
+              label = "study notes";
+            } else if (type === "exam") {
+              themeKey = examTheme;
+              themeDesc = EXAM_THEMES[themeKey] || EXAM_THEMES["classic-paper"];
+              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin);
+              userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
+              label = "exam paper";
+            } else if (type === "slides") {
+              themeKey = slidesTheme;
+              themeDesc = SLIDES_THEMES[themeKey] || SLIDES_THEMES["lumina-dark"];
+              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount);
+              userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.`;
+              label = "presentation deck";
+            } else {
+              send("log", { type: "warning", text: `Unknown artifact type: ${type} — skipping` });
+              continue;
+            }
+
+            send("log", { type: "command", text: `generate.${type}() — building ${label}` });
             send("log", { type: "info", text: `Applying theme: ${themeKey}` });
             send("log", { type: "progress", text: `Calling AI (${HTML_MODELS.length} model fallbacks ready)...` });
 
@@ -207,7 +228,7 @@ serve(async (req) => {
                     { role: "system", content: sysPrompt },
                     { role: "user", content: userPrompt },
                   ],
-                  [model], 8000, 0.4, 60_000, `html-artifact-${type}`
+                  [model], 12000, 0.5, 90_000, `html-artifact-${type}`
                 );
                 const cleaned = cleanHtml(text);
                 if (cleaned.toLowerCase().includes("<!doctype html") || cleaned.toLowerCase().includes("<html")) {
