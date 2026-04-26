@@ -62,6 +62,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     setSubjects(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
 
+  const handleNext = () => {
+    if (isLast) {
+      handleComplete();
+    } else {
+      setStep(s => s + 1);
+    }
+  };
+
   const handleComplete = async () => {
     try {
       await supabase.from('profiles').update({
