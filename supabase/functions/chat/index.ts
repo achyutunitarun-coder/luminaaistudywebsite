@@ -34,12 +34,7 @@ serve(async (req) => {
     // We deliberately do NOT inline raw HTML in chat — it produced broken UX.
     const artifactFeature: null = null;
 
-    let systemPrompt: string;
-    if (artifactFeature) {
-      systemPrompt = buildArtifactSystemPrompt(artifactFeature);
-    } else {
-      systemPrompt = getSystemPromptForIntent(intent);
-    }
+    let systemPrompt: string = getSystemPromptForIntent(intent);
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     // Inject persistent user memory so the AI recalls past context
