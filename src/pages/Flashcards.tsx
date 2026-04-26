@@ -47,13 +47,17 @@ const Flashcards = () => {
   });
 
   const generateDeck = async () => {
-    if (!content.trim() || !title.trim() || !user) return;
+    if (!title.trim() || !user) return;
     const allowed = await checkAndIncrement('flashcard_sets');
     if (!allowed) return;
     setGenerating(true);
     try {
       const fileContext = buildFileContext(uploadedFiles);
-      const fullContent = content + fileContext;
+      // Topic-only generation: if no notes pasted, use the title/topic as the basis.
+      const baseContent = content.trim()
+        ? content
+        : `Generate comprehensive, exam-quality flashcards about the topic: "${title.trim()}". Cover key definitions, core concepts, common formulas/facts, important examples, and the kinds of questions a student is most likely to be asked. Vary card difficulty (easy → hard).`;
+      const fullContent = baseContent + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
         method: 'POST',
         headers: {
