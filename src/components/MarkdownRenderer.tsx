@@ -157,34 +157,50 @@ function preprocessLatex(text: string): string {
   // 1. Normalize line endings
   let processed = text.replace(/\r\n?/g, '\n');
 
-  // 2. Protect code blocks
+  // 2. Protect code blocks (fenced + inline)
   const codeBlocks: string[] = [];
   processed = processed.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
     codeBlocks.push(match);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
 
-  // 3. Handle HTML <br> tags
+  // 3. HTML <br> tags
   processed = processed.replace(/<br\s*\/?>/gi, HTML_BREAK_TOKEN);
 
-  // 4. Convert \( ... \) to inline math $ ... $ (single line, non-greedy)
-  processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, math) => `$${math.trim()}$`);
+  // 4. \( ... \) → $ ... $   (inline; collapse internal newlines so KaTeX accepts it)
+  processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, m) => `$${String(m).replace(/\s*\n\s*/g, ' ').trim()}$`);
 
-  // 5. Convert \[ ... \] to display math $$ ... $$ (multi-line)
-  processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`);
+  // 5. \[ ... \] → $$ ... $$ (display)
+  processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n\n$$\n${String(m).trim()}\n$$\n\n`);
 
-  // 6. Handle standalone \begin{env}...\end{env} not already inside $$
-  //    Wrap them in $$ so KaTeX can process them
+  // 6. Bare \begin{env}...\end{env} → wrap in $$ (only when NOT already wrapped).
+  //    We protect already-$$-wrapped envs first, then wrap the rest.
+  const protectedEnvs: string[] = [];
   processed = processed.replace(
-    /(?<!\$\$\s*\n?\s*)\\begin\{(aligned|align|equation|gather|matrix|bmatrix|pmatrix|vmatrix|cases|array|split)\}([\s\S]*?)\\end\{\1\}(?!\s*\n?\s*\$\$)/g,
-    (match) => `\n$$\n${match}\n$$\n`
+    /\$\$\s*\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\1\}\s*\$\$/g,
+    (m) => { protectedEnvs.push(m); return `%%MATHENV_${protectedEnvs.length - 1}%%`; }
   );
+  processed = processed.replace(
+    /\\begin\{(aligned|align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|Vmatrix|smallmatrix|cases|array|split|multline\*?)\}([\s\S]*?)\\end\{\1\}/g,
+    (m) => `\n\n$$\n${m}\n$$\n\n`
+  );
+  processed = processed.replace(/%%MATHENV_(\d+)%%/g, (_, i) => protectedEnvs[parseInt(i)]);
 
-  // 7. Ensure $$ display blocks have newlines around them for remark-math
-  processed = processed.replace(/([^\n])\$\$/g, '$1\n$$');
+  // 7. Escape lone "$" used as currency so remark-math doesn't grab it.
+  //    Heuristic: $ immediately followed by a digit and NOT closed by another $ on the same line.
+  processed = processed.replace(/(^|[^\\$])\$(\d[\d,.]*)(?!\s*[^\n$]*\$)/g, '$1\\$$$2');
+
+  // 8. Inline $...$ — kill internal newlines (LLMs sometimes wrap)
+  processed = processed.replace(/(^|[^\$\\])\$([^\n$][^$]*?)\$(?!\$)/g, (_, pre, body) => {
+    if (!body || body.length > 200) return _;
+    return `${pre}$${body.replace(/\s*\n\s*/g, ' ').trim()}$`;
+  });
+
+  // 9. Ensure $$ display blocks have blank-line separation (remark-math is strict)
+  processed = processed.replace(/([^\n])\$\$/g, '$1\n\n$$');
   processed = processed.replace(/\$\$([^\n])/g, '$$\n$1');
 
-  // 8. Restore code blocks
+  // 10. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
   return processed;
