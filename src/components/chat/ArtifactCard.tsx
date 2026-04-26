@@ -25,8 +25,9 @@ function downloadHTML(html: string, filename: string) {
 
 export const ArtifactCard = ({ artifact }: { artifact: ArtifactPayload }) => {
   const [expanded, setExpanded] = useState(false);
-  const isNotes = artifact.artifact_type === "notes";
-  const Icon = isNotes ? FileText : FileEdit;
+  const Icon = artifact.artifact_type === "notes" ? FileText
+             : artifact.artifact_type === "slides" ? Presentation
+             : FileEdit;
   const filename = `${artifact.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${artifact.artifact_type}.html`;
 
   return (
