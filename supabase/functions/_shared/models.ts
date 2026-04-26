@@ -106,39 +106,51 @@ if (ALL_KEYS.length === 0) {
 }
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
-const KEY_COOLDOWN_MS = 60_000;        // 429 / rate limit
+const KEY_COOLDOWN_MS = 45_000;          // generic 429
+const KEY_MODEL_COOLDOWN_MS = 90_000;    // 429 specifically on (key,model) — model-level RL
 const KEY_BAD_COOLDOWN_MS = 10 * 60_000; // 401/403 / invalid
 
-// cooledUntil[i] = epoch ms when key i becomes usable again (0 = healthy)
+// cooledUntil[i] = epoch ms when key i is globally usable again (0 = healthy)
 const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
+// per-(key,model) cooldown — a 429 on model X doesn't ban the key from model Y
+const _modelCooledUntil: Map<string, number> = new Map();
 let _keyCursor = 0;
 
-function _isHealthy(i: number): boolean {
-  return _cooledUntil[i] <= Date.now();
+function _mkKey(i: number, model: string) { return `${i}::${model}`; }
+
+function _isHealthy(i: number, model?: string): boolean {
+  if (_cooledUntil[i] > Date.now()) return false;
+  if (model) {
+    const m = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+    if (m > Date.now()) return false;
+  }
+  return true;
 }
 
-function _healthyCount(): number {
+function _healthyCount(model?: string): number {
   let n = 0;
-  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i)) n++;
+  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i, model)) n++;
   return n;
 }
 
-export function getNextKeyIndex(): number {
+export function getNextKeyIndex(model?: string): number {
   if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  // Try up to ALL_KEYS.length steps to find a healthy key
   for (let step = 0; step < ALL_KEYS.length; step++) {
     const i = (_keyCursor + step) % ALL_KEYS.length;
-    if (_isHealthy(i)) {
+    if (_isHealthy(i, model)) {
       _keyCursor = (i + 1) % ALL_KEYS.length;
       return i;
     }
   }
-  // All keys cooling — pick the one closest to recovery
-  let best = 0, bestUntil = _cooledUntil[0];
-  for (let i = 1; i < ALL_KEYS.length; i++) {
-    if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
+  let best = 0;
+  let bestUntil = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    const g = _cooledUntil[i];
+    const m = model ? (_modelCooledUntil.get(_mkKey(i, model)) ?? 0) : 0;
+    const until = Math.max(g, m);
+    if (until < bestUntil) { best = i; bestUntil = until; }
   }
-  console.warn(`[keys] all cooling, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
+  console.warn(`[keys] all cooling for ${model ?? "*"}, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
   _keyCursor = (best + 1) % ALL_KEYS.length;
   return best;
 }
@@ -154,7 +166,14 @@ export function getApiKey(): string {
 function markKeyCooled(i: number, ms: number, reason: string) {
   const until = Date.now() + ms;
   if (until > _cooledUntil[i]) _cooledUntil[i] = until;
-  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
+  console.warn(`[keys] key ${i + 1} GLOBAL cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
+}
+
+function markKeyModelCooled(i: number, model: string, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  const cur = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+  if (until > cur) _modelCooledUntil.set(_mkKey(i, model), until);
+  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s on ${model} (${reason})`);
 }
 
 const HEADERS_BASE = {
