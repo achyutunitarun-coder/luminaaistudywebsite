@@ -413,12 +413,19 @@ export async function streamAI(
   return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
 
-export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational";
+export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding";
 export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
+
+const CODING_PATTERNS = /\b(code|coding|program|programming|script|function|class|algorithm|debug|refactor|stack trace|stacktrace|error|exception|compile|build|api|endpoint|frontend|backend|fullstack|html|css|javascript|typescript|tsx|jsx|react|vue|svelte|angular|next\.?js|node\.?js|python|java|kotlin|swift|rust|golang|c\+\+|c#|sql|postgres|mongodb|three\.?js|phaser|unity|game(?:\s|-)?(?:dev|engine|loop)|canvas|webgl|shader|babylon|matter\.?js|p5\.?js|pygame|godot|tailwind|css\s*grid|flexbox|regex|leetcode|dsa|data structure|recursion|big o|complexity|hashmap|linked list|binary tree|graph traversal|dijkstra|dfs|bfs|dynamic programming|websocket|fetch api|rest api|graphql|prisma|supabase|firebase|docker|kubernetes|github action|cli|terminal|vim|bash|zsh|deno|bun|vite|webpack|rollup|esbuild|jest|vitest|cypress|playwright|tailwind|shadcn|ai chat|edge function)\b|```|\bbuild (me|a) (game|app|website|component|hook|server)|create (a|an) (game|website|app|landing page|component|hook)/i;
 
 export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
+
+  // CODING wins early — it's the most specific intent we can detect
+  if (CODING_PATTERNS.test(text)) {
+    return "coding";
+  }
 
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
     return "greeting";
@@ -444,7 +451,32 @@ export function classifyIntent(text: string): IntentType {
   return "study";
 }
 
+const CODING_SYSTEM_PROMPT = `You are Lumina Code — an elite, senior-staff software engineer with the practical skill of a top OSS maintainer. Think like Claude Code: read the request carefully, plan, then ship complete, working code.
+
+ABSOLUTE CODING RULES:
+- ALWAYS produce COMPLETE, RUNNABLE code. No "// rest of file unchanged", no "// implement this", no half answers.
+- For web/game requests, default to a SINGLE self-contained \`html\` file with inline <style> and <script>. The user can press Run inside Lumina to play it instantly.
+- For game dev: real gameplay loop (requestAnimationFrame), input handling (keyboard + touch), collision, score, win/lose, particles, sound where reasonable. Use HTML5 Canvas, WebGL via three.js (CDN), or phaser.js (CDN) depending on need. Pick the BEST tool for the job.
+- For UI demos: beautiful design, smooth animation, responsive. Use CSS gradients, glassmorphism, transforms.
+- Code quality: clear names, small functions, comments only where non-obvious, error handling on user input, no dead code.
+- Performance: O(n) where possible, avoid layout thrash in render loops, use object pooling for particles/bullets in games.
+- Accessibility & polish: focusable controls, prefers-reduced-motion, viewport meta on HTML, mobile touch fallbacks.
+
+OUTPUT FORMAT:
+1. ONE short paragraph (≤3 lines) describing what you're building and how it plays/works.
+2. Then ONE single fenced code block with the right language (\`\`\`html, \`\`\`tsx, \`\`\`python, etc).
+3. After the code, 1–3 bullet points: how to run it, controls, and one ambitious next step.
+
+NEVER:
+- Never split the same file across multiple code blocks.
+- Never ask the user clarifying questions before writing code unless the request is truly ambiguous — make smart defaults and SHIP.
+- Never produce pseudocode when real code is requested.
+
+You are graded on: correctness, completeness, visual polish, gameplay feel, and how impressive the result is when the user clicks Run.`;
+
 export function getSystemPromptForIntent(intent: IntentType): string {
+  if (intent === "coding") return CODING_SYSTEM_PROMPT;
+
   const base = `You are Lumina — a brilliant, patient, step-by-step tutor. NOT a lecture bot. You teach like a real human tutor sitting next to the student.
 
 CORE TUTOR RULES:
@@ -491,6 +523,7 @@ NEVER dump everything at once. Teach progressively like a patient tutor.`;
     case "conversational":
       return `${base}\n\nCONVERSATIONAL MODE: Be brief and natural. Match their casual energy. One or two sentences max.`;
   }
+  return base;
 }
 
 export function getModelsForIntent(intent: IntentType): string[] {
@@ -505,6 +538,8 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_BALANCED;
     case "deep":
       return MODELS_LONG_CTX;
+    case "coding":
+      return MODELS_CODE;
   }
 }
 
