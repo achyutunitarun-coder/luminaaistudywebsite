@@ -1,5 +1,5 @@
-// Theme registry for HTML notes & exam paper generation
-export type ThemeKind = "notes" | "exam";
+// Theme registry for HTML notes, exam paper & slide deck generation
+export type ThemeKind = "notes" | "exam" | "slides";
 
 export interface ThemePreview {
   key: string;
@@ -39,11 +39,29 @@ export const EXAM_THEMES: ThemePreview[] = [
   { key: "scientific-lab", label: "Lab", swatches: ["#ffffff", "#1e40af", "#dbeafe"], bg: "#ffffff", fg: "#1e40af" },
 ];
 
+export const SLIDES_THEMES: ThemePreview[] = [
+  { key: "lumina-dark",     label: "Lumina Dark",  swatches: ["#0f1117", "#6366f1", "#a78bfa"], bg: "#0f1117", fg: "#e8e6f0" },
+  { key: "physics-blue",    label: "Physics",      swatches: ["#0b1220", "#3b82f6", "#60a5fa"], bg: "#0b1220", fg: "#e0eeff" },
+  { key: "math-purple",     label: "Math",         swatches: ["#120f1e", "#8b5cf6", "#c4b5fd"], bg: "#120f1e", fg: "#ede9fe" },
+  { key: "cs-cyan",         label: "CS / Code",    swatches: ["#0a1418", "#06b6d4", "#67e8f9"], bg: "#0a1418", fg: "#cffafe" },
+  { key: "history-amber",   label: "History",      swatches: ["#1c1410", "#f59e0b", "#fcd34d"], bg: "#1c1410", fg: "#fef3c7" },
+  { key: "biology-green",   label: "Biology",      swatches: ["#0a1410", "#10b981", "#6ee7b7"], bg: "#0a1410", fg: "#d1fae5" },
+  { key: "chemistry-rose",  label: "Chemistry",    swatches: ["#1a0d12", "#f43f5e", "#fda4af"], bg: "#1a0d12", fg: "#ffe4e6" },
+  { key: "literature-pink", label: "Literature",   swatches: ["#1a0e16", "#ec4899", "#f9a8d4"], bg: "#1a0e16", fg: "#fce7f3" },
+  { key: "economics-teal",  label: "Economics",    swatches: ["#08161a", "#14b8a6", "#5eead4"], bg: "#08161a", fg: "#ccfbf1" },
+  { key: "minimal-light",   label: "Minimal",      swatches: ["#ffffff", "#6366f1", "#e0e7ff"], bg: "#ffffff", fg: "#0f172a" },
+];
+
 const GENERATE_KEYWORDS = [
   "generate notes", "generate exam", "generate a", "make notes", "create notes",
   "make an exam", "create exam", "study notes", "exam paper", "give me notes",
   "make a paper", "practice exam", "revision notes", "topic notes",
   "notes for", "exam for", "worksheet", "make a test paper", "generate paper",
+  // slides / presentation triggers
+  "generate slides", "make slides", "create slides", "slide deck", "slides on",
+  "presentation on", "presentation about", "make a presentation", "create a presentation",
+  "generate a presentation", "powerpoint", "pptx", "html presentation", "html slides",
+  "slideshow", "keynote", "10-slide", "deck on", "deck about",
 ];
 
 export function detectGenerateIntent(message: string): boolean {
