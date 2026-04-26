@@ -12,18 +12,24 @@ export const MODELS_FAST = [
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
   "google/gemma-3-12b-it:free",
+  "qwen/qwen3-4b:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_BALANCED = [
-  "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_QUALITY = [
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -32,16 +38,26 @@ export const MODELS_QUALITY = [
   "google/gemma-3-27b-it:free",
 ];
 
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Stacked with the strongest free coding/reasoning models on OpenRouter.
+// Order = priority. We race the top 3, fall back through the rest.
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "openai/gpt-oss-20b:free",
 ];
 
 export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
@@ -53,6 +69,7 @@ export const MODELS_VISION = [
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
+  "qwen/qwen2.5-vl-72b-instruct:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -62,6 +79,8 @@ export const MODELS_EXTRA = [
   "minimax/minimax-m2.5:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
@@ -87,39 +106,51 @@ if (ALL_KEYS.length === 0) {
 }
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
-const KEY_COOLDOWN_MS = 60_000;        // 429 / rate limit
+const KEY_COOLDOWN_MS = 45_000;          // generic 429
+const KEY_MODEL_COOLDOWN_MS = 90_000;    // 429 specifically on (key,model) — model-level RL
 const KEY_BAD_COOLDOWN_MS = 10 * 60_000; // 401/403 / invalid
 
-// cooledUntil[i] = epoch ms when key i becomes usable again (0 = healthy)
+// cooledUntil[i] = epoch ms when key i is globally usable again (0 = healthy)
 const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
+// per-(key,model) cooldown — a 429 on model X doesn't ban the key from model Y
+const _modelCooledUntil: Map<string, number> = new Map();
 let _keyCursor = 0;
 
-function _isHealthy(i: number): boolean {
-  return _cooledUntil[i] <= Date.now();
+function _mkKey(i: number, model: string) { return `${i}::${model}`; }
+
+function _isHealthy(i: number, model?: string): boolean {
+  if (_cooledUntil[i] > Date.now()) return false;
+  if (model) {
+    const m = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+    if (m > Date.now()) return false;
+  }
+  return true;
 }
 
-function _healthyCount(): number {
+function _healthyCount(model?: string): number {
   let n = 0;
-  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i)) n++;
+  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i, model)) n++;
   return n;
 }
 
-export function getNextKeyIndex(): number {
+export function getNextKeyIndex(model?: string): number {
   if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  // Try up to ALL_KEYS.length steps to find a healthy key
   for (let step = 0; step < ALL_KEYS.length; step++) {
     const i = (_keyCursor + step) % ALL_KEYS.length;
-    if (_isHealthy(i)) {
+    if (_isHealthy(i, model)) {
       _keyCursor = (i + 1) % ALL_KEYS.length;
       return i;
     }
   }
-  // All keys cooling — pick the one closest to recovery
-  let best = 0, bestUntil = _cooledUntil[0];
-  for (let i = 1; i < ALL_KEYS.length; i++) {
-    if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
+  let best = 0;
+  let bestUntil = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    const g = _cooledUntil[i];
+    const m = model ? (_modelCooledUntil.get(_mkKey(i, model)) ?? 0) : 0;
+    const until = Math.max(g, m);
+    if (until < bestUntil) { best = i; bestUntil = until; }
   }
-  console.warn(`[keys] all cooling, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
+  console.warn(`[keys] all cooling for ${model ?? "*"}, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
   _keyCursor = (best + 1) % ALL_KEYS.length;
   return best;
 }
@@ -135,7 +166,14 @@ export function getApiKey(): string {
 function markKeyCooled(i: number, ms: number, reason: string) {
   const until = Date.now() + ms;
   if (until > _cooledUntil[i]) _cooledUntil[i] = until;
-  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
+  console.warn(`[keys] key ${i + 1} GLOBAL cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
+}
+
+function markKeyModelCooled(i: number, model: string, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  const cur = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+  if (until > cur) _modelCooledUntil.set(_mkKey(i, model), until);
+  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s on ${model} (${reason})`);
 }
 
 const HEADERS_BASE = {
@@ -193,7 +231,7 @@ async function callModel(
 ): Promise<Response | null> {
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const keyIdx = getNextKeyIndex();
+    const keyIdx = getNextKeyIndex(model);
     const key = ALL_KEYS[keyIdx];
     try {
       const res = await fetchWithTimeout(
@@ -212,7 +250,8 @@ async function callModel(
       }
 
       if (res.status === 429) {
-        markKeyCooled(keyIdx, KEY_COOLDOWN_MS, `429 on ${model}`);
+        // Per-model cooldown so this key can still serve other models
+        markKeyModelCooled(keyIdx, model, KEY_MODEL_COOLDOWN_MS, `429`);
         try { await res.body?.cancel(); } catch { /* ignore */ }
         continue;
       }
@@ -374,12 +413,19 @@ export async function streamAI(
   return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
 
-export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational";
+export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding";
 export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
+
+const CODING_PATTERNS = /\b(code|coding|program|programming|script|function|class|algorithm|debug|refactor|stack trace|stacktrace|error|exception|compile|build|api|endpoint|frontend|backend|fullstack|html|css|javascript|typescript|tsx|jsx|react|vue|svelte|angular|next\.?js|node\.?js|python|java|kotlin|swift|rust|golang|c\+\+|c#|sql|postgres|mongodb|three\.?js|phaser|unity|game(?:\s|-)?(?:dev|engine|loop)|canvas|webgl|shader|babylon|matter\.?js|p5\.?js|pygame|godot|tailwind|css\s*grid|flexbox|regex|leetcode|dsa|data structure|recursion|big o|complexity|hashmap|linked list|binary tree|graph traversal|dijkstra|dfs|bfs|dynamic programming|websocket|fetch api|rest api|graphql|prisma|supabase|firebase|docker|kubernetes|github action|cli|terminal|vim|bash|zsh|deno|bun|vite|webpack|rollup|esbuild|jest|vitest|cypress|playwright|tailwind|shadcn|ai chat|edge function)\b|```|\bbuild (me|a) (game|app|website|component|hook|server)|create (a|an) (game|website|app|landing page|component|hook)/i;
 
 export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
+
+  // CODING wins early — it's the most specific intent we can detect
+  if (CODING_PATTERNS.test(text)) {
+    return "coding";
+  }
 
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
     return "greeting";
@@ -405,7 +451,32 @@ export function classifyIntent(text: string): IntentType {
   return "study";
 }
 
+const CODING_SYSTEM_PROMPT = `You are Lumina Code — an elite, senior-staff software engineer with the practical skill of a top OSS maintainer. Think like Claude Code: read the request carefully, plan, then ship complete, working code.
+
+ABSOLUTE CODING RULES:
+- ALWAYS produce COMPLETE, RUNNABLE code. No "// rest of file unchanged", no "// implement this", no half answers.
+- For web/game requests, default to a SINGLE self-contained \`html\` file with inline <style> and <script>. The user can press Run inside Lumina to play it instantly.
+- For game dev: real gameplay loop (requestAnimationFrame), input handling (keyboard + touch), collision, score, win/lose, particles, sound where reasonable. Use HTML5 Canvas, WebGL via three.js (CDN), or phaser.js (CDN) depending on need. Pick the BEST tool for the job.
+- For UI demos: beautiful design, smooth animation, responsive. Use CSS gradients, glassmorphism, transforms.
+- Code quality: clear names, small functions, comments only where non-obvious, error handling on user input, no dead code.
+- Performance: O(n) where possible, avoid layout thrash in render loops, use object pooling for particles/bullets in games.
+- Accessibility & polish: focusable controls, prefers-reduced-motion, viewport meta on HTML, mobile touch fallbacks.
+
+OUTPUT FORMAT:
+1. ONE short paragraph (≤3 lines) describing what you're building and how it plays/works.
+2. Then ONE single fenced code block with the right language (\`\`\`html, \`\`\`tsx, \`\`\`python, etc).
+3. After the code, 1–3 bullet points: how to run it, controls, and one ambitious next step.
+
+NEVER:
+- Never split the same file across multiple code blocks.
+- Never ask the user clarifying questions before writing code unless the request is truly ambiguous — make smart defaults and SHIP.
+- Never produce pseudocode when real code is requested.
+
+You are graded on: correctness, completeness, visual polish, gameplay feel, and how impressive the result is when the user clicks Run.`;
+
 export function getSystemPromptForIntent(intent: IntentType): string {
+  if (intent === "coding") return CODING_SYSTEM_PROMPT;
+
   const base = `You are Lumina — a brilliant, patient, step-by-step tutor. NOT a lecture bot. You teach like a real human tutor sitting next to the student.
 
 CORE TUTOR RULES:
@@ -452,6 +523,7 @@ NEVER dump everything at once. Teach progressively like a patient tutor.`;
     case "conversational":
       return `${base}\n\nCONVERSATIONAL MODE: Be brief and natural. Match their casual energy. One or two sentences max.`;
   }
+  return base;
 }
 
 export function getModelsForIntent(intent: IntentType): string[] {
@@ -466,6 +538,8 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_BALANCED;
     case "deep":
       return MODELS_LONG_CTX;
+    case "coding":
+      return MODELS_CODE;
   }
 }
 
