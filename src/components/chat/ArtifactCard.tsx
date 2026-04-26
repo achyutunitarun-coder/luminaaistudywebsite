@@ -64,7 +64,7 @@ export const ArtifactCard = ({ artifact }: { artifact: ArtifactPayload }) => {
         >
           <iframe
             srcDoc={artifact.html}
-            sandbox="allow-same-origin"
+            sandbox="allow-same-origin allow-scripts"
             title={artifact.title}
             className="border-0 pointer-events-none"
             style={{
