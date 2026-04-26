@@ -29,9 +29,10 @@ serve(async (req) => {
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
 
-    // Detect artifact requests (slides / notes / exam) and use the master prompt system
-    // when the user explicitly asks for one in chat. Produces a single self-contained HTML file.
-    const artifactFeature = !hasFiles ? detectArtifactFeature(queryText) : null;
+    // Artifact requests (slides / notes / exam) are handled by the dedicated
+    // generate-html-artifact pipeline on the client (GenerateSetupCard → ArtifactCard).
+    // We deliberately do NOT inline raw HTML in chat — it produced broken UX.
+    const artifactFeature: null = null;
 
     let systemPrompt: string;
     if (artifactFeature) {
