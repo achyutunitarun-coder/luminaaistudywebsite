@@ -236,7 +236,7 @@ const Flashcards = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={generateDeck}
-                  disabled={generating || !title.trim() || !content.trim()}
+                  disabled={generating || !title.trim()}
                   className="gradient-primary text-primary-foreground h-12 px-8 rounded-2xl shadow-lg shadow-primary/20"
                 >
                   {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
