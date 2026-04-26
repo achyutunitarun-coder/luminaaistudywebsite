@@ -323,6 +323,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           className="mt-8 flex justify-between items-center px-4"
         >
           <button
+            type="button"
             onClick={() => step > 0 && setStep(step - 1)}
             className={`text-sm text-muted-foreground hover:text-foreground transition-colors ${step === 0 ? 'invisible' : ''}`}
           >
@@ -330,10 +331,8 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </button>
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Button
-              onClick={() => {
-                if (isLast) handleComplete();
-                else setStep(step + 1);
-              }}
+              type="button"
+              onClick={handleNext}
               disabled={!canProceed}
               className="h-11 px-6 rounded-2xl gradient-primary text-primary-foreground shadow-lg shadow-primary/20"
             >
