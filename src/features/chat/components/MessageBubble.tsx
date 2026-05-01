@@ -71,7 +71,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, loadingStage }: 
           </div>
         ) : (
           <div className="text-sm leading-relaxed">
-            <MarkdownRenderer content={message.content} />
+            <MarkdownRenderer>{message.content}</MarkdownRenderer>
           </div>
         )}
       </div>
