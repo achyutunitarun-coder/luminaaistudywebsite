@@ -24,7 +24,7 @@ export const CTASection = () => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate('/upgrade')}
+            onClick={() => window.open('https://monumental-custard-d06d45.netlify.app/#pricing', '_blank', 'noopener')}
             className="rounded-[10px] px-6 text-[14px] font-semibold"
             style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#f1f5f9' }}
           >
