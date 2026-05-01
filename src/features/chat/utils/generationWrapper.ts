@@ -25,7 +25,7 @@ export interface GenerationResult {
   durationMs: number;
 }
 
-const ARTIFACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-html-artifact`;
+const ARTIFACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-artifact-v2`;
 
 function validateOutput(html: string, type: GenerationConfig['type']): { ok: boolean; reason?: string } {
   if (!html || typeof html !== 'string') return { ok: false, reason: 'empty' };
