@@ -335,7 +335,7 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">10 science-backed brain engines for ₹499/mo</p>
               </div>
               <Button
-                onClick={() => window.open('https://monumental-custard-d06d45.netlify.app/#pricing', '_blank', 'noopener')}
+                onClick={() => navigate('/upgrade')}
                 size="sm"
                 className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90 px-5"
               >
