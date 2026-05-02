@@ -37,6 +37,7 @@ export interface Message {
   newBalance?: number;
   requiredCredits?: number;
   currentBalance?: number;
+  isStreaming?: boolean;
   timestamp: number;
 }
 
