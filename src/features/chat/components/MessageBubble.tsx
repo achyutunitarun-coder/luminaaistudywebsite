@@ -1,19 +1,57 @@
-import { User, Sparkles, AlertCircle, Zap } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { User, Sparkles, AlertCircle, Zap, Copy, RefreshCw, ThumbsUp, ThumbsDown, Pencil, Brain, ChevronRight } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { ArtifactViewer } from './ArtifactViewer';
 import { LoadingStages } from './LoadingStages';
 import { CREDIT_PACKS, openCheckout } from '@/features/credits/DodoPayments';
+import { toast } from 'sonner';
 import type { Message } from '../ChatPage';
 
 interface Props {
   message: Message;
   onRegenerate?: () => void;
   onRetry?: () => void;
+  onEdit?: (newText: string) => void;
   onTopUp?: () => void;
   loadingStage?: string;
 }
 
-export const MessageBubble = ({ message, onRegenerate, onRetry, onTopUp, loadingStage }: Props) => {
+function extractThinking(content: string): { thinking: string | null; main: string } {
+  if (!content) return { thinking: null, main: '' };
+  const m = content.match(/<think>([\s\S]*?)<\/think>/i);
+  if (!m) return { thinking: null, main: content };
+  const thinking = m[1].trim();
+  const main = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  return { thinking: thinking || null, main };
+}
+
+const ThinkingBlock = ({ content }: { content: string }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-3 rounded-lg border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-violet-300 hover:bg-violet-500/10 transition-colors"
+      >
+        <Brain className="w-3.5 h-3.5" />
+        <span className="font-medium">Thinking process</span>
+        <ChevronRight className={`w-3.5 h-3.5 ml-auto transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-3 py-2 border-t border-violet-500/20 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+          {content}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp, loadingStage }: Props) => {
+  const [hovered, setHovered] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(message.content);
+
   if (message.type === 'loading') {
     return (
       <div className="flex gap-3 max-w-3xl mx-auto px-4">
@@ -97,15 +135,99 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onTopUp, loading
   }
 
   const isUser = message.role === 'user';
+  const isStreaming = !!(message as any).isStreaming;
+  const { thinking, main } = useMemo(
+    () => (isUser ? { thinking: null, main: message.content } : extractThinking(message.content)),
+    [message.content, isUser],
+  );
 
-  return (
-    <div className={`flex gap-3 max-w-3xl mx-auto px-4 ${isUser ? 'justify-end' : ''}`}>
-      {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10 text-primary">
-          <Sparkles className="w-3.5 h-3.5" />
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    toast.success('Copied');
+  };
+
+  if (isUser) {
+    return (
+      <div
+        className="flex gap-3 max-w-3xl mx-auto px-4 justify-end group"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="min-w-0 max-w-[85%] flex flex-col items-end gap-1">
+          {editing ? (
+            <div className="w-full min-w-[280px]">
+              <textarea
+                autoFocus
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={Math.min(8, Math.max(2, editText.split('\n').length))}
+                className="w-full text-sm rounded-xl bg-card border border-border focus:border-primary/60 outline-none p-3 resize-none"
+              />
+              <div className="mt-1.5 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setEditing(false); setEditText(message.content); }}
+                  className="text-xs px-3 py-1.5 rounded-md hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!editText.trim()) return;
+                    setEditing(false);
+                    onEdit?.(editText.trim());
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-sm whitespace-pre-wrap break-words">
+              {message.content}
+            </div>
+          )}
+          {!editing && hovered && onEdit && (
+            <div className="flex gap-1 opacity-80">
+              <button
+                type="button"
+                onClick={() => { setEditText(message.content); setEditing(true); }}
+                title="Edit"
+                className="w-6 h-6 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                title="Copy"
+                className="w-6 h-6 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Copy className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
-      )}
-      <div className={`min-w-0 ${isUser ? 'max-w-[85%]' : 'flex-1'}`}>
+        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-card border border-border text-muted-foreground">
+          <User className="w-3.5 h-3.5" />
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant
+  return (
+    <div
+      className="flex gap-3 max-w-3xl mx-auto px-4 group"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10 text-primary">
+        <Sparkles className="w-3.5 h-3.5" />
+      </div>
+      <div className="min-w-0 flex-1">
         {message.type === 'artifact' && message.artifactHtml && message.artifactType ? (
           <>
             <ArtifactViewer
@@ -120,9 +242,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onTopUp, loading
                 <Zap className="w-3 h-3" fill="currentColor" />
                 <span>{message.creditsUsed} credit{message.creditsUsed === 1 ? '' : 's'} used</span>
                 {typeof message.newBalance === 'number' && (
-                  <span className="text-muted-foreground">
-                    · Balance: {message.newBalance.toFixed(1)}
-                  </span>
+                  <span className="text-muted-foreground">· Balance: {message.newBalance.toFixed(1)}</span>
                 )}
                 {typeof message.newBalance === 'number' && message.newBalance < 5 && onTopUp && (
                   <button
@@ -136,21 +256,33 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onTopUp, loading
               </div>
             )}
           </>
-        ) : isUser ? (
-          <div className="rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-sm whitespace-pre-wrap break-words">
-            {message.content}
-          </div>
         ) : (
           <div className="text-sm leading-relaxed">
-            <MarkdownRenderer>{message.content}</MarkdownRenderer>
+            {thinking && <ThinkingBlock content={thinking} />}
+            <MarkdownRenderer>{main}</MarkdownRenderer>
+            {isStreaming && (
+              <span className="inline-block w-1.5 h-4 bg-primary/70 align-text-bottom ml-0.5 animate-pulse" />
+            )}
+          </div>
+        )}
+
+        {message.type !== 'artifact' && hovered && !isStreaming && message.content && (
+          <div className="mt-1.5 flex items-center gap-1 opacity-90">
+            <button type="button" onClick={handleCopy} title="Copy" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={onRegenerate} title="Regenerate" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => toast.success('Thanks for the feedback')} title="Good response" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+              <ThumbsUp className="w-3.5 h-3.5" />
+            </button>
+            <button type="button" onClick={() => toast.success('Thanks — we’ll improve')} title="Bad response" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+              <ThumbsDown className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
-      {isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-card border border-border text-muted-foreground">
-          <User className="w-3.5 h-3.5" />
-        </div>
-      )}
     </div>
   );
 };
