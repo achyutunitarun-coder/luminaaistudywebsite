@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Loader2, Target, Brain, Trophy, ArrowLeft, CheckCircle, XCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { SavedItemsPanel } from '@/components/SavedItemsPanel';
@@ -36,10 +36,18 @@ const Tests = () => {
   const [currentQ, setCurrentQ] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  // Keyboard navigation: ArrowLeft / ArrowRight to switch questions
-  // Active only while a test is in progress.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  (function useArrowNav() {})();
+  // Keyboard navigation while a test is in progress
+  useEffect(() => {
+    if (questions.length === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') setCurrentQ(c => Math.min(questions.length - 1, c + 1));
+      if (e.key === 'ArrowLeft') setCurrentQ(c => Math.max(0, c - 1));
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [questions.length]);
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
