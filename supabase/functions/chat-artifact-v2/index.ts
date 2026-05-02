@@ -2,7 +2,7 @@
 // POST returns { jobId, status: "queued" } immediately; the client polls artifact_jobs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callWithFallback } from "../_shared/models.ts";
+import { callWithFallback, getModelsForArtifact, type ArtifactType } from "../_shared/models.ts";
 
 declare const EdgeRuntime:
   | { waitUntil: (promise: Promise<unknown>) => void }
@@ -14,22 +14,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HTML_MODELS = [
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-coder:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "openai/gpt-oss-20b:free",
-];
-
-const CODE_MODELS = [
-  "qwen/qwen3-coder:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-20b:free",
-];
+// Per-artifact model chains live in _shared/models.ts (getModelsForArtifact).
+// This keeps routing centralised and consistent with the rest of the app.
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
@@ -106,7 +92,7 @@ async function generateHtml(
   userPrompt: string,
   systemPrompt: string,
 ): Promise<{ html: string; model?: string }> {
-  const models = type === "code" ? CODE_MODELS : HTML_MODELS;
+  const models = getModelsForArtifact((["notes","exam","slides","code"].includes(type) ? type : "notes") as ArtifactType);
   const started = Date.now();
   let lastErr = "";
 
