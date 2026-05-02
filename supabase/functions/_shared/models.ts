@@ -643,3 +643,32 @@ export function getModelsForMode(mode?: string): string[] | null {
       return null;
   }
 }
+
+// ── ARTIFACT ROUTING ───────────────────────────────────────────────
+// One curated chain per artifact type. Each chain is ordered by quality;
+// callWithFallback will race the top few and fall back deeper as needed.
+export type ArtifactType = "notes" | "exam" | "slides" | "code";
+
+export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
+  if (hasImage) return MODELS_VISION;
+  switch (type) {
+    case "notes":
+      return MODELS_WRITING;
+    case "exam":
+      return MODELS_QUALITY;
+    case "slides":
+      // Slides need clean structure + punchy bullets — balanced/structured models win.
+      return [
+        "minimax/minimax-m2.5:free",
+        "openai/gpt-oss-120b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "tencent/hy3-preview:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "z-ai/glm-4.5-air:free",
+        "openai/gpt-oss-20b:free",
+      ];
+    case "code":
+      return MODELS_CODE;
+  }
+}
