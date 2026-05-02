@@ -20,6 +20,7 @@ export const MODELS_FAST = [
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
   "google/gemma-3-12b-it:free",
   "poolside/laguna-xs.2:free",
 ];
@@ -29,6 +30,8 @@ export const MODELS_BALANCED = [
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "tencent/hy3-preview:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
@@ -37,9 +40,11 @@ export const MODELS_BALANCED = [
 ];
 
 export const MODELS_QUALITY = [
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
   "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
+  "openrouter/owl-alpha",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -49,39 +54,60 @@ export const MODELS_QUALITY = [
 ];
 
 // ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Curated to compete with Claude Code on the free tier.
 // Order = priority. We race the top 4, fall back through the rest.
 export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",                                // purpose-built coder
+  "qwen/qwen3-coder:free",                                // #1 free coder globally
+  "poolside/laguna-m.1:free",                             // specialist coding agent
+  "inclusionai/ling-2.6-1t:free",                         // SWE-bench top, 1T MoE
+  "tencent/hy3-preview:free",                             // strong code + agentic MoE
   "openai/gpt-oss-120b:free",                             // strongest generalist coder
   "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
   "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
-  "inclusionai/ling-2.6-1t:free",                         // 1T mixture, exceptional code
+  "poolside/laguna-xs.2:free",                            // compact coding agent
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",                            // long-context refactors
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-3-27b-it:free",
 ];
 
 export const MODELS_LONG_CTX = [
+  "openrouter/owl-alpha",                                 // 1M+ ctx
   "openai/gpt-oss-120b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
 ];
 
 export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
   "google/gemma-3-12b-it:free",
+  "baidu/qianfan-ocr-fast:free",
+];
+
+// ── WRITING / NOTES (long-form prose) ──────────────────────────────
+export const MODELS_WRITING = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "minimax/minimax-m2.5:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
+  "tencent/hy3-preview:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -89,6 +115,7 @@ export const MODELS_EXTRA = [
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
+  "tencent/hy3-preview:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
   "google/gemma-3n-e4b-it:free",
