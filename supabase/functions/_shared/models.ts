@@ -5,63 +5,75 @@
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// ═══════════════════════════════════════════════════════════════════
+// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-05).
+// Every id below was confirmed against https://openrouter.ai/api/v1/models.
+// Dead ids (deepseek :free, qwen3-4b :free, mistral-small :free, vl-72b :free)
+// were removed because every call to them returns 404 and burns the wall-clock
+// budget — that was the root cause of artifact timeouts.
+// ═══════════════════════════════════════════════════════════════════
+
 export const MODELS_FAST = [
-  "google/gemma-3-4b-it:free",
   "google/gemma-3n-e4b-it:free",
+  "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e2b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
   "google/gemma-3-12b-it:free",
-  "qwen/qwen3-4b:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "poolside/laguna-xs.2:free",
 ];
 
 export const MODELS_BALANCED = [
+  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
 ];
 
 export const MODELS_QUALITY = [
-  "deepseek/deepseek-r1:free",
-  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "inclusionai/ling-2.6-1t:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "google/gemma-4-31b-it:free",
+  "minimax/minimax-m2.5:free",
+];
+
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Curated to compete with Claude Code on the free tier.
+// Order = priority. We race the top 4, fall back through the rest.
+export const MODELS_CODE = [
+  "qwen/qwen3-coder:free",                                // purpose-built coder
+  "openai/gpt-oss-120b:free",                             // strongest generalist coder
+  "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
+  "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
+  "inclusionai/ling-2.6-1t:free",                         // 1T mixture, exceptional code
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "minimax/minimax-m2.5:free",                            // long-context refactors
+  "z-ai/glm-4.5-air:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-3-27b-it:free",
 ];
 
-// ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Stacked with the strongest free coding/reasoning models on OpenRouter.
-// Order = priority. We race the top 3, fall back through the rest.
-export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",
-  "deepseek/deepseek-r1:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "z-ai/glm-4.5-air:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
-  "openai/gpt-oss-20b:free",
-];
-
 export const MODELS_LONG_CTX = [
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "inclusionai/ling-2.6-1t:free",
 ];
 
 export const MODELS_VISION = [
@@ -69,7 +81,7 @@ export const MODELS_VISION = [
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
-  "qwen/qwen2.5-vl-72b-instruct:free",
+  "google/gemma-3-12b-it:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -79,8 +91,8 @@ export const MODELS_EXTRA = [
   "minimax/minimax-m2.5:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
-  "deepseek/deepseek-chat-v3.1:free",
+  "google/gemma-3n-e4b-it:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
@@ -182,13 +194,16 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 3;          // race 3 models for fastest first-token
+const PARALLEL_RACE_COUNT = 4;          // race 4 models for fastest first-token
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
-const TEXT_TOTAL_BUDGET_MS = 180_000;   // 3 min for non-streamed JSON tools
+const TEXT_TOTAL_BUDGET_MS = 200_000;   // 3.3 min for non-streamed JSON tools (artifacts)
 const OCR_TOTAL_BUDGET_MS = 120_000;
 const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
+
+// Models confirmed dead by 404 — skipped entirely for this process lifetime.
+const _deadModels = new Set<string>();
 
 type RouteMeta = {
   model: string;
@@ -231,6 +246,10 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
+  if (_deadModels.has(model)) {
+    // Already proven 404 — don't waste budget.
+    return null;
+  }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
@@ -264,6 +283,14 @@ async function callModel(
         continue;
       }
 
+      // 404 = model id no longer exists on OpenRouter. Mark dead and stop trying.
+      if (res.status === 404) {
+        _deadModels.add(model);
+        console.warn(`[${tag}] ${model} -> 404 (model dead, blacklisted for process lifetime)`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+
       const errorText = await readErrorText(res);
       console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
@@ -287,7 +314,8 @@ async function raceModels(
   timeoutMs: number,
   tag: string,
 ): Promise<{ response: Response; model: string }> {
-  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const live = models.filter((m) => !_deadModels.has(m));
+  const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
     const res = await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
@@ -356,7 +384,13 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const primaryRaceTimeout = phaseTimeout(PRIMARY_RACE_TIMEOUT_MS);
+  // Artifact / long-form generation needs minutes, not seconds, per attempt.
+  // Detect via tag so we don't have to thread a flag through every caller.
+  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
+  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
+
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -366,14 +400,14 @@ export async function callWithFallback(
   }
 
   for (const model of models) {
-    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
+    const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
   for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+    const timeout = phaseTimeout(extraAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };

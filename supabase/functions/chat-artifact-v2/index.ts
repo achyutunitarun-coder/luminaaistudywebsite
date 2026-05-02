@@ -9,12 +9,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Verified live OpenRouter free models, ranked by HTML-generation quality.
+// gpt-oss-120b is the strongest free generalist; nemotron-super-120b and
+// ling-1T cover the long tail; smaller models are last-ditch fallbacks.
 const HTML_MODELS = [
   "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "inclusionai/ling-2.6-1t:free",
+  "google/gemma-4-31b-it:free",
+  "minimax/minimax-m2.5:free",
+  "z-ai/glm-4.5-air:free",
   "openai/gpt-oss-20b:free",
+  "google/gemma-3-27b-it:free",
 ];
 
 function cleanHtml(raw: string): string {
@@ -51,7 +59,15 @@ serve(async (req) => {
 
     let html = "";
     let lastErr = "";
+    const startedAt = Date.now();
+    const HARD_BUDGET_MS = 170_000; // leave headroom under client's 200s
+
     for (const model of HTML_MODELS) {
+      const remaining = HARD_BUDGET_MS - (Date.now() - startedAt);
+      if (remaining < 15_000) {
+        lastErr = lastErr || "budget_exhausted";
+        break;
+      }
       try {
         const txt = await callAIText(
           [
@@ -61,15 +77,15 @@ serve(async (req) => {
           [model],
           16000,
           0.5,
-          110_000,
+          Math.min(remaining, 90_000),
           `chat-artifact-v2/${type}`,
         );
         const cleaned = cleanHtml(txt);
-        if (cleaned && (cleaned.toLowerCase().includes("<!doctype") || cleaned.toLowerCase().includes("<html"))) {
+        if (cleaned && cleaned.length > 600 && (cleaned.toLowerCase().includes("<!doctype") || cleaned.toLowerCase().includes("<html"))) {
           html = cleaned;
           break;
         }
-        lastErr = "invalid_html_from_model";
+        lastErr = cleaned ? "invalid_html_from_model" : "empty_from_model";
       } catch (e: any) {
         lastErr = e?.message || String(e);
       }
