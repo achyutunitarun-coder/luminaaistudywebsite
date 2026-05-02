@@ -384,7 +384,13 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const primaryRaceTimeout = phaseTimeout(PRIMARY_RACE_TIMEOUT_MS);
+  // Artifact / long-form generation needs minutes, not seconds, per attempt.
+  // Detect via tag so we don't have to thread a flag through every caller.
+  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
+  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
+
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -394,14 +400,14 @@ export async function callWithFallback(
   }
 
   for (const model of models) {
-    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
+    const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
   for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+    const timeout = phaseTimeout(extraAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
