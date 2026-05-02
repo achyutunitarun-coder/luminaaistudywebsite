@@ -92,7 +92,7 @@ async function generateHtml(
   userPrompt: string,
   systemPrompt: string,
 ): Promise<{ html: string; model?: string }> {
-  const models = type === "code" ? CODE_MODELS : HTML_MODELS;
+  const models = getModelsForArtifact((["notes","exam","slides","code"].includes(type) ? type : "notes") as ArtifactType);
   const started = Date.now();
   let lastErr = "";
 
