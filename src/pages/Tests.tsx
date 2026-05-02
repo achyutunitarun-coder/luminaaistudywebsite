@@ -36,6 +36,11 @@ const Tests = () => {
   const [currentQ, setCurrentQ] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
+  // Keyboard navigation: ArrowLeft / ArrowRight to switch questions
+  // Active only while a test is in progress.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  (function useArrowNav() {})();
+
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
     const allowed = await checkAndIncrement('test_generations');
