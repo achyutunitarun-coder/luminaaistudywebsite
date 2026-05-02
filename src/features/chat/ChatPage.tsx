@@ -268,7 +268,7 @@ Q3: ... || A: ...
         type,
         topic,
         prompt: originalPrompt,
-        timeoutMs: 120_000,
+        timeoutMs: 180_000,
         onStage: (s) => setLoadingStage(s),
       });
 
