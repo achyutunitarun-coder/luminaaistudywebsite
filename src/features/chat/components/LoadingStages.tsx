@@ -7,7 +7,7 @@ interface Props {
 }
 
 /**
- * Smooth, monotonically-increasing fake progress that reaches ~92% over ~110s.
+ * Smooth, monotonically-increasing fake progress that reaches ~94% over a few minutes.
  * Real progress comes when the artifact actually arrives — we then jump to 100.
  */
 export const LoadingStages = ({ stage, active }: Props) => {
@@ -21,14 +21,14 @@ export const LoadingStages = ({ stage, active }: Props) => {
     const id = setInterval(() => {
       const t = (Date.now() - start) / 1000; // seconds
       // Logistic-ish curve: fast early, slows toward 92.
-      const target = Math.min(92, 92 * (1 - Math.exp(-t / 45)));
+      const target = Math.min(94, 94 * (1 - Math.exp(-t / 70)));
       setPct((prev) => Math.max(prev, +target.toFixed(1)));
-      if (t < 5)         setSubstage('Designing layout…');
-      else if (t < 18)   setSubstage('Writing content…');
-      else if (t < 40)   setSubstage('Adding styles…');
-      else if (t < 75)   setSubstage('Building interactions…');
-      else if (t < 120)  setSubstage('Finalising…');
-      else               setSubstage('Almost there — polishing…');
+      if (t < 5)         setSubstage('Queueing background job…');
+      else if (t < 18)   setSubstage('Starting model route…');
+      else if (t < 45)   setSubstage('Writing content…');
+      else if (t < 90)   setSubstage('Adding styles and interactions…');
+      else if (t < 180)  setSubstage('Finalising in background…');
+      else               setSubstage('Still working — keeping the job alive…');
     }, 350);
     return () => clearInterval(id);
   }, [active]);
@@ -56,7 +56,7 @@ export const LoadingStages = ({ stage, active }: Props) => {
         />
       </div>
       <div className="mt-1.5 text-[10px] text-muted-foreground/70">
-        {substage} · full artifacts can take 60–150s — credits only charged on success
+        {substage} · artifact jobs can take a few minutes — credits only charge on success
       </div>
     </div>
   );
