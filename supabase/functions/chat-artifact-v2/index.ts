@@ -14,22 +14,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const HTML_MODELS = [
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-coder:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "openai/gpt-oss-20b:free",
-];
-
-const CODE_MODELS = [
-  "qwen/qwen3-coder:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-20b:free",
-];
+// Per-artifact model chains live in _shared/models.ts (getModelsForArtifact).
+// This keeps routing centralised and consistent with the rest of the app.
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
