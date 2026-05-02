@@ -114,46 +114,52 @@ const ChatPage = () => {
       }
 
       const aId = uid();
-      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', timestamp: Date.now() }]);
+      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', isStreaming: true, timestamp: Date.now() }]);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
       let acc = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(json);
-            const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === 'string' && delta.length > 0) {
-              acc += delta;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
-              );
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf('\n')) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6).trim();
+            if (json === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(json);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string' && delta.length > 0) {
+                acc += delta;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
+                );
+              }
+            } catch {
+              buf = line + '\n' + buf;
+              break;
             }
-          } catch {
-            buf = line + '\n' + buf;
-            break;
           }
         }
+      } finally {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)),
+        );
       }
 
       if (acc.trim().length === 0) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aId
-              ? { ...m, type: 'error' as const, content: 'No response received. Please try again.' }
+              ? { ...m, type: 'error' as const, content: 'No response received. Please try again.', isStreaming: false }
               : m,
           ),
         );
