@@ -33,12 +33,12 @@ REQUIRED SECTIONS (all must appear, in this order):
 6. Important formulas / cheatsheet (purple-bordered callout)
 7. Common mistakes (red callouts)
 8. Exam tips (amber callouts)
-9. Practice questions — 5 questions, click-to-reveal answers
+9. Practice questions — 5 MCQs. Each option is a real <button class="mcq-opt">A) ...</button>. NEVER use hidden <input type="radio"> with CSS-only feedback. On click: lock all 4 buttons, mark the correct one green with a ✓ and a soft glow, mark wrong choices red with a ✗, animate (transform: scale 0.98 → 1, 200ms ease-out), reveal a 1-2 line explanation below. Maintain a running score visible at the top of the practice section.
 10. Summary
 
 INTERACTIONS (inline JS):
 - Sticky TOC with active-section highlight via IntersectionObserver
-- Click-to-reveal answers
+- MCQ buttons as described above (event delegation, no hidden inputs)
 - Copy buttons on code blocks
 - Reading-progress bar at top
 - Back-to-top button (after 400px scroll)
