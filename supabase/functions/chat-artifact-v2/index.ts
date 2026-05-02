@@ -2,7 +2,7 @@
 // POST returns { jobId, status: "queued" } immediately; the client polls artifact_jobs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callWithFallback } from "../_shared/models.ts";
+import { callWithFallback, getModelsForArtifact, type ArtifactType } from "../_shared/models.ts";
 
 declare const EdgeRuntime:
   | { waitUntil: (promise: Promise<unknown>) => void }
