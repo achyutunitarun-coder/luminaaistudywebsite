@@ -111,7 +111,7 @@ const ChatPage = () => {
   const [loadingStage, setLoadingStage] = useState('');
   const [model, setModel] = useState<ModelMode>('auto');
   const [buyOpen, setBuyOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(() => typeof window === 'undefined' ? true : window.innerWidth >= 768);
   const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -673,6 +673,26 @@ Q3: ... || A: ...
           </div>
         </div>
       </aside>
+
+      {historyOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
+          <div className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
+              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2"><Clock3 className="w-3.5 h-3.5" /> History</div>
+              <button type="button" onClick={startNewChat} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors" title="New chat"><MessageSquarePlus className="w-4 h-4" /></button>
+            </div>
+            <div className="h-[calc(100%-57px)] overflow-y-auto p-2 space-y-1">
+              {chatSessions.map((chat) => (
+                <button key={chat.id} type="button" onClick={() => loadChat(chat)} className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors">
+                  <div className="text-sm truncate text-foreground">{chat.title}</div>
+                  <div className="text-[10px] text-muted-foreground">{new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                </button>
+              ))}
+              {chatSessions.length === 0 && <div className="text-xs text-muted-foreground p-3">Your saved chats will appear here.</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
