@@ -246,6 +246,10 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
+  if (_deadModels.has(model)) {
+    // Already proven 404 — don't waste budget.
+    return null;
+  }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
@@ -279,6 +283,14 @@ async function callModel(
         continue;
       }
 
+      // 404 = model id no longer exists on OpenRouter. Mark dead and stop trying.
+      if (res.status === 404) {
+        _deadModels.add(model);
+        console.warn(`[${tag}] ${model} -> 404 (model dead, blacklisted for process lifetime)`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+
       const errorText = await readErrorText(res);
       console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
@@ -302,7 +314,8 @@ async function raceModels(
   timeoutMs: number,
   tag: string,
 ): Promise<{ response: Response; model: string }> {
-  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const live = models.filter((m) => !_deadModels.has(m));
+  const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
     const res = await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
