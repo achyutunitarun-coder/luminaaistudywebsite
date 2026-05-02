@@ -91,6 +91,19 @@ const Flashcards = () => {
   };
 
   // ── Active Deck / Card Review ──
+  // Keyboard navigation: ← prev, → next, space flip
+  useEffect(() => {
+    if (!activeDeck || !cards) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.key === 'ArrowRight') { setFlipped(false); setCardIndex((i) => Math.min((cards?.length ?? 1) - 1, i + 1)); }
+      else if (e.key === 'ArrowLeft') { setFlipped(false); setCardIndex((i) => Math.max(0, i - 1)); }
+      else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFlipped((f) => !f); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeDeck, cards]);
+
   if (activeDeck && cards) {
     const card = cards[cardIndex];
     const progress = cards.length > 0 ? ((cardIndex + 1) / cards.length) * 100 : 0;
