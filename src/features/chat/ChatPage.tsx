@@ -491,6 +491,7 @@ Q3: ... || A: ...
             loadingStage={loadingStage}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
+            onEdit={handleEdit}
             onTopUp={() => setBuyOpen(true)}
           />
         )}
