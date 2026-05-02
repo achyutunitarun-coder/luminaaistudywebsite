@@ -21,13 +21,14 @@ export const LoadingStages = ({ stage, active }: Props) => {
     const id = setInterval(() => {
       const t = (Date.now() - start) / 1000; // seconds
       // Logistic-ish curve: fast early, slows toward 92.
-      const target = Math.min(92, 92 * (1 - Math.exp(-t / 28)));
+      const target = Math.min(92, 92 * (1 - Math.exp(-t / 45)));
       setPct((prev) => Math.max(prev, +target.toFixed(1)));
-      if (t < 4)        setSubstage('Designing layout…');
-      else if (t < 14)  setSubstage('Writing content…');
-      else if (t < 32)  setSubstage('Adding styles…');
-      else if (t < 60)  setSubstage('Building interactions…');
-      else              setSubstage('Finalising…');
+      if (t < 5)         setSubstage('Designing layout…');
+      else if (t < 18)   setSubstage('Writing content…');
+      else if (t < 40)   setSubstage('Adding styles…');
+      else if (t < 75)   setSubstage('Building interactions…');
+      else if (t < 120)  setSubstage('Finalising…');
+      else               setSubstage('Almost there — polishing…');
     }, 350);
     return () => clearInterval(id);
   }, [active]);
@@ -55,7 +56,7 @@ export const LoadingStages = ({ stage, active }: Props) => {
         />
       </div>
       <div className="mt-1.5 text-[10px] text-muted-foreground/70">
-        {substage} · this usually takes 30–90s for full artifacts
+        {substage} · full artifacts can take 60–150s — credits only charged on success
       </div>
     </div>
   );
