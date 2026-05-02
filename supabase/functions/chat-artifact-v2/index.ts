@@ -59,7 +59,15 @@ serve(async (req) => {
 
     let html = "";
     let lastErr = "";
+    const startedAt = Date.now();
+    const HARD_BUDGET_MS = 170_000; // leave headroom under client's 200s
+
     for (const model of HTML_MODELS) {
+      const remaining = HARD_BUDGET_MS - (Date.now() - startedAt);
+      if (remaining < 15_000) {
+        lastErr = lastErr || "budget_exhausted";
+        break;
+      }
       try {
         const txt = await callAIText(
           [
@@ -69,15 +77,15 @@ serve(async (req) => {
           [model],
           16000,
           0.5,
-          110_000,
+          Math.min(remaining, 90_000),
           `chat-artifact-v2/${type}`,
         );
         const cleaned = cleanHtml(txt);
-        if (cleaned && (cleaned.toLowerCase().includes("<!doctype") || cleaned.toLowerCase().includes("<html"))) {
+        if (cleaned && cleaned.length > 600 && (cleaned.toLowerCase().includes("<!doctype") || cleaned.toLowerCase().includes("<html"))) {
           html = cleaned;
           break;
         }
-        lastErr = "invalid_html_from_model";
+        lastErr = cleaned ? "invalid_html_from_model" : "empty_from_model";
       } catch (e: any) {
         lastErr = e?.message || String(e);
       }
