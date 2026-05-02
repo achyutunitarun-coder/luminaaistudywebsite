@@ -1,13 +1,11 @@
 /**
  * Lumina AI Chat — full rebuild.
- * Lives entirely inside /src/features/chat/. No imports from other features.
- *
- * Flow: detectIntent → if CHAT, stream a chat reply (free) → if artifact,
- * call attemptGeneration (charges credit only on validated success).
+ * Lives entirely inside /src/features/chat/. No imports from other features
+ * except /src/features/credits/ (the credits system) and shared UI primitives.
  */
 
-import { useCallback, useRef, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Sparkles, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -17,35 +15,39 @@ import { attemptGeneration } from './utils/generationWrapper';
 import { MessageList } from './components/MessageList';
 import { InputBar } from './components/InputBar';
 import { ModelSelector, type ModelMode } from './components/ModelSelector';
+import { CreditsDisplay } from '@/features/credits/CreditsDisplay';
+import { BuyCreditsModal } from '@/features/credits/BuyCreditsModal';
+import { useCreditsStore, creditsActions } from '@/features/credits/useCreditsStore';
+import {
+  CREDIT_COSTS,
+  INTENT_TO_ACTION,
+  hasEnoughCredits,
+  type CreditAction,
+} from '@/features/credits/creditsSystem';
 
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  type: 'text' | 'artifact' | 'error' | 'loading';
+  type: 'text' | 'artifact' | 'error' | 'loading' | 'insufficient_credits';
   artifactHtml?: string;
   artifactType?: 'notes' | 'exam' | 'slides' | 'code';
   topic?: string;
   creditsUsed?: number;
+  newBalance?: number;
+  requiredCredits?: number;
+  currentBalance?: number;
   timestamp: number;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-
-// Credit cost map — sourced from external pricing page.
-const CREDIT_COST: Record<'notes' | 'exam' | 'slides' | 'code', number> = {
-  notes: 1.5,
-  exam: 1.5,
-  slides: 1.5,
-  code: 1.5,
-};
 
 const SUGGESTIONS = [
   'Explain quantum entanglement in simple terms',
   'Create notes on photosynthesis',
   'Make an exam paper on thermodynamics',
   'Build me a Snake game',
-  'Slides on Newton\'s laws of motion',
+  "Slides on Newton's laws of motion",
   'Quick study on cell division',
 ];
 
@@ -54,13 +56,34 @@ const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const ChatPage = () => {
   const { user } = useAuth();
   const { isPro } = useSubscription();
+  const credits = useCreditsStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState('');
   const [model, setModel] = useState<ModelMode>('auto');
+  const [buyOpen, setBuyOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>('');
+
+  // Post-payment return-URL handler
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get('source');
+    const plan = params.get('plan');
+    if (source === 'dodo') {
+      toast.success(
+        plan
+          ? `Payment successful! Your ${plan} credits will appear shortly.`
+          : 'Payment successful! Your credits will appear shortly.',
+        { duration: 7000 },
+      );
+      const url = new URL(window.location.href);
+      url.searchParams.delete('source');
+      url.searchParams.delete('plan');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    }
+  }, []);
 
   /** Free chat reply via streaming SSE. */
   const streamChat = useCallback(
@@ -88,7 +111,6 @@ const ChatPage = () => {
         throw new Error(`HTTP ${res.status}: ${txt.slice(0, 120)}`);
       }
 
-      // Append empty assistant bubble we'll fill
       const aId = uid();
       setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', timestamp: Date.now() }]);
 
@@ -126,7 +148,6 @@ const ChatPage = () => {
       }
 
       if (acc.trim().length === 0) {
-        // No content arrived → replace bubble with error
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aId
@@ -142,10 +163,7 @@ const ChatPage = () => {
   /** Quick-study formatted CHAT response (no artifact, no credit). */
   const runQuickStudy = useCallback(
     async (topic: string, history: Message[]) => {
-      const promptMsg: Message = {
-        id: uid(),
-        role: 'user',
-        content: `Create a 10-minute revision guide for: ${topic}.
+      const synthesizedPrompt = `Create a 10-minute revision guide for: ${topic}.
 
 Format strictly as:
 ## ⚡ Quick Revision: ${topic}
@@ -166,18 +184,15 @@ Q2: ... || A: ...
 Q3: ... || A: ...
 
 ### 5. 60-Second Summary
-[2–3 sentences]`,
-        type: 'text',
-        timestamp: Date.now(),
-      };
-      // We stream the reply but use the synthesized prompt (don't show it)
+[2–3 sentences]`;
+
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       const aiMessages = history
         .filter((m) => m.type === 'text')
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }));
-      aiMessages.push({ role: 'user', content: promptMsg.content });
+      aiMessages.push({ role: 'user', content: synthesizedPrompt });
 
       const { data: { session } } = await supabase.auth.getSession();
       const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -220,34 +235,60 @@ Q3: ... || A: ...
     [],
   );
 
-  /** Artifact generation with safe wrapper. */
+  /** Artifact generation with safe wrapper. Charges only on validated success. */
   const runArtifact = useCallback(
     async (type: 'notes' | 'exam' | 'slides' | 'code', topic: string, originalPrompt: string) => {
-      const cost = CREDIT_COST[type];
+      const action = `${type}_artifact` as CreditAction;
+      const cost = CREDIT_COSTS[action];
+
+      // Pre-flight credit check (Pro/PRO+ users with active subscription bypass)
+      if (!isPro && !hasEnoughCredits(action, credits.balance)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: 'system',
+            type: 'insufficient_credits',
+            content: `You need ⚡ ${cost} credits to generate this ${type}.`,
+            requiredCredits: cost,
+            currentBalance: credits.balance,
+            timestamp: Date.now(),
+          },
+        ]);
+        return;
+      }
+
       const loadingId = uid();
       setMessages((prev) => [
         ...prev,
-        { id: loadingId, role: 'assistant', content: `Preparing your ${type}…`, type: 'loading', timestamp: Date.now() },
+        { id: loadingId, role: 'assistant', content: `Building your ${type}…`, type: 'loading', timestamp: Date.now() },
       ]);
 
       const result = await attemptGeneration({
         type,
         topic,
         prompt: originalPrompt,
+        timeoutMs: 120_000,
         onStage: (s) => setLoadingStage(s),
       });
 
       if (result.success) {
-        // Charge credit only on successful, validated output (Pro users skip)
-        if (!isPro && user) {
-          try {
-            await supabase.rpc('increment_usage', {
-              p_user_id: user.id,
-              p_feature: 'chat_messages',
-              p_period_type: 'daily',
-            });
-          } catch (e) {
-            console.warn('Credit charge failed (non-blocking):', e);
+        // Charge credit only on validated success
+        let newBalance = credits.balance;
+        if (!isPro) {
+          creditsActions.deduct(action);
+          newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
+          // Best-effort backend usage counter (non-blocking)
+          if (user) {
+            try {
+              await supabase.rpc('increment_usage', {
+                p_user_id: user.id,
+                p_feature: 'chat_messages',
+                p_period_type: 'daily',
+              });
+            } catch (e) {
+              console.warn('Usage counter (non-blocking):', e);
+            }
           }
         }
         setMessages((prev) =>
@@ -262,6 +303,7 @@ Q3: ... || A: ...
               artifactType: type,
               topic,
               creditsUsed: isPro ? 0 : cost,
+              newBalance,
               timestamp: Date.now(),
             }),
         );
@@ -279,7 +321,7 @@ Q3: ... || A: ...
         );
       }
     },
-    [isPro, user],
+    [isPro, user, credits.balance],
   );
 
   const handleSend = useCallback(
@@ -366,6 +408,15 @@ Q3: ... || A: ...
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)]">
+      {/* Chat header with credits widget */}
+      <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <span className="font-medium">Lumina Chat</span>
+        </div>
+        <CreditsDisplay onClick={() => setBuyOpen(true)} />
+      </div>
+
       <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-2 md:px-4">
         {empty ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
@@ -374,7 +425,11 @@ Q3: ... || A: ...
             </div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">How can I help you study?</h1>
             <p className="text-sm text-muted-foreground mb-8 max-w-md">
-              Chat is free. Generated notes, exam papers, slides and code each cost 1.5 credits — only when generation succeeds.
+              Chat is free. Generated notes, exam papers, slides and code each cost{' '}
+              <span className="inline-flex items-center gap-0.5 text-violet-300">
+                <Zap className="w-3 h-3" fill="currentColor" />1.5 credits
+              </span>{' '}
+              — only when generation succeeds.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-2xl">
               {SUGGESTIONS.map((s) => (
@@ -395,6 +450,7 @@ Q3: ... || A: ...
             loadingStage={loadingStage}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
+            onTopUp={() => setBuyOpen(true)}
           />
         )}
 
@@ -419,6 +475,8 @@ Q3: ... || A: ...
           </p>
         </div>
       </div>
+
+      <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
     </div>
   );
 };
