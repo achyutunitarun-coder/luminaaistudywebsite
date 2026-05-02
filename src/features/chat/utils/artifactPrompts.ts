@@ -60,7 +60,7 @@ DESIGN:
 REQUIRED CONTENT:
 1. Header — "Lumina Academy Examination", subject, date fields, candidate name/number boxes, time allowed, total marks
 2. Instructions box — read carefully, show working, mark allocation guide
-3. Section A — Multiple choice (1 mark each), minimum 10 questions, plausible distractors
+3. Section A — Multiple choice (1 mark each), minimum 10 questions, plausible distractors. Each option is a <button> (NOT a hidden radio). On click, lock all options for that question, highlight the chosen one, and store the answer in localStorage.
 4. Section B — Short answer (3–5 marks each), minimum 5 questions, with ruled <textarea> answer boxes
 5. Section C — Long answer / essay (8–15 marks each), minimum 2 questions, large <textarea>
 6. Mark scheme at the bottom — hidden by default, revealed by toggle button. Full working + mark allocation per step.
@@ -69,7 +69,7 @@ REQUIRED CONTENT:
 INTERACTIONS:
 - Countdown timer (red when <10 min)
 - "Show Mark Scheme" toggle
-- MCQ clickable bubbles
+- MCQ <button> options with click feedback (no hidden inputs)
 - localStorage answer auto-save
 - Print button
 
