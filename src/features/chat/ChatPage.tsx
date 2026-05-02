@@ -406,15 +406,44 @@ Q3: ... || A: ...
     toast.info('Stopped.');
   }, []);
 
-  const handleRegenerate = useCallback(() => {
-    if (!lastUserMsgRef.current) return;
-    handleSend(lastUserMsgRef.current);
-  }, [handleSend]);
+  /** Regenerate: find the user message that produced this assistant message, drop everything from that user msg onward, and resend. */
+  const handleRegenerate = useCallback(
+    (assistantId?: string) => {
+      if (assistantId) {
+        const idx = messages.findIndex((m) => m.id === assistantId);
+        if (idx > 0) {
+          // Walk backwards to find the most recent user msg before this assistant.
+          for (let i = idx - 1; i >= 0; i--) {
+            if (messages[i].role === 'user' && messages[i].type === 'text') {
+              const userText = messages[i].content;
+              setMessages((prev) => prev.slice(0, i));
+              handleSend(userText);
+              return;
+            }
+          }
+        }
+      }
+      if (!lastUserMsgRef.current) return;
+      handleSend(lastUserMsgRef.current);
+    },
+    [messages, handleSend],
+  );
 
-  const handleRetry = useCallback(() => {
-    if (!lastUserMsgRef.current) return;
-    handleSend(lastUserMsgRef.current);
-  }, [handleSend]);
+  const handleRetry = useCallback(
+    (assistantId?: string) => handleRegenerate(assistantId),
+    [handleRegenerate],
+  );
+
+  /** Edit a user message: truncate the conversation to before it and resend with new text. */
+  const handleEdit = useCallback(
+    (userMsgId: string, newText: string) => {
+      const idx = messages.findIndex((m) => m.id === userMsgId);
+      if (idx < 0) return;
+      setMessages((prev) => prev.slice(0, idx));
+      handleSend(newText);
+    },
+    [messages, handleSend],
+  );
 
   const empty = messages.length === 0;
 
