@@ -44,7 +44,7 @@ async function singleAttempt(
   config: GenerationConfig,
   attemptIdx: number,
 ): Promise<{ html: string; error?: string }> {
-  const { type, topic, timeoutMs = 120_000, prompt } = config;
+  const { type, topic, timeoutMs = 180_000, prompt } = config;
   const systemPrompt = buildPromptForType(type, topic);
 
   // Simplify the user prompt on retries
@@ -91,7 +91,7 @@ async function singleAttempt(
 
 export async function attemptGeneration(config: GenerationConfig): Promise<GenerationResult> {
   const start = Date.now();
-  const maxRetries = config.maxRetries ?? 2;
+  const maxRetries = config.maxRetries ?? 1;
 
   for (let i = 0; i <= maxRetries; i++) {
     config.onStage?.(i === 0 ? 'Generating…' : `Retrying (${i}/${maxRetries})…`);

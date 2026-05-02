@@ -37,6 +37,7 @@ export interface Message {
   newBalance?: number;
   requiredCredits?: number;
   currentBalance?: number;
+  isStreaming?: boolean;
   timestamp: number;
 }
 
@@ -99,10 +100,11 @@ const ChatPage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+      const wireMode = model === 'deepDive' ? 'long_context' : model;
       const res = await fetch(CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-        body: JSON.stringify({ messages: aiMessages, mode: model }),
+        body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
         signal: ctrl.signal,
       });
 
@@ -112,46 +114,52 @@ const ChatPage = () => {
       }
 
       const aId = uid();
-      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', timestamp: Date.now() }]);
+      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', isStreaming: true, timestamp: Date.now() }]);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
       let acc = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(json);
-            const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === 'string' && delta.length > 0) {
-              acc += delta;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
-              );
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf('\n')) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6).trim();
+            if (json === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(json);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string' && delta.length > 0) {
+                acc += delta;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
+                );
+              }
+            } catch {
+              buf = line + '\n' + buf;
+              break;
             }
-          } catch {
-            buf = line + '\n' + buf;
-            break;
           }
         }
+      } finally {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)),
+        );
       }
 
       if (acc.trim().length === 0) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === aId
-              ? { ...m, type: 'error' as const, content: 'No response received. Please try again.' }
+              ? { ...m, type: 'error' as const, content: 'No response received. Please try again.', isStreaming: false }
               : m,
           ),
         );
@@ -205,31 +213,35 @@ Q3: ... || A: ...
       if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
 
       const aId = uid();
-      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', timestamp: Date.now() }]);
+      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', isStreaming: true, timestamp: Date.now() }]);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '', acc = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(json);
-            const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === 'string') {
-              acc += delta;
-              setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)));
-            }
-          } catch { buf = line + '\n' + buf; break; }
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf('\n')) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6).trim();
+            if (json === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(json);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === 'string') {
+                acc += delta;
+                setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)));
+              }
+            } catch { buf = line + '\n' + buf; break; }
+          }
         }
+      } finally {
+        setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)));
       }
     },
     [],
@@ -268,7 +280,7 @@ Q3: ... || A: ...
         type,
         topic,
         prompt: originalPrompt,
-        timeoutMs: 120_000,
+        timeoutMs: 180_000,
         onStage: (s) => setLoadingStage(s),
       });
 
@@ -394,15 +406,44 @@ Q3: ... || A: ...
     toast.info('Stopped.');
   }, []);
 
-  const handleRegenerate = useCallback(() => {
-    if (!lastUserMsgRef.current) return;
-    handleSend(lastUserMsgRef.current);
-  }, [handleSend]);
+  /** Regenerate: find the user message that produced this assistant message, drop everything from that user msg onward, and resend. */
+  const handleRegenerate = useCallback(
+    (assistantId?: string) => {
+      if (assistantId) {
+        const idx = messages.findIndex((m) => m.id === assistantId);
+        if (idx > 0) {
+          // Walk backwards to find the most recent user msg before this assistant.
+          for (let i = idx - 1; i >= 0; i--) {
+            if (messages[i].role === 'user' && messages[i].type === 'text') {
+              const userText = messages[i].content;
+              setMessages((prev) => prev.slice(0, i));
+              handleSend(userText);
+              return;
+            }
+          }
+        }
+      }
+      if (!lastUserMsgRef.current) return;
+      handleSend(lastUserMsgRef.current);
+    },
+    [messages, handleSend],
+  );
 
-  const handleRetry = useCallback(() => {
-    if (!lastUserMsgRef.current) return;
-    handleSend(lastUserMsgRef.current);
-  }, [handleSend]);
+  const handleRetry = useCallback(
+    (assistantId?: string) => handleRegenerate(assistantId),
+    [handleRegenerate],
+  );
+
+  /** Edit a user message: truncate the conversation to before it and resend with new text. */
+  const handleEdit = useCallback(
+    (userMsgId: string, newText: string) => {
+      const idx = messages.findIndex((m) => m.id === userMsgId);
+      if (idx < 0) return;
+      setMessages((prev) => prev.slice(0, idx));
+      handleSend(newText);
+    },
+    [messages, handleSend],
+  );
 
   const empty = messages.length === 0;
 
@@ -450,6 +491,7 @@ Q3: ... || A: ...
             loadingStage={loadingStage}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
+            onEdit={handleEdit}
             onTopUp={() => setBuyOpen(true)}
           />
         )}
