@@ -99,10 +99,11 @@ const ChatPage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+      const wireMode = model === 'deepDive' ? 'long_context' : model;
       const res = await fetch(CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-        body: JSON.stringify({ messages: aiMessages, mode: model }),
+        body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
         signal: ctrl.signal,
       });
 
