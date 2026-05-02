@@ -1,14 +1,15 @@
-import { Zap, Brain, BookOpen, Code2, Palette, Sparkles } from 'lucide-react';
+import { Zap, Brain, BookOpen, Code2, Palette, Sparkles, Telescope } from 'lucide-react';
 
-export type ModelMode = 'auto' | 'reasoning' | 'study' | 'coding' | 'creative' | 'fast';
+export type ModelMode = 'auto' | 'reasoning' | 'study' | 'coding' | 'deepDive' | 'creative' | 'fast';
 
 const MODELS: { k: ModelMode; label: string; icon: typeof Zap; desc: string }[] = [
-  { k: 'auto',      label: 'Auto',      icon: Sparkles, desc: 'Smart routing' },
-  { k: 'reasoning', label: 'Reasoning', icon: Brain,    desc: 'Step-by-step' },
-  { k: 'study',     label: 'Study',     icon: BookOpen, desc: 'Patient tutor' },
-  { k: 'coding',    label: 'Coding',    icon: Code2,    desc: 'Code-focused' },
-  { k: 'creative',  label: 'Creative',  icon: Palette,  desc: 'Analogies' },
-  { k: 'fast',      label: 'Fast',      icon: Zap,      desc: 'Concise' },
+  { k: 'auto',      label: 'Auto',      icon: Sparkles,  desc: 'Smart routing' },
+  { k: 'reasoning', label: 'Reasoning', icon: Brain,     desc: 'Step-by-step' },
+  { k: 'study',     label: 'Study',     icon: BookOpen,  desc: 'Patient tutor' },
+  { k: 'coding',    label: 'Coding',    icon: Code2,     desc: 'Code-focused' },
+  { k: 'deepDive',  label: 'Deep Dive', icon: Telescope, desc: 'Long, thorough answers' },
+  { k: 'creative',  label: 'Creative',  icon: Palette,   desc: 'Analogies' },
+  { k: 'fast',      label: 'Fast',      icon: Zap,       desc: 'Concise' },
 ];
 
 interface Props {
