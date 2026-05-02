@@ -4,11 +4,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callWithFallback } from "../_shared/models.ts";
 
-declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void } | undefined;
+declare const EdgeRuntime:
+  | { waitUntil: (promise: Promise<unknown>) => void }
+  | undefined;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const HTML_MODELS = [
@@ -47,11 +50,21 @@ function cleanHtml(raw: string): string {
 
 function validHtml(html: string): boolean {
   const lower = html.toLowerCase();
-  return html.length > 600 && (lower.includes("<!doctype") || lower.includes("<html"));
+  return (
+    html.length > 600 &&
+    (lower.includes("<!doctype") || lower.includes("<html"))
+  );
 }
 
-function fallbackHtml(type: string, topic: string, errorHint = "The AI models were busy.") {
-  const safeTopic = String(topic || "Study artifact").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+function fallbackHtml(
+  type: string,
+  topic: string,
+  errorHint = "The AI models were busy.",
+) {
+  const safeTopic = String(topic || "Study artifact").replace(
+    /[<>&]/g,
+    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!,
+  );
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,7 +87,10 @@ function fallbackHtml(type: string, topic: string, errorHint = "The AI models we
 }
 
 function makeSystemPrompt(type: string, topic: string, provided: string) {
-  const base = provided && provided.length > 200 ? provided : `Generate a complete, beautiful, self-contained HTML ${type} artifact for ${topic}.`;
+  const base =
+    provided && provided.length > 200
+      ? provided
+      : `Generate a complete, beautiful, self-contained HTML ${type} artifact for ${topic}.`;
   return `${base}
 
 CRITICAL OUTPUT CONTRACT:
@@ -84,7 +100,12 @@ CRITICAL OUTPUT CONTRACT:
 - Prefer concise depth over huge unfinished output.`;
 }
 
-async function generateHtml(type: string, topic: string, userPrompt: string, systemPrompt: string): Promise<{ html: string; model?: string }> {
+async function generateHtml(
+  type: string,
+  topic: string,
+  userPrompt: string,
+  systemPrompt: string,
+): Promise<{ html: string; model?: string }> {
   const models = type === "code" ? CODE_MODELS : HTML_MODELS;
   const started = Date.now();
   let lastErr = "";
@@ -96,8 +117,17 @@ async function generateHtml(type: string, topic: string, userPrompt: string, sys
     try {
       const { response, model } = await callWithFallback(
         [
-          { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
-          { role: "user", content: attempt === 0 ? userPrompt : `Create a focused complete ${type} artifact about ${topic}.` },
+          {
+            role: "system",
+            content: makeSystemPrompt(type, topic, systemPrompt),
+          },
+          {
+            role: "user",
+            content:
+              attempt === 0
+                ? userPrompt
+                : `Create a focused complete ${type} artifact about ${topic}.`,
+          },
         ],
         models,
         type === "notes" ? 9000 : 12000,
@@ -118,42 +148,68 @@ async function generateHtml(type: string, topic: string, userPrompt: string, sys
   throw new Error(lastErr || "all_models_failed");
 }
 
-async function processJob(jobId: string, payload: { type: string; topic: string; userPrompt: string; systemPrompt: string }) {
+async function processJob(
+  jobId: string,
+  payload: {
+    type: string;
+    topic: string;
+    userPrompt: string;
+    systemPrompt: string;
+  },
+) {
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  await admin.from("artifact_jobs").update({ status: "running", error_message: null }).eq("id", jobId);
+  await admin
+    .from("artifact_jobs")
+    .update({ status: "running", error_message: null })
+    .eq("id", jobId);
 
   try {
-    const { html, model } = await generateHtml(payload.type, payload.topic, payload.userPrompt, payload.systemPrompt);
-    await admin.from("artifact_jobs").update({
-      status: "completed",
-      html,
-      model_used: model ?? null,
-      completed_at: new Date().toISOString(),
-      error_message: null,
-    }).eq("id", jobId);
+    const { html, model } = await generateHtml(
+      payload.type,
+      payload.topic,
+      payload.userPrompt,
+      payload.systemPrompt,
+    );
+    await admin
+      .from("artifact_jobs")
+      .update({
+        status: "completed",
+        html,
+        model_used: model ?? null,
+        completed_at: new Date().toISOString(),
+        error_message: null,
+      })
+      .eq("id", jobId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
     // Mark failed instead of leaving the UI spinning. Do not charge credits client-side.
-    await admin.from("artifact_jobs").update({
-      status: "failed",
-      error_message: msg || "generation_failed",
-      completed_at: new Date().toISOString(),
-    }).eq("id", jobId);
+    await admin
+      .from("artifact_jobs")
+      .update({
+        status: "failed",
+        error_message: msg || "generation_failed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
   }
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: jsonHeaders });
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: jsonHeaders,
+      });
     }
 
     const authClient = createClient(
@@ -161,18 +217,33 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: { user } } = await authClient.auth.getUser();
-    if (!user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: jsonHeaders });
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+    if (!user)
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: jsonHeaders,
+      });
 
     const body = await req.json().catch(() => ({}));
     const type = String(body.type ?? "");
     const topic = String(body.topic ?? "").slice(0, 500);
-    const userPrompt = String(body.userPrompt ?? `Generate the ${type} for: ${topic}`).slice(0, 12000);
+    const userPrompt = String(
+      body.userPrompt ?? `Generate the ${type} for: ${topic}`,
+    ).slice(0, 12000);
     const systemPrompt = String(body.systemPrompt ?? "").slice(0, 20000);
     const chatId = body.chatId ? String(body.chatId) : null;
 
-    if (!type || !topic || !["notes", "exam", "slides", "code"].includes(type)) {
-      return new Response(JSON.stringify({ error: "missing_or_invalid_fields" }), { status: 400, headers: jsonHeaders });
+    if (
+      !type ||
+      !topic ||
+      !["notes", "exam", "slides", "code"].includes(type)
+    ) {
+      return new Response(
+        JSON.stringify({ error: "missing_or_invalid_fields" }),
+        { status: 400, headers: jsonHeaders },
+      );
     }
 
     const admin = createClient(
@@ -195,17 +266,27 @@ serve(async (req) => {
 
     if (error || !job) {
       console.error("artifact job insert failed:", error);
-      return new Response(JSON.stringify({ error: "failed_to_queue_job" }), { status: 500, headers: jsonHeaders });
+      return new Response(JSON.stringify({ error: "failed_to_queue_job" }), {
+        status: 500,
+        headers: jsonHeaders,
+      });
     }
 
     const work = processJob(job.id, { type, topic, userPrompt, systemPrompt });
-    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(work);
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil)
+      EdgeRuntime.waitUntil(work);
     else work.catch((e) => console.error("background artifact job failed", e));
 
-    return new Response(JSON.stringify({ jobId: job.id, status: "queued" }), { status: 202, headers: jsonHeaders });
+    return new Response(JSON.stringify({ jobId: job.id, status: "queued" }), {
+      status: 202,
+      headers: jsonHeaders,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
     console.error("chat-artifact-v2 error:", msg);
-    return new Response(JSON.stringify({ error: msg }), { status: 500, headers: jsonHeaders });
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: jsonHeaders,
+    });
   }
 });

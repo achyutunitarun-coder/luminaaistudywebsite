@@ -3,33 +3,44 @@
  * Chat feature stays isolated inside /src/features/chat/ plus credits UI.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Clock3, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Sparkles, Trash2, Zap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useSubscription } from '@/hooks/useSubscription';
-import { toast } from 'sonner';
-import { detectIntent, type Intent } from './utils/intentDetector';
-import { attemptGeneration } from './utils/generationWrapper';
-import { MessageList } from './components/MessageList';
-import { InputBar } from './components/InputBar';
-import { ModelSelector, type ModelMode } from './components/ModelSelector';
-import { CreditsDisplay } from '@/features/credits/CreditsDisplay';
-import { BuyCreditsModal } from '@/features/credits/BuyCreditsModal';
-import { useCreditsStore, creditsActions } from '@/features/credits/useCreditsStore';
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Clock3,
+  MessageSquarePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sparkles,
+  Trash2,
+  Zap,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { toast } from "sonner";
+import { detectIntent, type Intent } from "./utils/intentDetector";
+import { attemptGeneration } from "./utils/generationWrapper";
+import { MessageList } from "./components/MessageList";
+import { InputBar } from "./components/InputBar";
+import { ModelSelector, type ModelMode } from "./components/ModelSelector";
+import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
+import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
+import {
+  useCreditsStore,
+  creditsActions,
+} from "@/features/credits/useCreditsStore";
 import {
   CREDIT_COSTS,
   hasEnoughCredits,
   type CreditAction,
-} from '@/features/credits/creditsSystem';
+} from "@/features/credits/creditsSystem";
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
-  type: 'text' | 'artifact' | 'error' | 'loading' | 'insufficient_credits';
+  type: "text" | "artifact" | "error" | "loading" | "insufficient_credits";
   artifactHtml?: string;
-  artifactType?: 'notes' | 'exam' | 'slides' | 'code';
+  artifactType?: "notes" | "exam" | "slides" | "code";
   topic?: string;
   creditsUsed?: number;
   newBalance?: number;
@@ -48,11 +59,11 @@ type ChatSummary = {
 
 type SavedMessageRow = {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   created_at: string;
-  message_type?: Message['type'];
-  artifact_type?: Message['artifactType'] | null;
+  message_type?: Message["type"];
+  artifact_type?: Message["artifactType"] | null;
   artifact_html?: string | null;
   topic?: string | null;
   credits_used?: number | string | null;
@@ -62,26 +73,29 @@ type SavedMessageRow = {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 const SUGGESTIONS = [
-  'Explain quantum entanglement in simple terms',
-  'Create notes on photosynthesis',
-  'Make an exam paper on thermodynamics',
-  'Build me a Snake game',
+  "Explain quantum entanglement in simple terms",
+  "Create notes on photosynthesis",
+  "Make an exam paper on thermodynamics",
+  "Build me a Snake game",
   "Slides on Newton's laws of motion",
-  'Quick study on cell division',
+  "Quick study on cell division",
 ];
 
-const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto
-  ? crypto.randomUUID()
-  : Math.random().toString(36).slice(2) + Date.now().toString(36));
+const uid = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 const titleFrom = (text: string) => {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length > 48 ? `${clean.slice(0, 48).trim()}…` : clean || 'New chat';
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > 48
+    ? `${clean.slice(0, 48).trim()}…`
+    : clean || "New chat";
 };
 
 const toNumber = (value: number | string | null | undefined) => {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
     const n = Number(value);
     return Number.isFinite(n) ? n : undefined;
   }
@@ -91,8 +105,8 @@ const toNumber = (value: number | string | null | undefined) => {
 const rowToMessage = (row: SavedMessageRow): Message => ({
   id: row.id,
   role: row.role,
-  content: row.content ?? '',
-  type: (row.message_type || 'text') as Message['type'],
+  content: row.content ?? "",
+  type: (row.message_type || "text") as Message["type"],
   artifactType: row.artifact_type ?? undefined,
   artifactHtml: row.artifact_html ?? undefined,
   topic: row.topic ?? undefined,
@@ -106,20 +120,24 @@ const ChatPage = () => {
   const { isPro } = useSubscription();
   const credits = useCreditsStore();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState('');
-  const [model, setModel] = useState<ModelMode>('auto');
+  const [loadingStage, setLoadingStage] = useState("");
+  const [model, setModel] = useState<ModelMode>("auto");
   const [buyOpen, setBuyOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(() => typeof window === 'undefined' ? true : window.innerWidth >= 768);
+  const [historyOpen, setHistoryOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth >= 768,
+  );
   const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const lastUserMsgRef = useRef<string>('');
+  const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
 
-  useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
 
   const refreshChats = useCallback(async () => {
     if (!user) {
@@ -129,14 +147,14 @@ const ChatPage = () => {
       return;
     }
     const { data, error } = await supabase
-      .from('chats')
-      .select('id,title,created_at,updated_at')
-      .eq('user_id', user.id)
-      .eq('chat_type', 'general')
-      .order('updated_at', { ascending: false })
+      .from("chats")
+      .select("id,title,created_at,updated_at")
+      .eq("user_id", user.id)
+      .eq("chat_type", "general")
+      .order("updated_at", { ascending: false })
       .limit(40);
     if (error) {
-      console.warn('Failed to load chat history:', error);
+      console.warn("Failed to load chat history:", error);
       return;
     }
     setChatSessions((data ?? []) as ChatSummary[]);
@@ -146,90 +164,113 @@ const ChatPage = () => {
     refreshChats();
   }, [refreshChats]);
 
-  const ensureChat = useCallback(async (firstText: string): Promise<string | null> => {
-    if (!user) return null;
-    if (currentChatIdRef.current) return currentChatIdRef.current;
+  const ensureChat = useCallback(
+    async (firstText: string): Promise<string | null> => {
+      if (!user) return null;
+      if (currentChatIdRef.current) return currentChatIdRef.current;
 
-    const title = titleFrom(firstText);
-    const { data, error } = await supabase
-      .from('chats')
-      .insert({ user_id: user.id, title, chat_type: 'general' })
-      .select('id,title,created_at,updated_at')
-      .single();
+      const title = titleFrom(firstText);
+      const { data, error } = await supabase
+        .from("chats")
+        .insert({ user_id: user.id, title, chat_type: "general" })
+        .select("id,title,created_at,updated_at")
+        .single();
 
-    if (error || !data) {
-      console.warn('Failed to create chat:', error);
-      return null;
-    }
+      if (error || !data) {
+        console.warn("Failed to create chat:", error);
+        return null;
+      }
 
-    const chat = data as ChatSummary;
-    setCurrentChatId(chat.id);
-    currentChatIdRef.current = chat.id;
-    setChatSessions((prev) => [chat, ...prev.filter((c) => c.id !== chat.id)]);
-    return chat.id;
-  }, [user]);
+      const chat = data as ChatSummary;
+      setCurrentChatId(chat.id);
+      currentChatIdRef.current = chat.id;
+      setChatSessions((prev) => [
+        chat,
+        ...prev.filter((c) => c.id !== chat.id),
+      ]);
+      return chat.id;
+    },
+    [user],
+  );
 
   const touchChat = useCallback(async (chatId: string) => {
     const updated_at = new Date().toISOString();
-    setChatSessions((prev) => prev.map((c) => c.id === chatId ? { ...c, updated_at } : c));
-    await supabase.from('chats').update({ updated_at }).eq('id', chatId);
+    setChatSessions((prev) =>
+      prev.map((c) => (c.id === chatId ? { ...c, updated_at } : c)),
+    );
+    await supabase.from("chats").update({ updated_at }).eq("id", chatId);
   }, []);
 
-  const persistMessage = useCallback(async (chatId: string | null, message: Message) => {
-    if (!chatId || !user) return;
-    if (message.type === 'loading' || message.role === 'system') return;
-    if (message.role !== 'user' && message.role !== 'assistant') return;
+  const persistMessage = useCallback(
+    async (chatId: string | null, message: Message) => {
+      if (!chatId || !user) return;
+      if (message.type === "loading" || message.role === "system") return;
+      if (message.role !== "user" && message.role !== "assistant") return;
 
-    try {
-      await (supabase as any).from('chat_messages').upsert({
-        id: message.id,
-        chat_id: chatId,
-        role: message.role,
-        content: message.content || '',
-        message_type: message.type,
-        artifact_type: message.artifactType ?? null,
-        artifact_html: message.artifactHtml ?? null,
-        topic: message.topic ?? null,
-        credits_used: message.creditsUsed ?? null,
-        new_balance: message.newBalance ?? null,
-      }, { onConflict: 'id' });
-      await touchChat(chatId);
-    } catch (error) {
-      console.warn('Message persistence failed:', error);
-    }
-  }, [touchChat, user]);
+      try {
+        await (supabase as any).from("chat_messages").upsert(
+          {
+            id: message.id,
+            chat_id: chatId,
+            role: message.role,
+            content: message.content || "",
+            message_type: message.type,
+            artifact_type: message.artifactType ?? null,
+            artifact_html: message.artifactHtml ?? null,
+            topic: message.topic ?? null,
+            credits_used: message.creditsUsed ?? null,
+            new_balance: message.newBalance ?? null,
+          },
+          { onConflict: "id" },
+        );
+        await touchChat(chatId);
+      } catch (error) {
+        console.warn("Message persistence failed:", error);
+      }
+    },
+    [touchChat, user],
+  );
 
-  const removePersistedFrom = useCallback(async (startIndex: number) => {
-    const chatId = currentChatIdRef.current;
-    if (!chatId || startIndex < 0) return;
-    const ids = messages
-      .slice(startIndex)
-      .filter((m) => m.type !== 'loading' && m.role !== 'system')
-      .map((m) => m.id);
-    if (ids.length === 0) return;
-    try {
-      await (supabase as any).from('chat_messages').delete().eq('chat_id', chatId).in('id', ids);
-      await touchChat(chatId);
-    } catch (error) {
-      console.warn('Failed to prune chat branch:', error);
-    }
-  }, [messages, touchChat]);
+  const removePersistedFrom = useCallback(
+    async (startIndex: number) => {
+      const chatId = currentChatIdRef.current;
+      if (!chatId || startIndex < 0) return;
+      const ids = messages
+        .slice(startIndex)
+        .filter((m) => m.type !== "loading" && m.role !== "system")
+        .map((m) => m.id);
+      if (ids.length === 0) return;
+      try {
+        await (supabase as any)
+          .from("chat_messages")
+          .delete()
+          .eq("chat_id", chatId)
+          .in("id", ids);
+        await touchChat(chatId);
+      } catch (error) {
+        console.warn("Failed to prune chat branch:", error);
+      }
+    },
+    [messages, touchChat],
+  );
 
   const loadChat = useCallback(async (chat: ChatSummary) => {
     setHistoryLoading(true);
     try {
       const { data, error } = await (supabase as any)
-        .from('chat_messages')
-        .select('id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance')
-        .eq('chat_id', chat.id)
-        .order('created_at', { ascending: true });
+        .from("chat_messages")
+        .select(
+          "id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance",
+        )
+        .eq("chat_id", chat.id)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       setCurrentChatId(chat.id);
       currentChatIdRef.current = chat.id;
       setMessages(((data ?? []) as SavedMessageRow[]).map(rowToMessage));
       setHistoryOpen(false);
     } catch (error: any) {
-      toast.error(error?.message ?? 'Could not open chat history.');
+      toast.error(error?.message ?? "Could not open chat history.");
     } finally {
       setHistoryLoading(false);
     }
@@ -240,37 +281,44 @@ const ChatPage = () => {
     setCurrentChatId(null);
     currentChatIdRef.current = null;
     setMessages([]);
-    setInput('');
+    setInput("");
     setLoading(false);
-    setLoadingStage('');
+    setLoadingStage("");
   }, []);
 
-  const deleteChat = useCallback(async (chatId: string) => {
-    if (!user) return;
-    const { error } = await supabase.from('chats').delete().eq('id', chatId).eq('user_id', user.id);
-    if (error) {
-      toast.error('Could not delete chat.');
-      return;
-    }
-    setChatSessions((prev) => prev.filter((c) => c.id !== chatId));
-    if (currentChatIdRef.current === chatId) startNewChat();
-  }, [startNewChat, user]);
+  const deleteChat = useCallback(
+    async (chatId: string) => {
+      if (!user) return;
+      const { error } = await supabase
+        .from("chats")
+        .delete()
+        .eq("id", chatId)
+        .eq("user_id", user.id);
+      if (error) {
+        toast.error("Could not delete chat.");
+        return;
+      }
+      setChatSessions((prev) => prev.filter((c) => c.id !== chatId));
+      if (currentChatIdRef.current === chatId) startNewChat();
+    },
+    [startNewChat, user],
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const source = params.get('source');
-    const plan = params.get('plan');
-    if (source === 'dodo') {
+    const source = params.get("source");
+    const plan = params.get("plan");
+    if (source === "dodo") {
       toast.success(
         plan
           ? `Payment successful! Your ${plan} credits will appear shortly.`
-          : 'Payment successful! Your credits will appear shortly.',
+          : "Payment successful! Your credits will appear shortly.",
         { duration: 7000 },
       );
       const url = new URL(window.location.href);
-      url.searchParams.delete('source');
-      url.searchParams.delete('plan');
-      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+      url.searchParams.delete("source");
+      url.searchParams.delete("plan");
+      window.history.replaceState({}, "", url.pathname + (url.search || ""));
     }
   }, []);
 
@@ -280,33 +328,49 @@ const ChatPage = () => {
       abortRef.current = ctrl;
 
       const aiMessages = history
-        .filter((m) => m.type === 'text')
+        .filter((m) => m.type === "text")
         .slice(-20)
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const auth =
+        session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      const wireMode = model === 'deepDive' ? 'long_context' : model;
+      const wireMode = model === "deepDive" ? "long_context" : model;
       const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth}`,
+        },
         body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
         signal: ctrl.signal,
       });
 
       if (!res.ok || !res.body) {
-        const txt = await res.text().catch(() => '');
+        const txt = await res.text().catch(() => "");
         throw new Error(`HTTP ${res.status}: ${txt.slice(0, 120)}`);
       }
 
       const aId = uid();
-      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', isStreaming: true, timestamp: Date.now() }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aId,
+          role: "assistant",
+          content: "",
+          type: "text",
+          isStreaming: true,
+          timestamp: Date.now(),
+        },
+      ]);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buf = '';
-      let acc = '';
+      let buf = "";
+      let acc = "";
 
       try {
         while (true) {
@@ -314,24 +378,24 @@ const ChatPage = () => {
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           let nl: number;
-          while ((nl = buf.indexOf('\n')) !== -1) {
+          while ((nl = buf.indexOf("\n")) !== -1) {
             let line = buf.slice(0, nl);
             buf = buf.slice(nl + 1);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (!line.startsWith('data: ')) continue;
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) continue;
             const json = line.slice(6).trim();
-            if (json === '[DONE]') continue;
+            if (json === "[DONE]") continue;
             try {
               const parsed = JSON.parse(json);
               const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === 'string' && delta.length > 0) {
+              if (typeof delta === "string" && delta.length > 0) {
                 acc += delta;
                 setMessages((prev) =>
                   prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
                 );
               }
             } catch {
-              buf = line + '\n' + buf;
+              buf = line + "\n" + buf;
               break;
             }
           }
@@ -342,9 +406,22 @@ const ChatPage = () => {
         );
       }
 
-      const finalMessage: Message = acc.trim().length === 0
-        ? { id: aId, role: 'assistant', type: 'error', content: 'No response received. Please try again.', timestamp: Date.now() }
-        : { id: aId, role: 'assistant', type: 'text', content: acc, timestamp: Date.now() };
+      const finalMessage: Message =
+        acc.trim().length === 0
+          ? {
+              id: aId,
+              role: "assistant",
+              type: "error",
+              content: "No response received. Please try again.",
+              timestamp: Date.now(),
+            }
+          : {
+              id: aId,
+              role: "assistant",
+              type: "text",
+              content: acc,
+              timestamp: Date.now(),
+            };
 
       setMessages((prev) => prev.map((m) => (m.id === aId ? finalMessage : m)));
       await persistMessage(chatId, finalMessage);
@@ -380,54 +457,84 @@ Q3: ... || A: ...
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       const aiMessages = history
-        .filter((m) => m.type === 'text')
+        .filter((m) => m.type === "text")
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }));
-      aiMessages.push({ role: 'user', content: synthesizedPrompt });
+      aiMessages.push({ role: "user", content: synthesizedPrompt });
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const auth =
+        session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-        body: JSON.stringify({ messages: aiMessages, mode: 'study' }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth}`,
+        },
+        body: JSON.stringify({ messages: aiMessages, mode: "study" }),
         signal: ctrl.signal,
       });
-      if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+      if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
 
       const aId = uid();
-      setMessages((prev) => [...prev, { id: aId, role: 'assistant', content: '', type: 'text', isStreaming: true, timestamp: Date.now() }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aId,
+          role: "assistant",
+          content: "",
+          type: "text",
+          isStreaming: true,
+          timestamp: Date.now(),
+        },
+      ]);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buf = '', acc = '';
+      let buf = "",
+        acc = "";
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           let nl: number;
-          while ((nl = buf.indexOf('\n')) !== -1) {
+          while ((nl = buf.indexOf("\n")) !== -1) {
             let line = buf.slice(0, nl);
             buf = buf.slice(nl + 1);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (!line.startsWith('data: ')) continue;
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) continue;
             const json = line.slice(6).trim();
-            if (json === '[DONE]') continue;
+            if (json === "[DONE]") continue;
             try {
               const parsed = JSON.parse(json);
               const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === 'string') {
+              if (typeof delta === "string") {
                 acc += delta;
-                setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)));
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
+                );
               }
-            } catch { buf = line + '\n' + buf; break; }
+            } catch {
+              buf = line + "\n" + buf;
+              break;
+            }
           }
         }
       } finally {
-        setMessages((prev) => prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)));
+        setMessages((prev) =>
+          prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)),
+        );
       }
 
-      const finalMessage: Message = { id: aId, role: 'assistant', content: acc, type: 'text', timestamp: Date.now() };
+      const finalMessage: Message = {
+        id: aId,
+        role: "assistant",
+        content: acc,
+        type: "text",
+        timestamp: Date.now(),
+      };
       setMessages((prev) => prev.map((m) => (m.id === aId ? finalMessage : m)));
       await persistMessage(chatId, finalMessage);
     },
@@ -435,7 +542,12 @@ Q3: ... || A: ...
   );
 
   const runArtifact = useCallback(
-    async (type: 'notes' | 'exam' | 'slides' | 'code', topic: string, originalPrompt: string, chatId: string | null) => {
+    async (
+      type: "notes" | "exam" | "slides" | "code",
+      topic: string,
+      originalPrompt: string,
+      chatId: string | null,
+    ) => {
       const action = `${type}_artifact` as CreditAction;
       const cost = CREDIT_COSTS[action];
 
@@ -444,8 +556,8 @@ Q3: ... || A: ...
           ...prev,
           {
             id: uid(),
-            role: 'system',
-            type: 'insufficient_credits',
+            role: "system",
+            type: "insufficient_credits",
             content: `You need ⚡ ${cost} credits to generate this ${type}.`,
             requiredCredits: cost,
             currentBalance: credits.balance,
@@ -458,7 +570,13 @@ Q3: ... || A: ...
       const loadingId = uid();
       setMessages((prev) => [
         ...prev,
-        { id: loadingId, role: 'assistant', content: `Queued your ${type}…`, type: 'loading', timestamp: Date.now() },
+        {
+          id: loadingId,
+          role: "assistant",
+          content: `Queued your ${type}…`,
+          type: "loading",
+          timestamp: Date.now(),
+        },
       ]);
 
       const result = await attemptGeneration({
@@ -478,21 +596,21 @@ Q3: ... || A: ...
           newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
           if (user) {
             try {
-              await supabase.rpc('increment_usage', {
+              await supabase.rpc("increment_usage", {
                 p_user_id: user.id,
-                p_feature: 'chat_messages',
-                p_period_type: 'daily',
+                p_feature: "chat_messages",
+                p_period_type: "daily",
               });
             } catch (e) {
-              console.warn('Usage counter (non-blocking):', e);
+              console.warn("Usage counter (non-blocking):", e);
             }
           }
         }
         const finalMessage: Message = {
           id: uid(),
-          role: 'assistant',
-          content: '',
-          type: 'artifact',
+          role: "assistant",
+          content: "",
+          type: "artifact",
           artifactHtml: result.content,
           artifactType: type,
           topic,
@@ -500,17 +618,21 @@ Q3: ... || A: ...
           newBalance,
           timestamp: Date.now(),
         };
-        setMessages((prev) => prev.filter((m) => m.id !== loadingId).concat(finalMessage));
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== loadingId).concat(finalMessage),
+        );
         await persistMessage(chatId, finalMessage);
       } else {
         const finalMessage: Message = {
           id: uid(),
-          role: 'assistant',
-          content: `Generation failed (${result.error ?? 'unknown'}) — no credits were charged. Please try again.`,
-          type: 'error',
+          role: "assistant",
+          content: `Generation failed (${result.error ?? "unknown"}) — no credits were charged. Please try again.`,
+          type: "error",
           timestamp: Date.now(),
         };
-        setMessages((prev) => prev.filter((m) => m.id !== loadingId).concat(finalMessage));
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== loadingId).concat(finalMessage),
+        );
         await persistMessage(chatId, finalMessage);
       }
     },
@@ -518,56 +640,69 @@ Q3: ... || A: ...
   );
 
   const handleSend = useCallback(
-    async (overrideText?: string, forcedType?: 'notes' | 'exam' | 'slides' | 'code') => {
+    async (
+      overrideText?: string,
+      forcedType?: "notes" | "exam" | "slides" | "code",
+    ) => {
       const text = (overrideText ?? input).trim();
       if (!text || loading) return;
 
       lastUserMsgRef.current = text;
       const chatId = await ensureChat(text);
-      const userMsg: Message = { id: uid(), role: 'user', content: text, type: 'text', timestamp: Date.now() };
+      const userMsg: Message = {
+        id: uid(),
+        role: "user",
+        content: text,
+        type: "text",
+        timestamp: Date.now(),
+      };
       const history = [...messages, userMsg];
       setMessages((prev) => [...prev, userMsg]);
       await persistMessage(chatId, userMsg);
-      setInput('');
+      setInput("");
       setLoading(true);
-      setLoadingStage('Detecting intent…');
+      setLoadingStage("Detecting intent…");
 
       try {
         let intent: Intent;
         let topic = text;
         if (forcedType) {
-          intent = (forcedType.toUpperCase() + '_ARTIFACT') as Intent;
+          intent = (forcedType.toUpperCase() + "_ARTIFACT") as Intent;
           topic = text;
         } else {
           const r = detectIntent(text);
-          intent = r.confidence < 0.85 ? 'CHAT' : r.intent;
+          intent = r.confidence < 0.85 ? "CHAT" : r.intent;
           topic = r.topic || text;
         }
 
-        if (intent === 'CHAT') {
-          setLoadingStage('Thinking…');
+        if (intent === "CHAT") {
+          setLoadingStage("Thinking…");
           await streamChat(history, chatId);
-        } else if (intent === 'QUICK_STUDY') {
-          setLoadingStage('Building 10-minute revision guide…');
+        } else if (intent === "QUICK_STUDY") {
+          setLoadingStage("Building 10-minute revision guide…");
           await runQuickStudy(topic, history, chatId);
         } else {
           const type =
-            intent === 'NOTES_ARTIFACT'  ? 'notes'  :
-            intent === 'EXAM_ARTIFACT'   ? 'exam'   :
-            intent === 'SLIDES_ARTIFACT' ? 'slides' : 'code';
+            intent === "NOTES_ARTIFACT"
+              ? "notes"
+              : intent === "EXAM_ARTIFACT"
+                ? "exam"
+                : intent === "SLIDES_ARTIFACT"
+                  ? "slides"
+                  : "code";
           setLoadingStage(`Queueing your ${type}…`);
           await runArtifact(type, topic, text, chatId);
         }
       } catch (e: any) {
-        const isAbort = e?.name === 'AbortError';
+        const isAbort = e?.name === "AbortError";
         if (!isAbort) {
           const finalMessage: Message = {
             id: uid(),
-            role: 'assistant',
-            content: e?.message?.includes('429')
-              ? 'Too many requests. Please wait 30 seconds.'
-              : e?.message ?? 'Something went wrong. Please try again.',
-            type: 'error',
+            role: "assistant",
+            content: e?.message?.includes("429")
+              ? "Too many requests. Please wait 30 seconds."
+              : (e?.message ?? "Something went wrong. Please try again."),
+            type: "error",
             timestamp: Date.now(),
           };
           setMessages((prev) => [...prev, finalMessage]);
@@ -575,18 +710,27 @@ Q3: ... || A: ...
         }
       } finally {
         setLoading(false);
-        setLoadingStage('');
+        setLoadingStage("");
         abortRef.current = null;
       }
     },
-    [ensureChat, input, loading, messages, persistMessage, runArtifact, runQuickStudy, streamChat],
+    [
+      ensureChat,
+      input,
+      loading,
+      messages,
+      persistMessage,
+      runArtifact,
+      runQuickStudy,
+      streamChat,
+    ],
   );
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     setLoading(false);
-    setLoadingStage('');
-    toast.info('Stopped.');
+    setLoadingStage("");
+    toast.info("Stopped.");
   }, []);
 
   const handleRegenerate = useCallback(
@@ -595,7 +739,7 @@ Q3: ... || A: ...
         const idx = messages.findIndex((m) => m.id === assistantId);
         if (idx > 0) {
           for (let i = idx - 1; i >= 0; i--) {
-            if (messages[i].role === 'user' && messages[i].type === 'text') {
+            if (messages[i].role === "user" && messages[i].type === "text") {
               const userText = messages[i].content;
               await removePersistedFrom(i);
               setMessages((prev) => prev.slice(0, i));
@@ -631,64 +775,118 @@ Q3: ... || A: ...
 
   return (
     <div className="flex h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] min-h-0">
-      <aside className={`${historyOpen ? 'w-72' : 'w-0'} hidden md:block shrink-0 overflow-hidden border-r border-border/60 transition-all duration-200`}>
+      <aside
+        className={`${historyOpen ? "w-72" : "w-0"} hidden md:block shrink-0 overflow-hidden border-r border-border/60 transition-all duration-200`}
+      >
         <div className="h-full flex flex-col bg-card/20">
           <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
             <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
               <Clock3 className="w-3.5 h-3.5" /> History
             </div>
-            <button type="button" onClick={startNewChat} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors" title="New chat">
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
+              title="New chat"
+            >
               <MessageSquarePlus className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {!user ? (
-              <div className="text-xs text-muted-foreground p-3">Sign in to keep chat memory across devices.</div>
-            ) : historyLoading ? (
-              <div className="text-xs text-muted-foreground p-3">Loading history…</div>
-            ) : chatSessions.length === 0 ? (
-              <div className="text-xs text-muted-foreground p-3">Your saved chats will appear here.</div>
-            ) : chatSessions.map((chat) => (
-              <div key={chat.id} className={`group flex items-center gap-1 rounded-lg ${currentChatId === chat.id ? 'bg-primary/10' : 'hover:bg-accent/60'}`}>
-                <button
-                  type="button"
-                  onClick={() => loadChat(chat)}
-                  className="flex-1 min-w-0 text-left px-2.5 py-2"
-                >
-                  <div className="text-sm truncate text-foreground">{chat.title}</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteChat(chat.id)}
-                  className="w-7 h-7 mr-1 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
-                  title="Delete chat"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+              <div className="text-xs text-muted-foreground p-3">
+                Sign in to keep chat memory across devices.
               </div>
-            ))}
+            ) : historyLoading ? (
+              <div className="text-xs text-muted-foreground p-3">
+                Loading history…
+              </div>
+            ) : chatSessions.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-3">
+                Your saved chats will appear here.
+              </div>
+            ) : (
+              chatSessions.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`group flex items-center gap-1 rounded-lg ${currentChatId === chat.id ? "bg-primary/10" : "hover:bg-accent/60"}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => loadChat(chat)}
+                    className="flex-1 min-w-0 text-left px-2.5 py-2"
+                  >
+                    <div className="text-sm truncate text-foreground">
+                      {chat.title}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {new Date(chat.updated_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteChat(chat.id)}
+                    className="w-7 h-7 mr-1 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </aside>
 
       {historyOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={() => setHistoryOpen(false)}>
-          <div className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <div
+            className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
-              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2"><Clock3 className="w-3.5 h-3.5" /> History</div>
-              <button type="button" onClick={startNewChat} className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors" title="New chat"><MessageSquarePlus className="w-4 h-4" /></button>
+              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                <Clock3 className="w-3.5 h-3.5" /> History
+              </div>
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
+                title="New chat"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
+              </button>
             </div>
             <div className="h-[calc(100%-57px)] overflow-y-auto p-2 space-y-1">
               {chatSessions.map((chat) => (
-                <button key={chat.id} type="button" onClick={() => loadChat(chat)} className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors">
-                  <div className="text-sm truncate text-foreground">{chat.title}</div>
-                  <div className="text-[10px] text-muted-foreground">{new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                <button
+                  key={chat.id}
+                  type="button"
+                  onClick={() => loadChat(chat)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="text-sm truncate text-foreground">
+                    {chat.title}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(chat.updated_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </div>
                 </button>
               ))}
-              {chatSessions.length === 0 && <div className="text-xs text-muted-foreground p-3">Your saved chats will appear here.</div>}
+              {chatSessions.length === 0 && (
+                <div className="text-xs text-muted-foreground p-3">
+                  Your saved chats will appear here.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -701,15 +899,23 @@ Q3: ... || A: ...
               type="button"
               onClick={() => setHistoryOpen((v) => !v)}
               className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              title={historyOpen ? 'Hide history' : 'Show history'}
+              title={historyOpen ? "Hide history" : "Show history"}
             >
-              {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+              {historyOpen ? (
+                <PanelLeftClose className="w-4 h-4" />
+              ) : (
+                <PanelLeftOpen className="w-4 h-4" />
+              )}
             </button>
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span className="font-medium">Lumina Chat</span>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={startNewChat} className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors">
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
+            >
               <MessageSquarePlus className="w-3.5 h-3.5" /> New
             </button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
@@ -722,12 +928,16 @@ Q3: ... || A: ...
               <div className="w-14 h-14 rounded-2xl bg-primary/10 grid place-items-center mb-4">
                 <Sparkles className="w-7 h-7 text-primary" />
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">How can I help you study?</h1>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                How can I help you study?
+              </h1>
               <p className="text-sm text-muted-foreground mb-8 max-w-md">
-                Chat is free. Generated notes, exam papers, slides and code each cost{' '}
+                Chat is free. Generated notes, exam papers, slides and code each
+                cost{" "}
                 <span className="inline-flex items-center gap-0.5 text-primary">
-                  <Zap className="w-3 h-3" fill="currentColor" />1.5 credits
-                </span>{' '}
+                  <Zap className="w-3 h-3" fill="currentColor" />
+                  1.5 credits
+                </span>{" "}
                 — only when generation succeeds.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-2xl">
@@ -764,14 +974,15 @@ Q3: ... || A: ...
               isLoading={loading}
               onPickArtifact={(t) => {
                 if (!input.trim()) {
-                  toast.info('Type a topic first, then pick an artifact type.');
+                  toast.info("Type a topic first, then pick an artifact type.");
                   return;
                 }
                 handleSend(input, t);
               }}
             />
             <p className="text-[10px] text-center text-muted-foreground/60">
-              Lumina can make mistakes. Verify important info. Artifacts run as background jobs, and credits are only charged after success.
+              Lumina can make mistakes. Verify important info. Artifacts run as
+              background jobs, and credits are only charged after success.
             </p>
           </div>
         </div>
