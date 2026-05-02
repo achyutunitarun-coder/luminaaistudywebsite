@@ -44,7 +44,7 @@ async function singleAttempt(
   config: GenerationConfig,
   attemptIdx: number,
 ): Promise<{ html: string; error?: string }> {
-  const { type, topic, timeoutMs = 90_000, prompt } = config;
+  const { type, topic, timeoutMs = 120_000, prompt } = config;
   const systemPrompt = buildPromptForType(type, topic);
 
   // Simplify the user prompt on retries
