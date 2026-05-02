@@ -61,7 +61,7 @@ serve(async (req) => {
           [model],
           16000,
           0.5,
-          90_000,
+          110_000,
           `chat-artifact-v2/${type}`,
         );
         const cleaned = cleanHtml(txt);

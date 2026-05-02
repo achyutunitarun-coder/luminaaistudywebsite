@@ -7,9 +7,10 @@ interface Props {
   loadingStage: string;
   onRegenerate: (id: string) => void;
   onRetry: (id: string) => void;
+  onTopUp?: () => void;
 }
 
-export const MessageList = ({ messages, loadingStage, onRegenerate, onRetry }: Props) => {
+export const MessageList = ({ messages, loadingStage, onRegenerate, onRetry, onTopUp }: Props) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -24,6 +25,7 @@ export const MessageList = ({ messages, loadingStage, onRegenerate, onRetry }: P
           loadingStage={loadingStage}
           onRegenerate={() => onRegenerate(m.id)}
           onRetry={() => onRetry(m.id)}
+          onTopUp={onTopUp}
         />
       ))}
       <div ref={endRef} />
