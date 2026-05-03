@@ -24,6 +24,7 @@ import { InputBar } from "./components/InputBar";
 import { ModelSelector, type ModelMode } from "./components/ModelSelector";
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
+import { ManualRestoreButton } from "@/features/credits/ManualRestore";
 import {
   useCreditsStore,
   creditsActions,
@@ -919,6 +920,7 @@ Q3: ... || A: ...
               <MessageSquarePlus className="w-3.5 h-3.5" /> New
             </button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
+            <ManualRestoreButton className="hidden md:inline-flex" />
           </div>
         </div>
 
