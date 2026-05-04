@@ -43,25 +43,14 @@ function handleReturnUrl() {
 
   // CASE 1: product_id present
   if (productId && DODO_CREDIT_MAP[productId]) {
-    const uniqueId = paymentId || subscriptionId || `${productId}_${Date.now()}`;
+    const uniqueId = paymentId || subscriptionId || `return_${productId}_${Date.now()}`;
     if (store.isPaymentProcessed(uniqueId)) {
       cleanUrl();
       return;
     }
     const details = DODO_PACK_DETAILS[productId];
     const credits = DODO_CREDIT_MAP[productId];
-    store.addCredits(
-      credits,
-      productId,
-      details.name,
-      details.type === 'pack' ? 'purchase' : 'subscription',
-      uniqueId,
-    );
-    if (details.type === 'subscription') {
-      if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') store.setPlan('ultimate');
-      if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') store.setPlan('pro_plus');
-    }
-    showSuccessToast(credits, details.name, details.type);
+    void applyCreditsServerFirst(productId, uniqueId, details, credits);
     cleanUrl();
     return;
   }
@@ -77,9 +66,7 @@ function handleReturnUrl() {
     if (data) {
       const uniqueId = subscriptionId || paymentId || `${planParam}_${Date.now()}`;
       if (!store.isPaymentProcessed(uniqueId)) {
-        store.addCredits(data.credits, data.productId, data.name, 'subscription', uniqueId);
-        store.setPlan(data.tier);
-        showSuccessToast(data.credits, data.name, 'subscription');
+        void applyCreditsServerFirst(data.productId, uniqueId, { name: data.name, credits: data.credits, price: 0, type: 'subscription' }, data.credits, data.tier);
       }
     }
     cleanUrl();
@@ -92,6 +79,42 @@ function handleReturnUrl() {
     cleanUrl();
     window.dispatchEvent(new CustomEvent('lumina:show-restore-prompt'));
   }
+}
+
+async function applyCreditsServerFirst(
+  productId: string,
+  paymentId: string,
+  details: { name: string; type: 'pack' | 'subscription' },
+  fallbackCredits: number,
+  tier?: 'ultimate' | 'pro_plus',
+) {
+  const store = useCreditsStore.getState();
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await (supabase as any).rpc('apply_dodo_credits', {
+      _product_id: productId,
+      _payment_id: paymentId,
+      _source: 'return_url',
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!error && row) {
+      const plan = row.plan === 'ultimate' || row.plan === 'pro_plus' || row.plan === 'free' ? row.plan : undefined;
+      store.setBalance(Number(row.balance ?? store.balance), plan);
+      store.markPaymentProcessed(paymentId);
+      if (!row.duplicate) showSuccessToast(Number(row.credits_added ?? fallbackCredits), row.product_name ?? details.name, details.type);
+      return;
+    }
+  } catch (e) {
+    console.warn('[Credits] Server credit apply failed, using local recovery:', e);
+  }
+
+  store.addCredits(fallbackCredits, productId, details.name, details.type === 'pack' ? 'purchase' : 'subscription', paymentId);
+  if (details.type === 'subscription') {
+    if (tier) store.setPlan(tier);
+    else if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') store.setPlan('ultimate');
+    else if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') store.setPlan('pro_plus');
+  }
+  showSuccessToast(fallbackCredits, details.name, details.type);
 }
 
 function cleanUrl() {
