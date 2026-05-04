@@ -252,6 +252,45 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_transactions: {
+        Row: {
+          action: string
+          created_at: string
+          credits: number
+          id: string
+          metadata: Json
+          payment_id: string | null
+          product_id: string
+          product_name: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          credits: number
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          product_id: string
+          product_name: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          credits?: number
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          product_id?: string
+          product_name?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_quests: {
         Row: {
           coin_reward: number
@@ -1734,6 +1773,30 @@ export type Database = {
           },
         ]
       }
+      user_credit_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          plan?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_goals: {
         Row: {
           created_at: string | null
@@ -1885,9 +1948,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_dodo_credits: {
+        Args: { _payment_id?: string; _product_id: string; _source?: string }
+        Returns: {
+          applied: boolean
+          balance: number
+          credits_added: number
+          duplicate: boolean
+          plan: string
+          product_name: string
+        }[]
+      }
+      apply_dodo_credits_for_user: {
+        Args: {
+          _payment_id?: string
+          _product_id: string
+          _source?: string
+          _user_id: string
+        }
+        Returns: {
+          applied: boolean
+          balance: number
+          credits_added: number
+          duplicate: boolean
+          plan: string
+          product_name: string
+        }[]
+      }
       award_xp_coins: {
         Args: { p_coins: number; p_user_id: string; p_xp: number }
         Returns: Json
+      }
+      get_dodo_credit_product: {
+        Args: { _product_id: string }
+        Returns: {
+          credits: number
+          plan_tier: string
+          product_name: string
+          product_type: string
+        }[]
       }
       get_usage_count: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
@@ -1900,6 +1999,13 @@ export type Database = {
       increment_usage: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
+      }
+      spend_user_credits: {
+        Args: { _action?: string; _amount: number }
+        Returns: {
+          balance: number
+          success: boolean
+        }[]
       }
       sync_leaderboard: { Args: { p_user_id: string }; Returns: undefined }
     }

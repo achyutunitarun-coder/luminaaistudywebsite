@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Zap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useCreditsStore } from './useCreditsStore';
 
 interface Props {
@@ -7,8 +9,23 @@ interface Props {
 }
 
 export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
-  const { balance } = useCreditsStore();
+  const { balance, setBalance } = useCreditsStore();
   const isLow = balance < 3;
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) return;
+      (supabase as any)
+        .from('user_credit_balances')
+        .select('balance,plan')
+        .maybeSingle()
+        .then(({ data: row }: any) => {
+          if (!cancelled && row) setBalance(Number(row.balance), row.plan);
+        });
+    });
+    return () => { cancelled = true; };
+  }, [setBalance]);
 
   return (
     <button

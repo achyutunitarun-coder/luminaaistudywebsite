@@ -5,7 +5,11 @@
 
 const DODO_BASE = 'https://checkout.dodopayments.com/buy';
 const RETURN_URL = 'https://luminaai.co.in';
-const RETURN_ENCODED = encodeURIComponent(RETURN_URL);
+
+const checkoutUrl = (productId: string, extra = '') => {
+  const returnUrl = `${RETURN_URL}?source=dodo&product_id=${productId}`;
+  return `${DODO_BASE}/${productId}?quantity=1${extra}&return_url=${encodeURIComponent(returnUrl)}`;
+};
 
 export const SUBSCRIPTION_PLANS = {
   ultimate: {
@@ -15,8 +19,8 @@ export const SUBSCRIPTION_PLANS = {
     priceAnnual: 133,
     credits: 40,
     rolloverCap: 80,
-    checkoutMonthly: `${DODO_BASE}/pdt_0NbKNHJ5nK556qajM5MKa?quantity=1&return_url=${RETURN_ENCODED}`,
-    checkoutAnnual: `${DODO_BASE}/pdt_0NbKNHJ5nK556qajM5MKa?quantity=1&billing_cycle=annual&return_url=${RETURN_ENCODED}`,
+    checkoutMonthly: checkoutUrl('pdt_0NbKNHJ5nK556qajM5MKa', '&plan=ultimate'),
+    checkoutAnnual: checkoutUrl('pdt_0NbKNHJ5nK556qajM5MKa', '&billing_cycle=annual&plan=ultimate'),
   },
   pro_plus: {
     productId: 'pdt_0Nbybrhl2M0GdzScdoAwb',
@@ -25,8 +29,8 @@ export const SUBSCRIPTION_PLANS = {
     priceAnnual: 333,
     credits: 150,
     rolloverCap: 300,
-    checkoutMonthly: `${DODO_BASE}/pdt_0Nbybrhl2M0GdzScdoAwb?quantity=1&return_url=${RETURN_ENCODED}`,
-    checkoutAnnual: `${DODO_BASE}/pdt_0Nbybrhl2M0GdzScdoAwb?quantity=1&billing_cycle=annual&return_url=${RETURN_ENCODED}`,
+    checkoutMonthly: checkoutUrl('pdt_0Nbybrhl2M0GdzScdoAwb', '&plan=pro_plus'),
+    checkoutAnnual: checkoutUrl('pdt_0Nbybrhl2M0GdzScdoAwb', '&billing_cycle=annual&plan=pro_plus'),
   },
 } as const;
 
@@ -50,7 +54,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     price: 59,
     perCredit: 1.97,
     badge: null,
-    checkout: `${DODO_BASE}/pdt_0NdcF1gd6Z5PBeFx8gbiE?quantity=1&return_url=${RETURN_ENCODED}`,
+    checkout: checkoutUrl('pdt_0NdcF1gd6Z5PBeFx8gbiE'),
   },
   {
     id: 'standard',
@@ -60,7 +64,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     price: 149,
     perCredit: 1.49,
     badge: 'Best Value',
-    checkout: `${DODO_BASE}/pdt_0NdcF1o3DQYEdtVQBA8MG?quantity=1&return_url=${RETURN_ENCODED}`,
+    checkout: checkoutUrl('pdt_0NdcF1o3DQYEdtVQBA8MG'),
   },
   {
     id: 'power',
@@ -70,7 +74,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     price: 399,
     perCredit: 1.33,
     badge: null,
-    checkout: `${DODO_BASE}/pdt_0NdcF1rKPidZVQ4vdzt5u?quantity=1&return_url=${RETURN_ENCODED}`,
+    checkout: checkoutUrl('pdt_0NdcF1rKPidZVQ4vdzt5u'),
   },
   {
     id: 'mega',
@@ -80,7 +84,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     price: 899,
     perCredit: 1.12,
     badge: 'Best Rate',
-    checkout: `${DODO_BASE}/pdt_0NdcF1ua83g4FRUO1LhKt?quantity=1&return_url=${RETURN_ENCODED}`,
+    checkout: checkoutUrl('pdt_0NdcF1ua83g4FRUO1LhKt'),
   },
 ] as const;
 

@@ -39,7 +39,7 @@ function ManualRestoreModal({
   const [productId, setProductId] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'duplicate'>('idle');
-  const { addCredits, isPaymentProcessed, setPlan } = useCreditsStore();
+  const { addCredits, isPaymentProcessed, markPaymentProcessed, setBalance, setPlan } = useCreditsStore();
 
   useEffect(() => {
     if (open) {
@@ -48,7 +48,7 @@ function ManualRestoreModal({
     }
   }, [open]);
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (!productId) {
       setStatus('error');
       return;
@@ -65,10 +65,31 @@ function ManualRestoreModal({
       setStatus('duplicate');
       return;
     }
-    addCredits(credits, productId, details.name, 'manual_restore', uniqueId);
-    if (details.type === 'subscription') {
-      if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') setPlan('ultimate');
-      if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') setPlan('pro_plus');
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await (supabase as any).rpc('apply_dodo_credits', {
+        _product_id: productId,
+        _payment_id: uniqueId,
+        _source: 'manual_restore',
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!error && row) {
+        const plan = row.plan === 'ultimate' || row.plan === 'pro_plus' || row.plan === 'free' ? row.plan : undefined;
+        setBalance(Number(row.balance), plan);
+        markPaymentProcessed(uniqueId);
+        if (row.duplicate) {
+          setStatus('duplicate');
+          return;
+        }
+      } else {
+        throw error || new Error('restore_failed');
+      }
+    } catch {
+      addCredits(credits, productId, details.name, 'manual_restore', uniqueId);
+      if (details.type === 'subscription') {
+        if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') setPlan('ultimate');
+        if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') setPlan('pro_plus');
+      }
     }
     sessionStorage.removeItem('pending_payment_id');
     setStatus('success');

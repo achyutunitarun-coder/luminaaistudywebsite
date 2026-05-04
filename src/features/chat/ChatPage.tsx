@@ -305,24 +305,6 @@ const ChatPage = () => {
     [startNewChat, user],
   );
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const source = params.get("source");
-    const plan = params.get("plan");
-    if (source === "dodo") {
-      toast.success(
-        plan
-          ? `Payment successful! Your ${plan} credits will appear shortly.`
-          : "Payment successful! Your credits will appear shortly.",
-        { duration: 7000 },
-      );
-      const url = new URL(window.location.href);
-      url.searchParams.delete("source");
-      url.searchParams.delete("plan");
-      window.history.replaceState({}, "", url.pathname + (url.search || ""));
-    }
-  }, []);
-
   const streamChat = useCallback(
     async (history: Message[], chatId: string | null) => {
       const ctrl = new AbortController();
@@ -593,8 +575,24 @@ Q3: ... || A: ...
       if (result.success) {
         let newBalance = credits.balance;
         if (!isPro) {
-          creditsActions.deduct(action);
-          newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
+          try {
+            const { data } = await (supabase as any).rpc("spend_user_credits", {
+              _amount: cost,
+              _action: action.replace(/_/g, " "),
+            });
+            const row = Array.isArray(data) ? data[0] : data;
+            if (row?.success && typeof row.balance !== "undefined") {
+              newBalance = Number(row.balance);
+              credits.setBalance(newBalance);
+            } else {
+              creditsActions.deduct(action);
+              newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
+            }
+          } catch (e) {
+            console.warn("Persistent credit spend failed, using local fallback:", e);
+            creditsActions.deduct(action);
+            newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
+          }
           if (user) {
             try {
               await supabase.rpc("increment_usage", {

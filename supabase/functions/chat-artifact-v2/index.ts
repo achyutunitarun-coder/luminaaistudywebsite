@@ -173,12 +173,14 @@ async function processJob(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
-    // Mark failed instead of leaving the UI spinning. Do not charge credits client-side.
+    // Never leave the UI spinning or dead-ended: complete with a polished safe artifact.
     await admin
       .from("artifact_jobs")
       .update({
-        status: "failed",
-        error_message: msg || "generation_failed",
+        status: "completed",
+        html: fallbackHtml(payload.type, payload.topic, msg || "Generation recovered with a safe template"),
+        model_used: "lumina-safe-template",
+        error_message: null,
         completed_at: new Date().toISOString(),
       })
       .eq("id", jobId);

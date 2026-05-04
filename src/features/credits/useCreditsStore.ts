@@ -31,6 +31,7 @@ export interface CreditsState {
   spendCredits: (amount: number, action: string) => boolean;
   hasCredits: (amount: number) => boolean;
   setPlan: (plan: PlanTier) => void;
+  setBalance: (balance: number, plan?: PlanTier) => void;
   isPaymentProcessed: (paymentId: string) => boolean;
   markPaymentProcessed: (paymentId: string) => void;
   reset: () => void;
@@ -91,6 +92,12 @@ export const useCreditsStore = create<CreditsState>()(
         set((s) => ({
           plan,
           balance: Math.max(s.balance, PLAN_CREDITS[plan]),
+        })),
+      setBalance: (balance, plan) =>
+        set((s) => ({
+          balance: Math.max(0, +Number(balance).toFixed(2)),
+          plan: plan ?? s.plan,
+          lastUpdated: Date.now(),
         })),
       isPaymentProcessed: (id) => get().processedPayments.includes(id),
       markPaymentProcessed: (id) =>
