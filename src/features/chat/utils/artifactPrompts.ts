@@ -35,49 +35,36 @@ export type TemplateKey =
  * GLOBAL WRAPPER — injected at the top of every artifact prompt
  * ────────────────────────────────────────────────────────────────────────── */
 const GLOBAL_WRAPPER = `
-You are Lumina's Premium Artifact Engine. Generate a world-class, production-grade HTML study artifact that feels like a ₹499 product, not a document.
+You are Lumina's Artifact Engine. Generate ONE complete, beautiful, self-contained HTML study artifact.
 
-OUTPUT RULES — NON-NEGOTIABLE:
-- Output ONLY raw HTML. Start with <!DOCTYPE html>. No markdown fences. No prose. Nothing before or after.
-- Single self-contained file. All CSS and JS inline. No external deps except Google Fonts.
-- DO NOT truncate. DO NOT stub. DO NOT write "// rest of content here". Output the COMPLETE file.
-- Minimum 800 lines for a normal artifact. Minimum 1500 lines for full_pack.
-- All content must be REAL, accurate and educationally rich for the topic. No filler. No "lorem".
-- All JS wrapped in DOMContentLoaded. Defensive — never crash, never reference undefined globals.
+HARD OUTPUT CONTRACT (must follow):
+- Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. No commentary. Nothing before or after.
+- Single self-contained file. Inline CSS + JS only. No external scripts. Google Fonts is fine.
+- FINISH the file. Close every tag. End with </html>. Prefer concise depth over a sprawling unfinished document.
+- Aim for ~400-700 lines of MEANINGFUL content. Quality over quantity. Never write TODO or "rest of content here".
+- All content must be REAL and accurate for the topic. No lorem.
+- All JS inside DOMContentLoaded. Defensive — never crash, never reference undefined globals.
 
-DESIGN SYSTEM — MANDATORY:
-- Google Fonts: 'Exo 2' (700/800/900) for headings, 'Nunito' (400/600/700) for body, 'JetBrains Mono' for code
-- :root tokens — --bg:#04040E; --bg2:#09091F; --p:#7B61FF; --pl:rgba(123,97,255,0.15); --a:#00F5C4; --a2:#FF6B9D; --a3:#FFB347; --text:#E8E8F5; --muted:rgba(232,232,245,0.45); --card:rgba(17,21,38,0.85); --border:rgba(255,255,255,0.07);
-- Body: linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%), color var(--text), font-family Nunito.
-- Headings: Exo 2 800/900, letter-spacing -0.02em.
-- Cards: background var(--card), backdrop-filter blur(16px), border 1px solid var(--border), border-radius 16px, padding 24px, transition all .25s ease. Hover: translateY(-6px), box-shadow 0 8px 40px rgba(0,0,0,.6), border-color rgba(123,97,255,.4).
-- Section heading: position relative, padding-left 18px. ::before { content:''; position:absolute; left:0; top:6px; bottom:6px; width:4px; border-radius:2px; background:linear-gradient(180deg,var(--p),var(--a)); box-shadow:0 0 12px var(--p); }
-- Mobile responsive at 640px breakpoint.
-- Custom scrollbar: ::-webkit-scrollbar{width:6px} thumb:linear-gradient(var(--p),var(--a)).
+DESIGN TOKENS (use these):
+- Google Fonts: 'Exo 2' 700/800 for headings, 'Nunito' 400/600/700 for body.
+- :root --bg:#04040E; --bg2:#09091F; --p:#7B61FF; --a:#00F5C4; --a2:#FF6B9D; --a3:#FFB347; --text:#E8E8F5; --muted:rgba(232,232,245,.5); --card:rgba(17,21,38,.85); --border:rgba(255,255,255,.07);
+- Body: gradient bg, color var(--text), Nunito.
+- Cards: var(--card) bg, blur(12px), 1px var(--border), radius 16px, padding 24px. Hover: translateY(-4px), shadow.
+- Section heading ::before bar (4px wide, gradient p→a).
+- Custom scrollbar (6px, gradient thumb). Mobile responsive @640px.
 
-EVERY ARTIFACT MUST INCLUDE THESE SHARED CHROME ELEMENTS:
-1. <canvas id="lp-particles"> — fixed inset-0, z-index:0, pointer-events:none. JS: 80 particles, mix purple (#7B61FF) and cyan (#00F5C4), float upward + drift + twinkle (alpha sine). requestAnimationFrame loop.
-2. <div id="lp-progress"> — fixed top:0; left:0; height:3px; width:0; background:linear-gradient(90deg,var(--p),var(--a)); z-index:1000; box-shadow:0 0 12px var(--p); transition:width .12s linear. JS: scroll handler updates width = (scrollY / (docH - winH)) * 100%.
-3. <nav id="lp-dots"> — fixed right:18px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:900. One <button data-target="#sectionId"> per section, 8x8 round, border 1px solid var(--border). Active: scale(1.6), background var(--p), box-shadow 0 0 18px var(--p). Use IntersectionObserver to set .active.
-4. <button id="lp-top"> — fixed bottom:24px; right:24px; width:44px; height:44px; rounded-full; gradient bg p→a; opacity:0; transform:translateY(20px); shows after window.scrollY > 400. Click → window.scrollTo({top:0, behavior:'smooth'}).
-5. Scroll reveal: every <section class="lp-reveal"> starts opacity:0; transform:translateY(40px). IntersectionObserver toggles .in → opacity:1; transform:none; transition .7s cubic-bezier(.16,1,.3,1).
-6. Shimmer hero title: background:linear-gradient(90deg,var(--text) 0%,var(--p) 25%,var(--a) 50%,var(--p) 75%,var(--text) 100%); background-size:300% 100%; -webkit-background-clip:text; color:transparent; animation:lpShimmer 4s linear infinite. @keyframes lpShimmer { from{background-position:0% 50%} to{background-position:300% 50%} }
-7. Confetti helper function spawnConfetti(x,y) — 80 absolutely-positioned divs (3-6px squares, mixed purple/cyan/pink/amber), random velocity, gravity, rotate, opacity fade over 1.6s. Call on completion events.
-8. LocalStorage namespace: 'lumina:<artifactSlug>:<key>'. Use a slug derived from the topic (kebab-cased, hashed).
-9. All interactive controls keyboard-accessible. Focus rings: outline 2px solid var(--a), outline-offset 2px.
-10. Smooth-scroll for hash links: html { scroll-behavior:smooth }.
-
-INTERACTIVITY BAR:
-- Every numeric input/button/checkbox MUST do something visible.
-- Buttons: hover translateY(-2px), active scale(.97), gradient or border-glow.
-- MCQ correct answer: background rgba(0,245,196,.18), border var(--a), small ✓ pulses.
-- MCQ wrong: shake 350ms, background rgba(255,107,157,.18), border var(--a2), small ✗.
-- After answering, lock all options, reveal explanation slide-down.
+INCLUDE (lightweight versions are fine — keep code tight):
+1. Top progress bar (3px, gradient, scroll-driven).
+2. Shimmer hero title (gradient text + 4s shimmer keyframes).
+3. Scroll-reveal sections via IntersectionObserver (opacity + translateY).
+4. Back-to-top button (shows after 400px scroll).
+5. (Optional) faint canvas particles — only if you have token budget left.
+6. Real interactivity: MCQs lock + show ✓/✗ + explanation; flashcards flip; checklists save to memory (window.__lumina = {} — NOT localStorage, sandboxed iframe blocks it).
 
 NEVER:
-- Never use hidden <input type=radio> with CSS-only feedback. Use real <button> elements + JS.
-- Never use placeholder strings. Never write TODO. Never stop early.
-- Never include external JS libraries (no jQuery, no Chart.js). Pure inline JS only.
+- Never use localStorage / sessionStorage (sandbox blocks them — silently fails). Use in-memory state.
+- Never include external JS libraries.
+- Never stop mid-tag. Always close </body></html>.
 `.trim();
 
 const slugHint = (topic: string) =>
