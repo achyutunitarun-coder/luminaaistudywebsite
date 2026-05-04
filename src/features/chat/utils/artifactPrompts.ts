@@ -137,7 +137,7 @@ const REVEAL_SECTIONS = `Wrap each major section in <section class="lp-reveal" i
 function tplNotesPack(topic: string): string {
   return `
 TEMPLATE: EXAM PACK NOTES — TOPIC: "${topic}"
-Slug for localStorage: '${slugHint(topic)}'.
+Slug for in-memory state: '${slugHint(topic)}'.
 
 ${REVEAL_SECTIONS}
 Sections in order — every one MUST appear with rich, accurate content:
@@ -145,7 +145,7 @@ Sections in order — every one MUST appear with rich, accurate content:
 1. COVER (#cover) — full-viewport hero. Animated radial purple+cyan glow orbs that drift (CSS @keyframes). Shimmer title with the topic name. Subtitle: one-line value prop. Stat counter row (4 stats) — Questions, Flashcards, Topics, Hours of revision. Animated count-up with requestAnimationFrame from 0 to target. Bouncing ↓ arrow.
 2. HOW TO USE (#use) — 4 numbered step cards in a grid; circle-numbered badges connected by → on desktop (CSS pseudo). Each card explains one workflow step.
 3. SYLLABUS MAP (#syllabus) — chip cloud of every subtopic (real ones). Below: list of chapters with animated coverage bars (width transitions from 0 → target % when revealed).
-4. MASTER NOTES (#notes) — the educational core. At minimum 1200 words of actual notes. Use:
+4. MASTER NOTES (#notes) — the educational core. At minimum 650 words of actual notes. Use:
    - Concept mini-cards grid (3-up).
    - Formula boxes: dark card with radial-gradient glow at center, equation centered, large.
    - Pull quotes: italic, accent border-left 3px var(--a).
@@ -183,14 +183,14 @@ LAYOUT:
 - Top toolbar (sticky): Lumina Academy logo (text), countdown timer (mm:ss), progress "X / N attempted", Print button, Save button.
 - Header card: "Lumina Academy Examination" title, Subject: ${topic}, Date: ____, Candidate Name + Number boxes (input fields), Time Allowed, Total Marks.
 - Instructions box: bordered, serif, bullet rules.
-- SECTION A — Multiple Choice (1 mark each, minimum 12 questions). Each option is a clickable <button class="bubble">. localStorage saves answers (key: 'lumina:exam:${slugHint(topic)}:answers'). Visual chosen state.
+- SECTION A — Multiple Choice (1 mark each, minimum 12 questions). Each option is a clickable <button class="bubble">. window.__lumina stores answers (key: 'lumina:exam:${slugHint(topic)}:answers'). Visual chosen state.
 - SECTION B — Short Answer (3-5 marks each, minimum 6 questions). Below each: <textarea> with ruled-line background (CSS repeating-linear-gradient at 1.6em).
 - SECTION C — Long Answer (10-15 marks each, minimum 2 questions). <textarea> with graph-paper background (CSS grid via two repeating-linear-gradients at 24px).
 - MARK SCHEME — hidden by default. Toggle button "Reveal Mark Scheme". Reveals per-question full working with mark allocations.
 
 INTERACTIVE:
 - Countdown timer starts at total time. Amber under 10 min, red + pulse under 5 min.
-- Auto-save textareas to localStorage every 1500ms.
+- Auto-save textareas to window.__lumina every 1500ms.
 - Print button → window.print() with clean stylesheet.
 - All MCQ/short answer must be REAL questions for "${topic}" with curriculum-grade difficulty and plausible distractors.
 `.trim();
@@ -251,14 +251,14 @@ Full-screen flashcard study app. Min 24 cards.
 LAYOUT:
 - Center stage: one card at a time, 420px × 300px, perspective 1200px, 3D flip on click (.flipped).
 - Front: question / term, subtle "Hint" button (opens tooltip without flipping).
-- Back: answer + 2 buttons "Mark Known" (green) and "Review Again" (amber). Updates localStorage.
+- Back: answer + 2 buttons "Mark Known" (green) and "Review Again" (amber). Updates window.__lumina in-memory state.
 - Below stage: progress bar + counter "Card X of Y", "Studied" stats (Known / Review / Unseen).
 - Bottom controls: ← Prev, Flip (Space), Next →, Shuffle, Restart, Filter (All / Unknown / Review / Known).
 - Spaced-repetition hint: after marking Review, show "Next review: Tomorrow"; after Known, show "Next review: in 3 days".
 - Completion screen (when all cards marked Known): SVG pie chart Known vs Reviewed, confetti burst, "Share Score" button (copies "I mastered ${topic} on Lumina ⚡" to clipboard).
 
 KEYBOARD: ← → for nav, Space to flip, K = Known, R = Review.
-LocalStorage: 'lumina:flash:${slugHint(topic)}:state' = { cardId: 'known' | 'review' | 'unseen' }.
+State: window.__lumina.flash = { cardId: 'known' | 'review' | 'unseen' }.
 `.trim();
 }
 
@@ -312,7 +312,7 @@ CONTENT:
   - Variable legend pills underneath (e.g. v = velocity, t = time).
   - Unit and dimensions line.
   - Worked numeric example (1-2 lines).
-  - Buttons: 📋 Copy formula (plain-text), ★ Bookmark (saves to localStorage).
+  - Buttons: 📋 Copy formula (plain-text), ★ Bookmark (saves to window.__lumina).
   - Accordion "Show Derivation" with full step-by-step derivation.
 - Bookmarked Section: floating section at top showing user's bookmarked formulas.
 - Quick-fire mode: hides variable definitions; user types meaning into input, gets immediate ✓/✗.
@@ -328,13 +328,13 @@ ${REVEAL_SECTIONS}
 
 SECTIONS:
 1. ESSAY SKELETON (#skeleton) — 5 expandable cards: Hook → Thesis → Body × 3 → Counter-argument → Conclusion. Each shows guidance + word-target + checklist.
-2. ARGUMENT BUILDER (#args) — 6 argument cards in a flex row. User can drag (HTML5 drag/drop) to reorder. Order persists in localStorage.
+2. ARGUMENT BUILDER (#args) — 6 argument cards in a flex row. User can drag (HTML5 drag/drop) to reorder. Order persists in window.__lumina for the session.
 3. KEYWORDS TO INCLUDE (#keywords) — glowing chip cloud of 20 advanced lexis terms specific to ${topic}. Click chip → highlight + add to "used" list.
 4. SAMPLE PARAGRAPHS (#samples) — for each section (Intro, 3 Body, Conclusion) provide one model paragraph hidden behind "Show Example" toggle.
 5. WORD-COUNT ESTIMATOR (#counter) — input current word count per section; visual ring fills toward the target. Total at top.
 6. EXAMINER RUBRIC (#rubric) — table of criteria (AO1/AO2/AO3 style), marks, descriptors for full marks vs partial.
 7. COMMON MISTAKES (#mistakes) — accordion with 8 essay-specific pitfalls.
-8. YOUR DRAFT (#draft) — large rich textarea. Auto-save to localStorage every 2s. Live word count.
+8. YOUR DRAFT (#draft) — large rich textarea. Auto-save to window.__lumina every 2s. Live word count.
 `.trim();
 }
 
@@ -438,7 +438,7 @@ ${REVEAL_SECTIONS}
 SECTIONS:
 1. PROJECT BRIEF (#brief) — title, deadline picker (date input), description, deliverables list.
 2. PHASE BREAKDOWN (#phases) — 5-7 phases with time estimates. Each phase = card with subtasks.
-3. TASK LIST (#tasks) — full checklist (min 20 tasks). Priority badges (P1/P2/P3) coloured. Drag-to-reorder. Persist to localStorage.
+3. TASK LIST (#tasks) — full checklist (min 20 tasks). Priority badges (P1/P2/P3) coloured. Drag-to-reorder. Persist to window.__lumina for the session.
 4. GANTT TIMELINE (#gantt) — CSS horizontal bars per phase with start/end aligned to a 14-day grid.
 5. RESEARCH TRACKER (#research) — input "Add Source"; appends to a list with title + URL + notes; persist.
 6. PROGRESS TRACKER (#progress) — current word count / page count input, visual ring fills toward target.
@@ -492,7 +492,7 @@ REQUIREMENTS:
 - Dark theme, mobile responsive. Keyboard + touch controls for games. Sound effects via Web Audio API where appropriate (no external audio files).
 - Juicy feedback: particle bursts on important events, smooth animations, sensible micro-interactions.
 - Includes a small "About / How to Play" panel at the top right (collapsible).
-- Score persistence in localStorage where applicable.
+- Score persistence in window.__lumina where applicable.
 
 DO NOT output a tutorial. Output the finished, working artifact for "${topic}".
 Still inject the global chrome (particles canvas behind, progress bar, etc.) but ensure they don't block gameplay/interactivity (pointer-events:none).
@@ -516,14 +516,14 @@ LAYOUT:
 - END SCREEN: performance summary (per block %), XP awarded total, weak-area suggestion list, "Restart Sprint" button. Confetti if total score ≥ 80%.
 
 Block transitions auto-advance when timer hits 0; user can also click "Next Block" to skip.
-Persist progress in localStorage keyed by '${slugHint(topic)}'.
+Persist progress in window.__lumina keyed by '${slugHint(topic)}'.
 `.trim();
 }
 
 function tplFullPack(topic: string): string {
   return `
 TEMPLATE: COMPLETE EXAM PACK (FULL SUBJECT) — TOPIC: "${topic}"
-This is the ULTIMATE template. Output MUST be 1500+ lines of HTML. Do NOT stub. Real content for every section.
+This is the ULTIMATE template. Output MUST be 900 lines of HTML or fewer. Do NOT stub. Real content for every section.
 
 ${REVEAL_SECTIONS}
 SECTIONS — every one MUST appear, in this order, fully populated:
@@ -531,7 +531,7 @@ SECTIONS — every one MUST appear, in this order, fully populated:
 1. COVER (#cover) — animated orb hero, shimmer title, stat counters (Questions, Flashcards, Topics, Hours), bouncing arrow.
 2. HOW TO USE (#use) — 4 numbered step cards.
 3. SYLLABUS MAP (#syllabus) — chip cloud + animated coverage bars.
-4. MASTER NOTES (#notes) — minimum 1500 words of accurate notes; concept mini-cards; formula glow boxes; pull quotes; SVG diagrams.
+4. MASTER NOTES (#notes) — minimum 700 words of accurate notes; concept mini-cards; formula glow boxes; pull quotes; SVG diagrams.
 5. FORMULA SHEET (#formulas) — searchable grid + bookmarks.
 6. COMPARISON TABLES (#tables) — at least 3 two-column tables.
 7. TIMELINE (#timeline) — animated vertical SVG timeline.
