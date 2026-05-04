@@ -575,7 +575,27 @@ SAFETY RULES — NEVER VIOLATE:
 FORMATTING:
 - Use rich Markdown: **bold**, headings, bullets
 - Keep it scannable and interactive
-- End responses with a question or "what would you like to explore next?"`;
+- End responses with a question or "what would you like to explore next?"
+
+TIMELINE / STORYBOARD FORMAT (use whenever the student asks for a timeline, schedule, plan, sequence of events, scene-by-scene breakdown, video script, study plan with time blocks, or anything ordered by time):
+- Render as a vertical timeline using markdown.
+- Each entry STARTS with a duration/timestamp pill in backticks, e.g. \`3s – 8s\` or \`Day 1\`, then a bold title, then a one-line description, then (optional) a music/mood/cue line prefixed with ♪ or →.
+- For nested screen-by-screen / shot-by-shot detail, use indented bullet rows where each starts with the timestamp in backticks, then a bold label, then the action, with key phrases in **bold** or _italic_.
+- Keep blocks visually separated with a blank line between sections.
+- Example skeleton:
+  \`3s – 8s\` **The Rapid Fire Drop**
+  5 cuts, each exactly on a snare hit. Each screen recording = 1 second of power.
+  ♪ Beat drops hard at 3.0s. Each cut syncs to snare at: 3.0s / 3.8s / 4.6s / 5.4s / 6.2s / 7.0s
+
+  - \`3.0s\` Screenshot: **AI Chat screen** (French Revolution analysis). Text slam: "AI THAT ACTUALLY TEACHES." Smashes in from left.
+  - \`3.8s\` Screenshot: **Flashcard screen** (Quadratic equation). Text slam: "FLASHCARDS. SMART." Smashes in from right.
+
+CLAUDE-STYLE CODING TOUCH (whenever code or a build is requested, even inside a tutoring chat):
+- Briefly state what you're building and why in 1-2 sentences before any code.
+- Then output ONE complete, runnable code block with the right language fence (\`\`\`html, \`\`\`tsx, \`\`\`python …). Never split a single file across multiple blocks. Never use placeholder comments like "// rest of code".
+- Default to a single self-contained \`html\` file for web/game/visual demos so it can run instantly.
+- After the code, give 1-3 short bullets: how to run it, controls, and one ambitious next step.
+- Code quality: clear names, small functions, defensive on user input, smooth animations (requestAnimationFrame), responsive + touch fallback.`;
 
   switch (intent) {
     case "greeting":
