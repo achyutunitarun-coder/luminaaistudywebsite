@@ -156,12 +156,12 @@ Sections in order — every one MUST appear with rich, accurate content:
 8. CASE STUDY (#case) — narrative card; one highlighted pull quote in middle; "What This Teaches Us" checklist (5 items) below.
 9. MCQ (#mcq) — 10 questions. Two tabs: Attempt | Review. In Attempt mode: each option is a real <button>. On click — lock options, mark correct green, wrong red+shake, reveal 2-line explanation. Running score top of section. In Review mode: all answers + explanations always visible.
 10. SHORT ANSWER ACCORDION (#short) — 6 questions. Click to expand; inside: model answer, key terms chips row, common-mistake amber callout.
-11. FLASHCARDS (#flash) — grid of 12 CSS 3D flip cards (perspective 1000px). Front: question. Back: answer + "Known" / "Review" buttons (saved to localStorage). Controls: Shuffle, Filter (All/Review/Known), Reset.
+11. FLASHCARDS (#flash) — grid of 12 CSS 3D flip cards (perspective 1000px). Front: question. Back: answer + "Known" / "Review" buttons (saved to window.__lumina memory). Controls: Shuffle, Filter (All/Review/Known), Reset.
 12. EXAMINER'S SECRETS (#secrets) — 6 gold-bordered cards. Each shows "SECRET #N" badge in top-right gradient amber→pink. Reveal hidden insights real examiners look for.
 13. COMMON MISTAKES (#mistakes) — 6 cards with 4px left-border (alternating var(--a2) pink and var(--a3) amber). "Mistake → Fix" format.
 14. HALL OF FAME (#fame) — top 5 most-tested subtopics. Each: title, frequency %, 5-star rating (filled by frequency), 3 example subtopics chips.
 15. SPEED DRILL (#drill) — 60-second countdown ring (SVG circle, stroke-dashoffset animates). 10 quick text-input questions, advance on Enter. End screen awards: <70% Bronze, ≥70% Silver, ≥85% Gold, =100% Elite — with confetti for Gold/Elite.
-16. LAST-MINUTE CHECKLIST (#checklist) — 12 checkboxes saved to localStorage. Animated progress bar. At 100%: confetti burst + banner "You're Exam Ready!".
+16. LAST-MINUTE CHECKLIST (#checklist) — 12 checkboxes saved to window.__lumina memory. Animated progress bar. At 100%: confetti burst + banner "You're Exam Ready!".
 17. SUMMARY CARD (#summary) — single big gradient purple card; bullet recap of every previous section in 1 line each.
 18. CALLOUT BANK (#callouts) — exactly 8 callouts in a 2-col grid: 2× danger (pink left-border + ⚠ icon), 2× warning (amber + ⚡), 2× tip (cyan + 💡), 2× insight (purple + 🧠). Each 2-3 sentences.
 
@@ -420,7 +420,7 @@ ${REVEAL_SECTIONS}
 
 SECTIONS:
 1. WORD CARDS (#words) — grid of 24 word cards. Each card: term (Exo 2 800), part of speech tag, IPA pronunciation, definition, etymology pill.
-2. SPACED REPETITION DECK (#srs) — same flip-card system as flashcards template; 24 cards in deck; Known/Review buttons; localStorage persistence.
+2. SPACED REPETITION DECK (#srs) — same flip-card system as flashcards template; 24 cards in deck; Known/Review buttons; window.__lumina memory persistence.
 3. FILL IN THE BLANK (#fill) — 10 sentences with __ blank. Click blank → 4 options pop up beside it; correct = green, wrong = red.
 4. WORD ASSOCIATION MAP (#assoc) — small CSS mind map linking related words.
 5. USAGE EXAMPLES (#usage) — 3 sentences per word with the word <mark>highlighted</mark>.
@@ -543,7 +543,7 @@ SECTIONS — every one MUST appear, in this order, fully populated:
 13. COMMON MISTAKES (#mistakes) — 8 mistake → fix cards.
 14. HALL OF FAME (#fame) — top 6 most-tested topics with frequency + stars.
 15. SPEED DRILL (#drill) — 60s, 10 rapid questions, badge end screen.
-16. LAST-MINUTE CHECKLIST (#checklist) — 16 items, localStorage-saved, confetti at 100%.
+16. LAST-MINUTE CHECKLIST (#checklist) — 16 items, window.__lumina-saved, confetti at 100%.
 17. SUMMARY CARD (#summary) — gradient purple recap of every section.
 18. CALLOUT BANK (#callouts) — 10 callouts (3 danger, 3 warning, 2 tip, 2 insight).
 
