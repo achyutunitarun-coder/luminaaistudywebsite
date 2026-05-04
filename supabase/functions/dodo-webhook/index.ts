@@ -21,16 +21,24 @@ serve(async (req) => {
 
     // Extract customer email from Dodo payload
     const customerEmail = data?.customer?.email;
-    const subscriptionId = data?.subscription_id || data?.id;
-    const status = data?.status;
-    const productId = data?.product_id || data?.items?.[0]?.product_id || '';
+    const subscriptionId = data?.subscription_id || data?.subscription?.id || data?.id;
+    const status = String(data?.status || data?.payment_status || '').toLowerCase();
+    const paymentId = data?.payment_id || data?.payment?.id || data?.order_id || data?.id;
+    const productId = data?.product_id || data?.product?.id || data?.items?.[0]?.product_id || data?.items?.[0]?.product?.id || '';
 
     // Determine plan tier from product ID
     const ULTIMATE_PRODUCT_ID = 'pdt_0NbKNHJ5nK556qajM5MKa';
     const PRO_PLUS_PRODUCT_ID = 'pdt_0Nbybrhl2M0GdzScdoAwb';
     let planTier = 'ultimate'; // default paid tier
     if (productId === PRO_PLUS_PRODUCT_ID) planTier = 'pro_plus';
-    const status = data?.status;
+    const CREDIT_PRODUCTS: Record<string, number> = {
+      pdt_0NdcF1gd6Z5PBeFx8gbiE: 30,
+      pdt_0NdcF1o3DQYEdtVQBA8MG: 100,
+      pdt_0NdcF1rKPidZVQ4vdzt5u: 300,
+      pdt_0NdcF1ua83g4FRUO1LhKt: 800,
+      pdt_0NbKNHJ5nK556qajM5MKa: 40,
+      pdt_0Nbybrhl2M0GdzScdoAwb: 150,
+    };
 
     if (!customerEmail) {
       console.error("No customer email in webhook payload");
@@ -53,7 +61,17 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    const isActive = status === "active";
+    const isActive = ["active", "paid", "succeeded", "success", "completed", "approved"].includes(status);
+
+    if (isActive && productId && CREDIT_PRODUCTS[productId]) {
+      const { error: creditError } = await supabase.rpc("apply_dodo_credits_for_user", {
+        _user_id: userId,
+        _product_id: productId,
+        _payment_id: String(paymentId || subscriptionId || `${type}:${productId}:${userId}`),
+        _source: "dodo_webhook",
+      });
+      if (creditError) console.error("Credit allocation failed:", creditError);
+    }
 
     // Upsert subscription
     const { error } = await supabase
