@@ -66,7 +66,7 @@ function handleReturnUrl() {
     if (data) {
       const uniqueId = subscriptionId || paymentId || `${planParam}_${Date.now()}`;
       if (!store.isPaymentProcessed(uniqueId)) {
-        void applyCreditsServerFirst(data.productId, uniqueId, { name: data.name, credits: data.credits, price: 0, type: 'subscription' }, data.credits, data.tier);
+        void applyCreditsServerFirst(data.productId, uniqueId, { name: data.name, type: 'subscription' }, data.credits, data.tier);
       }
     }
     cleanUrl();
