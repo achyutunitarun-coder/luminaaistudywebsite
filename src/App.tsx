@@ -101,7 +101,6 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
-              <Route path="/brain-hub" element={<Navigate to="/hub" replace />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
