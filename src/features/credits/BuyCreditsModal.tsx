@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Zap, Check, Star } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS, openCheckout } from './DodoPayments';
+import { ManualRestoreButton } from './ManualRestore';
 
 interface Props {
   open: boolean;
@@ -146,10 +147,13 @@ export const BuyCreditsModal = ({ open, onOpenChange }: Props) => {
             </div>
           )}
 
-          <div className="mt-5 flex items-center justify-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-            <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> No card for Basic</span>
-            <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> Credits never expire</span>
-            <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> Cancel anytime</span>
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+              <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> No card for Basic</span>
+              <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> Credits never expire</span>
+              <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> Cancel anytime</span>
+            </div>
+            <ManualRestoreButton />
           </div>
         </div>
       </DialogContent>
