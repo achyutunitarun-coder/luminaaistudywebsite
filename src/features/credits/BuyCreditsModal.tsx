@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Zap, Check, Star } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { CREDIT_PACKS, SUBSCRIPTION_PLANS, openCheckout } from './DodoPayments';
+import { ManualRestoreButton } from './ManualRestore';
 
 interface Props {
   open: boolean;
