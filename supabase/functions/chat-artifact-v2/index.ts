@@ -116,7 +116,7 @@ async function generateHtml(
           },
         ],
         models,
-        type === "notes" ? 16000 : 20000,
+        type === "notes" ? 131072 : 131072,
         0.45,
         Math.min(remaining, 95_000),
         `chat-artifact-v2/${type}`,
