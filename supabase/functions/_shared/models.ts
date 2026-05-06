@@ -667,28 +667,38 @@ export function getModelsForMode(mode?: string): string[] | null {
 // ── ARTIFACT ROUTING ───────────────────────────────────────────────
 // One curated chain per artifact type. Each chain is ordered by quality;
 // callWithFallback will race the top few and fall back deeper as needed.
-export type ArtifactType = "notes" | "exam" | "slides" | "code";
+export type ArtifactType = "notes" | "exam" | "slides" | "code" | "html" | "react" | "python" | "javascript" | "svg" | "mermaid" | "flashcards" | "math" | "general";
 
 export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
   if (hasImage) return MODELS_VISION;
+  // Spec-pinned chains: primary → fallback1 → fallback2 (then global fallback fills the rest).
   switch (type) {
-    case "notes":
-      return MODELS_WRITING;
-    case "exam":
-      return MODELS_QUALITY;
-    case "slides":
-      // Slides need clean structure + punchy bullets — balanced/structured models win.
-      return [
-        "minimax/minimax-m2.5:free",
-        "openai/gpt-oss-120b:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "nousresearch/hermes-3-llama-3.1-405b:free",
-        "tencent/hy3-preview:free",
-        "qwen/qwen3-next-80b-a3b-instruct:free",
-        "z-ai/glm-4.5-air:free",
-        "openai/gpt-oss-20b:free",
-      ];
+    case "html":
+      return ["qwen/qwen3-coder:free", "inclusionai/ling-2.6-1t:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
+    case "react":
+      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
+    case "python":
+      return ["inclusionai/ling-2.6-1t:free", "qwen/qwen3-coder:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
+    case "javascript":
+      return ["poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
     case "code":
-      return MODELS_CODE;
+      return ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
+    case "svg":
+      return ["qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "minimax/minimax-m2.5:free", ...MODELS_CODE];
+    case "mermaid":
+      return ["openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+    case "slides":
+      return ["nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "openai/gpt-oss-120b:free", ...MODELS_WRITING];
+    case "notes":
+      return ["nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
+    case "flashcards":
+      return ["minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
+    case "math":
+      return ["qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
+    case "exam":
+      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_QUALITY];
+    case "general":
+    default:
+      return [MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_BALANCED];
   }
 }
