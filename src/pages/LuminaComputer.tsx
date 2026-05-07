@@ -454,7 +454,7 @@ export default function LuminaComputer() {
         abortRef.current = null;
       }
     },
-    [busy, messages, model],
+    [busy, files, messages, model],
   );
 
   const stop = () => {
