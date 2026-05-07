@@ -313,6 +313,7 @@ export default function LuminaComputer() {
   const [thinkStep, setThinkStep] = useState(0);
   const [model, setModel] = useState('routing...');
   const [showScroll, setShowScroll] = useState(false);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
