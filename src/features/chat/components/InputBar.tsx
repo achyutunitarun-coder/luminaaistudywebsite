@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Square, FileText, Code2, Presentation, ScrollText, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileUploadButton, type UploadedFile } from '@/components/FileUploadButton';
 
 interface Props {
   value: string;
@@ -11,11 +10,9 @@ interface Props {
   isLoading: boolean;
   disabled?: boolean;
   onPickArtifact?: (type: 'notes' | 'exam' | 'slides' | 'code') => void;
-  files?: UploadedFile[];
-  onFilesChange?: (files: UploadedFile[]) => void;
 }
 
-export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled, onPickArtifact, files, onFilesChange }: Props) => {
+export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled, onPickArtifact }: Props) => {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -69,12 +66,6 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         )}
       </AnimatePresence>
 
-      {onFilesChange && files && files.length > 0 && (
-        <div className="px-2 pb-2">
-          <FileUploadButton files={files} onFilesChange={onFilesChange} maxFiles={5} />
-        </div>
-      )}
-
       <div className="flex items-end gap-2 p-2 rounded-2xl bg-card/60 backdrop-blur-xl border border-border focus-within:border-primary/60 transition-colors">
         <button
           type="button"
@@ -85,12 +76,6 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         >
           <Sparkles className="w-4 h-4" />
         </button>
-
-        {onFilesChange && (!files || files.length === 0) && (
-          <div className="shrink-0 self-center">
-            <FileUploadButton files={files ?? []} onFilesChange={onFilesChange} maxFiles={5} compact />
-          </div>
-        )}
 
         <textarea
           ref={taRef}

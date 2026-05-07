@@ -122,7 +122,6 @@ const ChatPage = () => {
   const credits = useCreditsStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState<import("@/components/FileUploadButton").UploadedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
   const [model, setModel] = useState<ModelMode>("auto");
@@ -644,31 +643,22 @@ Q3: ... || A: ...
       overrideText?: string,
       forcedType?: "notes" | "exam" | "slides" | "code",
     ) => {
-      const baseText = (overrideText ?? input).trim();
-      if (!baseText && files.length === 0) return;
-      if (loading) return;
-
-      // Inline lazy import to avoid circular at top
-      const { buildFileContext } = await import("@/components/FileUploadButton");
-      const fileCtx = buildFileContext(files);
-      const visible = baseText || (files.length > 0 ? `Analyze the attached file${files.length > 1 ? 's' : ''}.` : '');
-      const text = visible + fileCtx;
+      const text = (overrideText ?? input).trim();
+      if (!text || loading) return;
 
       lastUserMsgRef.current = text;
-      const chatId = await ensureChat(visible);
+      const chatId = await ensureChat(text);
       const userMsg: Message = {
         id: uid(),
         role: "user",
-        content: visible + (files.length > 0 ? `\n\n_📎 ${files.length} file${files.length > 1 ? 's' : ''} attached_` : ''),
+        content: text,
         type: "text",
         timestamp: Date.now(),
       };
-      // Send full text (with file context) to AI, but display only visible
-      const history = [...messages, { ...userMsg, content: text }];
+      const history = [...messages, userMsg];
       setMessages((prev) => [...prev, userMsg]);
       await persistMessage(chatId, userMsg);
       setInput("");
-      setFiles([]);
       setLoading(true);
       setLoadingStage("Detecting intent…");
 
@@ -725,7 +715,6 @@ Q3: ... || A: ...
     },
     [
       ensureChat,
-      files,
       input,
       loading,
       messages,
@@ -980,8 +969,6 @@ Q3: ... || A: ...
             <InputBar
               value={input}
               onChange={setInput}
-              files={files}
-              onFilesChange={setFiles}
               onSend={() => handleSend()}
               onStop={handleStop}
               isLoading={loading}
