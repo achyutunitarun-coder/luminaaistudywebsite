@@ -644,22 +644,31 @@ Q3: ... || A: ...
       overrideText?: string,
       forcedType?: "notes" | "exam" | "slides" | "code",
     ) => {
-      const text = (overrideText ?? input).trim();
-      if (!text || loading) return;
+      const baseText = (overrideText ?? input).trim();
+      if (!baseText && files.length === 0) return;
+      if (loading) return;
+
+      // Inline lazy import to avoid circular at top
+      const { buildFileContext } = await import("@/components/FileUploadButton");
+      const fileCtx = buildFileContext(files);
+      const visible = baseText || (files.length > 0 ? `Analyze the attached file${files.length > 1 ? 's' : ''}.` : '');
+      const text = visible + fileCtx;
 
       lastUserMsgRef.current = text;
-      const chatId = await ensureChat(text);
+      const chatId = await ensureChat(visible);
       const userMsg: Message = {
         id: uid(),
         role: "user",
-        content: text,
+        content: visible + (files.length > 0 ? `\n\n_📎 ${files.length} file${files.length > 1 ? 's' : ''} attached_` : ''),
         type: "text",
         timestamp: Date.now(),
       };
-      const history = [...messages, userMsg];
+      // Send full text (with file context) to AI, but display only visible
+      const history = [...messages, { ...userMsg, content: text }];
       setMessages((prev) => [...prev, userMsg]);
       await persistMessage(chatId, userMsg);
       setInput("");
+      setFiles([]);
       setLoading(true);
       setLoadingStage("Detecting intent…");
 
