@@ -69,6 +69,12 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         )}
       </AnimatePresence>
 
+      {onFilesChange && files && files.length > 0 && (
+        <div className="px-2 pb-2">
+          <FileUploadButton files={files} onFilesChange={onFilesChange} maxFiles={5} />
+        </div>
+      )}
+
       <div className="flex items-end gap-2 p-2 rounded-2xl bg-card/60 backdrop-blur-xl border border-border focus-within:border-primary/60 transition-colors">
         <button
           type="button"
@@ -79,6 +85,12 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         >
           <Sparkles className="w-4 h-4" />
         </button>
+
+        {onFilesChange && (!files || files.length === 0) && (
+          <div className="shrink-0 self-center">
+            <FileUploadButton files={files ?? []} onFilesChange={onFilesChange} maxFiles={5} compact />
+          </div>
+        )}
 
         <textarea
           ref={taRef}
