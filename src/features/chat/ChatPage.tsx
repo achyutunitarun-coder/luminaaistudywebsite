@@ -980,6 +980,8 @@ Q3: ... || A: ...
             <InputBar
               value={input}
               onChange={setInput}
+              files={files}
+              onFilesChange={setFiles}
               onSend={() => handleSend()}
               onStop={handleStop}
               isLoading={loading}
