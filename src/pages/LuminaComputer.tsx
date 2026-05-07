@@ -181,7 +181,7 @@ function ArtifactFrame({ html, onClose, streaming }: { html: string; onClose?: (
           <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
         </div>
         <span className="ml-2 text-[11px] font-mono text-white/40 tracking-wide">
-          lumina-artifact.html
+          lumina-artifact.html {streaming && <span className="text-violet-300/80">· streaming</span>}
         </span>
         <div className="ml-auto flex items-center gap-1">
           <div className="flex bg-white/[0.04] rounded-lg p-0.5 border border-white/8">
