@@ -480,8 +480,11 @@ export async function streamAI(
   return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
 
-export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding";
-export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
+export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding" | "computer" | "mun";
+export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative" | "computer" | "mun";
+
+const COMPUTER_PATTERNS = /\b(deep research|deep dive|research report|background guide|generate (an? )?(report|artifact|html|essay)|computer mode|lumina computer|write (a |an )?(full |long |detailed )?(report|essay|guide|analysis)|comprehensive (analysis|report|guide)|long[- ]form|multi[- ]section)\b/i;
+const MUN_PATTERNS = /\b(mun|model un|model united nations|background guide|position paper|draft resolution|preambulatory|operative clause|delegate of |committee (chair|director|topic)|unsc|unhrc|disec|ecosoc|wto committee)\b/i;
 
 const CODING_PATTERNS = /\b(code|coding|program|programming|script|function|class|algorithm|debug|refactor|stack trace|stacktrace|error|exception|compile|build|api|endpoint|frontend|backend|fullstack|html|css|javascript|typescript|tsx|jsx|react|vue|svelte|angular|next\.?js|node\.?js|python|java|kotlin|swift|rust|golang|c\+\+|c#|sql|postgres|mongodb|three\.?js|phaser|unity|game(?:\s|-)?(?:dev|engine|loop)|canvas|webgl|shader|babylon|matter\.?js|p5\.?js|pygame|godot|tailwind|css\s*grid|flexbox|regex|leetcode|dsa|data structure|recursion|big o|complexity|hashmap|linked list|binary tree|graph traversal|dijkstra|dfs|bfs|dynamic programming|websocket|fetch api|rest api|graphql|prisma|supabase|firebase|docker|kubernetes|github action|cli|terminal|vim|bash|zsh|deno|bun|vite|webpack|rollup|esbuild|jest|vitest|cypress|playwright|tailwind|shadcn|ai chat|edge function)\b|```|\bbuild (me|a) (game|app|website|component|hook|server)|create (a|an) (game|website|app|landing page|component|hook)/i;
 
