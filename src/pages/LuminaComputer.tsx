@@ -255,7 +255,9 @@ function ChatBubble({ msg }: { msg: Msg }) {
   const prose = artifact
     ? msg.content
         .replace(/```(?:html|HTML)\s*\n[\s\S]*?```/g, '')
+        .replace(/```(?:html|HTML)\s*\n[\s\S]*$/g, '')
         .replace(/<!doctype html[\s\S]*<\/html>/i, '')
+        .replace(/<!doctype html[\s\S]*$/i, '')
         .trim()
     : msg.content;
 
@@ -294,7 +296,7 @@ function ChatBubble({ msg }: { msg: Msg }) {
         ) : (
           <div className="rounded-2xl rounded-tl-md bg-[#0e0e18] border border-white/8 px-6 py-5 text-[14px] leading-relaxed text-white/90">
             {prose && <MarkdownRenderer>{prose}</MarkdownRenderer>}
-            {artifact && <ArtifactFrame html={artifact} />}
+            {artifact && <ArtifactFrame html={artifact.html} streaming={artifact.streaming} />}
             {!prose && !artifact && msg.streaming && (
               <span className="text-white/40 italic">Generating...</span>
             )}
