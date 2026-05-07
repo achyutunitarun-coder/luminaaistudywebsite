@@ -144,7 +144,7 @@ function buildArtifactDoc(html: string): string {
   </style></head><body>${html}</body></html>`;
 }
 
-function ArtifactFrame({ html, onClose }: { html: string; onClose?: () => void }) {
+function ArtifactFrame({ html, onClose, streaming }: { html: string; onClose?: () => void; streaming?: boolean }) {
   const [view, setView] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState(false);
   const [full, setFull] = useState(false);
