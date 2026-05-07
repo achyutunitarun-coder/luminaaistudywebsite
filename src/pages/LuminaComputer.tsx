@@ -10,7 +10,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Send,
-  Paperclip,
   Search,
   Sparkles,
   Globe,
@@ -24,12 +23,12 @@ import {
   Code2,
   Eye,
   X,
-  Loader2,
   StopCircle,
   Plus,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { toast } from 'sonner';
 
 type Role = 'user' | 'assistant';
@@ -95,28 +94,40 @@ function uid() {
  * Detect if a markdown blob contains a substantial HTML artifact
  * (full document or large block). If yes, return the raw HTML string.
  */
-function extractArtifact(content: string): string | null {
+function extractArtifact(content: string): { html: string; streaming: boolean } | null {
   if (!content) return null;
-  // Fenced ```html ... ``` block — biggest one wins
+  // 1) Closed ```html ... ``` blocks (pick longest)
   const fenceRe = /```(?:html|HTML)\s*\n([\s\S]*?)```/g;
   let best: string | null = null;
   let m: RegExpExecArray | null;
   while ((m = fenceRe.exec(content)) !== null) {
     if (!best || m[1].length > best.length) best = m[1];
   }
-  if (best && best.length > 400) return best.trim();
+  if (best && best.length > 200) return { html: best.trim(), streaming: false };
 
-  // Bare <!doctype html>...
-  const docMatch = content.match(/<!doctype html[\s\S]*<\/html>/i);
-  if (docMatch && docMatch[0].length > 400) return docMatch[0];
+  // 2) Open ```html block still streaming — render what we have so far
+  const openFence = content.match(/```(?:html|HTML)\s*\n([\s\S]+)$/);
+  if (openFence && openFence[1].length > 200 && !openFence[1].includes('```')) {
+    return { html: openFence[1].trim(), streaming: true };
+  }
 
-  // Large inline HTML chunk (has style/script/multiple tags)
+  // 3) Closed full doc
+  const docMatch = content.match(/<!doctype html[\s\S]*?<\/html>/i);
+  if (docMatch && docMatch[0].length > 200) return { html: docMatch[0], streaming: false };
+
+  // 4) Streaming bare doc (has <!doctype but no </html> yet)
+  const docOpen = content.match(/<!doctype html[\s\S]+$/i);
+  if (docOpen && docOpen[0].length > 200 && !/<\/html>/i.test(docOpen[0])) {
+    return { html: docOpen[0], streaming: true };
+  }
+
+  // 5) Large inline HTML chunk
   if (
     content.length > 800 &&
     /<(html|body|style|script|section|article|main)\b/i.test(content) &&
     /<\/(html|body|div|section|article|main)>/i.test(content)
   ) {
-    return content;
+    return { html: content, streaming: false };
   }
   return null;
 }
@@ -132,7 +143,7 @@ function buildArtifactDoc(html: string): string {
   </style></head><body>${html}</body></html>`;
 }
 
-function ArtifactFrame({ html, onClose }: { html: string; onClose?: () => void }) {
+function ArtifactFrame({ html, onClose, streaming }: { html: string; onClose?: () => void; streaming?: boolean }) {
   const [view, setView] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState(false);
   const [full, setFull] = useState(false);
@@ -169,7 +180,7 @@ function ArtifactFrame({ html, onClose }: { html: string; onClose?: () => void }
           <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
         </div>
         <span className="ml-2 text-[11px] font-mono text-white/40 tracking-wide">
-          lumina-artifact.html
+          lumina-artifact.html {streaming && <span className="text-violet-300/80">· streaming</span>}
         </span>
         <div className="ml-auto flex items-center gap-1">
           <div className="flex bg-white/[0.04] rounded-lg p-0.5 border border-white/8">
@@ -243,7 +254,9 @@ function ChatBubble({ msg }: { msg: Msg }) {
   const prose = artifact
     ? msg.content
         .replace(/```(?:html|HTML)\s*\n[\s\S]*?```/g, '')
+        .replace(/```(?:html|HTML)\s*\n[\s\S]*$/g, '')
         .replace(/<!doctype html[\s\S]*<\/html>/i, '')
+        .replace(/<!doctype html[\s\S]*$/i, '')
         .trim()
     : msg.content;
 
@@ -282,7 +295,7 @@ function ChatBubble({ msg }: { msg: Msg }) {
         ) : (
           <div className="rounded-2xl rounded-tl-md bg-[#0e0e18] border border-white/8 px-6 py-5 text-[14px] leading-relaxed text-white/90">
             {prose && <MarkdownRenderer>{prose}</MarkdownRenderer>}
-            {artifact && <ArtifactFrame html={artifact} />}
+            {artifact && <ArtifactFrame html={artifact.html} streaming={artifact.streaming} />}
             {!prose && !artifact && msg.streaming && (
               <span className="text-white/40 italic">Generating...</span>
             )}
@@ -300,6 +313,7 @@ export default function LuminaComputer() {
   const [thinkStep, setThinkStep] = useState(0);
   const [model, setModel] = useState('routing...');
   const [showScroll, setShowScroll] = useState(false);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -339,9 +353,13 @@ export default function LuminaComputer() {
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if ((!trimmed && files.length === 0) || busy) return;
 
-      const userMsg: Msg = { id: uid(), role: 'user', content: trimmed, ts: Date.now() };
+      const fileCtx = buildFileContext(files);
+      const userVisible = trimmed || (files.length > 0 ? `Analyze the attached file${files.length > 1 ? 's' : ''}.` : '');
+      const sentText = userVisible + fileCtx;
+
+      const userMsg: Msg = { id: uid(), role: 'user', content: userVisible, ts: Date.now() };
       const aId = uid();
       setMessages((prev) => [
         ...prev,
@@ -349,6 +367,8 @@ export default function LuminaComputer() {
         { id: aId, role: 'assistant', content: '', streaming: true, ts: Date.now() },
       ]);
       setInput('');
+      const sentFiles = files;
+      setFiles([]);
       if (taRef.current) taRef.current.style.height = 'auto';
       setBusy(true);
       setThinkStep(0);
@@ -361,10 +381,10 @@ export default function LuminaComputer() {
         const { data: { session } } = await supabase.auth.getSession();
         const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-        const aiMessages = [...messages, userMsg]
-          .filter((m) => m.role !== 'assistant' || m.content.length > 0)
+        const aiMessages = [...messages, { role: 'user' as const, content: sentText }]
+          .filter((m: any) => m.role !== 'assistant' || (m.content && m.content.length > 0))
           .slice(-20)
-          .map((m) => ({ role: m.role, content: m.content }));
+          .map((m: any) => ({ role: m.role, content: m.content }));
 
         const res = await fetch(CHAT_URL, {
           method: 'POST',
@@ -373,7 +393,11 @@ export default function LuminaComputer() {
           signal: ctrl.signal,
         });
 
-        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok || !res.body) {
+          // restore files so user can retry
+          setFiles(sentFiles);
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -430,7 +454,7 @@ export default function LuminaComputer() {
         abortRef.current = null;
       }
     },
-    [busy, messages, model],
+    [busy, files, messages, model],
   );
 
   const stop = () => {
@@ -560,10 +584,10 @@ export default function LuminaComputer() {
             rows={1}
             className="w-full bg-transparent border-none outline-none resize-none px-5 pt-4 pb-2 text-[14px] text-white placeholder:text-white/30 leading-relaxed min-h-[52px] max-h-[200px]"
           />
+          <div className="px-3">
+            <FileUploadButton files={files} onFilesChange={setFiles} maxFiles={5} />
+          </div>
           <div className="flex items-center gap-2 px-3 pb-3 pt-1 border-t border-white/[0.06]">
-            <button className="w-8 h-8 rounded-lg border border-white/8 text-white/50 hover:text-white hover:border-white/16 hover:bg-white/[0.04] flex items-center justify-center transition" title="Attach file">
-              <Paperclip className="w-3.5 h-3.5" />
-            </button>
             <button className="w-8 h-8 rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 flex items-center justify-center transition" title="Web search enabled">
               <Search className="w-3.5 h-3.5" />
             </button>
@@ -584,7 +608,7 @@ export default function LuminaComputer() {
             ) : (
               <button
                 onClick={() => send(input)}
-                disabled={!input.trim()}
+                disabled={!input.trim() && files.length === 0}
                 className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center shadow-[0_0_16px_rgba(124,111,255,0.5)] hover:scale-105 transition disabled:opacity-40 disabled:hover:scale-100"
                 title="Send"
               >
