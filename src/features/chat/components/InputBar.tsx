@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Square, FileText, Code2, Presentation, ScrollText, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FileUploadButton, type UploadedFile } from '@/components/FileUploadButton';
 
 interface Props {
   value: string;
@@ -10,9 +11,11 @@ interface Props {
   isLoading: boolean;
   disabled?: boolean;
   onPickArtifact?: (type: 'notes' | 'exam' | 'slides' | 'code') => void;
+  files?: UploadedFile[];
+  onFilesChange?: (files: UploadedFile[]) => void;
 }
 
-export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled, onPickArtifact }: Props) => {
+export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled, onPickArtifact, files, onFilesChange }: Props) => {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
