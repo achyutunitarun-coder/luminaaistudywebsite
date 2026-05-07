@@ -10,7 +10,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Send,
-  Paperclip,
   Search,
   Sparkles,
   Globe,
@@ -24,12 +23,12 @@ import {
   Code2,
   Eye,
   X,
-  Loader2,
   StopCircle,
   Plus,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+import { FileUploadButton, buildFileContext, type UploadedFile } from '@/components/FileUploadButton';
 import { toast } from 'sonner';
 
 type Role = 'user' | 'assistant';
