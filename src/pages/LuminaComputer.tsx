@@ -584,10 +584,10 @@ export default function LuminaComputer() {
             rows={1}
             className="w-full bg-transparent border-none outline-none resize-none px-5 pt-4 pb-2 text-[14px] text-white placeholder:text-white/30 leading-relaxed min-h-[52px] max-h-[200px]"
           />
+          <div className="px-3">
+            <FileUploadButton files={files} onFilesChange={setFiles} maxFiles={5} />
+          </div>
           <div className="flex items-center gap-2 px-3 pb-3 pt-1 border-t border-white/[0.06]">
-            <button className="w-8 h-8 rounded-lg border border-white/8 text-white/50 hover:text-white hover:border-white/16 hover:bg-white/[0.04] flex items-center justify-center transition" title="Attach file">
-              <Paperclip className="w-3.5 h-3.5" />
-            </button>
             <button className="w-8 h-8 rounded-lg border border-violet-400/30 text-violet-300 hover:bg-violet-500/10 flex items-center justify-center transition" title="Web search enabled">
               <Search className="w-3.5 h-3.5" />
             </button>
@@ -608,7 +608,7 @@ export default function LuminaComputer() {
             ) : (
               <button
                 onClick={() => send(input)}
-                disabled={!input.trim()}
+                disabled={!input.trim() && files.length === 0}
                 className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center shadow-[0_0_16px_rgba(124,111,255,0.5)] hover:scale-105 transition disabled:opacity-40 disabled:hover:scale-100"
                 title="Send"
               >
