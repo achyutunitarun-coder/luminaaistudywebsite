@@ -492,6 +492,12 @@ export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
 
+  // MUN wins first — most specific academic mode
+  if (MUN_PATTERNS.test(text)) return "mun";
+
+  // Deep research / report / artifact
+  if (COMPUTER_PATTERNS.test(text)) return "computer";
+
   // CODING wins early — it's the most specific intent we can detect
   if (CODING_PATTERNS.test(text)) {
     return "coding";
