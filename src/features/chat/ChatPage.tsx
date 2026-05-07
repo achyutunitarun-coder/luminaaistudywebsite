@@ -122,6 +122,7 @@ const ChatPage = () => {
   const credits = useCreditsStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [files, setFiles] = useState<import("@/components/FileUploadButton").UploadedFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
   const [model, setModel] = useState<ModelMode>("auto");
