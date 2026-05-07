@@ -353,9 +353,13 @@ export default function LuminaComputer() {
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if ((!trimmed && files.length === 0) || busy) return;
 
-      const userMsg: Msg = { id: uid(), role: 'user', content: trimmed, ts: Date.now() };
+      const fileCtx = buildFileContext(files);
+      const userVisible = trimmed || (files.length > 0 ? `Analyze the attached file${files.length > 1 ? 's' : ''}.` : '');
+      const sentText = userVisible + fileCtx;
+
+      const userMsg: Msg = { id: uid(), role: 'user', content: userVisible, ts: Date.now() };
       const aId = uid();
       setMessages((prev) => [
         ...prev,
@@ -363,6 +367,8 @@ export default function LuminaComputer() {
         { id: aId, role: 'assistant', content: '', streaming: true, ts: Date.now() },
       ]);
       setInput('');
+      const sentFiles = files;
+      setFiles([]);
       if (taRef.current) taRef.current.style.height = 'auto';
       setBusy(true);
       setThinkStep(0);
@@ -375,10 +381,10 @@ export default function LuminaComputer() {
         const { data: { session } } = await supabase.auth.getSession();
         const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-        const aiMessages = [...messages, userMsg]
-          .filter((m) => m.role !== 'assistant' || m.content.length > 0)
+        const aiMessages = [...messages, { role: 'user' as const, content: sentText }]
+          .filter((m: any) => m.role !== 'assistant' || (m.content && m.content.length > 0))
           .slice(-20)
-          .map((m) => ({ role: m.role, content: m.content }));
+          .map((m: any) => ({ role: m.role, content: m.content }));
 
         const res = await fetch(CHAT_URL, {
           method: 'POST',
@@ -387,7 +393,11 @@ export default function LuminaComputer() {
           signal: ctrl.signal,
         });
 
-        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok || !res.body) {
+          // restore files so user can retry
+          setFiles(sentFiles);
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
