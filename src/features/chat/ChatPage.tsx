@@ -725,6 +725,7 @@ Q3: ... || A: ...
     },
     [
       ensureChat,
+      files,
       input,
       loading,
       messages,
