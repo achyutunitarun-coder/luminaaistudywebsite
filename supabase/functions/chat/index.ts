@@ -28,6 +28,7 @@ serve(async (req) => {
     const queryText = lastMsg?.content || "";
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
+    const requestedMode = typeof mode === "string" ? mode : "auto";
 
     // Artifact requests (slides / notes / exam) are handled by the dedicated
     // generate-html-artifact pipeline on the client (GenerateSetupCard → ArtifactCard).
