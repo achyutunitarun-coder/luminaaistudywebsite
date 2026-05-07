@@ -95,28 +95,40 @@ function uid() {
  * Detect if a markdown blob contains a substantial HTML artifact
  * (full document or large block). If yes, return the raw HTML string.
  */
-function extractArtifact(content: string): string | null {
+function extractArtifact(content: string): { html: string; streaming: boolean } | null {
   if (!content) return null;
-  // Fenced ```html ... ``` block — biggest one wins
+  // 1) Closed ```html ... ``` blocks (pick longest)
   const fenceRe = /```(?:html|HTML)\s*\n([\s\S]*?)```/g;
   let best: string | null = null;
   let m: RegExpExecArray | null;
   while ((m = fenceRe.exec(content)) !== null) {
     if (!best || m[1].length > best.length) best = m[1];
   }
-  if (best && best.length > 400) return best.trim();
+  if (best && best.length > 200) return { html: best.trim(), streaming: false };
 
-  // Bare <!doctype html>...
-  const docMatch = content.match(/<!doctype html[\s\S]*<\/html>/i);
-  if (docMatch && docMatch[0].length > 400) return docMatch[0];
+  // 2) Open ```html block still streaming — render what we have so far
+  const openFence = content.match(/```(?:html|HTML)\s*\n([\s\S]+)$/);
+  if (openFence && openFence[1].length > 200 && !openFence[1].includes('```')) {
+    return { html: openFence[1].trim(), streaming: true };
+  }
 
-  // Large inline HTML chunk (has style/script/multiple tags)
+  // 3) Closed full doc
+  const docMatch = content.match(/<!doctype html[\s\S]*?<\/html>/i);
+  if (docMatch && docMatch[0].length > 200) return { html: docMatch[0], streaming: false };
+
+  // 4) Streaming bare doc (has <!doctype but no </html> yet)
+  const docOpen = content.match(/<!doctype html[\s\S]+$/i);
+  if (docOpen && docOpen[0].length > 200 && !/<\/html>/i.test(docOpen[0])) {
+    return { html: docOpen[0], streaming: true };
+  }
+
+  // 5) Large inline HTML chunk
   if (
     content.length > 800 &&
     /<(html|body|style|script|section|article|main)\b/i.test(content) &&
     /<\/(html|body|div|section|article|main)>/i.test(content)
   ) {
-    return content;
+    return { html: content, streaming: false };
   }
   return null;
 }
