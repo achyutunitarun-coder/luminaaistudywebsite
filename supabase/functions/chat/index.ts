@@ -114,7 +114,6 @@ serve(async (req) => {
       console.warn("memory fetch failed:", memErr);
     }
 
-    const requestedMode = typeof mode === "string" ? mode : "auto";
     const models = artifactFeature
       ? MODELS_LONG_CTX
       : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
