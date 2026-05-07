@@ -87,14 +87,14 @@ export const MODELS_LONG_CTX = [
   "tencent/hy3-preview:free",
 ];
 
+// VISION — confirmed live free models with image input (verified against OpenRouter /models 2026-05).
+// Ordered by context length / capability. Only true vision-capable :free ids.
 export const MODELS_VISION = [
-  "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "nvidia/nemotron-nano-12b-v2-vl:free",
-  "google/gemma-3-27b-it:free",
-  "google/gemma-3-12b-it:free",
-  "baidu/qianfan-ocr-fast:free",
+  "google/gemma-4-31b-it:free",                              // 262k ctx, image+text+video
+  "google/gemma-4-26b-a4b-it:free",                          // 262k ctx, image+text+video
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",      // 256k ctx, omni (text+audio+image+video)
+  "nvidia/nemotron-nano-12b-v2-vl:free",                     // 128k ctx, vision-language
+  "baidu/qianfan-ocr-fast:free",                             // 65k ctx, OCR specialist
 ];
 
 // ── WRITING / NOTES (long-form prose) ──────────────────────────────
