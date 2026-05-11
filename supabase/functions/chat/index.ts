@@ -57,9 +57,13 @@ serve(async (req) => {
     const models = artifactFeature
       ? MODELS_LONG_CTX
       : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
-    // NEVER truncate — let the model write to its full window. 131072 per spec.
+    // No artificial cap — let the model write as long as the task requires.
     const maxTokens =
-      intent === "greeting" || intent === "conversational" ? 1200 : 131072;
+      artifactFeature ? 32_000 :
+      intent === "greeting" || intent === "conversational" ? 800 :
+      intent === "coding" || requestedMode === "coding" ? 32_000 :
+      intent === "deep" || requestedMode === "long_context" || requestedMode === "reasoning" ? 16_000 :
+      12_000;
     const temperature = artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
     const timeoutMs = artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000;
 

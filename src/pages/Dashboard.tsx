@@ -27,10 +27,10 @@ const Dashboard = () => {
     try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
   }, [profile?.extra_preferences]);
 
-  const emailName = user?.email?.split('@')[0]?.trim() || '';
-  const rawName = (profile?.display_name?.split(' ')[0]?.trim() || emailName).trim();
+  const rawName = profile?.display_name?.split(' ')[0]?.trim() || '';
+  // Sanitize: avoid greeting users with the app's own name or generic placeholders
   const isGenericName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName);
-  const userName = isGenericName ? 'back' : rawName;
+  const userName = isGenericName ? 'scholar' : rawName;
   const userSubjects = userPrefs?.subjects || [];
 
   const { data: todayMinutes } = useQuery({

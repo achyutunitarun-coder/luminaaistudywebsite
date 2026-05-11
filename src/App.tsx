@@ -125,7 +125,6 @@ const App = () => (
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/training-data" element={<TrainingData />} />
-              <Route path="/brain-hub" element={<Navigate to="/hub" replace />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
