@@ -33,7 +33,6 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
-import LuminaComputer from "@/pages/LuminaComputer";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
@@ -103,7 +102,6 @@ const App = () => (
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
-              <Route path="/computer" element={<LuminaComputer />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/doubt-solver" element={<DoubtSolver />} />
