@@ -196,7 +196,7 @@ export class LuminaParser {
    * If the tag is incomplete (missing `>`), returns false.
    */
   private tryConsumeOpenTag(): boolean {
-    const m = this.buffer.match(/^<lumina:(plan|file|final|navigate)\b([^>]*)(\/?)>/);
+    const m = this.buffer.match(/^<lumina:(plan|file|final|navigate|action|run|open)\b([^>]*)(\/?)>/);
     if (!m) return false;
     const [full, kind, attrsRaw, selfClose] = m;
     this.state.hasTags = true;
@@ -205,7 +205,40 @@ export class LuminaParser {
     if (kind === "navigate") {
       const to = /\bto\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
       const reason = /\breason\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
-      if (to) this.state.navigate = { to, reason };
+      if (to) {
+        this.state.navigate = { to, reason };
+        this.state.actions.push({
+          id: `act-${this.state.actions.length}`,
+          type: "navigate",
+          target: to,
+          reason,
+          status: "proposed",
+        });
+      }
+      this.section = "none";
+      return true;
+    }
+
+    if (kind === "action" || kind === "run" || kind === "open") {
+      const type =
+        kind === "run" || kind === "open"
+          ? (kind as "run" | "open")
+          : ((/\btype\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? "open") as
+              | "run"
+              | "open"
+              | "navigate");
+      const target =
+        /\b(?:path|target|file|to)\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? "";
+      const reason = /\breason\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
+      if (target) {
+        this.state.actions.push({
+          id: `act-${this.state.actions.length}`,
+          type,
+          target,
+          reason,
+          status: "proposed",
+        });
+      }
       this.section = "none";
       return true;
     }
