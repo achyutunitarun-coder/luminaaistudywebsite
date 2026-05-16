@@ -19,10 +19,19 @@ export interface LuminaFile {
   done: boolean;
 }
 
+export interface LuminaAction {
+  id: string;
+  type: "run" | "open" | "navigate";
+  target: string;
+  reason?: string;
+  status: "proposed" | "confirmed" | "dismissed" | "done";
+}
+
 export interface ParsedState {
   plan: string;
   files: LuminaFile[];
   navigate?: { to: string; reason?: string };
+  actions: LuminaAction[];
   final: string;
   /** True when parser saw at least one lumina:* tag */
   hasTags: boolean;
