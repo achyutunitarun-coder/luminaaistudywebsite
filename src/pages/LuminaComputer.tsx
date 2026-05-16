@@ -1,80 +1,92 @@
 /**
- * Lumina Computer — agentic Substrate workspace.
+ * Lumina Computer — Apple-style agentic workspace.
  *
- * Layout (CSS grid):
- *   ┌──────────── Topbar ────────────┐
- *   │ Sidebar │ Editor (tabs) │ Prev │
- *   │ files   │ + log + input │ iframe
- *   └──────────────────────────────────┘
+ *   ┌──────────── Top bar ──────── [Preview ▸] ─┐
+ *   │ Files │  Editor (live code streaming)    │
+ *   │       │  Activity feed                    │
+ *   │       │  ─────────────────────────────────┤
+ *   │       │  Ask Lumina… [📎] [↑]   (bottom)  │
+ *   └────────────────────────────────────────────┘
  *
- * Streams from /chat (mode: "computer"). Parses <lumina:*> tags live and:
- *   - shows files appearing & growing in the editor
- *   - renders any HTML file in the right-side iframe in real time
- *   - logs every event in the Neural Link Protocol feed
- *   - prompts the user to navigate when the model emits <lumina:navigate />
+ * - Streams from /chat (mode: "computer"), parses <lumina:*> tags.
+ * - File uploads (images/pdf/text) attach context to the prompt.
+ * - Agentic actions (run / open / navigate) appear in the activity feed
+ *   with Confirm / Dismiss controls.
+ * - Preview opens as a right-side slide-over (toggle from top right).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Send,
-  Sparkles,
-  Cpu,
-  StopCircle,
+  ArrowUp,
+  Paperclip,
+  Square,
   Plus,
-  FileCode2,
+  FileCode,
   FileText,
   Eye,
-  Code2,
-  Maximize2,
-  Minimize2,
-  Download,
   Copy as CopyIcon,
   Check,
-  Activity,
   Loader2,
-  ChevronRight,
+  X,
+  Sparkles,
+  Cpu,
+  Download,
+  Maximize2,
+  Minimize2,
+  PlayCircle,
+  FolderOpen,
+  Compass,
+  CheckCircle2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { LuminaParser, type LuminaFile } from "@/features/computer/parser";
+import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
+interface Attachment {
+  id: string;
+  name: string;
+  kind: "image" | "text" | "file";
+  size: number;
+  preview?: string; // data url for images
+  text?: string; // extracted text content
+}
+
 interface LogLine {
   id: string;
-  level: "SYST" | "MODEL" | "FILE" | "NAV" | "DONE" | "WARN";
+  level: "system" | "model" | "file" | "action" | "done" | "warn";
   text: string;
   ts: number;
+  action?: LuminaAction;
 }
 
 const SUGGESTIONS = [
-  "Build an interactive HTML visualiser for Newton's three laws with sliders.",
-  "Deep research report: India's renewable energy transition 2020-2030. Include sources.",
-  "MUN background guide — UNSC, Topic: AI in warfare. Include bloc analysis & QARMA.",
-  "Make a beautiful calculus derivative practice page with 10 MCQs and live feedback.",
-  "Take me to flashcards.",
-  "Create a complete dark-mode pomodoro timer with stats, ambient sound toggle, and a circular SVG progress ring.",
+  "Build an interactive visualiser for Newton's three laws.",
+  "Make a beautiful calculus practice page with 10 MCQs.",
+  "Deep research: India's renewable energy 2020 – 2030.",
+  "Create a focus-mode pomodoro with ambient sound.",
 ];
 
 function timeFmt(ts: number) {
   const d = new Date(ts);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
+  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-/** Build a runnable HTML doc from a file (supports html / md). */
+/** Build a runnable HTML doc from a file. */
 function buildPreviewDoc(file: LuminaFile, allFiles: LuminaFile[]): string {
   if (file.lang === "html") {
     let html = file.content;
     if (!/<!doctype html/i.test(html) && !/<html[\s>]/i.test(html)) {
       html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`;
     }
-    // Inject sibling css/js if html doesn't already reference them
     const css = allFiles.find((f) => f.lang === "css");
     const js = allFiles.find((f) => f.lang === "js");
     if (css && !html.includes(css.path)) {
@@ -86,30 +98,26 @@ function buildPreviewDoc(file: LuminaFile, allFiles: LuminaFile[]): string {
     return html;
   }
   if (file.lang === "md") {
-    // Lightweight markdown preview (minimal styling). Real markdown rendering
-    // happens in the editor's "Manifest View" tab; iframe gets a basic dump.
     const escaped = file.content
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
     return `<!doctype html><html><head><meta charset="utf-8"><style>
-      body{margin:0;padding:32px;font:15px/1.7 -apple-system,Inter,sans-serif;background:#0a0a14;color:#e8e6ff;max-width:820px;margin:auto}
+      body{margin:0;padding:40px;font:15px/1.7 -apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;background:#fafafa;color:#1d1d1f;max-width:780px;margin:auto}
       pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit}
     </style></head><body><pre>${escaped}</pre></body></html>`;
   }
-  // Generic preview: show as code
   const safe = file.content.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-    body{margin:0;padding:24px;font:13px/1.6 ui-monospace,Menlo,monospace;background:#05050b;color:#a78bfa;white-space:pre}
+    body{margin:0;padding:24px;font:13px/1.6 ui-monospace,SF Mono,Menlo,monospace;background:#0b0b0f;color:#e8e6ff;white-space:pre}
   </style></head><body>${safe}</body></html>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Editor — virtualised pre with line numbers, typing caret while streaming
+// Code editor — Apple-clean, line-numbered, streams smoothly
 // ─────────────────────────────────────────────────────────────────────
 function CodeEditor({ file }: { file: LuminaFile | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // auto-scroll to bottom while streaming
   useEffect(() => {
     if (!file || file.done) return;
     const el = scrollRef.current;
@@ -119,49 +127,37 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
 
   if (!file) {
     return (
-      <div className="flex-1 flex items-center justify-center text-cyan-300/40 text-xs font-mono tracking-widest">
-        AWAITING_NEURAL_LINK
+      <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
+        Ready when you are.
       </div>
     );
   }
 
   const lines = file.content.split("\n");
-  // Soft cap render to 4000 lines (rare) — keep streaming smooth
   const cap = 4000;
   const renderLines = lines.length > cap ? lines.slice(-cap) : lines;
   const lineOffset = lines.length > cap ? lines.length - cap : 0;
 
-  const tint =
-    file.lang === "html"
-      ? "text-cyan-200"
-      : file.lang === "css"
-        ? "text-fuchsia-200"
-        : file.lang === "js" || file.lang === "ts"
-          ? "text-amber-200"
-          : file.lang === "md"
-            ? "text-emerald-100"
-            : "text-white/85";
-
   return (
-    <div ref={scrollRef} className="flex-1 overflow-auto bg-[#05060d]">
-      <pre className={`m-0 p-0 text-[12.5px] leading-[1.55] font-mono ${tint}`}>
+    <div ref={scrollRef} className="flex-1 overflow-auto bg-[#0e0e12]">
+      <pre className="m-0 p-0 text-[12.5px] leading-[1.65] font-mono text-white/85">
         {renderLines.map((line, i) => {
           const n = lineOffset + i + 1;
           return (
-            <div key={n} className="flex hover:bg-white/[0.02] px-0">
-              <span className="select-none text-cyan-500/30 text-right pr-3 pl-3 w-14 flex-shrink-0">
+            <div key={n} className="flex hover:bg-white/[0.02]">
+              <span className="select-none text-white/20 text-right pr-4 pl-4 w-16 flex-shrink-0">
                 {n}
               </span>
-              <span className="whitespace-pre-wrap break-words flex-1 pr-4">
+              <span className="whitespace-pre-wrap break-words flex-1 pr-6">
                 {line || "\u00A0"}
               </span>
             </div>
           );
         })}
         {!file.done && (
-          <div className="flex px-3">
-            <span className="w-14" />
-            <span className="inline-block w-2 h-4 bg-cyan-400 animate-pulse" />
+          <div className="flex px-4">
+            <span className="w-16" />
+            <span className="inline-block w-1.5 h-4 bg-white/80 animate-pulse rounded-sm" />
           </div>
         )}
       </pre>
@@ -170,20 +166,20 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Preview panel — big iframe of the active HTML, or fallback
+// Preview slide-over (right side)
 // ─────────────────────────────────────────────────────────────────────
 function PreviewPanel({
+  open,
+  onClose,
   files,
   activeFile,
-  fullscreen,
-  setFullscreen,
 }: {
+  open: boolean;
+  onClose: () => void;
   files: LuminaFile[];
   activeFile: LuminaFile | null;
-  fullscreen: boolean;
-  setFullscreen: (b: boolean) => void;
 }) {
-  // Prefer an HTML file even if a markdown file is currently active.
+  const [fullscreen, setFullscreen] = useState(false);
   const previewTarget = useMemo(() => {
     if (activeFile && activeFile.lang === "html") return activeFile;
     return files.find((f) => f.lang === "html") ?? activeFile;
@@ -209,35 +205,42 @@ function PreviewPanel({
     URL.revokeObjectURL(url);
   };
 
-  const wrap = fullscreen
-    ? "fixed inset-0 z-[200] bg-[#05050b] flex flex-col"
-    : "flex flex-col h-full";
+  if (!open) return null;
+
+  const wrapCls = fullscreen
+    ? "fixed inset-0 z-[200] bg-[#0b0b0f] flex flex-col"
+    : "fixed top-0 right-0 bottom-0 z-[100] w-[min(720px,72vw)] bg-[#0b0b0f] border-l border-white/10 flex flex-col shadow-[-30px_0_60px_-30px_rgba(0,0,0,0.7)] animate-in slide-in-from-right duration-300";
 
   return (
-    <div className={wrap}>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-cyan-500/10 bg-[#070810]">
-        <div className="text-[10px] font-mono tracking-[0.2em] text-cyan-300/70">
-          REALTIME_MANIFEST
-        </div>
+    <div className={wrapCls}>
+      <div className="flex items-center gap-2 px-5 h-12 border-b border-white/10 flex-shrink-0">
+        <Eye className="w-4 h-4 text-white/60" />
+        <div className="text-sm font-medium text-white/90">Preview</div>
+        {previewTarget && (
+          <div className="text-xs text-white/40 ml-2 truncate">{previewTarget.path}</div>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={download}
             disabled={!previewTarget}
-            className="p-1.5 rounded text-cyan-300/60 hover:text-cyan-200 hover:bg-cyan-500/10 transition disabled:opacity-30"
+            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition disabled:opacity-30"
             title="Download"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => setFullscreen(!fullscreen)}
-            className="p-1.5 rounded text-cyan-300/60 hover:text-cyan-200 hover:bg-cyan-500/10 transition"
+            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition"
             title="Fullscreen"
           >
-            {fullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5" />
-            ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
-            )}
+            {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -251,10 +254,71 @@ function PreviewPanel({
             className="w-full h-full border-0"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-cyan-500/30 text-xs font-mono tracking-widest gap-2 bg-[#070810]">
-            <Activity className="w-8 h-8 opacity-30" />
-            MANIFEST_OFFLINE
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white/30 text-sm gap-2 bg-[#0e0e12]">
+            <Sparkles className="w-6 h-6 opacity-40" />
+            Nothing to preview yet.
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Activity feed entry — supports agentic action confirmations
+// ─────────────────────────────────────────────────────────────────────
+function ActivityEntry({
+  line,
+  onConfirm,
+  onDismiss,
+}: {
+  line: LogLine;
+  onConfirm?: (id: string) => void;
+  onDismiss?: (id: string) => void;
+}) {
+  const dot =
+    line.level === "warn"
+      ? "bg-rose-400"
+      : line.level === "done"
+        ? "bg-emerald-400"
+        : line.level === "file"
+          ? "bg-violet-400"
+          : line.level === "action"
+            ? "bg-amber-400"
+            : line.level === "model"
+              ? "bg-sky-400"
+              : "bg-white/30";
+
+  const act = line.action;
+  return (
+    <div className="flex gap-3 items-start py-1.5">
+      <span className={`w-1.5 h-1.5 mt-2 rounded-full ${dot} flex-shrink-0`} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-[13px] text-white/85">{line.text}</span>
+          <span className="text-[11px] text-white/30">{timeFmt(line.ts)}</span>
+        </div>
+        {act && act.status === "proposed" && (
+          <div className="flex gap-2 mt-1.5">
+            <button
+              onClick={() => onConfirm?.(act.id)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
+            >
+              <CheckCircle2 className="w-3 h-3" /> Confirm
+            </button>
+            <button
+              onClick={() => onDismiss?.(act.id)}
+              className="px-2.5 py-1 rounded-lg bg-white/[0.06] text-white/70 text-[11px] hover:bg-white/[0.1] transition"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {act && act.status === "confirmed" && (
+          <div className="text-[11px] text-emerald-300/80 mt-0.5">✓ confirmed</div>
+        )}
+        {act && act.status === "dismissed" && (
+          <div className="text-[11px] text-white/30 mt-0.5">dismissed</div>
         )}
       </div>
     </div>
@@ -267,62 +331,98 @@ function PreviewPanel({
 export default function LuminaComputer() {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [files, setFiles] = useState<LuminaFile[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [plan, setPlan] = useState("");
   const [finalMd, setFinalMd] = useState("");
-  const [tab, setTab] = useState<"code" | "manifest">("code");
   const [logs, setLogs] = useState<LogLine[]>([
-    {
-      id: uid(),
-      level: "SYST",
-      text: "Lumina Computer · Substrate v4.2 online. Awaiting directive.",
-      ts: Date.now(),
-    },
+    { id: uid(), level: "system", text: "Lumina Computer is ready.", ts: Date.now() },
   ]);
   const [busy, setBusy] = useState(false);
   const [model, setModel] = useState<string>("");
-  const [fullscreen, setFullscreen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const parserRef = useRef<LuminaParser | null>(null);
-  const logScrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const seenActionsRef = useRef<Set<string>>(new Set());
 
   const activeFile = useMemo(
     () => files.find((f) => f.path === activePath) ?? files[0] ?? null,
     [files, activePath],
   );
 
-  const log = useCallback((level: LogLine["level"], text: string) => {
-    setLogs((prev) => [...prev.slice(-200), { id: uid(), level, text, ts: Date.now() }]);
-  }, []);
+  const log = useCallback(
+    (level: LogLine["level"], text: string, action?: LuminaAction) => {
+      setLogs((prev) => [...prev.slice(-200), { id: uid(), level, text, ts: Date.now(), action }]);
+    },
+    [],
+  );
 
-  // auto-scroll log
+  // Auto-open preview the first time an HTML file appears
   useEffect(() => {
-    const el = logScrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [logs]);
+    if (!previewOpen && files.some((f) => f.lang === "html") && busy) {
+      setPreviewOpen(true);
+    }
+  }, [files, busy, previewOpen]);
 
-  // auto-resize textarea
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 180) + "px";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
   };
 
-  // navigation prompt when model asks
-  const handleNavigate = useCallback(
-    (to: string, reason?: string) => {
-      log("NAV", `proposed → ${to}${reason ? ` (${reason})` : ""}`);
-      toast(`Lumina wants to open ${to}`, {
-        description: reason,
-        action: { label: "Open", onClick: () => navigate(to) },
-        duration: 8000,
-      });
+  // ── Agentic action handlers ────────────────────────────────────────
+  const runAction = useCallback(
+    (act: LuminaAction) => {
+      if (act.type === "navigate") {
+        log("done", `Navigated to ${act.target}`);
+        navigate(act.target);
+        toast.success(`Opened ${act.target}`);
+      } else if (act.type === "open") {
+        const f = files.find(
+          (f) => f.path === act.target || f.path.endsWith(act.target),
+        );
+        if (f) {
+          setActivePath(f.path);
+          log("done", `Opened ${f.path}`);
+        } else {
+          log("warn", `File not found: ${act.target}`);
+        }
+      } else if (act.type === "run") {
+        setPreviewOpen(true);
+        const f = files.find(
+          (f) => f.path === act.target || f.path.endsWith(act.target),
+        );
+        if (f) setActivePath(f.path);
+        log("done", `Running ${act.target} in preview`);
+        toast.success(`Running ${act.target}`);
+      }
     },
-    [log, navigate],
+    [files, log, navigate],
   );
+
+  const confirmAction = useCallback(
+    (id: string) => {
+      setLogs((prev) =>
+        prev.map((l) =>
+          l.action?.id === id ? { ...l, action: { ...l.action, status: "confirmed" } } : l,
+        ),
+      );
+      const target = logs.find((l) => l.action?.id === id)?.action;
+      if (target) runAction(target);
+    },
+    [logs, runAction],
+  );
+
+  const dismissAction = useCallback((id: string) => {
+    setLogs((prev) =>
+      prev.map((l) =>
+        l.action?.id === id ? { ...l, action: { ...l.action!, status: "dismissed" } } : l,
+      ),
+    );
+  }, []);
 
   const reset = useCallback(() => {
     if (busy) abortRef.current?.abort();
@@ -330,33 +430,94 @@ export default function LuminaComputer() {
     setPlan("");
     setFinalMd("");
     setActivePath(null);
-    setLogs([
-      {
-        id: uid(),
-        level: "SYST",
-        text: "Substrate reset · Awaiting new directive.",
-        ts: Date.now(),
-      },
-    ]);
+    setAttachments([]);
+    seenActionsRef.current = new Set();
+    setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
   }, [busy]);
 
   const stop = () => abortRef.current?.abort();
 
+  // ── File upload handling ───────────────────────────────────────────
+  const onPickFiles = () => fileInputRef.current?.click();
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList) return;
+    const next: Attachment[] = [];
+    for (const file of Array.from(fileList)) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} is too large (max 5MB)`);
+        continue;
+      }
+      if (file.type.startsWith("image/")) {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.readAsDataURL(file);
+        });
+        next.push({
+          id: uid(),
+          name: file.name,
+          kind: "image",
+          size: file.size,
+          preview: dataUrl,
+        });
+      } else if (
+        file.type.startsWith("text/") ||
+        /\.(md|json|csv|txt|html|css|js|ts|tsx|jsx|py)$/i.test(file.name)
+      ) {
+        const text = await file.text();
+        next.push({
+          id: uid(),
+          name: file.name,
+          kind: "text",
+          size: file.size,
+          text: text.slice(0, 50000),
+        });
+      } else {
+        toast.error(`Unsupported file: ${file.name}`);
+      }
+    }
+    setAttachments((prev) => [...prev, ...next]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (id: string) =>
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+
+  const buildMessageContent = (text: string): any => {
+    if (attachments.length === 0) return text;
+    const parts: any[] = [{ type: "text", text }];
+    const textBlobs: string[] = [];
+    for (const a of attachments) {
+      if (a.kind === "image" && a.preview) {
+        parts.push({ type: "image_url", image_url: { url: a.preview } });
+      } else if (a.kind === "text" && a.text) {
+        textBlobs.push(`\n\n--- ${a.name} ---\n${a.text}`);
+      }
+    }
+    if (textBlobs.length) {
+      parts[0] = { type: "text", text: text + textBlobs.join("") };
+    }
+    return parts;
+  };
+
+  // ── Send ───────────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || busy) return;
 
-      // Reset prior generation state but keep logs
       setFiles([]);
       setPlan("");
       setFinalMd("");
       setActivePath(null);
       setPrompt("");
+      seenActionsRef.current = new Set();
       if (taRef.current) taRef.current.style.height = "auto";
       setBusy(true);
-      log("SYST", `> ${trimmed.slice(0, 120)}${trimmed.length > 120 ? "…" : ""}`);
-      log("MODEL", "routing → owl-alpha (primary)…");
+      const previewAttach =
+        attachments.length > 0 ? ` (+${attachments.length} file${attachments.length > 1 ? "s" : ""})` : "";
+      log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
 
       parserRef.current = new LuminaParser();
       const ctrl = new AbortController();
@@ -368,11 +529,14 @@ export default function LuminaComputer() {
         } = await supabase.auth.getSession();
         const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+        const content = buildMessageContent(trimmed);
+        setAttachments([]);
+
         const res = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth}` },
           body: JSON.stringify({
-            messages: [{ role: "user", content: trimmed }],
+            messages: [{ role: "user", content }],
             mode: "computer",
           }),
           signal: ctrl.signal,
@@ -384,36 +548,37 @@ export default function LuminaComputer() {
         const decoder = new TextDecoder();
         let sseBuf = "";
         const seenFiles = new Set<string>();
-        let lastFileLen = new Map<string, number>();
-        let sawNavigate = false;
 
         const applyState = () => {
           const st = parserRef.current!.state;
           setPlan(st.plan);
           setFinalMd(st.final);
           setFiles([...st.files]);
-          // Auto-pick first file
           if (st.files.length > 0) {
             setActivePath((cur) => cur ?? st.files[0].path);
           }
-          // Logs per new/closed file
           for (const f of st.files) {
             if (!seenFiles.has(f.path)) {
               seenFiles.add(f.path);
-              log("FILE", `+ ${f.path} (${f.lang})`);
+              log("file", `Creating ${f.path}`);
             }
-            const prevLen = lastFileLen.get(f.path) ?? 0;
-            if (f.done && prevLen !== -1) {
+            if (f.done && !seenFiles.has(`done:${f.path}`)) {
+              seenFiles.add(`done:${f.path}`);
               const kb = (f.content.length / 1024).toFixed(1);
-              log("FILE", `✓ ${f.path} · ${kb}KB · ${f.content.split("\n").length} lines`);
-              lastFileLen.set(f.path, -1);
-            } else if (!f.done) {
-              lastFileLen.set(f.path, f.content.length);
+              log("file", `Finished ${f.path} · ${kb} KB`);
             }
           }
-          if (st.navigate && !sawNavigate) {
-            sawNavigate = true;
-            handleNavigate(st.navigate.to, st.navigate.reason);
+          // Surface new agentic actions
+          for (const a of st.actions) {
+            if (seenActionsRef.current.has(a.id)) continue;
+            seenActionsRef.current.add(a.id);
+            const verb =
+              a.type === "navigate"
+                ? `Navigate to ${a.target}`
+                : a.type === "open"
+                  ? `Open ${a.target}`
+                  : `Run ${a.target}`;
+            log("action", `${verb}${a.reason ? ` — ${a.reason}` : ""}`, a);
           }
         };
 
@@ -433,7 +598,7 @@ export default function LuminaComputer() {
               const parsed = JSON.parse(json);
               if (parsed?.lumina_meta?.model) {
                 setModel(parsed.lumina_meta.model);
-                log("MODEL", `✓ ${parsed.lumina_meta.model}`);
+                log("model", `Using ${parsed.lumina_meta.model}`);
               }
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
@@ -441,7 +606,6 @@ export default function LuminaComputer() {
                 applyState();
               }
             } catch {
-              // partial line — wait for more
               sseBuf = line + "\n" + sseBuf;
               break;
             }
@@ -450,12 +614,12 @@ export default function LuminaComputer() {
 
         parserRef.current!.finish();
         applyState();
-        log("DONE", `complete · ${parserRef.current!.state.files.length} file(s)`);
+        log("done", `Done · ${parserRef.current!.state.files.length} file(s)`);
       } catch (e: any) {
         if (e?.name === "AbortError") {
-          log("WARN", "stream aborted by operator");
+          log("warn", "Stopped");
         } else {
-          log("WARN", e?.message ?? "stream failed");
+          log("warn", e?.message ?? "Request failed");
           toast.error(e?.message ?? "Request failed");
         }
       } finally {
@@ -463,7 +627,7 @@ export default function LuminaComputer() {
         abortRef.current = null;
       }
     },
-    [busy, log, handleNavigate],
+    [busy, log, attachments],
   );
 
   const onSubmit = () => send(prompt);
@@ -478,106 +642,100 @@ export default function LuminaComputer() {
   const isEmpty = files.length === 0 && !plan && !finalMd && !busy;
 
   return (
-    <div className="relative h-[calc(100vh-0px)] flex flex-col bg-[#05060d] text-white/90 overflow-hidden font-sans">
-      {/* ambient grid + glow */}
+    <div className="relative h-screen flex flex-col bg-[#0b0b0f] text-white overflow-hidden">
+      {/* subtle ambient */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        className="pointer-events-none absolute inset-0 opacity-[0.4]"
         style={{
-          backgroundImage:
-            "linear-gradient(rgba(34,211,238,0.4) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,0.4) 1px,transparent 1px)",
-          backgroundSize: "40px 40px",
+          background:
+            "radial-gradient(1200px 600px at 80% -10%, rgba(120,119,198,0.10), transparent), radial-gradient(900px 500px at 0% 100%, rgba(56,189,248,0.06), transparent)",
         }}
       />
-      <div className="pointer-events-none absolute -top-32 left-1/3 w-[700px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(34,211,238,0.12),transparent_70%)]" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(167,139,250,0.10),transparent_70%)]" />
 
-      {/* Topbar */}
-      <header className="relative z-10 flex items-center gap-4 px-5 py-2.5 border-b border-cyan-500/15 bg-[#070810]/80 backdrop-blur-xl flex-shrink-0">
+      {/* Top bar */}
+      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b border-white/[0.08] bg-[#0b0b0f]/80 backdrop-blur-xl flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.4)]">
-            <Cpu className="w-3.5 h-3.5 text-[#05060d]" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm">
+            <Cpu className="w-4 h-4 text-black" />
           </div>
-          <div className="font-mono text-[15px] tracking-[0.25em] font-bold text-cyan-200">
-            LUMINA<span className="text-violet-300">·COMPUTER</span>
+          <div>
+            <div className="text-[14px] font-semibold tracking-tight text-white">
+              Lumina Computer
+            </div>
+            <div className="text-[11px] text-white/40 -mt-0.5">
+              {busy ? "Working…" : model ? model.split("/").pop() : "Idle"}
+            </div>
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-1 ml-3 text-[10px] font-mono tracking-widest text-cyan-300/40">
-          <span className="px-2 py-1 rounded bg-cyan-500/5 border border-cyan-500/10">
-            ORCHESTRATOR
-          </span>
-          <span className="px-2 py-1 rounded text-cyan-300/30">ANALYSIS</span>
-          <span className="px-2 py-1 rounded text-cyan-300/30">INFRASTRUCTURE</span>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {busy ? (
+
+        <div className="ml-auto flex items-center gap-1.5">
+          {busy && (
             <button
               onClick={stop}
-              className="flex items-center gap-2 px-3 py-1.5 rounded border border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 transition text-[11px] font-mono tracking-widest"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
             >
-              <StopCircle className="w-3.5 h-3.5" /> ABORT
+              <Square className="w-3 h-3 fill-current" /> Stop
             </button>
-          ) : (
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-mono tracking-widest text-cyan-300/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-              {model ? `MODEL: ${model.split("/").pop()}` : "SUBSTRATE_READY"}
-            </div>
           )}
           <button
             onClick={reset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-cyan-500/20 bg-cyan-500/5 text-cyan-200/80 hover:bg-cyan-500/10 transition text-[11px] font-mono tracking-widest"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
           >
-            <Plus className="w-3.5 h-3.5" /> NEW
+            <Plus className="w-3.5 h-3.5" /> New
+          </button>
+          <button
+            onClick={() => setPreviewOpen((v) => !v)}
+            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
+              previewOpen
+                ? "bg-white text-black hover:bg-white/90"
+                : "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Preview
           </button>
         </div>
       </header>
 
-      {/* Body grid */}
-      <div className="relative z-10 flex-1 grid grid-cols-[260px_1fr_440px] min-h-0">
-        {/* Sidebar */}
-        <aside className="border-r border-cyan-500/10 bg-[#06070e] flex flex-col min-h-0">
-          <div className="p-4 border-b border-cyan-500/10">
-            <div className="text-[9px] font-mono tracking-[0.25em] text-cyan-300/40 mb-1">
-              WORKSPACE
-            </div>
-            <div className="text-[13px] font-bold text-cyan-100">Neural Interface</div>
-            <div className="text-[10px] font-mono text-cyan-400/40 tracking-widest mt-0.5">
-              L3-OPTIMIZATION · v4.2
-            </div>
+      {/* Body */}
+      <div className="relative z-10 flex-1 grid grid-cols-[260px_1fr] min-h-0">
+        {/* File explorer */}
+        <aside className="border-r border-white/[0.06] bg-[#0e0e12] flex flex-col min-h-0">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <FolderOpen className="w-3.5 h-3.5 text-white/40" />
+            <span className="text-[12px] font-medium text-white/70">Files</span>
+            {files.length > 0 && (
+              <span className="ml-auto text-[11px] text-white/30">{files.length}</span>
+            )}
           </div>
 
-          <div className="p-4 flex-1 overflow-auto">
-            <div className="text-[9px] font-mono tracking-[0.25em] text-cyan-300/40 mb-2">
-              ROOT_EXPLORER
-            </div>
+          <div className="p-2 flex-1 overflow-auto">
             {files.length === 0 ? (
-              <div className="text-[11px] font-mono text-cyan-300/30 italic">
-                no_files · awaiting_directive
+              <div className="text-[12px] text-white/30 px-3 py-4">
+                Files will appear here as Lumina creates them.
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {files.map((f) => {
                   const active = f.path === (activeFile?.path ?? "");
                   return (
                     <button
                       key={f.path}
-                      onClick={() => {
-                        setActivePath(f.path);
-                        setTab("code");
-                      }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded border text-left transition group ${
+                      onClick={() => setActivePath(f.path)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
                         active
-                          ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-100"
-                          : "bg-transparent border-transparent text-white/60 hover:bg-white/[0.03] hover:border-cyan-500/10"
+                          ? "bg-white/[0.08] text-white"
+                          : "text-white/65 hover:bg-white/[0.04]"
                       }`}
                     >
                       {f.lang === "md" ? (
-                        <FileText className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
                       ) : (
-                        <FileCode2 className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+                        <FileCode className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
                       )}
-                      <span className="text-[12px] font-mono truncate flex-1">{f.path}</span>
+                      <span className="text-[13px] truncate flex-1">{f.path}</span>
                       {!f.done && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse flex-shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                       )}
                     </button>
                   );
@@ -586,260 +744,218 @@ export default function LuminaComputer() {
             )}
 
             {plan && (
-              <>
-                <div className="text-[9px] font-mono tracking-[0.25em] text-cyan-300/40 mt-6 mb-2">
-                  ACTIVE_PLAN
-                </div>
-                <div className="text-[11px] text-white/70 leading-relaxed bg-white/[0.02] border border-cyan-500/10 rounded p-2.5 max-h-[180px] overflow-auto">
+              <div className="mt-4 px-3">
+                <div className="text-[11px] font-medium text-white/40 mb-1.5">Plan</div>
+                <div className="text-[12px] text-white/70 leading-relaxed bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
                   <MarkdownRenderer>{plan}</MarkdownRenderer>
                 </div>
-              </>
+              </div>
             )}
-          </div>
-
-          <div className="p-4 border-t border-cyan-500/10">
-            <button
-              onClick={() => taRef.current?.focus()}
-              className="w-full py-3 rounded border border-cyan-400/40 bg-gradient-to-b from-cyan-500/10 to-violet-500/5 text-cyan-200 text-[11px] font-mono tracking-[0.25em] hover:from-cyan-500/20 hover:to-violet-500/10 transition shadow-[0_0_20px_-10px_rgba(34,211,238,0.6)]"
-            >
-              INITIALIZE_NODE
-            </button>
           </div>
         </aside>
 
-        {/* Center: tabs + editor + log + input */}
+        {/* Center: editor + activity + prompt */}
         <main className="flex flex-col min-h-0 min-w-0">
-          {/* tabs */}
-          <div className="flex items-center gap-1 px-4 pt-3 border-b border-cyan-500/10 bg-[#06070e]">
-            <button
-              onClick={() => setTab("code")}
-              className={`flex items-center gap-2 px-3 py-2 text-[11px] font-mono tracking-[0.2em] border-b-2 -mb-px transition ${
-                tab === "code"
-                  ? "border-cyan-400 text-cyan-200"
-                  : "border-transparent text-cyan-300/40 hover:text-cyan-200"
-              }`}
-            >
-              <Code2 className="w-3.5 h-3.5" /> SOURCE_CODE
-            </button>
-            <button
-              onClick={() => setTab("manifest")}
-              className={`flex items-center gap-2 px-3 py-2 text-[11px] font-mono tracking-[0.2em] border-b-2 -mb-px transition ${
-                tab === "manifest"
-                  ? "border-cyan-400 text-cyan-200"
-                  : "border-transparent text-cyan-300/40 hover:text-cyan-200"
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" /> MANIFEST_VIEW
-            </button>
-            {activeFile && tab === "code" && (
-              <div className="ml-auto flex items-center gap-2 pb-1">
-                <span className="text-[10px] font-mono text-cyan-400/40 truncate max-w-[200px]">
-                  {activeFile.path}
-                </span>
-                <button
-                  onClick={copyActive}
-                  className="p-1 rounded text-cyan-300/50 hover:text-cyan-200 hover:bg-cyan-500/10 transition"
-                  title="Copy"
-                >
-                  {copied ? (
-                    <Check className="w-3 h-3 text-emerald-400" />
-                  ) : (
-                    <CopyIcon className="w-3 h-3" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* editor / manifest */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {tab === "code" ? (
-              isEmpty ? (
-                <EmptyState onPick={(s) => setPrompt(s)} />
-              ) : (
-                <CodeEditor file={activeFile} />
-              )
-            ) : (
-              <div className="flex-1 overflow-auto p-6 bg-[#06070e]">
-                <div className="max-w-3xl mx-auto space-y-6">
-                  {plan && (
-                    <section>
-                      <div className="text-[10px] font-mono tracking-[0.25em] text-cyan-300/50 mb-2">
-                        PLAN
-                      </div>
-                      <div className="text-white/85 text-[14px] leading-relaxed">
-                        <MarkdownRenderer>{plan}</MarkdownRenderer>
-                      </div>
-                    </section>
-                  )}
-                  {finalMd && (
-                    <section>
-                      <div className="text-[10px] font-mono tracking-[0.25em] text-cyan-300/50 mb-2">
-                        FINAL_REPORT
-                      </div>
-                      <div className="text-white/85 text-[14px] leading-relaxed">
-                        <MarkdownRenderer>{finalMd}</MarkdownRenderer>
-                      </div>
-                    </section>
-                  )}
-                  {!plan && !finalMd && (
-                    <div className="text-cyan-300/30 text-xs font-mono tracking-widest text-center pt-20">
-                      MANIFEST_EMPTY
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Log feed */}
-          <div className="border-t border-cyan-500/10 bg-[#05060d] flex flex-col flex-shrink-0">
-            <div className="flex items-center gap-2 px-4 py-1.5 border-b border-cyan-500/10">
-              <Activity className="w-3 h-3 text-cyan-400/70" />
-              <span className="text-[10px] font-mono tracking-[0.25em] text-cyan-300/60">
-                NEURAL_LINK_PROTOCOL
-              </span>
-              {busy && (
-                <Loader2 className="w-3 h-3 text-cyan-400 animate-spin ml-auto" />
-              )}
+          {/* Editor header */}
+          {activeFile && (
+            <div className="flex items-center gap-2 px-5 h-10 border-b border-white/[0.06] bg-[#0b0b0f]">
+              <span className="text-[12px] text-white/50 truncate">{activeFile.path}</span>
+              <button
+                onClick={copyActive}
+                className="ml-auto p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition"
+                title="Copy"
+              >
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <CopyIcon className="w-3.5 h-3.5" />
+                )}
+              </button>
             </div>
-            <div
-              ref={logScrollRef}
-              className="h-[120px] overflow-auto px-4 py-2 font-mono text-[11px] space-y-0.5"
-            >
-              {logs.map((l) => (
-                <div key={l.id} className="flex gap-2 items-baseline">
-                  <span className="text-cyan-500/40 flex-shrink-0">[{timeFmt(l.ts)}]</span>
-                  <span
-                    className={`flex-shrink-0 ${
-                      l.level === "WARN"
-                        ? "text-rose-300"
-                        : l.level === "DONE"
-                          ? "text-emerald-300"
-                          : l.level === "FILE"
-                            ? "text-violet-300"
-                            : l.level === "NAV"
-                              ? "text-amber-300"
-                              : l.level === "MODEL"
-                                ? "text-cyan-300"
-                                : "text-cyan-200/60"
-                    }`}
-                  >
-                    [{l.level}]
-                  </span>
-                  <span className="text-white/75 break-all">{l.text}</span>
-                </div>
+          )}
+
+          {/* Editor body */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {isEmpty ? (
+              <EmptyState onPick={(s) => setPrompt(s)} />
+            ) : (
+              <CodeEditor file={activeFile} />
+            )}
+          </div>
+
+          {/* Activity feed */}
+          <div className="border-t border-white/[0.06] bg-[#0b0b0f] flex-shrink-0">
+            <div className="px-5 h-9 flex items-center gap-2 border-b border-white/[0.04]">
+              <span className="text-[11px] font-medium text-white/50">Activity</span>
+              {busy && <Loader2 className="w-3 h-3 text-white/60 animate-spin ml-auto" />}
+            </div>
+            <div className="max-h-[160px] overflow-auto px-5 py-2">
+              {logs.slice(-8).map((l) => (
+                <ActivityEntry
+                  key={l.id}
+                  line={l}
+                  onConfirm={confirmAction}
+                  onDismiss={dismissAction}
+                />
               ))}
             </div>
           </div>
 
-          {/* Prompt bar */}
-          <div className="border-t border-cyan-500/10 bg-[#06070e] p-3 flex-shrink-0">
-            <div className="flex items-end gap-2 rounded border border-cyan-500/20 bg-[#05060d] px-3 py-2 focus-within:border-cyan-400/60 focus-within:shadow-[0_0_20px_-8px_rgba(34,211,238,0.4)] transition">
-              <span className="text-[10px] font-mono text-cyan-400/60 tracking-widest pt-2 flex-shrink-0">
-                COMMAND_SUBSTRATE_
-              </span>
-              <textarea
-                ref={taRef}
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  autoResize(e.currentTarget);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    onSubmit();
+          {/* Prompt bar — bottom */}
+          <div className="border-t border-white/[0.08] bg-[#0b0b0f] px-5 py-4 flex-shrink-0">
+            <div className="max-w-3xl mx-auto">
+              {/* Attachment chips */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {attachments.map((a) => (
+                    <div
+                      key={a.id}
+                      className="group flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[12px] text-white/80"
+                    >
+                      {a.kind === "image" ? (
+                        <ImageIcon className="w-3.5 h-3.5 text-white/50" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5 text-white/50" />
+                      )}
+                      <span className="truncate max-w-[160px]">{a.name}</span>
+                      <button
+                        onClick={() => removeAttachment(a.id)}
+                        className="p-0.5 rounded hover:bg-white/[0.1] text-white/50 hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-end gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.04] focus-within:border-white/30 focus-within:bg-white/[0.06] transition px-3 py-2.5 shadow-[0_4px_30px_-12px_rgba(0,0,0,0.5)]">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.md,.txt,.json,.csv,.html,.css,.js,.ts,.tsx,.jsx,.py"
+                  hidden
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+                <button
+                  onClick={onPickFiles}
+                  disabled={busy}
+                  className="w-8 h-8 grid place-items-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08] transition disabled:opacity-30"
+                  title="Attach files"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                <textarea
+                  ref={taRef}
+                  value={prompt}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    autoResize(e.currentTarget);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      onSubmit();
+                    }
+                  }}
+                  rows={1}
+                  placeholder={
+                    busy
+                      ? "Lumina is building…"
+                      : "Ask Lumina to build, research, or open a page…"
                   }
-                }}
-                rows={1}
-                placeholder={busy ? "synthesizing…" : "Issue a directive — Lumina will plan, build, and render live."}
-                disabled={busy}
-                className="flex-1 bg-transparent resize-none outline-none text-[13.5px] text-white/90 placeholder:text-cyan-300/30 py-1.5 font-sans leading-relaxed"
-              />
-              <button
-                onClick={onSubmit}
-                disabled={busy || !prompt.trim()}
-                className="p-2 rounded bg-gradient-to-br from-cyan-400 to-violet-500 text-[#05060d] hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-[0_0_16px_-4px_rgba(34,211,238,0.6)]"
-              >
-                {busy ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </button>
+                  disabled={busy}
+                  className="flex-1 bg-transparent resize-none outline-none text-[14px] text-white placeholder:text-white/35 py-1.5 leading-relaxed max-h-[200px]"
+                />
+
+                <button
+                  onClick={onSubmit}
+                  disabled={busy || !prompt.trim()}
+                  className="w-8 h-8 grid place-items-center rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed transition"
+                >
+                  {busy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowUp className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <div className="text-[11px] text-white/30 text-center mt-2">
+                Lumina can make mistakes. Attach images or text files for context.
+              </div>
             </div>
           </div>
         </main>
-
-        {/* Preview */}
-        <aside className="border-l border-cyan-500/10 bg-[#06070e] min-h-0">
-          <PreviewPanel
-            files={files}
-            activeFile={activeFile}
-            fullscreen={fullscreen}
-            setFullscreen={setFullscreen}
-          />
-        </aside>
       </div>
+
+      <PreviewPanel
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        files={files}
+        activeFile={activeFile}
+      />
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Empty state — capability cards
+// Empty state — Apple-clean welcome
 // ─────────────────────────────────────────────────────────────────────
 function EmptyState({ onPick }: { onPick: (s: string) => void }) {
   return (
-    <div className="flex-1 overflow-auto bg-[#06070e]">
-      <div className="max-w-3xl mx-auto px-8 py-12">
-        <div className="text-[10px] font-mono tracking-[0.3em] text-cyan-300/50 mb-3">
-          / WELCOME_TO_THE_SUBSTRATE
+    <div className="flex-1 overflow-auto bg-[#0e0e12]">
+      <div className="max-w-2xl mx-auto px-8 py-16">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm mb-5">
+          <Cpu className="w-6 h-6 text-black" />
         </div>
-        <h1 className="text-[32px] font-bold leading-tight bg-gradient-to-r from-cyan-200 via-white to-violet-200 bg-clip-text text-transparent mb-3">
-          Build anything. Live.
+        <h1 className="text-[34px] font-semibold tracking-tight leading-tight text-white mb-2">
+          What should we build?
         </h1>
-        <p className="text-white/60 text-[15px] leading-relaxed mb-8 max-w-2xl">
-          Lumina Computer is an agentic workspace. Describe what you want — a
-          study guide, a deep research report, an interactive simulator, even a
-          page to navigate to — and watch it stream into the editor and render
-          in the preview, in real time. Powered by OWL Alpha with free-tier
-          fallback.
+        <p className="text-white/55 text-[15px] leading-relaxed mb-8 max-w-xl">
+          Describe an interactive page, a deep research report, or a study tool.
+          Lumina plans, writes the code live, and renders it in the preview.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+        <div className="space-y-2 mb-10">
           {SUGGESTIONS.map((s, i) => (
             <button
               key={i}
               onClick={() => onPick(s)}
-              className="group text-left p-4 rounded border border-cyan-500/15 bg-gradient-to-br from-white/[0.02] to-transparent hover:from-cyan-500/[0.06] hover:border-cyan-400/40 transition"
+              className="group w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/15 transition"
             >
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-4 h-4 text-cyan-400/60 mt-0.5 flex-shrink-0 group-hover:text-cyan-300" />
-                <div className="text-[13px] text-white/80 leading-snug group-hover:text-white">
-                  {s}
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-cyan-400/30 mt-0.5 ml-auto flex-shrink-0 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition" />
-              </div>
+              <Sparkles className="w-4 h-4 text-white/40 flex-shrink-0 group-hover:text-white/80 transition" />
+              <span className="text-[14px] text-white/85 flex-1">{s}</span>
+              <ArrowUp className="w-3.5 h-3.5 text-white/25 rotate-45 group-hover:text-white/70 transition" />
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 text-[11px] font-mono tracking-wide">
-          <Capability label="MULTI-FILE" desc="HTML + CSS + JS together" />
-          <Capability label="LIVE_RENDER" desc="iframe updates per token" />
-          <Capability label="AGENT_NAV" desc="opens Lumina pages on cue" />
+        <div className="grid grid-cols-3 gap-3">
+          <Tile icon={PlayCircle} label="Run" desc="Live preview" />
+          <Tile icon={FolderOpen} label="Files" desc="Multi-file output" />
+          <Tile icon={Compass} label="Navigate" desc="Open Lumina pages" />
         </div>
       </div>
     </div>
   );
 }
 
-function Capability({ label, desc }: { label: string; desc: string }) {
+function Tile({
+  icon: Icon,
+  label,
+  desc,
+}: {
+  icon: typeof PlayCircle;
+  label: string;
+  desc: string;
+}) {
   return (
-    <div className="rounded border border-cyan-500/10 bg-white/[0.02] px-3 py-2.5">
-      <div className="text-cyan-300/80 tracking-[0.2em] text-[10px]">{label}</div>
-      <div className="text-white/50 text-[11px] mt-0.5 font-sans">{desc}</div>
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+      <Icon className="w-4 h-4 text-white/60 mb-2" />
+      <div className="text-[13px] font-medium text-white/90">{label}</div>
+      <div className="text-[12px] text-white/40 mt-0.5">{desc}</div>
     </div>
   );
 }
