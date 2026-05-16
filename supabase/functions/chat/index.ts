@@ -165,14 +165,27 @@ serve(async (req) => {
       console.warn("memory fetch failed:", memErr);
     }
 
-    const models = artifactFeature
-      ? MODELS_LONG_CTX
-      : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
-    // NEVER truncate — let the model write to its full window. 131072 per spec.
-    const maxTokens =
-      intent === "greeting" || intent === "conversational" ? 1200 : 131072;
-    const temperature = artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
-    const timeoutMs = artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000;
+    const isComputerMode = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
+
+    if (isComputerMode) {
+      systemPrompt += COMPUTER_AGENTIC_PROMPT;
+    }
+
+    const models = isComputerMode
+      ? Array.from(new Set([
+          "openrouter/owl-alpha",
+          ...MODELS_LONG_CTX,
+          ...MODELS_QUALITY,
+        ]))
+      : artifactFeature
+        ? MODELS_LONG_CTX
+        : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
+
+    const maxTokens = isComputerMode
+      ? 65000
+      : (intent === "greeting" || intent === "conversational" ? 1200 : 131072);
+    const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
+    const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
