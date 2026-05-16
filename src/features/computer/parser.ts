@@ -47,6 +47,7 @@ export class LuminaParser {
     plan: "",
     files: [],
     final: "",
+    actions: [],
     hasTags: false,
   };
 
