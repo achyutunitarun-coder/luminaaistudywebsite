@@ -75,8 +75,11 @@ const ChatSidebar = ({
       </Button>
     </div>
 
-    <div className="px-4 py-1.5">
+    <div className="px-4 py-1.5 flex items-center justify-between">
       <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/40">History</span>
+      {chats.length > 0 && (
+        <span className="text-[9px] text-muted-foreground/40">{chats.length}</span>
+      )}
     </div>
 
     <div className="flex-1 overflow-auto px-2 space-y-0.5 scrollbar-thin scrollbar-thumb-border/10">
@@ -199,8 +202,15 @@ const ChatPage = () => {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: isLoading ? 'auto' : 'smooth' }); }, [messages, isLoading]);
 
   const loadChats = async () => {
-    const { data } = await supabase.from('chats').select('*').order('updated_at', { ascending: false });
-    if (data) setChats(data);
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('chats')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(100);
+    if (error) { console.error('loadChats:', error); toast.error('Could not load conversations'); return; }
+    if (data) setChats(data as Chat[]);
   };
 
   const loadMessages = async (chatId: string) => {

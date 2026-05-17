@@ -47,13 +47,17 @@ const Flashcards = () => {
   });
 
   const generateDeck = async () => {
-    if (!content.trim() || !title.trim() || !user) return;
+    if (!title.trim() || !user) return;
     const allowed = await checkAndIncrement('flashcard_sets');
     if (!allowed) return;
     setGenerating(true);
     try {
       const fileContext = buildFileContext(uploadedFiles);
-      const fullContent = content + fileContext;
+      // Topic-only generation: if no notes pasted, use the title/topic as the basis.
+      const baseContent = content.trim()
+        ? content
+        : `Generate comprehensive, exam-quality flashcards about the topic: "${title.trim()}". Cover key definitions, core concepts, common formulas/facts, important examples, and the kinds of questions a student is most likely to be asked. Vary card difficulty (easy → hard).`;
+      const fullContent = baseContent + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-flashcards`, {
         method: 'POST',
         headers: {
@@ -199,7 +203,7 @@ const Flashcards = () => {
                 className="bg-muted/20 border-border/30 rounded-xl h-13 px-5 text-base"
               />
               <Textarea
-                placeholder="Paste your notes, textbook content, or syllabus here..."
+                placeholder="Optional — paste notes, textbook content, or syllabus. Leave empty to generate from the title alone."
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[140px] px-5 py-4 text-sm resize-none"
@@ -232,7 +236,7 @@ const Flashcards = () => {
               <div className="flex gap-3">
                 <Button
                   onClick={generateDeck}
-                  disabled={generating || !title.trim() || !content.trim()}
+                  disabled={generating || !title.trim()}
                   className="gradient-primary text-primary-foreground h-12 px-8 rounded-2xl shadow-lg shadow-primary/20"
                 >
                   {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
