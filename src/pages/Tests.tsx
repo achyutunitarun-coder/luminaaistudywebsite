@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Loader2, Target, Brain, Trophy, ArrowLeft, CheckCircle, XCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { SavedItemsPanel } from '@/components/SavedItemsPanel';
@@ -35,6 +35,19 @@ const Tests = () => {
   const [testId, setTestId] = useState<string | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
+  // Keyboard navigation while a test is in progress
+  useEffect(() => {
+    if (questions.length === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') setCurrentQ(c => Math.min(questions.length - 1, c + 1));
+      if (e.key === 'ArrowLeft') setCurrentQ(c => Math.max(0, c - 1));
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [questions.length]);
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
@@ -247,17 +260,17 @@ const Tests = () => {
               </motion.div>
             )}
 
-            {/* Question card */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentQ}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-                className="rounded-[2rem] liquid-glass-intense overflow-hidden"
-              >
-                <div className="p-8">
+            {/* Question card — animated content only; nav lives outside so it never re-mounts mid-click */}
+            <div className="rounded-[2rem] liquid-glass-intense overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentQ}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.18 }}
+                  className="p-8"
+                >
                   <div className="flex items-start gap-4 mb-8">
                     <span className={`text-sm font-bold px-3 py-1.5 rounded-xl flex-shrink-0 ${
                       submitted
@@ -293,7 +306,7 @@ const Tests = () => {
                       }
 
                       return (
-                        <button key={oi} className={cls} onClick={() => !submitted && setAnswers(p => ({ ...p, [currentQ]: oi }))} disabled={submitted}>
+                        <button type="button" key={oi} className={cls} onClick={() => !submitted && setAnswers(p => ({ ...p, [currentQ]: oi }))} disabled={submitted}>
                           <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                             submitted
                               ? isCorrectOpt ? 'bg-success/20 text-success' : isSelected ? 'bg-destructive/20 text-destructive' : 'bg-muted/20 text-muted-foreground'
@@ -316,29 +329,32 @@ const Tests = () => {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </motion.div>
+              </AnimatePresence>
 
-                <div className="flex items-center justify-between px-8 py-5 border-t border-border/15 bg-muted/5">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setCurrentQ(Math.max(0, currentQ - 1))}
-                    disabled={currentQ === 0}
-                    className="rounded-xl"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                  </Button>
-                  <span className="text-xs text-muted-foreground">{currentQ + 1} of {questions.length}</span>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setCurrentQ(Math.min(questions.length - 1, currentQ + 1))}
-                    disabled={currentQ === questions.length - 1}
-                    className="rounded-xl"
-                  >
-                    Next <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-              </motion.div>
-            </AnimatePresence>
+              {/* Stable nav — never re-mounts on question change */}
+              <div className="flex items-center justify-between px-8 py-5 border-t border-border/15 bg-muted/5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setCurrentQ(c => Math.max(0, c - 1))}
+                  disabled={currentQ === 0}
+                  className="rounded-xl"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">{currentQ + 1} of {questions.length}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setCurrentQ(c => Math.min(questions.length - 1, c + 1))}
+                  disabled={currentQ === questions.length - 1}
+                  className="rounded-xl"
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
 
             {/* Mobile submit */}
             <div className="lg:hidden">
