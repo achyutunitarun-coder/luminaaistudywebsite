@@ -22,9 +22,6 @@ verify_jwt = false
 [functions.generate-podcast-script]
 verify_jwt = false
 
-[functions.chat-artifact-v2]
-verify_jwt = false
-
 [functions.generate-lecture-tools]
 verify_jwt = false
 
