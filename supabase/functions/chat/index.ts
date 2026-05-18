@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX } from "../_shared/models.ts";
-// artifact-prompts intentionally not imported here — artifact generation is handled by generate-html-artifact
+import { detectArtifactFeature, buildArtifactSystemPrompt } from "../_shared/artifact-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,12 +29,16 @@ serve(async (req) => {
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
 
-    // Artifact requests (slides / notes / exam) are handled by the dedicated
-    // generate-html-artifact pipeline on the client (GenerateSetupCard → ArtifactCard).
-    // We deliberately do NOT inline raw HTML in chat — it produced broken UX.
-    const artifactFeature: null = null;
+    // Detect artifact requests (slides / notes / exam) and use the master prompt system
+    // when the user explicitly asks for one in chat. Produces a single self-contained HTML file.
+    const artifactFeature = !hasFiles ? detectArtifactFeature(queryText) : null;
 
-    let systemPrompt: string = getSystemPromptForIntent(intent);
+    let systemPrompt: string;
+    if (artifactFeature) {
+      systemPrompt = buildArtifactSystemPrompt(artifactFeature);
+    } else {
+      systemPrompt = getSystemPromptForIntent(intent);
+    }
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     // Inject persistent user memory so the AI recalls past context

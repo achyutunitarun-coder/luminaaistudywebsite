@@ -200,26 +200,6 @@ function preprocessLatex(text: string): string {
   processed = processed.replace(/([^\n])\$\$/g, '$1\n\n$$');
   processed = processed.replace(/\$\$([^\n])/g, '$$\n$1');
 
-  // 9b. Auto-wrap obvious bare LaTeX (no delimiters) so the renderer doesn't show raw backslashes.
-  //     Heuristic: a line containing common KaTeX commands (\frac, \sqrt, \sum, \int, \alpha, etc.)
-  //     or sub/sup constructs ({_}, {^}) with NO existing $ on the line.
-  const BARE_LATEX_RE = /\\(frac|sqrt|sum|int|prod|lim|alpha|beta|gamma|delta|theta|lambda|mu|pi|sigma|phi|omega|infty|cdot|times|approx|leq|geq|neq|rightarrow|leftarrow|partial|nabla|hat|vec|bar|overline|underline|mathbb|mathrm|mathbf|mathcal|begin\{)/;
-  processed = processed
-    .split('\n')
-    .map((line) => {
-      if (line.includes('$') || line.startsWith('%%CODEBLOCK_')) return line;
-      // Skip lines that are part of markdown structure (headings, lists, tables, blockquotes)
-      if (/^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|\|)/.test(line)) return line;
-      if (BARE_LATEX_RE.test(line) || /[A-Za-z]_\{[^}]+\}|[A-Za-z]\^\{[^}]+\}/.test(line)) {
-        const trimmed = line.trim();
-        if (trimmed.length > 0 && trimmed.length < 200) {
-          return line.replace(trimmed, `$$${trimmed}$$`);
-        }
-      }
-      return line;
-    })
-    .join('\n');
-
   // 10. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
