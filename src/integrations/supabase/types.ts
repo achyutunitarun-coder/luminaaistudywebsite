@@ -41,62 +41,6 @@ export type Database = {
         }
         Relationships: []
       }
-      artifact_jobs: {
-        Row: {
-          artifact_type: string
-          chat_id: string | null
-          completed_at: string | null
-          created_at: string
-          error_message: string | null
-          html: string | null
-          id: string
-          model_used: string | null
-          prompt: string
-          status: string
-          topic: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          artifact_type: string
-          chat_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          html?: string | null
-          id?: string
-          model_used?: string | null
-          prompt: string
-          status?: string
-          topic: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          artifact_type?: string
-          chat_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          html?: string | null
-          id?: string
-          model_used?: string | null
-          prompt?: string
-          status?: string
-          topic?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "artifact_jobs_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       chat_artifacts: {
         Row: {
           artifact_type: string
@@ -144,43 +88,25 @@ export type Database = {
       }
       chat_messages: {
         Row: {
-          artifact_html: string | null
-          artifact_type: string | null
           chat_id: string
           content: string
           created_at: string
-          credits_used: number | null
           id: string
-          message_type: string
-          new_balance: number | null
           role: string
-          topic: string | null
         }
         Insert: {
-          artifact_html?: string | null
-          artifact_type?: string | null
           chat_id: string
           content: string
           created_at?: string
-          credits_used?: number | null
           id?: string
-          message_type?: string
-          new_balance?: number | null
           role: string
-          topic?: string | null
         }
         Update: {
-          artifact_html?: string | null
-          artifact_type?: string | null
           chat_id?: string
           content?: string
           created_at?: string
-          credits_used?: number | null
           id?: string
-          message_type?: string
-          new_balance?: number | null
           role?: string
-          topic?: string | null
         }
         Relationships: [
           {
