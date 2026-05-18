@@ -11,7 +11,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/features/chat/ChatPage";
+import Chat from "@/pages/Chat";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -35,9 +35,6 @@ import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
-import PrivacySettings from "@/pages/PrivacySettings";
-import TrainingData from "@/pages/TrainingData";
-import { ConsentBanner } from "@/components/ConsentBanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,7 +58,6 @@ const ProtectedLayout = () => {
         {needsOnboarding && (
           <Onboarding onComplete={() => setNeedsOnboarding(false)} />
         )}
-        <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
           <Outlet />
@@ -114,8 +110,6 @@ const App = () => (
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/squad" element={<Squad />} />
-              <Route path="/settings/privacy" element={<PrivacySettings />} />
-              <Route path="/training-data" element={<TrainingData />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

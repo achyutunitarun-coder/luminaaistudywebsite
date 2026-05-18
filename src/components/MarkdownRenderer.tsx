@@ -1,77 +1,17 @@
-import { useState, useCallback, useMemo, useEffect, Children, cloneElement, isValidElement, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
-import { Check, Copy, Download, Play, X } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 
 const HTML_BREAK_TOKEN = '%%LUMINA_BR%%';
 
-const RUNNABLE_LANGS = new Set(['html', 'htm', 'xhtml', 'svg', 'js', 'javascript', 'css']);
-const EXT_FOR_LANG: Record<string, string> = {
-  html: 'html', htm: 'html', xhtml: 'html', svg: 'svg',
-  js: 'js', javascript: 'js', jsx: 'jsx', ts: 'ts', tsx: 'tsx',
-  css: 'css', json: 'json', python: 'py', py: 'py', sh: 'sh', bash: 'sh',
-  c: 'c', cpp: 'cpp', java: 'java', go: 'go', rust: 'rs', rs: 'rs',
-  sql: 'sql', yaml: 'yml', yml: 'yml', md: 'md', xml: 'xml',
-};
-
-function buildRunnableDoc(lang: string, code: string): string {
-  const l = lang.toLowerCase();
-  if (l === 'html' || l === 'htm' || l === 'xhtml') return code;
-  if (l === 'svg') return `<!doctype html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#0a0c12">${code}</body></html>`;
-  if (l === 'css') return `<!doctype html><html><head><style>${code}</style></head><body><div class="demo"><h1>Hello</h1><p>This is a styled preview.</p><button>Button</button></div></body></html>`;
-  // JS / generic — capture console & errors
-  return `<!doctype html><html><head><style>
-    body{margin:0;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0a0c12;color:#e7eaf2;padding:14px;white-space:pre-wrap}
-    .err{color:#ff6b6b}.warn{color:#ffd166}.info{color:#7dd3fc}
-  </style></head><body><div id="out"></div><script>
-    const out=document.getElementById('out');
-    const fmt=v=>{try{return typeof v==='object'?JSON.stringify(v,null,2):String(v)}catch(_){return String(v)}};
-    const write=(cls,args)=>{const d=document.createElement('div');d.className=cls;d.textContent=[...args].map(fmt).join(' ');out.appendChild(d);};
-    ['log','info','warn','error'].forEach(k=>{const o=console[k].bind(console);console[k]=(...a)=>{write(k==='log'?'info':k,a);o(...a)}});
-    window.addEventListener('error',e=>write('err','Error: '+e.message));
-    window.addEventListener('unhandledrejection',e=>write('err','Unhandled: '+(e.reason&&e.reason.message||e.reason)));
-    try{${code}\n}catch(e){write('err',['Error: '+e.message])}
-  </script></body></html>`;
-}
-
-function RunModal({ lang, code, onClose }: { lang: string; code: string; onClose: () => void }) {
-  const doc = useMemo(() => buildRunnableDoc(lang, code), [lang, code]);
-  const srcDoc = doc;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col" onClick={onClose}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-[#0a0c12]" onClick={(e) => e.stopPropagation()}>
-        <div className="text-xs font-mono text-white/60 uppercase tracking-wider">Lumina Run · {lang}</div>
-        <button onClick={onClose} className="text-white/60 hover:text-white flex items-center gap-1.5 text-xs px-2 py-1 rounded-md hover:bg-white/10">
-          <X className="w-4 h-4" /> Close
-        </button>
-      </div>
-      <iframe
-        title="Lumina Code Preview"
-        sandbox="allow-scripts allow-pointer-lock allow-modals allow-forms allow-popups"
-        srcDoc={srcDoc}
-        className="flex-1 w-full bg-white"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  );
-}
-
 function CodeBlock({ className, children }: { className?: string; children: string }) {
   const [copied, setCopied] = useState(false);
-  const [running, setRunning] = useState(false);
-  const lang = (className?.replace('language-', '') || '').toLowerCase();
-  const isRunnable = RUNNABLE_LANGS.has(lang);
-  const ext = EXT_FOR_LANG[lang] || 'txt';
+  const lang = className?.replace('language-', '') || '';
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(children.replace(/\n$/, ''));
@@ -79,49 +19,19 @@ function CodeBlock({ className, children }: { className?: string; children: stri
     setTimeout(() => setCopied(false), 2000);
   }, [children]);
 
-  const handleDownload = useCallback(() => {
-    const blob = new Blob([children.replace(/\n$/, '')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `lumina-snippet.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, [children, ext]);
-
   return (
-    <>
-      <div className="relative group rounded-xl overflow-hidden border border-border/20 bg-[hsl(var(--card))]/60 backdrop-blur-sm my-4 shadow-md">
-        <div className="flex items-center justify-between px-4 py-2 bg-[hsl(var(--muted))]/40 border-b border-border/15 gap-3">
-          <span className="text-[11px] font-mono text-muted-foreground/60 uppercase tracking-wider">{lang || 'code'}</span>
-          <div className="flex items-center gap-1">
-            <button onClick={handleCopy}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors duration-200 px-2 py-1 rounded-md hover:bg-muted/30">
-              {copied ? <><Check className="w-3.5 h-3.5 text-green-400" /><span className="text-green-400">Copied</span></> : <><Copy className="w-3.5 h-3.5" /><span>Copy</span></>}
-            </button>
-            <button onClick={handleDownload}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors duration-200 px-2 py-1 rounded-md hover:bg-muted/30">
-              <Download className="w-3.5 h-3.5" /><span>Download</span>
-            </button>
-            {isRunnable && (
-              <>
-                <span className="text-muted-foreground/30 px-1">|</span>
-                <button onClick={() => setRunning(true)}
-                  className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary/80 transition-colors duration-200 px-2 py-1 rounded-md hover:bg-primary/10 font-medium">
-                  <Play className="w-3.5 h-3.5" /><span>Run</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-        <pre className="!m-0 !rounded-none !border-0 !bg-transparent !shadow-none overflow-x-auto p-4">
-          <code className={`${className || ''} text-[12px] md:text-[13px] leading-relaxed`}>{children}</code>
-        </pre>
+    <div className="relative group rounded-xl overflow-hidden border border-border/20 bg-[hsl(var(--card))]/60 backdrop-blur-sm my-4 shadow-md">
+      <div className="flex items-center justify-between px-4 py-2 bg-[hsl(var(--muted))]/40 border-b border-border/15">
+        <span className="text-[11px] font-mono text-muted-foreground/60 uppercase tracking-wider">{lang || 'code'}</span>
+        <button onClick={handleCopy}
+          className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors duration-200 px-2 py-1 rounded-md hover:bg-muted/30">
+          {copied ? <><Check className="w-3.5 h-3.5 text-green-400" /><span className="text-green-400">Copied!</span></> : <><Copy className="w-3.5 h-3.5" /><span>Copy</span></>}
+        </button>
       </div>
-      {running && <RunModal lang={lang} code={children.replace(/\n$/, '')} onClose={() => setRunning(false)} />}
-    </>
+      <pre className="!m-0 !rounded-none !border-0 !bg-transparent !shadow-none overflow-x-auto p-4">
+        <code className={`${className || ''} text-[12px] md:text-[13px] leading-relaxed`}>{children}</code>
+      </pre>
+    </div>
   );
 }
 
@@ -157,70 +67,34 @@ function preprocessLatex(text: string): string {
   // 1. Normalize line endings
   let processed = text.replace(/\r\n?/g, '\n');
 
-  // 2. Protect code blocks (fenced + inline)
+  // 2. Protect code blocks
   const codeBlocks: string[] = [];
   processed = processed.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
     codeBlocks.push(match);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
 
-  // 3. HTML <br> tags
+  // 3. Handle HTML <br> tags
   processed = processed.replace(/<br\s*\/?>/gi, HTML_BREAK_TOKEN);
 
-  // 4. \( ... \) → $ ... $   (inline; collapse internal newlines so KaTeX accepts it)
-  processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, m) => `$${String(m).replace(/\s*\n\s*/g, ' ').trim()}$`);
+  // 4. Convert \( ... \) to inline math $ ... $ (single line, non-greedy)
+  processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, math) => `$${math.trim()}$`);
 
-  // 5. \[ ... \] → $$ ... $$ (display)
-  processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n\n$$\n${String(m).trim()}\n$$\n\n`);
+  // 5. Convert \[ ... \] to display math $$ ... $$ (multi-line)
+  processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`);
 
-  // 6. Bare \begin{env}...\end{env} → wrap in $$ (only when NOT already wrapped).
-  //    We protect already-$$-wrapped envs first, then wrap the rest.
-  const protectedEnvs: string[] = [];
+  // 6. Handle standalone \begin{env}...\end{env} not already inside $$
+  //    Wrap them in $$ so KaTeX can process them
   processed = processed.replace(
-    /\$\$\s*\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\1\}\s*\$\$/g,
-    (m) => { protectedEnvs.push(m); return `%%MATHENV_${protectedEnvs.length - 1}%%`; }
+    /(?<!\$\$\s*\n?\s*)\\begin\{(aligned|align|equation|gather|matrix|bmatrix|pmatrix|vmatrix|cases|array|split)\}([\s\S]*?)\\end\{\1\}(?!\s*\n?\s*\$\$)/g,
+    (match) => `\n$$\n${match}\n$$\n`
   );
-  processed = processed.replace(
-    /\\begin\{(aligned|align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|Vmatrix|smallmatrix|cases|array|split|multline\*?)\}([\s\S]*?)\\end\{\1\}/g,
-    (m) => `\n\n$$\n${m}\n$$\n\n`
-  );
-  processed = processed.replace(/%%MATHENV_(\d+)%%/g, (_, i) => protectedEnvs[parseInt(i)]);
 
-  // 7. Escape lone "$" used as currency so remark-math doesn't grab it.
-  //    Heuristic: $ immediately followed by a digit and NOT closed by another $ on the same line.
-  processed = processed.replace(/(^|[^\\$])\$(\d[\d,.]*)(?!\s*[^\n$]*\$)/g, '$1\\$$$2');
-
-  // 8. Inline $...$ — kill internal newlines (LLMs sometimes wrap)
-  processed = processed.replace(/(^|[^\$\\])\$([^\n$][^$]*?)\$(?!\$)/g, (_, pre, body) => {
-    if (!body || body.length > 200) return _;
-    return `${pre}$${body.replace(/\s*\n\s*/g, ' ').trim()}$`;
-  });
-
-  // 9. Ensure $$ display blocks have blank-line separation (remark-math is strict)
-  processed = processed.replace(/([^\n])\$\$/g, '$1\n\n$$');
+  // 7. Ensure $$ display blocks have newlines around them for remark-math
+  processed = processed.replace(/([^\n])\$\$/g, '$1\n$$');
   processed = processed.replace(/\$\$([^\n])/g, '$$\n$1');
 
-  // 9b. Auto-wrap obvious bare LaTeX (no delimiters) so the renderer doesn't show raw backslashes.
-  //     Heuristic: a line containing common KaTeX commands (\frac, \sqrt, \sum, \int, \alpha, etc.)
-  //     or sub/sup constructs ({_}, {^}) with NO existing $ on the line.
-  const BARE_LATEX_RE = /\\(frac|sqrt|sum|int|prod|lim|alpha|beta|gamma|delta|theta|lambda|mu|pi|sigma|phi|omega|infty|cdot|times|approx|leq|geq|neq|rightarrow|leftarrow|partial|nabla|hat|vec|bar|overline|underline|mathbb|mathrm|mathbf|mathcal|begin\{)/;
-  processed = processed
-    .split('\n')
-    .map((line) => {
-      if (line.includes('$') || line.startsWith('%%CODEBLOCK_')) return line;
-      // Skip lines that are part of markdown structure (headings, lists, tables, blockquotes)
-      if (/^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|\|)/.test(line)) return line;
-      if (BARE_LATEX_RE.test(line) || /[A-Za-z]_\{[^}]+\}|[A-Za-z]\^\{[^}]+\}/.test(line)) {
-        const trimmed = line.trim();
-        if (trimmed.length > 0 && trimmed.length < 200) {
-          return line.replace(trimmed, `$$${trimmed}$$`);
-        }
-      }
-      return line;
-    })
-    .join('\n');
-
-  // 10. Restore code blocks
+  // 8. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
   return processed;

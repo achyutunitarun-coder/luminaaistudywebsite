@@ -41,146 +41,27 @@ export type Database = {
         }
         Relationships: []
       }
-      artifact_jobs: {
-        Row: {
-          artifact_type: string
-          chat_id: string | null
-          completed_at: string | null
-          created_at: string
-          error_message: string | null
-          html: string | null
-          id: string
-          model_used: string | null
-          prompt: string
-          status: string
-          topic: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          artifact_type: string
-          chat_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          html?: string | null
-          id?: string
-          model_used?: string | null
-          prompt: string
-          status?: string
-          topic: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          artifact_type?: string
-          chat_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          error_message?: string | null
-          html?: string | null
-          id?: string
-          model_used?: string | null
-          prompt?: string
-          status?: string
-          topic?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "artifact_jobs_chat_id_fkey"
-            columns: ["chat_id"]
-            isOneToOne: false
-            referencedRelation: "chats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chat_artifacts: {
-        Row: {
-          artifact_type: string
-          chat_id: string
-          created_at: string
-          generation_time_ms: number
-          html: string
-          id: string
-          line_count: number
-          message_id: string | null
-          model_used: string | null
-          theme: string
-          title: string
-          user_id: string
-        }
-        Insert: {
-          artifact_type: string
-          chat_id: string
-          created_at?: string
-          generation_time_ms?: number
-          html: string
-          id?: string
-          line_count?: number
-          message_id?: string | null
-          model_used?: string | null
-          theme?: string
-          title?: string
-          user_id: string
-        }
-        Update: {
-          artifact_type?: string
-          chat_id?: string
-          created_at?: string
-          generation_time_ms?: number
-          html?: string
-          id?: string
-          line_count?: number
-          message_id?: string | null
-          model_used?: string | null
-          theme?: string
-          title?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       chat_messages: {
         Row: {
-          artifact_html: string | null
-          artifact_type: string | null
           chat_id: string
           content: string
           created_at: string
-          credits_used: number | null
           id: string
-          message_type: string
-          new_balance: number | null
           role: string
-          topic: string | null
         }
         Insert: {
-          artifact_html?: string | null
-          artifact_type?: string | null
           chat_id: string
           content: string
           created_at?: string
-          credits_used?: number | null
           id?: string
-          message_type?: string
-          new_balance?: number | null
           role: string
-          topic?: string | null
         }
         Update: {
-          artifact_html?: string | null
-          artifact_type?: string | null
           chat_id?: string
           content?: string
           created_at?: string
-          credits_used?: number | null
           id?: string
-          message_type?: string
-          new_balance?: number | null
           role?: string
-          topic?: string | null
         }
         Relationships: [
           {
@@ -291,108 +172,6 @@ export type Database = {
           target?: number
           user_id?: string
           xp_reward?: number
-        }
-        Relationships: []
-      }
-      data_access_audit: {
-        Row: {
-          action: string
-          actor: string | null
-          created_at: string
-          filters: Json | null
-          id: string
-          record_count: number | null
-        }
-        Insert: {
-          action: string
-          actor?: string | null
-          created_at?: string
-          filters?: Json | null
-          id?: string
-          record_count?: number | null
-        }
-        Update: {
-          action?: string
-          actor?: string | null
-          created_at?: string
-          filters?: Json | null
-          id?: string
-          record_count?: number | null
-        }
-        Relationships: []
-      }
-      data_consent: {
-        Row: {
-          consented_at: string
-          training_data_opt_in: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          consented_at?: string
-          training_data_opt_in?: boolean
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          consented_at?: string
-          training_data_opt_in?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      exam_packs: {
-        Row: {
-          active: boolean
-          created_at: string
-          currency: string
-          description: string
-          emoji: string
-          id: string
-          level: string
-          original_price_cents: number
-          price_cents: number
-          product_id: string
-          sort_order: number
-          subject: string
-          title: string
-          updated_at: string
-          whats_inside: Json
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          currency?: string
-          description?: string
-          emoji?: string
-          id?: string
-          level: string
-          original_price_cents?: number
-          price_cents?: number
-          product_id: string
-          sort_order?: number
-          subject: string
-          title: string
-          updated_at?: string
-          whats_inside?: Json
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          currency?: string
-          description?: string
-          emoji?: string
-          id?: string
-          level?: string
-          original_price_cents?: number
-          price_cents?: number
-          product_id?: string
-          sort_order?: number
-          subject?: string
-          title?: string
-          updated_at?: string
-          whats_inside?: Json
         }
         Relationships: []
       }
@@ -717,119 +496,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      learning_feedback: {
-        Row: {
-          correction_text: string | null
-          created_at: string
-          feedback_type: string
-          id: string
-          interaction_id: string
-          user_id: string
-        }
-        Insert: {
-          correction_text?: string | null
-          created_at?: string
-          feedback_type: string
-          id?: string
-          interaction_id: string
-          user_id: string
-        }
-        Update: {
-          correction_text?: string | null
-          created_at?: string
-          feedback_type?: string
-          id?: string
-          interaction_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learning_feedback_interaction_id_fkey"
-            columns: ["interaction_id"]
-            isOneToOne: false
-            referencedRelation: "learning_interactions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learning_interactions: {
-        Row: {
-          ai_response: string
-          concepts: string[] | null
-          created_at: string
-          device_type: string | null
-          difficulty: string | null
-          exported_at: string | null
-          feedback: string | null
-          follow_up: boolean | null
-          id: string
-          language: string | null
-          latency_ms: number | null
-          model_used: string | null
-          pii_scrubbed: boolean
-          quality_score: number | null
-          session_id: string
-          source: string | null
-          steps: Json | null
-          subject: string | null
-          topic: string | null
-          understood: string | null
-          user_correction: string | null
-          user_id: string | null
-          user_input: string
-        }
-        Insert: {
-          ai_response: string
-          concepts?: string[] | null
-          created_at?: string
-          device_type?: string | null
-          difficulty?: string | null
-          exported_at?: string | null
-          feedback?: string | null
-          follow_up?: boolean | null
-          id?: string
-          language?: string | null
-          latency_ms?: number | null
-          model_used?: string | null
-          pii_scrubbed?: boolean
-          quality_score?: number | null
-          session_id: string
-          source?: string | null
-          steps?: Json | null
-          subject?: string | null
-          topic?: string | null
-          understood?: string | null
-          user_correction?: string | null
-          user_id?: string | null
-          user_input: string
-        }
-        Update: {
-          ai_response?: string
-          concepts?: string[] | null
-          created_at?: string
-          device_type?: string | null
-          difficulty?: string | null
-          exported_at?: string | null
-          feedback?: string | null
-          follow_up?: boolean | null
-          id?: string
-          language?: string | null
-          latency_ms?: number | null
-          model_used?: string | null
-          pii_scrubbed?: boolean
-          quality_score?: number | null
-          session_id?: string
-          source?: string | null
-          steps?: Json | null
-          subject?: string | null
-          topic?: string | null
-          understood?: string | null
-          user_correction?: string | null
-          user_id?: string | null
-          user_input?: string
-        }
-        Relationships: []
       }
       learning_performance: {
         Row: {
@@ -1802,50 +1468,6 @@ export type Database = {
           value?: string
         }
         Relationships: []
-      }
-      user_unlocked_packs: {
-        Row: {
-          generated_at: string | null
-          html_storage_path: string | null
-          id: string
-          pack_id: string
-          payment_id: string | null
-          payment_status: string
-          product_id: string
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          generated_at?: string | null
-          html_storage_path?: string | null
-          id?: string
-          pack_id: string
-          payment_id?: string | null
-          payment_status?: string
-          product_id: string
-          unlocked_at?: string
-          user_id: string
-        }
-        Update: {
-          generated_at?: string | null
-          html_storage_path?: string | null
-          id?: string
-          pack_id?: string
-          payment_id?: string | null
-          payment_status?: string
-          product_id?: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_unlocked_packs_pack_id_fkey"
-            columns: ["pack_id"]
-            isOneToOne: false
-            referencedRelation: "exam_packs"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       weekly_stats: {
         Row: {

@@ -16,8 +16,7 @@ const Performance = () => {
   const [active, setActive] = useState('overall');
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const rawName = profile?.display_name?.split(' ')[0]?.trim() || '';
-  const userName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName) ? 'scholar' : rawName;
+  const userName = profile?.display_name?.split(' ')[0] || 'there';
   const { subjects, performanceData, isLoading, hasData } = usePerformanceData();
 
   const data = performanceData[active];
