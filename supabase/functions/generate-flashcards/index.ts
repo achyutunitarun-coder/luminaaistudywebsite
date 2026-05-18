@@ -40,14 +40,23 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Create ${count} flashcards. Mix types: why, compare, apply, recall. Return ONLY JSON: {"cards": [{"front": "question", "back": "answer"}]}. Do NOT include thinking tags.` },
-        { role: "user", content: `Create ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,120000)}` },
+        { role: "system", content: `You generate flashcards. RULES:
+1. Output EXACTLY ${count} cards — not ${count - 1}, not ${count + 1}, EXACTLY ${count}.
+2. Mix types: definition, why, compare, apply, recall.
+3. Front = a clear question (≤20 words). Back = a concise, factually accurate answer (≤40 words).
+4. Return ONLY this JSON shape, nothing else: {"cards": [{"front":"...","back":"..."}]}
+5. No <think> tags, no markdown fences, no commentary.` },
+        { role: "user", content: `Create EXACTLY ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,120000)}` },
       ],
-      MODELS_FAST, 3000, 0.5, 45_000, "flashcards"
+      MODELS_FAST, 4000, 0.5, 45_000, "flashcards"
     );
 
     const parsed = cleanJSON(text);
-    if (parsed?.cards) return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (parsed?.cards && Array.isArray(parsed.cards)) {
+      // Clamp to exact requested count
+      parsed.cards = parsed.cards.slice(0, count);
+      return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     return new Response(JSON.stringify({ error: "AI returned invalid response. Try again." }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("generate-flashcards error:", e);

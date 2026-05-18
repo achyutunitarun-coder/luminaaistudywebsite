@@ -62,6 +62,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     setSubjects(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
 
+  const handleNext = () => {
+    if (isLast) {
+      handleComplete();
+    } else {
+      setStep(s => s + 1);
+    }
+  };
+
   const handleComplete = async () => {
     try {
       await supabase.from('profiles').update({
@@ -91,13 +99,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           {ROLES.map((r, i) => (
             <motion.button
               key={r.id}
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, ease }}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setRole(r.id)}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 ${
+              className={`relative p-4 rounded-2xl border text-left transition-all duration-300 ${
                 role === r.id
                   ? 'border-primary/50 bg-primary/10 shadow-lg shadow-primary/10'
                   : 'border-border/30 bg-card/30 hover:border-primary/20'
@@ -135,6 +144,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           {SOURCES.map((s, i) => (
             <motion.button
               key={s.id}
+              type="button"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05, ease }}
@@ -173,6 +183,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           {SUBJECTS.map((s, i) => (
             <motion.button
               key={s.id}
+              type="button"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04, ease }}
@@ -221,6 +232,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           {GOALS.map((g, i) => (
             <motion.button
               key={g.id}
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, ease }}
@@ -311,31 +323,39 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           className="mt-8 flex justify-between items-center px-4"
         >
           <button
+            type="button"
             onClick={() => step > 0 && setStep(step - 1)}
             className={`text-sm text-muted-foreground hover:text-foreground transition-colors ${step === 0 ? 'invisible' : ''}`}
           >
             Back
           </button>
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              onClick={() => {
-                if (isLast) handleComplete();
-                else setStep(step + 1);
-              }}
-              disabled={!canProceed}
-              className="h-11 px-6 rounded-2xl gradient-primary text-primary-foreground shadow-lg shadow-primary/20"
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleComplete}
+              className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors underline-offset-4 hover:underline"
             >
-              {isLast ? (
-                <>
-                  Get Started <Sparkles className="w-4 h-4 ml-2" />
-                </>
-              ) : (
-                <>
-                  Continue <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
-          </motion.div>
+              Skip for now
+            </button>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={!canProceed}
+                className="h-11 px-6 rounded-2xl gradient-primary text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                {isLast ? (
+                  <>
+                    Get Started <Sparkles className="w-4 h-4 ml-2" />
+                  </>
+                ) : (
+                  <>
+                    Continue <ArrowRight className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </motion.div>
+          </div>
         </motion.div>
       </div>
     </motion.div>

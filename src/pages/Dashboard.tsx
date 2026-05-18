@@ -27,7 +27,10 @@ const Dashboard = () => {
     try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
   }, [profile?.extra_preferences]);
 
-  const userName = profile?.display_name?.split(' ')[0] || 'there';
+  const rawName = profile?.display_name?.split(' ')[0]?.trim() || '';
+  // Sanitize: avoid greeting users with the app's own name or generic placeholders
+  const isGenericName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName);
+  const userName = isGenericName ? 'scholar' : rawName;
   const userSubjects = userPrefs?.subjects || [];
 
   const { data: todayMinutes } = useQuery({
@@ -332,7 +335,7 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">10 science-backed brain engines for ₹499/mo</p>
               </div>
               <Button
-                onClick={() => navigate('/upgrade')}
+                onClick={() => window.open('https://monumental-custard-d06d45.netlify.app/#pricing', '_blank', 'noopener')}
                 size="sm"
                 className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90 px-5"
               >

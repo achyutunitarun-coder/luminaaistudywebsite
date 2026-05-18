@@ -11,7 +11,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/pages/Chat";
+import Chat from "@/features/chat/ChatPage";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -38,9 +38,16 @@ import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
 import { ConsentBanner } from "@/components/ConsentBanner";
+import { CreditToast } from "@/features/credits/CreditToast";
+import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const PaymentReturnHandler = () => {
+  usePaymentReturn();
+  return null;
+};
 
 const ProtectedLayout = () => {
   const { user, loading, needsOnboarding, setNeedsOnboarding } = useAuth();
@@ -85,6 +92,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PaymentReturnHandler />
+          <CreditToast />
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
 

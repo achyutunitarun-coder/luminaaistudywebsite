@@ -5,71 +5,109 @@
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// ═══════════════════════════════════════════════════════════════════
+// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-05).
+// Every id below was confirmed against https://openrouter.ai/api/v1/models.
+// Dead ids (deepseek :free, qwen3-4b :free, mistral-small :free, vl-72b :free)
+// were removed because every call to them returns 404 and burns the wall-clock
+// budget — that was the root cause of artifact timeouts.
+// ═══════════════════════════════════════════════════════════════════
+
 export const MODELS_FAST = [
-  "google/gemma-3-4b-it:free",
   "google/gemma-3n-e4b-it:free",
+  "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e2b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
   "google/gemma-3-12b-it:free",
-  "qwen/qwen3-4b:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "poolside/laguna-xs.2:free",
 ];
 
 export const MODELS_BALANCED = [
+  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "tencent/hy3-preview:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
 ];
 
 export const MODELS_QUALITY = [
-  "deepseek/deepseek-r1:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
+  "openrouter/owl-alpha",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "google/gemma-4-31b-it:free",
+  "minimax/minimax-m2.5:free",
+];
+
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Order = priority. We race the top 4, fall back through the rest.
+export const MODELS_CODE = [
+  "qwen/qwen3-coder:free",                                // #1 free coder globally
+  "poolside/laguna-m.1:free",                             // specialist coding agent
+  "inclusionai/ling-2.6-1t:free",                         // SWE-bench top, 1T MoE
+  "tencent/hy3-preview:free",                             // strong code + agentic MoE
+  "openai/gpt-oss-120b:free",                             // strongest generalist coder
+  "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
+  "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
+  "poolside/laguna-xs.2:free",                            // compact coding agent
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "minimax/minimax-m2.5:free",                            // long-context refactors
+  "z-ai/glm-4.5-air:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-3-27b-it:free",
 ];
 
-// ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Stacked with the strongest free coding/reasoning models on OpenRouter.
-// Order = priority. We race the top 3, fall back through the rest.
-export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",
-  "deepseek/deepseek-r1:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "z-ai/glm-4.5-air:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
-  "openai/gpt-oss-20b:free",
-];
-
 export const MODELS_LONG_CTX = [
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "deepseek/deepseek-chat-v3.1:free",
+  "openrouter/owl-alpha",                                 // 1M+ ctx
   "openai/gpt-oss-120b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
 ];
 
 export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
-  "qwen/qwen2.5-vl-72b-instruct:free",
+  "google/gemma-3-12b-it:free",
+  "baidu/qianfan-ocr-fast:free",
+];
+
+// ── WRITING / NOTES (long-form prose) ──────────────────────────────
+export const MODELS_WRITING = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "minimax/minimax-m2.5:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
+  "tencent/hy3-preview:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -77,10 +115,11 @@ export const MODELS_EXTRA = [
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
+  "tencent/hy3-preview:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
-  "deepseek/deepseek-chat-v3.1:free",
+  "google/gemma-3n-e4b-it:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
@@ -182,13 +221,16 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 3;          // race 3 models for fastest first-token
+const PARALLEL_RACE_COUNT = 4;          // race 4 models for fastest first-token
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
-const TEXT_TOTAL_BUDGET_MS = 180_000;   // 3 min for non-streamed JSON tools
+const TEXT_TOTAL_BUDGET_MS = 200_000;   // 3.3 min for non-streamed JSON tools (artifacts)
 const OCR_TOTAL_BUDGET_MS = 120_000;
 const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
+
+// Models confirmed dead by 404 — skipped entirely for this process lifetime.
+const _deadModels = new Set<string>();
 
 type RouteMeta = {
   model: string;
@@ -231,6 +273,10 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
+  if (_deadModels.has(model)) {
+    // Already proven 404 — don't waste budget.
+    return null;
+  }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
@@ -264,6 +310,14 @@ async function callModel(
         continue;
       }
 
+      // 404 = model id no longer exists on OpenRouter. Mark dead and stop trying.
+      if (res.status === 404) {
+        _deadModels.add(model);
+        console.warn(`[${tag}] ${model} -> 404 (model dead, blacklisted for process lifetime)`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+
       const errorText = await readErrorText(res);
       console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
@@ -287,7 +341,8 @@ async function raceModels(
   timeoutMs: number,
   tag: string,
 ): Promise<{ response: Response; model: string }> {
-  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const live = models.filter((m) => !_deadModels.has(m));
+  const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
     const res = await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
@@ -356,7 +411,13 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const primaryRaceTimeout = phaseTimeout(PRIMARY_RACE_TIMEOUT_MS);
+  // Artifact / long-form generation needs minutes, not seconds, per attempt.
+  // Detect via tag so we don't have to thread a flag through every caller.
+  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
+  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
+
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -366,14 +427,14 @@ export async function callWithFallback(
   }
 
   for (const model of models) {
-    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
+    const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
   for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+    const timeout = phaseTimeout(extraAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
@@ -399,7 +460,11 @@ export async function callAIText(
   const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty AI response");
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    // Return empty string instead of throwing — wrappers detect emptiness and skip credit charge.
+    console.warn(`[callAIText:${tag}] empty response from model`);
+    return "";
+  }
   return content;
 }
 
@@ -427,6 +492,11 @@ export function classifyIntent(text: string): IntentType {
   // CODING wins early — it's the most specific intent we can detect
   if (CODING_PATTERNS.test(text)) {
     return "coding";
+  }
+
+  // TRANSLATION / multilingual → route to long-context (better multilingual)
+  if (/\b(translate|translation|in hindi|in tamil|in telugu|in kannada|in malayalam|in bengali|in marathi|in gujarati|in punjabi|in urdu|in french|in spanish|in german|in arabic|in mandarin|in chinese|in japanese|how do you say|what is .+ in (hindi|tamil|telugu|kannada|malayalam|bengali|marathi|gujarati|punjabi|urdu|french|spanish|german|arabic|chinese|japanese))\b/i.test(text)) {
+    return "deep";
   }
 
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
@@ -492,10 +562,40 @@ CORE TUTOR RULES:
 - Ask follow-up questions to guide thinking
 - If the student seems confused, simplify and try a different angle
 
+ACCURACY RULES — NEVER VIOLATE:
+- If you do not know a fact with high confidence, say "I'm not 100% sure — let's verify together" instead of guessing.
+- For TRANSLATIONS (especially Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Urdu and other Indian languages, plus French, Spanish, German, Arabic, Mandarin, Japanese): only output a translation if you are absolutely certain. Use the standard scientific/textbook term — never invent a transliteration. If unsure, say so plainly and offer the English term with a romanised approximation.
+- For mitosis vs meiosis, ALWAYS mention crossing-over and independent assortment in meiosis I — it is the #1 exam point.
+- Show derivations and per-unit calculations explicitly so weaker students can follow.
+
+SAFETY RULES — NEVER VIOLATE:
+- If a user asks how to harm themselves, harm others, build weapons, make drugs, hack, cheat on a real exam (not practice), or anything illegal: refuse warmly but firmly in 1-2 lines, redirect to a safer study angle if possible, and (for self-harm) include the iCall India helpline 9152987821 or international equivalent.
+- Never produce content that could be used for academic fraud (writing a real submitted essay verbatim, solving a live exam, etc.). Offer to teach the underlying concept instead.
+
 FORMATTING:
 - Use rich Markdown: **bold**, headings, bullets
 - Keep it scannable and interactive
-- End responses with a question or "what would you like to explore next?"`;
+- End responses with a question or "what would you like to explore next?"
+
+TIMELINE / STORYBOARD FORMAT (use whenever the student asks for a timeline, schedule, plan, sequence of events, scene-by-scene breakdown, video script, study plan with time blocks, or anything ordered by time):
+- Render as a vertical timeline using markdown.
+- Each entry STARTS with a duration/timestamp pill in backticks, e.g. \`3s – 8s\` or \`Day 1\`, then a bold title, then a one-line description, then (optional) a music/mood/cue line prefixed with ♪ or →.
+- For nested screen-by-screen / shot-by-shot detail, use indented bullet rows where each starts with the timestamp in backticks, then a bold label, then the action, with key phrases in **bold** or _italic_.
+- Keep blocks visually separated with a blank line between sections.
+- Example skeleton:
+  \`3s – 8s\` **The Rapid Fire Drop**
+  5 cuts, each exactly on a snare hit. Each screen recording = 1 second of power.
+  ♪ Beat drops hard at 3.0s. Each cut syncs to snare at: 3.0s / 3.8s / 4.6s / 5.4s / 6.2s / 7.0s
+
+  - \`3.0s\` Screenshot: **AI Chat screen** (French Revolution analysis). Text slam: "AI THAT ACTUALLY TEACHES." Smashes in from left.
+  - \`3.8s\` Screenshot: **Flashcard screen** (Quadratic equation). Text slam: "FLASHCARDS. SMART." Smashes in from right.
+
+CLAUDE-STYLE CODING TOUCH (whenever code or a build is requested, even inside a tutoring chat):
+- Briefly state what you're building and why in 1-2 sentences before any code.
+- Then output ONE complete, runnable code block with the right language fence (\`\`\`html, \`\`\`tsx, \`\`\`python …). Never split a single file across multiple blocks. Never use placeholder comments like "// rest of code".
+- Default to a single self-contained \`html\` file for web/game/visual demos so it can run instantly.
+- After the code, give 1-3 short bullets: how to run it, controls, and one ambitious next step.
+- Code quality: clear names, small functions, defensive on user input, smooth animations (requestAnimationFrame), responsive + touch fallback.`;
 
   switch (intent) {
     case "greeting":
@@ -561,5 +661,34 @@ export function getModelsForMode(mode?: string): string[] | null {
       return MODELS_LONG_CTX;
     default:
       return null;
+  }
+}
+
+// ── ARTIFACT ROUTING ───────────────────────────────────────────────
+// One curated chain per artifact type. Each chain is ordered by quality;
+// callWithFallback will race the top few and fall back deeper as needed.
+export type ArtifactType = "notes" | "exam" | "slides" | "code";
+
+export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
+  if (hasImage) return MODELS_VISION;
+  switch (type) {
+    case "notes":
+      return MODELS_WRITING;
+    case "exam":
+      return MODELS_QUALITY;
+    case "slides":
+      // Slides need clean structure + punchy bullets — balanced/structured models win.
+      return [
+        "minimax/minimax-m2.5:free",
+        "openai/gpt-oss-120b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "tencent/hy3-preview:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "z-ai/glm-4.5-air:free",
+        "openai/gpt-oss-20b:free",
+      ];
+    case "code":
+      return MODELS_CODE;
   }
 }
