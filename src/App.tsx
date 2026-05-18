@@ -11,7 +11,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/pages/Chat";
+import Chat from "@/features/chat/ChatPage";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -35,9 +35,19 @@ import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
+import PrivacySettings from "@/pages/PrivacySettings";
+import TrainingData from "@/pages/TrainingData";
+import { ConsentBanner } from "@/components/ConsentBanner";
+import { CreditToast } from "@/features/credits/CreditToast";
+import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const PaymentReturnHandler = () => {
+  usePaymentReturn();
+  return null;
+};
 
 const ProtectedLayout = () => {
   const { user, loading, needsOnboarding, setNeedsOnboarding } = useAuth();
@@ -58,6 +68,7 @@ const ProtectedLayout = () => {
         {needsOnboarding && (
           <Onboarding onComplete={() => setNeedsOnboarding(false)} />
         )}
+        <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
           <Outlet />
@@ -81,6 +92,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PaymentReturnHandler />
+          <CreditToast />
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
 
@@ -110,6 +123,8 @@ const App = () => (
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/squad" element={<Squad />} />
+              <Route path="/settings/privacy" element={<PrivacySettings />} />
+              <Route path="/training-data" element={<TrainingData />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

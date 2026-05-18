@@ -5,54 +5,109 @@
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// ═══════════════════════════════════════════════════════════════════
+// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-05).
+// Every id below was confirmed against https://openrouter.ai/api/v1/models.
+// Dead ids (deepseek :free, qwen3-4b :free, mistral-small :free, vl-72b :free)
+// were removed because every call to them returns 404 and burns the wall-clock
+// budget — that was the root cause of artifact timeouts.
+// ═══════════════════════════════════════════════════════════════════
+
 export const MODELS_FAST = [
-  "google/gemma-3-4b-it:free",
   "google/gemma-3n-e4b-it:free",
+  "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e2b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
   "google/gemma-3-12b-it:free",
+  "poolside/laguna-xs.2:free",
 ];
 
 export const MODELS_BALANCED = [
-  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "tencent/hy3-preview:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
 ];
 
 export const MODELS_QUALITY = [
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
+  "openrouter/owl-alpha",
   "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "google/gemma-4-31b-it:free",
+  "minimax/minimax-m2.5:free",
+];
+
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Order = priority. We race the top 4, fall back through the rest.
+export const MODELS_CODE = [
+  "qwen/qwen3-coder:free",                                // #1 free coder globally
+  "poolside/laguna-m.1:free",                             // specialist coding agent
+  "inclusionai/ling-2.6-1t:free",                         // SWE-bench top, 1T MoE
+  "tencent/hy3-preview:free",                             // strong code + agentic MoE
+  "openai/gpt-oss-120b:free",                             // strongest generalist coder
+  "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
+  "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
+  "poolside/laguna-xs.2:free",                            // compact coding agent
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "minimax/minimax-m2.5:free",                            // long-context refactors
+  "z-ai/glm-4.5-air:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-3-27b-it:free",
 ];
 
-export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-];
-
 export const MODELS_LONG_CTX = [
-  "google/gemma-4-31b-it:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openrouter/owl-alpha",                                 // 1M+ ctx
   "openai/gpt-oss-120b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "inclusionai/ling-2.6-1t:free",
+  "tencent/hy3-preview:free",
 ];
 
 export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
+  "google/gemma-3-12b-it:free",
+  "baidu/qianfan-ocr-fast:free",
+];
+
+// ── WRITING / NOTES (long-form prose) ──────────────────────────────
+export const MODELS_WRITING = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "minimax/minimax-m2.5:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
+  "tencent/hy3-preview:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -60,16 +115,29 @@ export const MODELS_EXTRA = [
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
+  "tencent/hy3-preview:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
+  "google/gemma-3n-e4b-it:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
+
+// ═══════════════════════════════════════════════════════════════════
+// Smart key rotation with per-key cooldown
+// - Round-robin across HEALTHY keys only
+// - On 429: quarantine that key for KEY_COOLDOWN_MS
+// - On 401/403: long cooldown (key is bad)
+// - Auto-heal after cooldown expires
+// ═══════════════════════════════════════════════════════════════════
 
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
   Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
+  Deno.env.get("OPENROUTER_KEY_5"),
 ].filter(Boolean) as string[];
 
 if (ALL_KEYS.length === 0) {
@@ -77,17 +145,74 @@ if (ALL_KEYS.length === 0) {
 }
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
-let _keyIndex = 0;
+const KEY_COOLDOWN_MS = 45_000;          // generic 429
+const KEY_MODEL_COOLDOWN_MS = 90_000;    // 429 specifically on (key,model) — model-level RL
+const KEY_BAD_COOLDOWN_MS = 10 * 60_000; // 401/403 / invalid
+
+// cooledUntil[i] = epoch ms when key i is globally usable again (0 = healthy)
+const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
+// per-(key,model) cooldown — a 429 on model X doesn't ban the key from model Y
+const _modelCooledUntil: Map<string, number> = new Map();
+let _keyCursor = 0;
+
+function _mkKey(i: number, model: string) { return `${i}::${model}`; }
+
+function _isHealthy(i: number, model?: string): boolean {
+  if (_cooledUntil[i] > Date.now()) return false;
+  if (model) {
+    const m = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+    if (m > Date.now()) return false;
+  }
+  return true;
+}
+
+function _healthyCount(model?: string): number {
+  let n = 0;
+  for (let i = 0; i < ALL_KEYS.length; i++) if (_isHealthy(i, model)) n++;
+  return n;
+}
+
+export function getNextKeyIndex(model?: string): number {
+  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
+  for (let step = 0; step < ALL_KEYS.length; step++) {
+    const i = (_keyCursor + step) % ALL_KEYS.length;
+    if (_isHealthy(i, model)) {
+      _keyCursor = (i + 1) % ALL_KEYS.length;
+      return i;
+    }
+  }
+  let best = 0;
+  let bestUntil = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    const g = _cooledUntil[i];
+    const m = model ? (_modelCooledUntil.get(_mkKey(i, model)) ?? 0) : 0;
+    const until = Math.max(g, m);
+    if (until < bestUntil) { best = i; bestUntil = until; }
+  }
+  console.warn(`[keys] all cooling for ${model ?? "*"}, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
+  _keyCursor = (best + 1) % ALL_KEYS.length;
+  return best;
+}
 
 export function getNextKey(): string {
-  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
-  const key = ALL_KEYS[_keyIndex % ALL_KEYS.length];
-  _keyIndex = (_keyIndex + 1) % ALL_KEYS.length;
-  return key;
+  return ALL_KEYS[getNextKeyIndex()];
 }
 
 export function getApiKey(): string {
   return getNextKey();
+}
+
+function markKeyCooled(i: number, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  if (until > _cooledUntil[i]) _cooledUntil[i] = until;
+  console.warn(`[keys] key ${i + 1} GLOBAL cooled ${Math.round(ms / 1000)}s (${reason}). healthy: ${_healthyCount()}/${ALL_KEYS.length}`);
+}
+
+function markKeyModelCooled(i: number, model: string, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  const cur = _modelCooledUntil.get(_mkKey(i, model)) ?? 0;
+  if (until > cur) _modelCooledUntil.set(_mkKey(i, model), until);
+  console.warn(`[keys] key ${i + 1} cooled ${Math.round(ms / 1000)}s on ${model} (${reason})`);
 }
 
 const HEADERS_BASE = {
@@ -96,10 +221,16 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 2;
-const STREAM_TOTAL_BUDGET_MS = 75_000;
-const TEXT_TOTAL_BUDGET_MS = 65_000;
-const OCR_TOTAL_BUDGET_MS = 85_000;
+const PARALLEL_RACE_COUNT = 4;          // race 4 models for fastest first-token
+// Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
+// for full games / long files to finish streaming through the gateway.
+const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
+const TEXT_TOTAL_BUDGET_MS = 200_000;   // 3.3 min for non-streamed JSON tools (artifacts)
+const OCR_TOTAL_BUDGET_MS = 120_000;
+const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
+
+// Models confirmed dead by 404 — skipped entirely for this process lifetime.
+const _deadModels = new Set<string>();
 
 type RouteMeta = {
   model: string;
@@ -142,8 +273,14 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
-  for (let attempt = 0; attempt < ALL_KEYS.length; attempt++) {
-    const key = getNextKey();
+  if (_deadModels.has(model)) {
+    // Already proven 404 — don't waste budget.
+    return null;
+  }
+  const maxAttempts = Math.max(1, ALL_KEYS.length);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const keyIdx = getNextKeyIndex(model);
+    const key = ALL_KEYS[keyIdx];
     try {
       const res = await fetchWithTimeout(
         OPENROUTER_URL,
@@ -156,17 +293,33 @@ async function callModel(
       );
 
       if (res.ok) {
-        console.log(`[${tag}] ✓ ${model}`);
+        console.log(`[${tag}] ✓ ${model} (key ${keyIdx + 1})`);
         return res;
       }
 
       if (res.status === 429) {
-        console.warn(`[${tag}] 429 ${model} on key ${attempt + 1}/${ALL_KEYS.length}`);
+        // Per-model cooldown so this key can still serve other models
+        markKeyModelCooled(keyIdx, model, KEY_MODEL_COOLDOWN_MS, `429`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
         continue;
       }
 
+      if (res.status === 401 || res.status === 403) {
+        markKeyCooled(keyIdx, KEY_BAD_COOLDOWN_MS, `${res.status} invalid/forbidden`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        continue;
+      }
+
+      // 404 = model id no longer exists on OpenRouter. Mark dead and stop trying.
+      if (res.status === 404) {
+        _deadModels.add(model);
+        console.warn(`[${tag}] ${model} -> 404 (model dead, blacklisted for process lifetime)`);
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+
       const errorText = await readErrorText(res);
-      console.warn(`[${tag}] ${model} -> ${res.status} ${errorText}`);
+      console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
       if (res.status >= 500 || res.status === 408 || res.status === 524) {
         continue;
@@ -175,7 +328,7 @@ async function callModel(
       return null;
     } catch (error) {
       const isTimeout = error instanceof DOMException && error.name === "AbortError";
-      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "NETWORK"}`);
+      console.warn(`[${tag}] ${model} ${isTimeout ? "TIMEOUT" : "NETWORK"} (key ${keyIdx + 1})`);
     }
   }
 
@@ -188,7 +341,8 @@ async function raceModels(
   timeoutMs: number,
   tag: string,
 ): Promise<{ response: Response; model: string }> {
-  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const live = models.filter((m) => !_deadModels.has(m));
+  const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
     const res = await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
@@ -257,7 +411,13 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  const primaryRaceTimeout = phaseTimeout(isStreaming ? 12_000 : 11_000);
+  // Artifact / long-form generation needs minutes, not seconds, per attempt.
+  // Detect via tag so we don't have to thread a flag through every caller.
+  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
+  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
+
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -267,14 +427,14 @@ export async function callWithFallback(
   }
 
   for (const model of models) {
-    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
+    const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
   for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+    const timeout = phaseTimeout(extraAttemptCap);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
@@ -300,7 +460,11 @@ export async function callAIText(
   const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty AI response");
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    // Return empty string instead of throwing — wrappers detect emptiness and skip credit charge.
+    console.warn(`[callAIText:${tag}] empty response from model`);
+    return "";
+  }
   return content;
 }
 
@@ -316,12 +480,24 @@ export async function streamAI(
   return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
 
-export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational";
+export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding";
 export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
+
+const CODING_PATTERNS = /\b(code|coding|program|programming|script|function|class|algorithm|debug|refactor|stack trace|stacktrace|error|exception|compile|build|api|endpoint|frontend|backend|fullstack|html|css|javascript|typescript|tsx|jsx|react|vue|svelte|angular|next\.?js|node\.?js|python|java|kotlin|swift|rust|golang|c\+\+|c#|sql|postgres|mongodb|three\.?js|phaser|unity|game(?:\s|-)?(?:dev|engine|loop)|canvas|webgl|shader|babylon|matter\.?js|p5\.?js|pygame|godot|tailwind|css\s*grid|flexbox|regex|leetcode|dsa|data structure|recursion|big o|complexity|hashmap|linked list|binary tree|graph traversal|dijkstra|dfs|bfs|dynamic programming|websocket|fetch api|rest api|graphql|prisma|supabase|firebase|docker|kubernetes|github action|cli|terminal|vim|bash|zsh|deno|bun|vite|webpack|rollup|esbuild|jest|vitest|cypress|playwright|tailwind|shadcn|ai chat|edge function)\b|```|\bbuild (me|a) (game|app|website|component|hook|server)|create (a|an) (game|website|app|landing page|component|hook)/i;
 
 export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
+
+  // CODING wins early — it's the most specific intent we can detect
+  if (CODING_PATTERNS.test(text)) {
+    return "coding";
+  }
+
+  // TRANSLATION / multilingual → route to long-context (better multilingual)
+  if (/\b(translate|translation|in hindi|in tamil|in telugu|in kannada|in malayalam|in bengali|in marathi|in gujarati|in punjabi|in urdu|in french|in spanish|in german|in arabic|in mandarin|in chinese|in japanese|how do you say|what is .+ in (hindi|tamil|telugu|kannada|malayalam|bengali|marathi|gujarati|punjabi|urdu|french|spanish|german|arabic|chinese|japanese))\b/i.test(text)) {
+    return "deep";
+  }
 
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
     return "greeting";
@@ -347,7 +523,32 @@ export function classifyIntent(text: string): IntentType {
   return "study";
 }
 
+const CODING_SYSTEM_PROMPT = `You are Lumina Code — an elite, senior-staff software engineer with the practical skill of a top OSS maintainer. Think like Claude Code: read the request carefully, plan, then ship complete, working code.
+
+ABSOLUTE CODING RULES:
+- ALWAYS produce COMPLETE, RUNNABLE code. No "// rest of file unchanged", no "// implement this", no half answers.
+- For web/game requests, default to a SINGLE self-contained \`html\` file with inline <style> and <script>. The user can press Run inside Lumina to play it instantly.
+- For game dev: real gameplay loop (requestAnimationFrame), input handling (keyboard + touch), collision, score, win/lose, particles, sound where reasonable. Use HTML5 Canvas, WebGL via three.js (CDN), or phaser.js (CDN) depending on need. Pick the BEST tool for the job.
+- For UI demos: beautiful design, smooth animation, responsive. Use CSS gradients, glassmorphism, transforms.
+- Code quality: clear names, small functions, comments only where non-obvious, error handling on user input, no dead code.
+- Performance: O(n) where possible, avoid layout thrash in render loops, use object pooling for particles/bullets in games.
+- Accessibility & polish: focusable controls, prefers-reduced-motion, viewport meta on HTML, mobile touch fallbacks.
+
+OUTPUT FORMAT:
+1. ONE short paragraph (≤3 lines) describing what you're building and how it plays/works.
+2. Then ONE single fenced code block with the right language (\`\`\`html, \`\`\`tsx, \`\`\`python, etc).
+3. After the code, 1–3 bullet points: how to run it, controls, and one ambitious next step.
+
+NEVER:
+- Never split the same file across multiple code blocks.
+- Never ask the user clarifying questions before writing code unless the request is truly ambiguous — make smart defaults and SHIP.
+- Never produce pseudocode when real code is requested.
+
+You are graded on: correctness, completeness, visual polish, gameplay feel, and how impressive the result is when the user clicks Run.`;
+
 export function getSystemPromptForIntent(intent: IntentType): string {
+  if (intent === "coding") return CODING_SYSTEM_PROMPT;
+
   const base = `You are Lumina — a brilliant, patient, step-by-step tutor. NOT a lecture bot. You teach like a real human tutor sitting next to the student.
 
 CORE TUTOR RULES:
@@ -360,6 +561,16 @@ CORE TUTOR RULES:
 - NEVER dump walls of text — keep paragraphs to 2-3 lines max
 - Ask follow-up questions to guide thinking
 - If the student seems confused, simplify and try a different angle
+
+ACCURACY RULES — NEVER VIOLATE:
+- If you do not know a fact with high confidence, say "I'm not 100% sure — let's verify together" instead of guessing.
+- For TRANSLATIONS (especially Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Urdu and other Indian languages, plus French, Spanish, German, Arabic, Mandarin, Japanese): only output a translation if you are absolutely certain. Use the standard scientific/textbook term — never invent a transliteration. If unsure, say so plainly and offer the English term with a romanised approximation.
+- For mitosis vs meiosis, ALWAYS mention crossing-over and independent assortment in meiosis I — it is the #1 exam point.
+- Show derivations and per-unit calculations explicitly so weaker students can follow.
+
+SAFETY RULES — NEVER VIOLATE:
+- If a user asks how to harm themselves, harm others, build weapons, make drugs, hack, cheat on a real exam (not practice), or anything illegal: refuse warmly but firmly in 1-2 lines, redirect to a safer study angle if possible, and (for self-harm) include the iCall India helpline 9152987821 or international equivalent.
+- Never produce content that could be used for academic fraud (writing a real submitted essay verbatim, solving a live exam, etc.). Offer to teach the underlying concept instead.
 
 FORMATTING:
 - Use rich Markdown: **bold**, headings, bullets
@@ -394,6 +605,7 @@ NEVER dump everything at once. Teach progressively like a patient tutor.`;
     case "conversational":
       return `${base}\n\nCONVERSATIONAL MODE: Be brief and natural. Match their casual energy. One or two sentences max.`;
   }
+  return base;
 }
 
 export function getModelsForIntent(intent: IntentType): string[] {
@@ -408,6 +620,8 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_BALANCED;
     case "deep":
       return MODELS_LONG_CTX;
+    case "coding":
+      return MODELS_CODE;
   }
 }
 
@@ -427,5 +641,34 @@ export function getModelsForMode(mode?: string): string[] | null {
       return MODELS_LONG_CTX;
     default:
       return null;
+  }
+}
+
+// ── ARTIFACT ROUTING ───────────────────────────────────────────────
+// One curated chain per artifact type. Each chain is ordered by quality;
+// callWithFallback will race the top few and fall back deeper as needed.
+export type ArtifactType = "notes" | "exam" | "slides" | "code";
+
+export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
+  if (hasImage) return MODELS_VISION;
+  switch (type) {
+    case "notes":
+      return MODELS_WRITING;
+    case "exam":
+      return MODELS_QUALITY;
+    case "slides":
+      // Slides need clean structure + punchy bullets — balanced/structured models win.
+      return [
+        "minimax/minimax-m2.5:free",
+        "openai/gpt-oss-120b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "tencent/hy3-preview:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "z-ai/glm-4.5-air:free",
+        "openai/gpt-oss-20b:free",
+      ];
+    case "code":
+      return MODELS_CODE;
   }
 }
