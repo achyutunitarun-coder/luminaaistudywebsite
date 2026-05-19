@@ -399,7 +399,11 @@ export async function callAIText(
   const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty AI response");
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    // Return empty string instead of throwing — wrappers detect emptiness and skip credit charge.
+    console.warn(`[callAIText:${tag}] empty response from model`);
+    return "";
+  }
   return content;
 }
 
