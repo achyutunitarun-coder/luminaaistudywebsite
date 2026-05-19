@@ -41,6 +41,62 @@ export type Database = {
         }
         Relationships: []
       }
+      artifact_jobs: {
+        Row: {
+          artifact_type: string
+          chat_id: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          html: string | null
+          id: string
+          model_used: string | null
+          prompt: string
+          status: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_type: string
+          chat_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          html?: string | null
+          id?: string
+          model_used?: string | null
+          prompt: string
+          status?: string
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_type?: string
+          chat_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          html?: string | null
+          id?: string
+          model_used?: string | null
+          prompt?: string
+          status?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_jobs_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_artifacts: {
         Row: {
           artifact_type: string
@@ -88,25 +144,43 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          artifact_html: string | null
+          artifact_type: string | null
           chat_id: string
           content: string
           created_at: string
+          credits_used: number | null
           id: string
+          message_type: string
+          new_balance: number | null
           role: string
+          topic: string | null
         }
         Insert: {
+          artifact_html?: string | null
+          artifact_type?: string | null
           chat_id: string
           content: string
           created_at?: string
+          credits_used?: number | null
           id?: string
+          message_type?: string
+          new_balance?: number | null
           role: string
+          topic?: string | null
         }
         Update: {
+          artifact_html?: string | null
+          artifact_type?: string | null
           chat_id?: string
           content?: string
           created_at?: string
+          credits_used?: number | null
           id?: string
+          message_type?: string
+          new_balance?: number | null
           role?: string
+          topic?: string | null
         }
         Relationships: [
           {
@@ -175,6 +249,45 @@ export type Database = {
           id?: string
           parent_concept?: string | null
           subject?: string | null
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          action: string
+          created_at: string
+          credits: number
+          id: string
+          metadata: Json
+          payment_id: string | null
+          product_id: string
+          product_name: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          credits: number
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          product_id: string
+          product_name: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          credits?: number
+          id?: string
+          metadata?: Json
+          payment_id?: string | null
+          product_id?: string
+          product_name?: string
+          source?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -265,6 +378,60 @@ export type Database = {
           training_data_opt_in?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      exam_packs: {
+        Row: {
+          active: boolean
+          created_at: string
+          currency: string
+          description: string
+          emoji: string
+          id: string
+          level: string
+          original_price_cents: number
+          price_cents: number
+          product_id: string
+          sort_order: number
+          subject: string
+          title: string
+          updated_at: string
+          whats_inside: Json
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          emoji?: string
+          id?: string
+          level: string
+          original_price_cents?: number
+          price_cents?: number
+          product_id: string
+          sort_order?: number
+          subject: string
+          title: string
+          updated_at?: string
+          whats_inside?: Json
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          emoji?: string
+          id?: string
+          level?: string
+          original_price_cents?: number
+          price_cents?: number
+          product_id?: string
+          sort_order?: number
+          subject?: string
+          title?: string
+          updated_at?: string
+          whats_inside?: Json
         }
         Relationships: []
       }
@@ -1606,6 +1773,30 @@ export type Database = {
           },
         ]
       }
+      user_credit_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          plan?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_goals: {
         Row: {
           created_at: string | null
@@ -1675,6 +1866,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_unlocked_packs: {
+        Row: {
+          generated_at: string | null
+          html_storage_path: string | null
+          id: string
+          pack_id: string
+          payment_id: string | null
+          payment_status: string
+          product_id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          generated_at?: string | null
+          html_storage_path?: string | null
+          id?: string
+          pack_id: string
+          payment_id?: string | null
+          payment_status?: string
+          product_id: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          generated_at?: string | null
+          html_storage_path?: string | null
+          id?: string
+          pack_id?: string
+          payment_id?: string | null
+          payment_status?: string
+          product_id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_unlocked_packs_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "exam_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_stats: {
         Row: {
           avg_score: number | null
@@ -1713,9 +1948,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_dodo_credits: {
+        Args: { _payment_id?: string; _product_id: string; _source?: string }
+        Returns: {
+          applied: boolean
+          balance: number
+          credits_added: number
+          duplicate: boolean
+          plan: string
+          product_name: string
+        }[]
+      }
+      apply_dodo_credits_for_user: {
+        Args: {
+          _payment_id?: string
+          _product_id: string
+          _source?: string
+          _user_id: string
+        }
+        Returns: {
+          applied: boolean
+          balance: number
+          credits_added: number
+          duplicate: boolean
+          plan: string
+          product_name: string
+        }[]
+      }
       award_xp_coins: {
         Args: { p_coins: number; p_user_id: string; p_xp: number }
         Returns: Json
+      }
+      get_dodo_credit_product: {
+        Args: { _product_id: string }
+        Returns: {
+          credits: number
+          plan_tier: string
+          product_name: string
+          product_type: string
+        }[]
       }
       get_usage_count: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
@@ -1728,6 +1999,13 @@ export type Database = {
       increment_usage: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
+      }
+      spend_user_credits: {
+        Args: { _action?: string; _amount: number }
+        Returns: {
+          balance: number
+          success: boolean
+        }[]
       }
       sync_leaderboard: { Args: { p_user_id: string }; Returns: undefined }
     }

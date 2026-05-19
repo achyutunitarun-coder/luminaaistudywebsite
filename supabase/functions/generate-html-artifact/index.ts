@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIText } from "../_shared/models.ts";
+import { buildArtifactSystemPrompt, type ArtifactFeature } from "../_shared/artifact-prompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,81 +20,104 @@ const HTML_MODELS = [
   "minimax/minimax-m2.5:free",
 ];
 
+// Each theme spec ends with STRUCTURE: which forces a distinct LAYOUT (not just colors).
 const NOTES_THEMES: Record<string, string> = {
-  "academic-dark": "Academic Dark — cream paper #f8f7f2, navy headers #1a1a2e, gold accent #c8a84b. Fonts: Lora headings, Outfit body, JetBrains Mono formulas. Clean academic feel.",
-  "midnight-study": "Midnight Study — bg #0f0f1a, cards #1a1a2e, text #e8e6f0, purple accent #7c3aed. Formula boxes #2d1b69 bg + #a78bfa text. Fonts: Space Grotesk + Inter. Glowing neon dark mode.",
-  "clean-minimal": "Clean Minimal — white bg, #fafafa cards w/ #e5e7eb border, blue accent #2563eb. All-caps section labels. Fonts: DM Sans everywhere. Ultra minimal, lots of white space.",
-  "nature-journal": "Nature Journal — bg #f0f4e8 sage, white cards, forest green #2d6a4f accent. Formula bg #d8f3dc + text #1b4332, borders #95d5b2. Fonts: Merriweather + Lato. Calm organic.",
-  "vibrant-neon": "Vibrant Neon — bg #fafafa, amber #f59e0b accent + pink #ec4899. Gradient formula bg #fff1f2→#fff7ed. Fonts: Poppins + Nunito. Energetic, bold colored highlights.",
-  "ib-official": "IB Official — bg #f5f5f0, IB blue #003087 header. Fonts: Times New Roman headings + Arial body. Mimics IB exam document styling.",
+  "academic-dark": "Academic Dark — cream #f8f7f2, navy #1a1a2e, gold #c8a84b. Fonts: Lora + Outfit + JetBrains Mono. STRUCTURE: classic single-column scholarly notes with drop-cap first letter on each section, gold left-border formula boxes, italic margin notes.",
+  "midnight-study": "Midnight Study — bg #0f0f1a, cards #1a1a2e, text #e8e6f0, purple #7c3aed. Fonts: Space Grotesk + Inter. STRUCTURE: dark glassmorphic cards with neon glow, formulas in pill-shaped boxes with backdrop-blur, sticky topic chip on left.",
+  "clean-minimal": "Clean Minimal — white, #fafafa, blue #2563eb. Fonts: DM Sans. STRUCTURE: ultra-minimal single column, all-caps tiny section labels, hairline 1px dividers, no boxes — only typography hierarchy and whitespace.",
+  "nature-journal": "Nature Journal — sage #f0f4e8, forest #2d6a4f. Fonts: Merriweather + Lato. STRUCTURE: handwritten-journal feel, leaf bullet points, formulas in rounded green leaf cards, watercolor-style example boxes.",
+  "vibrant-neon": "Vibrant Neon — #fafafa, amber #f59e0b + pink #ec4899. Fonts: Poppins + Nunito. STRUCTURE: bold colored sticker callouts, gradient backgrounds, oversized numerals for section headers, neon highlight markers behind key terms.",
+  "ib-official": "IB Official — #f5f5f0, IB blue #003087. Fonts: Times New Roman + Arial. STRUCTURE: official IB document, blue header bar, two-column body with margin annotations, criteria tags A/B/C/D on each concept.",
+  "boxed-grid": "Boxed Grid — bg #fff, slate borders #cbd5e1, indigo #4f46e5. Fonts: Inter + Fira Code. STRUCTURE: every concept lives in its OWN bordered box arranged in a CSS grid (2 columns desktop, 1 mobile). Each box: header strip with concept #, body, formula footer. Looks like a content-heavy dashboard.",
+  "tabular-notes": "Tabular Notes — bg #fafafa, navy header rows. Fonts: IBM Plex Sans + IBM Plex Mono. STRUCTURE: Almost everything is a TABLE. Concept tables with columns: Concept | Definition | Formula | Example. Comparison tables. Stripe rows. Sticky table headers. Feels like a spec sheet.",
+  "comic-book": "Comic Book — bg #fffbeb, halftone dot pattern, red #dc2626 + yellow #facc15 + black borders 3px. Fonts: Bangers + Comic Neue. STRUCTURE: comic panels with thick black borders, speech-bubble explanations, BIG SPLASH HEADERS, KAPOW-style starbursts highlighting key formulas.",
+  "terminal-code": "Terminal Code — bg #0d0d0d, green #22c55e text, amber #fbbf24 accents. Fonts: JetBrains Mono everywhere. STRUCTURE: looks like a terminal/IDE. Sections start with `$ topic --explain`. Formulas in code-block style with line numbers. Comments in gray // style. Cursor blink on title.",
+  "magazine-editorial": "Magazine Editorial — cream #fdf6e3, deep red #b91c1c pull-quotes. Fonts: Playfair Display + Source Serif. STRUCTURE: editorial magazine with HUGE display headlines, multi-column body text, oversized pull-quotes, full-width banner image placeholders, image captions.",
+  "kawaii-pastel": "Kawaii Pastel — bg #fff5f7 pink, mint cards #ecfdf5, rounded everything. Fonts: Quicksand + Nunito. STRUCTURE: rounded-3xl pastel cards with cute emoji bullets (✨🌸🎀), dotted borders, soft pink/mint/lavender alternating section backgrounds, friendly tone.",
 };
 
 const EXAM_THEMES: Record<string, string> = {
-  "classic-paper": "Classic Paper — bg #f0ede6, white cards, dark #1c1c1c, gold #c8a84b. Question numbers in dark box w/ gold text, dashed answer boxes. Fonts: Libre Baskerville + Source Sans 3.",
-  "dark-exam": "Dark Exam — bg #111827, cards #1f2937, text #f9fafb. Question numbers in #7c3aed box, answer boxes #374151 bg + #6b7280 border. Fonts: Space Grotesk + JetBrains Mono.",
-  "blueprint": "Blueprint — bg #1e3a5f, cards #1a3454, text #e0eeff. Subtle CSS grid background. White question numbers, cyan #06b6d4 accents. Fonts: Rajdhani + Roboto. Engineering blueprint feel.",
-  "newspaper": "Newspaper — bg #fffef7 newsprint, two-column question layout. Black serifs throughout: Playfair Display + Georgia. Thick black borders. Old broadsheet aesthetic.",
-  "modern-minimal": "Modern Minimal — white bg, #f8fafc cards, sky blue #0ea5e9 accent. Question numbers in circle outline, blue focus ring on textareas. Fonts: DM Sans throughout.",
-  "ib-official": "IB Official — IB exam paper layout exactly. Blue IB header bar, criteria badges. Fonts: Arial throughout. Standard IB official styling.",
+  "classic-paper": "Classic Paper — bg #f0ede6, dark #1c1c1c, gold #c8a84b. Fonts: Libre Baskerville + Source Sans 3. STRUCTURE: traditional exam booklet, single column, dashed answer lines, dark question-number badges with gold text.",
+  "dark-exam": "Dark Exam — bg #111827, cards #1f2937, purple #7c3aed. Fonts: Space Grotesk + JetBrains Mono. STRUCTURE: dark mode exam with neon accents, glowing question number pills, dark textareas with subtle purple focus glow.",
+  "blueprint": "Blueprint — bg #1e3a5f w/ subtle grid pattern, cyan #06b6d4. Fonts: Rajdhani + Roboto. STRUCTURE: engineering blueprint look, white drafting lines, technical drawing borders, monospace marks.",
+  "newspaper": "Newspaper — newsprint #fffef7, black serifs. Fonts: Playfair Display + Georgia. STRUCTURE: 2-column newspaper layout for questions, masthead title bar, hairline column rules, classified-ad style instructions box.",
+  "modern-minimal": "Modern Minimal — white, sky #0ea5e9. Fonts: DM Sans. STRUCTURE: airy single column, circle outline question numbers, generous whitespace, blue focus ring on textareas.",
+  "ib-official": "IB Official — official IB paper layout, IB blue #003087 banner, Arial. STRUCTURE: criteria badges A/B/C/D, candidate session number field, command terms in bold caps.",
+  "table-grid-exam": "Table Grid Exam — bg #fff, navy headers, zebra rows. Fonts: IBM Plex Sans. STRUCTURE: ENTIRE EXAM IS A TABLE. Columns: Q# | Question | Marks | Working/Answer (textarea cell). Each section is its own table with sticky thead. Looks like an answer-sheet grid.",
+  "card-deck-exam": "Card Deck Exam — bg #f1f5f9, white cards w/ heavy shadow, emerald #059669 accent. Fonts: Manrope + Fira Code. STRUCTURE: each question is a separate elevated CARD with rounded corners (rounded-2xl), shadow-xl, marks badge top-right, sub-parts inside as nested mini-cards.",
+  "two-column-booklet": "Two-Column Booklet — cream paper, brown #78350f. Fonts: Crimson Pro + Inter. STRUCTURE: two-column print layout like a real exam booklet, drop-cap section openers, marginalia for marks, footer page-X-of-Y per section.",
+  "vintage-typewriter": "Vintage Typewriter — bg #f5efe0 aged paper, faint coffee stains via radial gradients, black ink. Fonts: Special Elite + Courier Prime. STRUCTURE: looks typed on a 1950s typewriter, slightly uneven character spacing via letter-spacing tweaks, stamp-style red EXAM badge.",
+  "neo-brutalist": "Neo-Brutalist — bg #fef3c7 yellow, BLACK 4px borders everywhere, hard shadows offset 6px 6px 0 black, hot pink #ec4899 + lime #84cc16 accents. Fonts: Space Grotesk Bold + JetBrains Mono. STRUCTURE: chunky brutalist blocks, no rounded corners, big block question numbers, in-your-face design.",
+  "scientific-lab": "Scientific Lab — white, lab-blue #1e40af, graph-paper background (faint blue grid). Fonts: Roboto Mono + Inter. STRUCTURE: each question on graph paper background, working space looks like graph paper textarea, hypothesis/observation/conclusion subdivisions for science feel.",
+};
+
+const SLIDES_THEMES: Record<string, string> = {
+  "lumina-dark":     "Lumina Dark — bg #0f1117, indigo #6366f1, accent purple #a78bfa. Default Lumina deep-space deck.",
+  "physics-blue":    "Physics Blue — primary #3b82f6 on dark surface. Crisp scientific feel.",
+  "math-purple":     "Math Purple — primary #8b5cf6, formula-forward layout with KaTeX-style serif accents.",
+  "cs-cyan":         "CS Cyan — primary #06b6d4, terminal/IDE vibe, monospace hero titles.",
+  "history-amber":   "History Amber — primary #f59e0b on warm dark surface, parchment-style textures.",
+  "biology-green":   "Biology Green — primary #10b981, organic curves, leaf accent dividers.",
+  "chemistry-rose":  "Chemistry Rose — primary #f43f5e, periodic-table tile motifs.",
+  "literature-pink": "Literature Pink — primary #ec4899, magazine editorial slides.",
+  "economics-teal":  "Economics Teal — primary #14b8a6, chart/graph oriented layouts.",
+  "minimal-light":   "Minimal Light — bg #ffffff, indigo accents, ultra-clean Apple keynote vibe.",
 };
 
 function buildNotesPrompt(theme: string, themeKey: string) {
-  return `You are an expert IB/MYP tutor generating a complete, beautiful HTML study notes file.
+  return `${buildArtifactSystemPrompt("notes")}
 
-CRITICAL RULES:
-1. Return ONLY a complete valid HTML file starting with <!DOCTYPE html>
-2. No markdown, no code blocks (no \`\`\`), no explanation — ONLY the HTML
-3. All CSS embedded in <style> tag in <head>
-4. Import Google Fonts via @import at top of <style>
-5. Must render perfectly when opened in a browser
+────────── PER-REQUEST OVERRIDES ──────────
+Active theme key: ${themeKey}
+Theme spec (override the default :root variables to match): ${theme}
 
-THEME (key: ${themeKey}): ${theme}
+CONTENT MUST INCLUDE (in addition to master spec):
+- Cover with title, subject, grade, date
+- Numbered TOC with anchor links (sticky on desktop)
+- Per-section minimum 300 words
+- Min 3 worked examples (easy → medium → hard) with numbered steps
+- Min 5 definition boxes
+- Min 3 callouts (mix tip / warn / mistake / exam tip)
+- 1 comparison table
+- 1 formula / cheatsheet section (even non-math)
+- 5 practice questions, click-to-reveal answers
+- Footer: "Generated by Lumina AI"
 
-CONTENT STRUCTURE:
-- Cover section with title, subject, grade, date
-- Numbered table of contents with anchor links
-- One section per topic (min 300 words each):
-  * Concept explanation in plain English
-  * Formulas in styled formula boxes
-  * Min 2 worked examples with steps
-  * Common mistakes in warning boxes
-  * Exam tips in tip boxes
-  * Mini summary at end
-- Footer "Generated by Lumina AI"
-
-WRITING STYLE: Assume student knows nothing. Number every step. Use proper math: x², √, π, ≤, ≥, ±. Friendly expert tutor voice.`;
+WRITING STYLE: friendly expert tutor, assume nothing, number every step. Use proper math: x², √, π, ≤, ≥, ±.`;
 }
 
 function buildExamPrompt(theme: string, themeKey: string, totalMarks: number, durationMin: number) {
-  return `You are an IB/MYP examiner generating a complete professional exam paper as a self-contained HTML file.
+  return `${buildArtifactSystemPrompt("exam")}
 
-CRITICAL RULES:
-1. Return ONLY complete valid HTML starting with <!DOCTYPE html>
-2. No markdown, no code blocks (no \`\`\`), no explanation — ONLY HTML
-3. All CSS embedded in <style>
-4. Import Google Fonts via @import
-5. Every answer area MUST be a <textarea> element
+────────── PER-REQUEST OVERRIDES ──────────
+Active theme key: ${themeKey}
+Theme spec (override default :root to match): ${theme}
 
-THEME (key: ${themeKey}): ${theme}
+EXAM SPECIFICATIONS:
+- Duration: ${durationMin} minutes
+- Total marks: ${totalMarks} (the sum across ALL sub-parts MUST equal this exactly)
+- Use the 4-section IB-style layout: A Knowledge & Understanding · B Investigating Patterns · C Communication & Reasoning · D Applying in Context
+- Min 4 questions per section, each with sub-parts (a)(b)(c) increasing in difficulty
+- Marks per sub-part shown like [2 marks]
+- Show running totals per section + grand total
+- Mark scheme included at the bottom, hidden behind a toggle button by default
 
-STRUCTURE:
-- Exam header: school, subject, date, duration ${durationMin} min, total ${totalMarks} marks, candidate field
-- Instructions box: show working, 3 sig figs, marks in brackets
-- 4 sections (one per IB criterion A/B/C/D):
-  A: Knowledge & Understanding (calculation)
-  B: Investigating Patterns
-  C: Communication & Reasoning
-  D: Applying in Context
-- Min 4 questions per section, each with sub-parts (a)(b)(c) increasing difficulty
-- Mark allocations after each sub-part: [2 marks]
+ANSWER AREAS: every written sub-part is its own <textarea> with placeholder "Write your working and answer here..." and the height/style rules from the master spec.`;
+}
 
-TEXTAREA RULES:
-- Every sub-part gets its own <textarea>
-- placeholder="Write your working and answer here..."
-- min-height: 1-2 marks→70px, 3-4→110px, 5+→160px
-- style="display:block;width:100%;resize:vertical;font-family:inherit;font-size:14px;padding:10px;margin-top:8px;border:1.5px dashed #ccc;border-radius:6px;background:#fafaf7;outline:none;"
+function buildSlidesPrompt(theme: string, themeKey: string, slideCount: number) {
+  return `${buildArtifactSystemPrompt("slides")}
 
-MARKS: Total must equal ${totalMarks}. Show running totals per section + grand total.`;
+────────── PER-REQUEST OVERRIDES ──────────
+Active theme key: ${themeKey}
+Theme spec (override default :root to match): ${theme}
+
+DECK SPECIFICATIONS:
+- Slide count: ${slideCount} (first = hero/title, last = summary/key takeaways)
+- One core idea per slide
+- Mix slide types: title, content, code (when relevant), diagram, comparison, callout, summary
+- Include working keyboard nav (← →, Space), click nav, swipe, F fullscreen, G grid overview, slide counter, progress bar
+- Auto-pick the subject color from the master spec based on the topic`;
 }
 
 function cleanHtml(raw: string): string {
@@ -132,9 +156,11 @@ serve(async (req) => {
       topic = "Study Material",
       subject = "General",
       grade = "MYP 5",
-      types = ["notes"], // ["notes"] | ["exam"] | ["notes","exam"]
+      types = ["notes"], // any subset of ["notes","exam","slides"]
       notesTheme = "academic-dark",
       examTheme = "classic-paper",
+      slidesTheme = "lumina-dark",
+      slideCount = 10,
       totalMarks = 100,
       durationMin = 120,
       chatId,
@@ -154,18 +180,37 @@ serve(async (req) => {
 
           const artifacts: any[] = [];
 
-          for (const type of types) {
-            const isNotes = type === "notes";
-            const themeKey = isNotes ? notesTheme : examTheme;
-            const themeDesc = isNotes ? NOTES_THEMES[themeKey] : EXAM_THEMES[themeKey];
-            const sysPrompt = isNotes
-              ? buildNotesPrompt(themeDesc || NOTES_THEMES["academic-dark"], themeKey)
-              : buildExamPrompt(themeDesc || EXAM_THEMES["classic-paper"], themeKey, totalMarks, durationMin);
-            const userPrompt = isNotes
-              ? `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`
-              : `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
+          for (const type of types as ArtifactFeature[]) {
+            let themeKey = "";
+            let themeDesc = "";
+            let sysPrompt = "";
+            let userPrompt = "";
+            let label = "";
 
-            send("log", { type: "command", text: `generate.${type}() — building ${isNotes ? "study notes" : "exam paper"}` });
+            if (type === "notes") {
+              themeKey = notesTheme;
+              themeDesc = NOTES_THEMES[themeKey] || NOTES_THEMES["academic-dark"];
+              sysPrompt = buildNotesPrompt(themeDesc, themeKey);
+              userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`;
+              label = "study notes";
+            } else if (type === "exam") {
+              themeKey = examTheme;
+              themeDesc = EXAM_THEMES[themeKey] || EXAM_THEMES["classic-paper"];
+              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin);
+              userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
+              label = "exam paper";
+            } else if (type === "slides") {
+              themeKey = slidesTheme;
+              themeDesc = SLIDES_THEMES[themeKey] || SLIDES_THEMES["lumina-dark"];
+              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount);
+              userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.`;
+              label = "presentation deck";
+            } else {
+              send("log", { type: "warning", text: `Unknown artifact type: ${type} — skipping` });
+              continue;
+            }
+
+            send("log", { type: "command", text: `generate.${type}() — building ${label}` });
             send("log", { type: "info", text: `Applying theme: ${themeKey}` });
             send("log", { type: "progress", text: `Calling AI (${HTML_MODELS.length} model fallbacks ready)...` });
 
@@ -183,7 +228,7 @@ serve(async (req) => {
                     { role: "system", content: sysPrompt },
                     { role: "user", content: userPrompt },
                   ],
-                  [model], 8000, 0.4, 60_000, `html-artifact-${type}`
+                  [model], 12000, 0.5, 90_000, `html-artifact-${type}`
                 );
                 const cleaned = cleanHtml(text);
                 if (cleaned.toLowerCase().includes("<!doctype html") || cleaned.toLowerCase().includes("<html")) {
