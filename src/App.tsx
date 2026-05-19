@@ -11,7 +11,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/features/chat/ChatPage";
+import Chat from "@/pages/Chat";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
