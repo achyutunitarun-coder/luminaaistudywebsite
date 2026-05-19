@@ -1,146 +1,96 @@
+# Lumina Computer — Agentic Substrate Rebuild
 
-
-## Plan: Rebuild Guided Lesson — World-Class Interactive Tutor
-
-### Overview
-Complete rewrite of `GuidedLesson.tsx` and `guided-lesson/index.ts` to deliver a premium, Khan Academy/Gizmo-style step-by-step learning experience with rich interactions, adaptive AI, and lesson persistence.
-
----
-
-### PART 1: Edge Function — Enhanced Lesson AI
-
-**File: `supabase/functions/guided-lesson/index.ts`**
-
-Expand the edge function to handle 5 request types via a `mode` field:
-
-1. **`outline`** (existing, enhanced) — Generate 5-8 step lesson plan with richer metadata (step descriptions, estimated time)
-2. **`step`** (existing, enhanced) — Generate step content with new JSON structure:
-   - `explanation` (150-250 words, rich with analogies, bold terms)
-   - `example` (concrete real-world example)
-   - `check_questions` array with mixed MCQ + short_answer types
-   - `model_answer` field for short answer questions
-3. **`simplify`** (new) — Re-explain the current step at a lower level
-4. **`deeper`** (new) — Add more detail/depth to current step
-5. **`example`** (new) — Generate a new real-world example for current step
-6. **`evaluate`** (new) — AI evaluates a short answer response
-7. **`final_quiz`** (new) — Generate 5 questions covering the entire lesson
-
-Each mode uses `MODELS_BALANCED` with fallback to `MODELS_FAST` for speed. The simplify/deeper/example modes use `MODELS_FAST` since they're supplementary.
-
-System prompt enforces: brilliant-friend tone, 150-250 word explanations, analogies by default, structured JSON output.
+## Goals
+1. Reliable artifact rendering — no broken HTML, no truncation.
+2. Substrate-style cyberpunk workspace (matches reference): left file explorer + INITIALIZE_NODE, center tabbed Source Code / Manifest View, bottom Neural Link Protocol log, right realtime preview panel.
+3. Agentic abilities — Lumina can create/edit multiple files, stream code live into the editor, and navigate the user to other Lumina pages.
+4. OWL Alpha as primary model, OpenRouter free models as fallback.
+5. `max_tokens = 65000`, streaming continues until the model finishes — never cut mid-output.
 
 ---
 
-### PART 2: Database — Lesson History
+## 1. Backend — `supabase/functions/chat/index.ts`
 
-**Migration:** Create `guided_lessons` table:
-```sql
-CREATE TABLE guided_lessons (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  topic text NOT NULL,
-  difficulty text DEFAULT 'intermediate',
-  steps_completed integer DEFAULT 0,
-  total_steps integer DEFAULT 5,
-  score numeric DEFAULT 0,
-  total_questions integer DEFAULT 0,
-  correct_answers integer DEFAULT 0,
-  completed_at timestamptz,
-  created_at timestamptz DEFAULT now()
-);
--- RLS: users can CRUD own lessons
+- When `mode === "computer"`: force model list to `["openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]` (de-duped). OWL Alpha first, free fallback after.
+- Set `maxTokens = 65000` for computer mode (override the 131072/1200 branch).
+- Bump `timeoutMs` to 240_000 for computer mode so long artifacts complete.
+- Inject a new **AGENTIC SYSTEM PROMPT** for computer mode that instructs the model to emit a strict machine-parseable format:
+
+  ```
+  <lumina:plan>short plan in markdown</lumina:plan>
+  <lumina:file path="index.html" lang="html">
+  ...full file contents, no truncation...
+  </lumina:file>
+  <lumina:file path="styles.css" lang="css">...</lumina:file>
+  <lumina:navigate to="/tests" reason="..."/>   (optional)
+  <lumina:final>final summary for the user</lumina:final>
+  ```
+
+  Rules in prompt: always close every tag; never truncate; one full file per `<lumina:file>`; emit at least one file when the user asks for code/artifact; HTML files must be complete `<!doctype html>` documents; the editor will render whatever is inside file tags.
+
+- Keep existing live web research block for computer/mun/deep.
+
+## 2. Streaming Parser — new `src/features/computer/parser.ts`
+
+- Incremental parser that consumes the streamed token buffer and emits events:
+  - `plan` (markdown chunk)
+  - `file` `{path, lang, content, done}` — fires on every delta so editor updates live
+  - `navigate` `{to, reason}`
+  - `final` (markdown summary)
+- Tolerates partial tags mid-stream (buffer until tag closes for attributes; stream body deltas live).
+- Fallback: if no `<lumina:*>` tags appear, treat the whole stream as a single virtual file `response.md` so legacy responses still render.
+
+## 3. Frontend — rewrite `src/pages/LuminaComputer.tsx` (Substrate layout)
+
+Layout (CSS grid, full viewport, dark `#05060d`, cyan `#22d3ee` + violet accents, mono font for chrome):
+
+```text
+┌──────────────────────── Topbar: THE SUBSTRATE • tabs • status ───────────────────────┐
+│ Sidebar (260px)   │ Center: tabs SOURCE_CODE | MANIFEST_VIEW       │ Preview (480px)│
+│  • Workspace card │   • Live code editor (read-only, line numbers, │  • Big iframe   │
+│  • ROOT_EXPLORER  │     syntax tint, auto-scroll as tokens stream) │    preview of   │
+│    file list      │   • Tab per file Lumina generates              │    active HTML  │
+│  • ACTIVE_TABS    │   • Manifest view = rendered markdown plan     │    file         │
+│  • INITIALIZE_    │ ────────────────────────────────────────────── │  • Fullscreen + │
+│    NODE button    │   NEURAL_LINK_PROTOCOL log (auto-scroll)       │    download     │
+│                   │   COMMAND_SUBSTRATE_ input (prompt bar)        │                 │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+Behaviour:
+- File explorer lists every `<lumina:file>` the model emits, with a live dot when streaming.
+- Clicking a file switches the editor tab. Editor uses a lightweight virtualized `<pre>` with line numbers (no Monaco needed) and a typing caret while streaming.
+- Preview panel auto-selects the first HTML file and re-renders the iframe each time that file's content updates (debounced 250ms). Big — fills the right column; fullscreen toggle expands to full viewport.
+- Log feed prints timestamped lines: `[SYNC] routing → owl-alpha`, `[FILE] index.html +1.2KB`, `[NAV] /tests`, `[DONE] 3 files · 12.4s`.
+- Navigation tool: when a `<lumina:navigate>` event fires, show a confirm toast "Open /tests?" → on accept call `useNavigate()`.
+- Prompt bar pinned bottom with capability suggestion chips for first-run ("Build a calculus visualiser", "Deep research: ...", "Take me to flashcards and generate 20 on derivatives").
 
-### PART 3: Frontend — Complete UI Rewrite
+## 4. Capabilities & "best of Lumina" panel
 
-**File: `src/pages/GuidedLesson.tsx`** — Full rewrite (~800 lines)
+Onboarding empty state inside the editor area: 3 columns of capability cards (study guides, deep research, MUN, code artifacts, multi-file apps, page navigation), each click pre-fills the prompt bar.
 
-**Phase 1 — Setup Screen:**
-- Large centered hero with Brain icon + subtle glow animation
-- "What do you want to learn today?" input (large, prominent)
-- Collapsible "Options" section: difficulty dropdown + goal text input
-- Quick topic chips below input
-- Glowing "Start Lesson" CTA button
-- Dark academic aesthetic: `#0c0e1a` background feel, teal accents (`#00d4c8`), glassmorphic cards
+## 5. Robust artifact rendering rules
 
-**Phase 2 — Lesson Roadmap:**
-- After outline generates: show visual step tracker (horizontal on desktop, vertical on mobile)
-- Each step: number circle + title
-- Current step: glowing pulse animation with teal ring
-- Completed: green checkmark
-- Future: dimmed/locked appearance
-- Sticky at top during lesson
+- Editor never truncates: store full text in state, render via virtualized slice when > 2000 lines.
+- iframe uses `sandbox="allow-scripts allow-forms allow-popups allow-modals"` and `srcDoc` rebuilt from the full file text.
+- If a file is CSS or JS, the preview combines it with the active HTML file (inject `<style>`/`<script>` if HTML doesn't already reference it).
+- Markdown / non-HTML files render in MANIFEST_VIEW tab with `MarkdownRenderer`.
 
-**Phase 3 — Lesson Steps (core loop):**
+## 6. Cleanup
 
-TEACH sub-phase:
-- "Step X of Y" small caps label
-- Step title as heading
-- AI explanation rendered as rich markdown (bold, bullets, analogies)
-- "AI-generated" subtle label in corner
-- 3 ghost buttons below explanation: "Explain Simpler", "Give Example", "Go Deeper"
-- Each button calls the edge function with the appropriate mode, response appears inline below
-- "Read Aloud" button using browser `speechSynthesis` API
-- After reading, a "Ready for questions" CTA button
+- Remove the duplicate `ChatBubble`/single-message UX from current `LuminaComputer.tsx` — replaced by workspace UX above. Keep `/chat` page untouched.
+- No backend schema changes, no new edge functions.
 
-CHECK sub-phase:
-- 1-2 questions per step (mix MCQ + short answer)
-- MCQ: styled answer cards with letter badges, tap to select
-- Short answer: text input with "Submit" button
-- Short answer evaluation: calls `evaluate` mode on edge function
-- Submit locks answers
+## 7. Files changed
 
-FEEDBACK sub-phase:
-- Correct: card pulses green glow, "Nailed it!" message
-- Wrong: gentle CSS shake animation, soft crimson highlight, specific hint from AI
-- Retry up to 2 times on wrong answers
-- After 2 wrong: AI re-teaches (calls `simplify` mode) then asks a simpler question
-- Never says "Wrong" — always explains why and redirects
+- `supabase/functions/chat/index.ts` — computer-mode routing, 65k tokens, agentic prompt.
+- `src/features/computer/parser.ts` — NEW streaming tag parser.
+- `src/features/computer/useComputerStream.ts` — NEW hook (fetch + parser + state).
+- `src/features/computer/components/{Sidebar,Editor,PreviewPanel,LogFeed,PromptBar,TopBar}.tsx` — NEW.
+- `src/pages/LuminaComputer.tsx` — rewrite to compose the workspace.
 
-**Phase 4 — Step Transitions:**
-- Content slides out left, new content fades in from right (framer-motion)
-- Progress bar fills with glowing leading edge
-- Milestone celebrations at 25%, 50%, 75%, 100%
-
-**Phase 5 — Lesson Complete:**
-- Expanding ring animation from center
-- Summary card: topic, steps, questions answered, accuracy %
-- 3 CTAs: "Review Lesson" (scrollable read-only summary), "Take Final Quiz" (5 Qs), "New Lesson"
-- Final quiz: 5 mixed questions, scored, with explanations
-- Save to `guided_lessons` table on completion
-
-**Layout:**
-- Single column, centered, max-width 720px
-- Fixed sticky progress tracker at top
-- Fixed bottom action bar with primary CTA
-- Mobile-first responsive
-- Loading: typing indicator (3 animated dots) + skeleton after 3s
-
-**Animations (CSS + framer-motion):**
-- `@keyframes shake` for wrong answers
-- `@keyframes glowPulse` for active step indicator
-- `@keyframes ringExpand` for lesson complete
-- Staggered card entrance with framer-motion
-
----
-
-### PART 4: Deploy + Wire Up
-
-- Deploy updated `guided-lesson` edge function
-- Add `guided_lesson` usage limit key (already exists in useUsageLimits)
-- Save completed lessons to Supabase
-
----
-
-### Files to modify/create:
-1. `supabase/functions/guided-lesson/index.ts` — Enhanced with 7 modes
-2. `src/pages/GuidedLesson.tsx` — Complete rewrite
-3. Database migration — `guided_lessons` table
-
-### Files NOT changing:
-- `_shared/models.ts` — Already has the correct model tiers
-- `App.tsx` — Route already exists
-- `AppSidebarContent.tsx` — Link already exists
-
+## Technical notes (for devs)
+- Editor is a `<div>` of pre-rendered lines with `font-variant-ligatures:none`, color-tinted by file extension (no heavy syntax highlighter — keeps it fast under streaming).
+- Preview iframe key includes `${activeFile}:${contentHash}` so React remounts cleanly on each meaningful change but not on every token.
+- Owl Alpha + free fallback is enforced server-side; client never picks the model.
+- All `<lumina:*>` tags are stripped from any user-visible markdown so raw tags never leak into the UI.

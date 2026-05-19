@@ -11,7 +11,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/pages/Chat";
+import Chat from "@/features/chat/ChatPage";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -33,14 +33,22 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
+import LuminaComputer from "@/pages/LuminaComputer";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
 import { ConsentBanner } from "@/components/ConsentBanner";
+import { CreditToast } from "@/features/credits/CreditToast";
+import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const PaymentReturnHandler = () => {
+  usePaymentReturn();
+  return null;
+};
 
 const ProtectedLayout = () => {
   const { user, loading, needsOnboarding, setNeedsOnboarding } = useAuth();
@@ -85,6 +93,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PaymentReturnHandler />
+          <CreditToast />
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
 
@@ -93,6 +103,7 @@ const App = () => (
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
+              <Route path="/computer" element={<LuminaComputer />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/doubt-solver" element={<DoubtSolver />} />
@@ -116,6 +127,7 @@ const App = () => (
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/training-data" element={<TrainingData />} />
+              <Route path="/brain-hub" element={<Navigate to="/hub" replace />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
