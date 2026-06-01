@@ -34,6 +34,7 @@ import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import LuminaComputer from "@/pages/LuminaComputer";
+import Documents from "@/pages/Documents";
 import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/computer" element={<LuminaComputer />} />
+              <Route path="/documents" element={<Documents />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/doubt-solver" element={<DoubtSolver />} />

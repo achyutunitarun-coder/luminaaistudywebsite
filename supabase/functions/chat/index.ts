@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY } from "../_shared/models.ts";
+import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
 
 // ── Lumina Computer agentic prompt ──────────────────────────────────
 const COMPUTER_AGENTIC_PROMPT = `
@@ -89,7 +90,8 @@ serve(async (req) => {
     // We deliberately do NOT inline raw HTML in chat — it produced broken UX.
     const artifactFeature: null = null;
 
-    let systemPrompt: string = getSystemPromptForIntent(intent);
+    // Prepend Lumina older-brother persona to EVERY non-Computer chat surface.
+    let systemPrompt: string = `${LUMINA_PERSONA}\n\n---\n\n${getSystemPromptForIntent(intent)}`;
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     // ── LIVE WEB RESEARCH for Computer / MUN / Deep modes ─────────────
