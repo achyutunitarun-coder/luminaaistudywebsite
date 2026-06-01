@@ -434,8 +434,9 @@ const ChatPage = () => {
 
       setMessages((prev) => prev.map((m) => (m.id === aId ? finalMessage : m)));
       await persistMessage(chatId, finalMessage);
+      if (finalMessage.type === "text") pushCanvasFromMessage(finalMessage.content);
     },
-    [model, persistMessage],
+    [model, persistMessage, pushCanvasFromMessage],
   );
 
   const runQuickStudy = useCallback(
@@ -1015,6 +1016,15 @@ Q3: ... || A: ...
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
+      {canvasOpen && (
+        <div className="hidden md:flex flex-[0_0_54%] min-w-0 transition-all duration-300">
+          <CanvasPanel
+            open={canvasOpen}
+            versions={canvasVersions}
+            onClose={() => setCanvasOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };
