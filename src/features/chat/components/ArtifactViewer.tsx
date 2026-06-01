@@ -302,7 +302,7 @@ export const ArtifactViewer = ({
       {device === 'full' && (
         <iframe
           srcDoc={html}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts allow-forms allow-pointer-lock allow-modals"
           title={`${type} preview`}
           className="w-full h-full border-0 bg-white"
         />
@@ -333,7 +333,7 @@ export const ArtifactViewer = ({
             </div>
             <iframe
               srcDoc={html}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts allow-forms allow-pointer-lock allow-modals"
               title={`${type} preview browser`}
               className="w-full border-0 bg-white"
               style={{ height: fullscreen ? 'calc(100vh - 200px)' : '520px' }}
@@ -353,7 +353,7 @@ export const ArtifactViewer = ({
           >
             <iframe
               srcDoc={html}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts allow-forms allow-pointer-lock allow-modals"
               title={`${type} preview mobile`}
               className="border-0 bg-white rounded-[28px]"
               style={{ width: '390px', height: fullscreen ? 'calc(100vh - 220px)' : '560px' }}
