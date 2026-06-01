@@ -27,8 +27,12 @@ function cleanAndParse(raw: string) {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { curriculum, subject, topic, type, userId, regenerate, count } = await req.json();
-    if (!subject || !topic || !type || !userId) return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const _auth = await requireUser(req, corsHeaders);
+    if ("error" in _auth) return _auth.error;
+    const userId = _auth.user.id;
+
+    const { curriculum, subject, topic, type, regenerate, count } = await req.json();
+    if (!subject || !topic || !type) return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
