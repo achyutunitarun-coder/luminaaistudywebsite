@@ -1988,6 +1988,16 @@ export type Database = {
           product_type: string
         }[]
       }
+      get_parent_link_by_code: {
+        Args: { _code: string }
+        Returns: {
+          access_code: string
+          id: string
+          linked_at: string
+          parent_email: string
+          student_id: string
+        }[]
+      }
       get_usage_count: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
