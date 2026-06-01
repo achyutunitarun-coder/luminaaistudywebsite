@@ -105,6 +105,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const _auth = await requireUser(req, corsHeaders);
+    if ("error" in _auth) return _auth.error;
+    const userId = _auth.user.id;
+
     const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
     if (!DEEPGRAM_API_KEY) throw new Error("DEEPGRAM_API_KEY is not configured. Please add your Deepgram API key.");
     
@@ -115,21 +119,22 @@ serve(async (req) => {
     const url = new URL(req.url);
     const jobId = url.searchParams.get("job_id");
 
-    // Poll for job status
+    // Poll for job status — must belong to caller
     if (jobId) {
       const { data, error } = await supabase
         .from("transcription_jobs")
         .select("status, result, error")
         .eq("id", jobId)
+        .eq("user_id", userId)
         .single();
-      if (error) throw new Error("Job not found");
+      if (error) return new Response(JSON.stringify({ error: "Job not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const contentLength = Number(req.headers.get("content-length") ?? 0);
-    const maxRequestBytes = 25 * 1024 * 1024; // Deepgram supports larger files
+    const maxRequestBytes = 25 * 1024 * 1024;
     if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
       return new Response(
         JSON.stringify({ error: "Audio chunk too large (max 25MB)." }),
@@ -142,7 +147,7 @@ serve(async (req) => {
     if (!audioFile) throw new Error("No audio file provided");
     if (audioFile.size === 0) throw new Error("Audio file is empty");
 
-    const userId = extractUserId(req.headers.get("authorization"));
+
 
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBytes = new Uint8Array(arrayBuffer);
