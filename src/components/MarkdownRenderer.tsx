@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import rehypeRaw from 'rehype-raw';
+// rehype-raw intentionally removed for XSS hardening on AI-generated content.
 import 'katex/dist/katex.min.css';
 import { Check, Copy, Download, Play, X } from 'lucide-react';
 
