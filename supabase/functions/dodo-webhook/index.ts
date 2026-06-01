@@ -6,13 +6,51 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = Deno.env.get("DODO_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("[dodo-webhook] DODO_WEBHOOK_SECRET not configured — rejecting all webhooks for safety");
+    return false;
+  }
+  const id = req.headers.get("webhook-id");
+  const timestamp = req.headers.get("webhook-timestamp");
+  const sigHeader = req.headers.get("webhook-signature");
+  if (!id || !timestamp || !sigHeader) return false;
+
+  // Replay protection — reject events older than 5 minutes
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+
+  const signedPayload = `${id}.${timestamp}.${rawBody}`;
+  // Secret format from Standard Webhooks: "whsec_<base64>"
+  const secretBytes = secret.startsWith("whsec_")
+    ? Uint8Array.from(atob(secret.slice(6)), (c) => c.charCodeAt(0))
+    : new TextEncoder().encode(secret);
+  const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedPayload));
+  const expected = btoa(String.fromCharCode(...new Uint8Array(macBuf)));
+  // Header looks like "v1,<base64sig> v1,<base64sig> ..."
+  return sigHeader.split(" ").some((part) => {
+    const [, sig] = part.split(",");
+    return sig && sig === expected;
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const payload = await req.json();
+    const rawBody = await req.text();
+    const valid = await verifySignature(req, rawBody);
+    if (!valid) {
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const payload = JSON.parse(rawBody);
     const { type, data } = payload;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
