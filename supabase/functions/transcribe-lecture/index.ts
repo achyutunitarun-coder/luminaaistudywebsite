@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { requireUser } from "../_shared/auth.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
 async function processTranscription(jobId: string, audioBytes: Uint8Array, mimeType: string) {
   const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
