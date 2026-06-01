@@ -21,6 +21,8 @@ import { detectIntent, type Intent } from "./utils/intentDetector";
 import { attemptGeneration } from "./utils/generationWrapper";
 import { MessageList } from "./components/MessageList";
 import { InputBar } from "./components/InputBar";
+import { CanvasPanel } from "@/features/canvas/CanvasPanel";
+import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
 import { ModelSelector, type ModelMode } from "./components/ModelSelector";
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
@@ -135,6 +137,30 @@ const ChatPage = () => {
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
+
+  // ── Canvas Mode ──────────────────────────────────────────────────
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
+
+  useEffect(() => {
+    try {
+      const imported = localStorage.getItem("lumina_canvas_import");
+      if (imported) {
+        const html = wrapAsHtmlDoc(imported, /<!doctype html|<html/i.test(imported) ? "html" : "html");
+        setCanvasVersions([{ code: imported, html, ts: Date.now() }]);
+        setCanvasOpen(true);
+        localStorage.removeItem("lumina_canvas_import");
+      }
+    } catch {}
+  }, []);
+
+  const pushCanvasFromMessage = useCallback((text: string) => {
+    const found = detectCanvas(text);
+    if (!found) return;
+    const html = wrapAsHtmlDoc(found.code, found.lang);
+    setCanvasVersions((prev) => [...prev, { code: found.code, html, ts: Date.now() }].slice(-20));
+    setCanvasOpen(true);
+  }, []);
 
   useEffect(() => {
     currentChatIdRef.current = currentChatId;
