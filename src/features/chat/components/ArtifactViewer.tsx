@@ -151,15 +151,15 @@ export const ArtifactViewer = ({
                 setEditingTitle(false);
               }
             }}
-            className="bg-transparent outline-none text-[13px] text-[#f0f0f0] border-b border-[#6ee7b7]/60 min-w-0 max-w-[40ch]"
-            style={{ fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui", letterSpacing: '0.01em' }}
+            className="bg-transparent outline-none text-[16px] text-[#f0f0f0] border-b border-[#6ee7b7]/60 min-w-0 max-w-[40ch]"
+            style={{ fontFamily: "var(--font-display)", letterSpacing: '-0.005em' }}
           />
         ) : (
           <button
             type="button"
             onDoubleClick={() => setEditingTitle(true)}
-            className="text-[13px] text-[#f0f0f0] truncate max-w-[36ch] text-left hover:text-white transition-colors"
-            style={{ fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui", letterSpacing: '0.01em' }}
+            className="text-[16px] text-[#f0f0f0] truncate max-w-[36ch] text-left hover:text-white transition-colors"
+            style={{ fontFamily: "var(--font-display)", letterSpacing: '-0.005em' }}
             title="Double-click to rename"
           >
             {title}
