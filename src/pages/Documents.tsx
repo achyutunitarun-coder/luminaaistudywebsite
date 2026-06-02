@@ -120,16 +120,52 @@ export default function Documents() {
     );
   const insertCode = () => insertHTML(`<pre><code>// code…</code></pre><p></p>`);
 
-  // AI Assistant — replaces selection or focuses input
+  // Ref to the currently-streaming inline node inside the editor
+  const streamNodeRef = useRef<HTMLSpanElement | null>(null);
+
+  // AI Assistant — streams tokens directly into the editor at the caret
   const runAI = useCallback(async (prompt: string) => {
     if (!prompt.trim() || aiBusy) return;
     setAiBusy(true);
     setAiMsgs((m) => [...m, { role: "user", content: prompt }, { role: "assistant", content: "" }]);
 
+    const editor = editorRef.current;
+    if (!editor) { setAiBusy(false); return; }
+
+    // Capture selection inside the editor (if any)
     const sel = window.getSelection();
-    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-    const inEditor = range && editorRef.current?.contains(range.commonAncestorContainer);
+    let range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const inEditor = range && editor.contains(range.commonAncestorContainer);
     const selectedText = inEditor ? sel?.toString() ?? "" : "";
+
+    // Focus editor; if cursor isn't inside, place it at the end
+    editor.focus();
+    if (!inEditor) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } else if (selectedText && range) {
+      // Replace selection
+      range.deleteContents();
+    }
+
+    // Insert a dedicated streaming span at the caret
+    const streamSpan = document.createElement("span");
+    streamSpan.setAttribute("data-lumina-stream", "true");
+    streamSpan.className = "lumina-stream";
+    range = sel?.getRangeAt(0) ?? null;
+    if (range) {
+      range.insertNode(streamSpan);
+      // Move caret inside the span
+      const r2 = document.createRange();
+      r2.selectNodeContents(streamSpan);
+      r2.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(r2);
+    }
+    streamNodeRef.current = streamSpan;
 
     const model = pickModel({ type: "creative", complexity: "medium" });
     let assistantAcc = "";
@@ -137,7 +173,7 @@ export default function Documents() {
       await streamOpenRouter({
         model,
         systemPrompt:
-          "You are Lumina — a brilliant older-sibling writing assistant inside a document editor. Write the requested content in clean, beautiful prose. Return only the text to insert. No preamble, no 'here is…', no headers unless asked. Match the user's tone.",
+          "You are Lumina — a brilliant older-sibling writing assistant inside a document editor. Write the requested content in clean, beautiful prose. Return only the text to insert. No preamble, no 'here is…', no headers unless asked. Match the user's tone. Use real paragraph breaks (\\n\\n) where natural.",
         messages: [
           ...(selectedText
             ? [{ role: "user", content: `Rewrite or transform this passage:\n\n${selectedText}\n\nRequest: ${prompt}` }]
@@ -151,30 +187,37 @@ export default function Documents() {
             next[next.length - 1] = { role: "assistant", content: assistantAcc };
             return next;
           });
-          // Stream into editor at the cursor / selection
-          if (inEditor) {
-            editorRef.current?.focus();
-            try {
-              if (selectedText && !replacedRef.current) {
-                document.execCommand("insertText", false, tok);
-                replacedRef.current = true;
-              } else {
-                document.execCommand("insertText", false, tok);
+          const node = streamNodeRef.current;
+          if (node) {
+            // Append text, converting paragraph breaks into real <br><br>
+            const parts = tok.split(/\n\n+/);
+            parts.forEach((part, idx) => {
+              if (idx > 0) {
+                node.appendChild(document.createElement("br"));
+                node.appendChild(document.createElement("br"));
               }
-            } catch {}
+              if (part) node.appendChild(document.createTextNode(part.replace(/\n/g, " ")));
+            });
+            // Keep editor scrolled to caret
+            node.scrollIntoView({ block: "nearest", behavior: "smooth" });
           }
         },
       });
+      // Unwrap the streaming span so the content becomes regular editor content
+      const node = streamNodeRef.current;
+      if (node && node.parentNode) {
+        const parent = node.parentNode;
+        while (node.firstChild) parent.insertBefore(node.firstChild, node);
+        parent.removeChild(node);
+      }
       onEditorInput();
     } catch (e: any) {
       toast.error(e?.message ?? "AI failed");
     } finally {
+      streamNodeRef.current = null;
       setAiBusy(false);
-      replacedRef.current = false;
     }
   }, [aiBusy, onEditorInput]);
-
-  const replacedRef = useRef(false);
 
   const handleAISend = () => {
     const p = aiInput.trim();
@@ -188,7 +231,7 @@ export default function Documents() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] text-white/[0.92]" style={{ fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] text-white/[0.92]" style={{ fontFamily: "var(--font-body)" }}>
       {/* HEADER */}
       <header className="flex items-center gap-3 h-14 px-5 border-b border-[rgba(20,184,166,0.10)] flex-shrink-0 print:hidden">
         <FileText className="w-4 h-4 text-[#14b8a6]" />
@@ -290,8 +333,8 @@ export default function Documents() {
         <main className="flex-1 overflow-y-auto print:overflow-visible">
           {preview ? (
             <article
-              className="max-w-[740px] mx-auto px-6 py-14 text-[16px] leading-[1.85] text-white/[0.88]"
-              style={{ caretColor: "#14b8a6" }}
+              className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9]"
+              style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
               dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML ?? "" }}
             />
           ) : (
@@ -301,8 +344,8 @@ export default function Documents() {
               suppressContentEditableWarning
               onInput={onEditorInput}
               data-placeholder="Start writing, or press ✦ AI to generate…"
-              className="lumina-editor max-w-[740px] mx-auto px-6 py-14 text-[16px] leading-[1.85] text-white/[0.88] outline-none min-h-full"
-              style={{ caretColor: "#14b8a6" }}
+              className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9] outline-none min-h-full"
+              style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
             />
           )}
         </main>
@@ -365,12 +408,18 @@ export default function Documents() {
 
       {/* Editor styles + print styles */}
       <style>{`
-        .lumina-editor:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.26); pointer-events: none; }
-        .lumina-editor h1 { font-family: 'Instrument Serif', serif; font-size: 32px; line-height: 1.2; margin: 1.2em 0 0.5em; }
-        .lumina-editor h2 { font-family: 'Instrument Serif', serif; font-size: 24px; line-height: 1.25; margin: 1em 0 0.5em; }
-        .lumina-editor h3 { font-family: 'Instrument Sans', sans-serif; font-weight: 500; font-size: 18px; margin: 0.9em 0 0.4em; }
-        .lumina-editor pre { font-family: 'JetBrains Mono', ui-monospace, monospace; background: #141420; padding: 14px 16px; border-radius: 8px; overflow:auto; font-size: 13px; }
-        .lumina-editor code { font-family: 'JetBrains Mono', ui-monospace, monospace; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+        .lumina-editor:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.26); pointer-events: none; font-family: var(--font-display); font-style: italic; font-size: 22px; }
+        .lumina-editor ::selection { background: rgba(124,58,237,0.32); }
+        .lumina-editor h1 { font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.08; letter-spacing: -0.012em; margin: 1.1em 0 0.45em; color: #fff; }
+        .lumina-editor h2 { font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.15; letter-spacing: -0.008em; margin: 1em 0 0.45em; color: rgba(255,255,255,0.95); }
+        .lumina-editor h3 { font-family: var(--font-ui); font-weight: 600; font-size: 19px; letter-spacing: 0.005em; margin: 0.95em 0 0.4em; color: rgba(255,255,255,0.92); }
+        .lumina-editor p { margin: 0 0 1.1em; }
+        .lumina-editor blockquote { font-family: var(--font-display); font-style: italic; font-size: 22px; line-height: 1.45; border-left: 2px solid #14b8a6; padding: 4px 0 4px 22px; margin: 1.4em 0; color: rgba(255,255,255,0.78); }
+        .lumina-editor pre { font-family: var(--font-mono); background: #0e0e18; border: 1px solid rgba(255,255,255,0.06); padding: 16px 18px; border-radius: 10px; overflow:auto; font-size: 13.5px; line-height: 1.65; margin: 1.2em 0; }
+        .lumina-editor code { font-family: var(--font-mono); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; color: #c8a8ff; }
+        .lumina-editor .lumina-stream { background: linear-gradient(180deg, transparent 0%, transparent 86%, rgba(20,184,166,0.18) 86%, rgba(20,184,166,0.18) 100%); }
+        .lumina-editor .lumina-stream::after { content: ''; display: inline-block; width: 2px; height: 1.05em; vertical-align: text-bottom; margin-left: 1px; background: #14b8a6; animation: lumina-doc-caret 1s steps(2,start) infinite; }
+        @keyframes lumina-doc-caret { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
         @keyframes slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media print {
           body { background: white !important; }

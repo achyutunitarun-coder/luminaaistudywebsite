@@ -151,15 +151,15 @@ export const ArtifactViewer = ({
                 setEditingTitle(false);
               }
             }}
-            className="bg-transparent outline-none text-[13px] text-[#f0f0f0] border-b border-[#6ee7b7]/60 min-w-0 max-w-[40ch]"
-            style={{ fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui", letterSpacing: '0.01em' }}
+            className="bg-transparent outline-none text-[16px] text-[#f0f0f0] border-b border-[#6ee7b7]/60 min-w-0 max-w-[40ch]"
+            style={{ fontFamily: "var(--font-display)", letterSpacing: '-0.005em' }}
           />
         ) : (
           <button
             type="button"
             onDoubleClick={() => setEditingTitle(true)}
-            className="text-[13px] text-[#f0f0f0] truncate max-w-[36ch] text-left hover:text-white transition-colors"
-            style={{ fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui", letterSpacing: '0.01em' }}
+            className="text-[16px] text-[#f0f0f0] truncate max-w-[36ch] text-left hover:text-white transition-colors"
+            style={{ fontFamily: "var(--font-display)", letterSpacing: '-0.005em' }}
             title="Double-click to rename"
           >
             {title}
@@ -206,7 +206,7 @@ export const ArtifactViewer = ({
             onClick={() => setView('preview')}
             className="relative z-10 flex items-center gap-1.5 px-2.5 h-7 rounded-md text-[11px] transition-colors"
             style={{
-              fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+              fontFamily: "var(--font-ui)",
               letterSpacing: '0.02em',
               color: view === 'preview' ? '#0c0c0d' : '#a1a1aa',
               background: view === 'preview' ? '#6ee7b7' : 'transparent',
@@ -220,7 +220,7 @@ export const ArtifactViewer = ({
             onClick={() => setView('code')}
             className="relative z-10 flex items-center gap-1.5 px-2.5 h-7 rounded-md text-[11px] transition-colors"
             style={{
-              fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+              fontFamily: "var(--font-ui)",
               letterSpacing: '0.02em',
               color: view === 'code' ? '#0c0c0d' : '#a1a1aa',
               background: view === 'code' ? '#6ee7b7' : 'transparent',
@@ -405,7 +405,7 @@ export const ArtifactViewer = ({
         background: 'rgba(17,17,19,0.85)',
         borderTop: '1px solid #1f1f23',
         color: '#71717a',
-        fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+        fontFamily: "var(--font-ui)",
         letterSpacing: '0.02em',
       }}
     >
