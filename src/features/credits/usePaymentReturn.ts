@@ -86,35 +86,29 @@ async function applyCreditsServerFirst(
   paymentId: string,
   details: { name: string; type: 'pack' | 'subscription' },
   fallbackCredits: number,
-  tier?: 'ultimate' | 'pro_plus',
+  _tier?: 'ultimate' | 'pro_plus',
 ) {
   const store = useCreditsStore.getState();
   try {
     const { supabase } = await import('@/integrations/supabase/client');
-    const { data, error } = await (supabase as any).rpc('apply_dodo_credits', {
-      _product_id: productId,
-      _payment_id: paymentId,
-      _source: 'return_url',
+    // Server verifies the Dodo payment before granting credits. We no longer
+    // mint credits client-side if this fails — silently failing is safer.
+    const { data, error } = await supabase.functions.invoke('restore-dodo-credits', {
+      body: { product_id: productId, payment_id: paymentId },
     });
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!error && row) {
-      const plan = row.plan === 'ultimate' || row.plan === 'pro_plus' || row.plan === 'free' ? row.plan : undefined;
-      store.setBalance(Number(row.balance ?? store.balance), plan);
-      store.markPaymentProcessed(paymentId);
-      if (!row.duplicate) showSuccessToast(Number(row.credits_added ?? fallbackCredits), row.product_name ?? details.name, details.type);
+    if (error || !data?.applied) {
+      if (!data?.duplicate) {
+        console.warn('[Credits] Server credit apply did not succeed; no client fallback will run.');
+      }
       return;
     }
+    const plan = data.plan === 'ultimate' || data.plan === 'pro_plus' || data.plan === 'free' ? data.plan : undefined;
+    store.setBalance(Number(data.balance ?? store.balance), plan);
+    store.markPaymentProcessed(paymentId);
+    if (!data.duplicate) showSuccessToast(Number(data.credits_added ?? fallbackCredits), data.product_name ?? details.name, details.type);
   } catch (e) {
-    console.warn('[Credits] Server credit apply failed, using local recovery:', e);
+    console.warn('[Credits] Server credit apply failed; not minting locally:', e);
   }
-
-  store.addCredits(fallbackCredits, productId, details.name, details.type === 'pack' ? 'purchase' : 'subscription', paymentId);
-  if (details.type === 'subscription') {
-    if (tier) store.setPlan(tier);
-    else if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') store.setPlan('ultimate');
-    else if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') store.setPlan('pro_plus');
-  }
-  showSuccessToast(fallbackCredits, details.name, details.type);
 }
 
 function cleanUrl() {
