@@ -206,7 +206,7 @@ export const ArtifactViewer = ({
             onClick={() => setView('preview')}
             className="relative z-10 flex items-center gap-1.5 px-2.5 h-7 rounded-md text-[11px] transition-colors"
             style={{
-              fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+              fontFamily: "var(--font-ui)",
               letterSpacing: '0.02em',
               color: view === 'preview' ? '#0c0c0d' : '#a1a1aa',
               background: view === 'preview' ? '#6ee7b7' : 'transparent',
@@ -220,7 +220,7 @@ export const ArtifactViewer = ({
             onClick={() => setView('code')}
             className="relative z-10 flex items-center gap-1.5 px-2.5 h-7 rounded-md text-[11px] transition-colors"
             style={{
-              fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+              fontFamily: "var(--font-ui)",
               letterSpacing: '0.02em',
               color: view === 'code' ? '#0c0c0d' : '#a1a1aa',
               background: view === 'code' ? '#6ee7b7' : 'transparent',
@@ -405,7 +405,7 @@ export const ArtifactViewer = ({
         background: 'rgba(17,17,19,0.85)',
         borderTop: '1px solid #1f1f23',
         color: '#71717a',
-        fontFamily: "'DM Sans','Outfit',ui-sans-serif,system-ui",
+        fontFamily: "var(--font-ui)",
         letterSpacing: '0.02em',
       }}
     >
