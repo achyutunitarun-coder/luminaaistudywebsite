@@ -14,8 +14,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["'SF Pro Display'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        display: ["'Instrument Serif'", "ui-serif", "Georgia", "serif"],
         sans: ["'SF Pro Text'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        ui: ["'Space Grotesk'", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["'Inter Tight'", "'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+        terminal: ["'DM Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
