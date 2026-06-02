@@ -333,8 +333,8 @@ export default function Documents() {
         <main className="flex-1 overflow-y-auto print:overflow-visible">
           {preview ? (
             <article
-              className="max-w-[740px] mx-auto px-6 py-14 text-[16px] leading-[1.85] text-white/[0.88]"
-              style={{ caretColor: "#14b8a6" }}
+              className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9]"
+              style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
               dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML ?? "" }}
             />
           ) : (
@@ -344,8 +344,8 @@ export default function Documents() {
               suppressContentEditableWarning
               onInput={onEditorInput}
               data-placeholder="Start writing, or press ✦ AI to generate…"
-              className="lumina-editor max-w-[740px] mx-auto px-6 py-14 text-[16px] leading-[1.85] text-white/[0.88] outline-none min-h-full"
-              style={{ caretColor: "#14b8a6" }}
+              className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9] outline-none min-h-full"
+              style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
             />
           )}
         </main>
@@ -408,12 +408,18 @@ export default function Documents() {
 
       {/* Editor styles + print styles */}
       <style>{`
-        .lumina-editor:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.26); pointer-events: none; }
-        .lumina-editor h1 { font-family: 'Instrument Serif', serif; font-size: 32px; line-height: 1.2; margin: 1.2em 0 0.5em; }
-        .lumina-editor h2 { font-family: 'Instrument Serif', serif; font-size: 24px; line-height: 1.25; margin: 1em 0 0.5em; }
-        .lumina-editor h3 { font-family: 'Instrument Sans', sans-serif; font-weight: 500; font-size: 18px; margin: 0.9em 0 0.4em; }
-        .lumina-editor pre { font-family: 'JetBrains Mono', ui-monospace, monospace; background: #141420; padding: 14px 16px; border-radius: 8px; overflow:auto; font-size: 13px; }
-        .lumina-editor code { font-family: 'JetBrains Mono', ui-monospace, monospace; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+        .lumina-editor:empty::before { content: attr(data-placeholder); color: rgba(255,255,255,0.26); pointer-events: none; font-family: var(--font-display); font-style: italic; font-size: 22px; }
+        .lumina-editor ::selection { background: rgba(124,58,237,0.32); }
+        .lumina-editor h1 { font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.08; letter-spacing: -0.012em; margin: 1.1em 0 0.45em; color: #fff; }
+        .lumina-editor h2 { font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.15; letter-spacing: -0.008em; margin: 1em 0 0.45em; color: rgba(255,255,255,0.95); }
+        .lumina-editor h3 { font-family: var(--font-ui); font-weight: 600; font-size: 19px; letter-spacing: 0.005em; margin: 0.95em 0 0.4em; color: rgba(255,255,255,0.92); }
+        .lumina-editor p { margin: 0 0 1.1em; }
+        .lumina-editor blockquote { font-family: var(--font-display); font-style: italic; font-size: 22px; line-height: 1.45; border-left: 2px solid #14b8a6; padding: 4px 0 4px 22px; margin: 1.4em 0; color: rgba(255,255,255,0.78); }
+        .lumina-editor pre { font-family: var(--font-mono); background: #0e0e18; border: 1px solid rgba(255,255,255,0.06); padding: 16px 18px; border-radius: 10px; overflow:auto; font-size: 13.5px; line-height: 1.65; margin: 1.2em 0; }
+        .lumina-editor code { font-family: var(--font-mono); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; color: #c8a8ff; }
+        .lumina-editor .lumina-stream { background: linear-gradient(180deg, transparent 0%, transparent 86%, rgba(20,184,166,0.18) 86%, rgba(20,184,166,0.18) 100%); }
+        .lumina-editor .lumina-stream::after { content: ''; display: inline-block; width: 2px; height: 1.05em; vertical-align: text-bottom; margin-left: 1px; background: #14b8a6; animation: lumina-doc-caret 1s steps(2,start) infinite; }
+        @keyframes lumina-doc-caret { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
         @keyframes slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media print {
           body { background: white !important; }
