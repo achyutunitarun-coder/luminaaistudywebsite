@@ -39,7 +39,7 @@ function ManualRestoreModal({
   const [productId, setProductId] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'duplicate'>('idle');
-  const { addCredits, isPaymentProcessed, markPaymentProcessed, setBalance, setPlan } = useCreditsStore();
+  const { isPaymentProcessed, markPaymentProcessed, setBalance } = useCreditsStore();
 
   useEffect(() => {
     if (open) {
@@ -59,46 +59,43 @@ function ManualRestoreModal({
       setStatus('error');
       return;
     }
-    const uniqueId =
-      paymentId.trim() || `manual_restore_${productId}_${Date.now()}`;
-    if (paymentId && isPaymentProcessed(paymentId)) {
+    const uniqueId = paymentId.trim();
+    if (!uniqueId) {
+      // Server now requires a verifiable payment id — no more client-side mint fallback.
+      setStatus('error');
+      return;
+    }
+    if (isPaymentProcessed(uniqueId)) {
       setStatus('duplicate');
       return;
     }
     try {
       const { supabase } = await import('@/integrations/supabase/client');
-      const { data, error } = await (supabase as any).rpc('apply_dodo_credits', {
-        _product_id: productId,
-        _payment_id: uniqueId,
-        _source: 'manual_restore',
+      const { data, error } = await supabase.functions.invoke('restore-dodo-credits', {
+        body: { product_id: productId, payment_id: uniqueId },
       });
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!error && row) {
-        const plan = row.plan === 'ultimate' || row.plan === 'pro_plus' || row.plan === 'free' ? row.plan : undefined;
-        setBalance(Number(row.balance), plan);
-        markPaymentProcessed(uniqueId);
-        if (row.duplicate) {
+      if (error || !data?.applied) {
+        if (data?.duplicate) {
           setStatus('duplicate');
           return;
         }
-      } else {
-        throw error || new Error('restore_failed');
+        setStatus('error');
+        return;
       }
+      const plan = data.plan === 'ultimate' || data.plan === 'pro_plus' || data.plan === 'free' ? data.plan : undefined;
+      setBalance(Number(data.balance), plan);
+      markPaymentProcessed(uniqueId);
+      sessionStorage.removeItem('pending_payment_id');
+      setStatus('success');
+      window.dispatchEvent(
+        new CustomEvent('lumina:credits-added', {
+          detail: { credits, productName: details.name, type: details.type },
+        }),
+      );
+      setTimeout(() => onOpenChange(false), 2200);
     } catch {
-      addCredits(credits, productId, details.name, 'manual_restore', uniqueId);
-      if (details.type === 'subscription') {
-        if (productId === 'pdt_0NbKNHJ5nK556qajM5MKa') setPlan('ultimate');
-        if (productId === 'pdt_0Nbybrhl2M0GdzScdoAwb') setPlan('pro_plus');
-      }
+      setStatus('error');
     }
-    sessionStorage.removeItem('pending_payment_id');
-    setStatus('success');
-    window.dispatchEvent(
-      new CustomEvent('lumina:credits-added', {
-        detail: { credits, productName: details.name, type: details.type },
-      }),
-    );
-    setTimeout(() => onOpenChange(false), 2200);
   };
 
   return (

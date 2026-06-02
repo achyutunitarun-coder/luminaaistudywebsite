@@ -99,7 +99,7 @@ export function CanvasPanel({ open, versions, onClose, defaultName = "Untitled C
             key={`${activeIdx}-${v.ts}`}
             title="Lumina Canvas"
             srcDoc={v.html}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-forms allow-pointer-lock allow-modals allow-popups"
             className="w-full h-full border-0"
           />
         ) : (
