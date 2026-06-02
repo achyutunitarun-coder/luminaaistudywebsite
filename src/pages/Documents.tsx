@@ -231,7 +231,7 @@ export default function Documents() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] text-white/[0.92]" style={{ fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0f] text-white/[0.92]" style={{ fontFamily: "var(--font-body)" }}>
       {/* HEADER */}
       <header className="flex items-center gap-3 h-14 px-5 border-b border-[rgba(20,184,166,0.10)] flex-shrink-0 print:hidden">
         <FileText className="w-4 h-4 text-[#14b8a6]" />
