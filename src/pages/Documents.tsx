@@ -120,16 +120,52 @@ export default function Documents() {
     );
   const insertCode = () => insertHTML(`<pre><code>// code…</code></pre><p></p>`);
 
-  // AI Assistant — replaces selection or focuses input
+  // Ref to the currently-streaming inline node inside the editor
+  const streamNodeRef = useRef<HTMLSpanElement | null>(null);
+
+  // AI Assistant — streams tokens directly into the editor at the caret
   const runAI = useCallback(async (prompt: string) => {
     if (!prompt.trim() || aiBusy) return;
     setAiBusy(true);
     setAiMsgs((m) => [...m, { role: "user", content: prompt }, { role: "assistant", content: "" }]);
 
+    const editor = editorRef.current;
+    if (!editor) { setAiBusy(false); return; }
+
+    // Capture selection inside the editor (if any)
     const sel = window.getSelection();
-    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
-    const inEditor = range && editorRef.current?.contains(range.commonAncestorContainer);
+    let range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const inEditor = range && editor.contains(range.commonAncestorContainer);
     const selectedText = inEditor ? sel?.toString() ?? "" : "";
+
+    // Focus editor; if cursor isn't inside, place it at the end
+    editor.focus();
+    if (!inEditor) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } else if (selectedText && range) {
+      // Replace selection
+      range.deleteContents();
+    }
+
+    // Insert a dedicated streaming span at the caret
+    const streamSpan = document.createElement("span");
+    streamSpan.setAttribute("data-lumina-stream", "true");
+    streamSpan.className = "lumina-stream";
+    range = sel?.getRangeAt(0) ?? null;
+    if (range) {
+      range.insertNode(streamSpan);
+      // Move caret inside the span
+      const r2 = document.createRange();
+      r2.selectNodeContents(streamSpan);
+      r2.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(r2);
+    }
+    streamNodeRef.current = streamSpan;
 
     const model = pickModel({ type: "creative", complexity: "medium" });
     let assistantAcc = "";
@@ -137,7 +173,7 @@ export default function Documents() {
       await streamOpenRouter({
         model,
         systemPrompt:
-          "You are Lumina — a brilliant older-sibling writing assistant inside a document editor. Write the requested content in clean, beautiful prose. Return only the text to insert. No preamble, no 'here is…', no headers unless asked. Match the user's tone.",
+          "You are Lumina — a brilliant older-sibling writing assistant inside a document editor. Write the requested content in clean, beautiful prose. Return only the text to insert. No preamble, no 'here is…', no headers unless asked. Match the user's tone. Use real paragraph breaks (\\n\\n) where natural.",
         messages: [
           ...(selectedText
             ? [{ role: "user", content: `Rewrite or transform this passage:\n\n${selectedText}\n\nRequest: ${prompt}` }]
@@ -151,30 +187,37 @@ export default function Documents() {
             next[next.length - 1] = { role: "assistant", content: assistantAcc };
             return next;
           });
-          // Stream into editor at the cursor / selection
-          if (inEditor) {
-            editorRef.current?.focus();
-            try {
-              if (selectedText && !replacedRef.current) {
-                document.execCommand("insertText", false, tok);
-                replacedRef.current = true;
-              } else {
-                document.execCommand("insertText", false, tok);
+          const node = streamNodeRef.current;
+          if (node) {
+            // Append text, converting paragraph breaks into real <br><br>
+            const parts = tok.split(/\n\n+/);
+            parts.forEach((part, idx) => {
+              if (idx > 0) {
+                node.appendChild(document.createElement("br"));
+                node.appendChild(document.createElement("br"));
               }
-            } catch {}
+              if (part) node.appendChild(document.createTextNode(part.replace(/\n/g, " ")));
+            });
+            // Keep editor scrolled to caret
+            node.scrollIntoView({ block: "nearest", behavior: "smooth" });
           }
         },
       });
+      // Unwrap the streaming span so the content becomes regular editor content
+      const node = streamNodeRef.current;
+      if (node && node.parentNode) {
+        const parent = node.parentNode;
+        while (node.firstChild) parent.insertBefore(node.firstChild, node);
+        parent.removeChild(node);
+      }
       onEditorInput();
     } catch (e: any) {
       toast.error(e?.message ?? "AI failed");
     } finally {
+      streamNodeRef.current = null;
       setAiBusy(false);
-      replacedRef.current = false;
     }
   }, [aiBusy, onEditorInput]);
-
-  const replacedRef = useRef(false);
 
   const handleAISend = () => {
     const p = aiInput.trim();
