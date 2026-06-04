@@ -449,6 +449,14 @@ export async function callWithFallback(
   throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
 }
 
+// ── Auto-continuation config ───────────────────────────────────────
+// When a model stops because it hit its output cap (finish_reason = "length"),
+// transparently fire a follow-up "continue" request and stitch the result.
+// This gives every caller "infinite generation" without changing their code.
+const CONTINUATION_MAX_ROUNDS = 6;        // up to 7 total chunks per response
+const CONTINUATION_USER_PROMPT =
+  "Continue exactly where you left off. Do not repeat anything. Do not summarize. Resume in the middle of the sentence/code/JSON if needed.";
+
 export async function callAIText(
   messages: any[],
   models: string[],
@@ -457,15 +465,59 @@ export async function callAIText(
   timeoutMs: number,
   tag: string,
 ): Promise<string> {
-  const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
+  const { response, model } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
+  let finish = data?.choices?.[0]?.finish_reason;
   if (!content || typeof content !== "string" || content.trim().length === 0) {
-    // Return empty string instead of throwing — wrappers detect emptiness and skip credit charge.
     console.warn(`[callAIText:${tag}] empty response from model`);
     return "";
   }
-  return content;
+
+  let full = content;
+  let rounds = 0;
+  while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
+    rounds++;
+    const contMessages = [
+      ...messages,
+      { role: "assistant", content: full },
+      { role: "user", content: CONTINUATION_USER_PROMPT },
+    ];
+    try {
+      const { response: r2 } = await callWithFallback(
+        contMessages,
+        [model, ...models.filter((m) => m !== model)],
+        maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
+      );
+      const d2 = await r2.json();
+      const chunk = d2?.choices?.[0]?.message?.content;
+      finish = d2?.choices?.[0]?.finish_reason;
+      if (!chunk || typeof chunk !== "string" || !chunk.trim()) break;
+      full += chunk;
+      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds})`);
+    } catch (e) {
+      console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
+      break;
+    }
+  }
+  return full;
+}
+
+function parseSSEChunk(line: string): { delta?: string; finish?: string | null; usage?: any } {
+  if (!line.startsWith("data:")) return {};
+  const payload = line.slice(5).trim();
+  if (!payload || payload === "[DONE]") return {};
+  try {
+    const j = JSON.parse(payload);
+    const choice = j?.choices?.[0];
+    return {
+      delta: choice?.delta?.content ?? "",
+      finish: choice?.finish_reason ?? null,
+      usage: j?.usage,
+    };
+  } catch {
+    return {};
+  }
 }
 
 export async function streamAI(
@@ -476,8 +528,112 @@ export async function streamAI(
   timeoutMs: number,
   tag: string,
 ): Promise<Response> {
-  const { response, model } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true });
-  return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
+  const { response: first, model: firstModel } = await callWithFallback(
+    messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true },
+  );
+
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const merged = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const sendMeta = (m: RouteMeta) =>
+        controller.enqueue(encoder.encode(encodeSseData({ lumina_meta: m })));
+
+      sendMeta({ model: firstModel, mode: tag.split("/")[1] ?? tag });
+
+      let assistantSoFar = "";
+      let totalTokens = 0;
+      let rounds = 0;
+      let currentModel = firstModel;
+      let currentResponse: Response | null = first;
+
+      const consumeOne = async (resp: Response): Promise<{ finish: string | null; usage: any }> => {
+        if (!resp.body) return { finish: null, usage: null };
+        const reader = resp.body.getReader();
+        let buf = "";
+        let finish: string | null = null;
+        let usage: any = null;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() ?? "";
+            for (const raw of lines) {
+              const line = raw.trim();
+              if (!line) continue;
+              if (line === "data: [DONE]") continue; // swallow upstream DONE
+              const parsed = parseSSEChunk(line);
+              if (parsed.usage) usage = parsed.usage;
+              if (parsed.finish) finish = parsed.finish;
+              if (parsed.delta) {
+                assistantSoFar += parsed.delta;
+                controller.enqueue(encoder.encode(line + "\n\n"));
+              } else if (!parsed.finish && !parsed.usage) {
+                controller.enqueue(encoder.encode(line + "\n\n"));
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`[streamAI:${tag}] read error:`, e);
+        } finally {
+          try { reader.releaseLock(); } catch { /* ignore */ }
+        }
+        return { finish, usage };
+      };
+
+      try {
+        let { finish, usage } = await consumeOne(currentResponse);
+        if (usage?.total_tokens) totalTokens += usage.total_tokens;
+
+        while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
+          rounds++;
+          console.log(`[streamAI:${tag}] auto-continue round ${rounds}`);
+          const contMessages = [
+            ...messages,
+            { role: "assistant", content: assistantSoFar },
+            { role: "user", content: CONTINUATION_USER_PROMPT },
+          ];
+          try {
+            const { response: next, model: nextModel } = await callWithFallback(
+              contMessages,
+              [currentModel, ...models.filter((m) => m !== currentModel)],
+              maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
+              { stream: true },
+            );
+            if (nextModel !== currentModel) {
+              sendMeta({ model: nextModel, mode: `${tag.split("/")[1] ?? tag}/cont` });
+            }
+            currentModel = nextModel;
+            const r = await consumeOne(next);
+            finish = r.finish;
+            if (r.usage?.total_tokens) totalTokens += r.usage.total_tokens;
+          } catch (e) {
+            console.warn(`[streamAI:${tag}] continuation ${rounds} failed:`, e);
+            break;
+          }
+        }
+
+        // Final usage meta — clients can render "[n] tokens · model".
+        controller.enqueue(encoder.encode(encodeSseData({
+          lumina_usage: { total_tokens: totalTokens, model: currentModel, continuations: rounds },
+        })));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(merged, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding" | "computer" | "mun";
