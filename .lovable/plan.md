@@ -1,103 +1,146 @@
-# Plan: Canvas Mode, Lumina Documents, Computer Upgrades
 
-Three additive features. Nothing existing gets touched: no nav rail, sidebar, chat shell, mode chips, history, or routes other than two new ones.
 
-## Scope guardrails
+## Plan: Rebuild Guided Lesson — World-Class Interactive Tutor
 
-- Only modify: `src/App.tsx` (add 2 routes), `src/features/chat/ChatPage.tsx` (mount Canvas overlay after AI finishes), `src/pages/LuminaComputer.tsx` (additive: files panel + pipeline strip + input polish), and `supabase/functions/chat/index.ts` (persona + routing additions).
-- Everything else lives in new files under `src/features/canvas/`, `src/pages/Documents.tsx`, `src/features/documents/`, `src/features/computer/pipeline/`, and `src/lib/openrouterRouting.ts`.
-- Artifact viewer redesign: rewrite `src/features/chat/components/ArtifactViewer.tsx` only (Claude-style chrome, no behavior regressions).
+### Overview
+Complete rewrite of `GuidedLesson.tsx` and `guided-lesson/index.ts` to deliver a premium, Khan Academy/Gizmo-style step-by-step learning experience with rich interactions, adaptive AI, and lesson persistence.
 
-## 1. Model Routing Engine — `src/lib/openrouterRouting.ts`
+---
 
-- `classifyIntent(text)` → calls `deepseek/deepseek-v4-flash:free` with JSON-only system prompt, returns `{type, complexity}`.
-- `pickModel({type, complexity, modeChip})` → returns primary model id from the routing table in the brief.
-- `streamOpenRouter({model, messages, onToken, onMeta})` → POST to `https://openrouter.ai/api/v1/chat/completions` with required headers, `stream:true`, `max_tokens:4096`. SSE parser (reuse pattern from `src/lib/aiStream.ts`).
-- Universal fallback chain: `primary → openrouter/free → deepseek/deepseek-v4-flash:free`. Retry once after 800 ms, toast "Switched to backup model" 2.5 s via sonner.
-- Key: read `VITE_OPENROUTER_KEY` from `import.meta.env`. (Need user to add this to env if not present — flag during build.)
+### PART 1: Edge Function — Enhanced Lesson AI
 
-## 2. Feature 1 — Canvas Mode (inside existing /chat)
+**File: `supabase/functions/guided-lesson/index.ts`**
 
-New files:
-- `src/features/canvas/CanvasPanel.tsx` — 54% slide-in panel, header, iframe, code overlay, version scrubber.
-- `src/features/canvas/useCanvasDetector.ts` — after stream completes, regex the message for the LAST ```html|jsx|svg fenced block. If found, emits `{code, lang}`.
-- `src/features/canvas/canvasDebug.ts` — runs generated code through `poolside/laguna-m.1:free` (fallback `laguna-xs.2:free`) with the debug system prompt and returns cleaned code.
-- `src/features/canvas/canvasState.ts` — Zustand store: `{isOpen, name, versions[], activeIndex}` (max 20).
+Expand the edge function to handle 5 request types via a `mode` field:
 
-Wiring in `ChatPage.tsx`:
-- Subscribe to "message stream complete" event. Run detector → debug pass → push version → open panel.
-- Chat column wrapped so width transitions 100% → 46% with the documented cubic-bezier.
-- Panel renders to right with 40 ms-delayed slide-in. X reverses both.
-- "Export → Lumina Docs": writes `localStorage.lumina_canvas_export = currentHTML`, navigates `/documents`.
+1. **`outline`** (existing, enhanced) — Generate 5-8 step lesson plan with richer metadata (step descriptions, estimated time)
+2. **`step`** (existing, enhanced) — Generate step content with new JSON structure:
+   - `explanation` (150-250 words, rich with analogies, bold terms)
+   - `example` (concrete real-world example)
+   - `check_questions` array with mixed MCQ + short_answer types
+   - `model_answer` field for short answer questions
+3. **`simplify`** (new) — Re-explain the current step at a lower level
+4. **`deeper`** (new) — Add more detail/depth to current step
+5. **`example`** (new) — Generate a new real-world example for current step
+6. **`evaluate`** (new) — AI evaluates a short answer response
+7. **`final_quiz`** (new) — Generate 5 questions covering the entire lesson
 
-Iframe injection: extract raw string, prepend `<!doctype html><html><head><meta charset="utf-8"></head><body>` + code + `</body></html>` only when missing. `sandbox="allow-scripts allow-same-origin"`. Bg `#ffffff`.
+Each mode uses `MODELS_BALANCED` with fallback to `MODELS_FAST` for speed. The simplify/deeper/example modes use `MODELS_FAST` since they're supplementary.
 
-## 3. Feature 2 — Lumina Documents (`/documents`)
+System prompt enforces: brilliant-friend tone, 150-250 word explanations, analogies by default, structured JSON output.
 
-New route added to `src/App.tsx` (does NOT use ProtectedLayout — full-screen standalone per brief).
+---
 
-New files:
-- `src/pages/Documents.tsx` — page shell: header 56px, ribbon 44px, editor flex:1, AI panel 240px, footer 36px.
-- `src/features/documents/Editor.tsx` — contenteditable wrapper with 740 px max-width, autosave (300 ms debounce) → `localStorage.lumina_doc_content`. Reads `lumina_canvas_export` / `lumina_doc_import` on mount and clears keys.
-- `src/features/documents/Ribbon.tsx` — B/I/U/H1-3/lists/code/table/slides/✦ AI buttons; uses `document.execCommand` (acknowledged legacy but matches spec) for formatting. Slide card and table inserted via `insertHTML`.
-- `src/features/documents/AISidePanel.tsx` — 240 px chat: streams `minimax/minimax-m2.5:free`, each token via `execCommand("insertText", false, token)` at cursor. Fallbacks: `qwen/qwen3-next-80b-a3b-instruct:free` (complex), `cognitivecomputations/dolphin-mistral-24b-venice-edition:free` (creative), `meta-llama/llama-3.2-3b-instruct:free` (quick).
-- `src/features/documents/exports.ts` — PDF via `window.print()` with `@media print` styles in `src/features/documents/print.css`; HTML wrapped in standalone template; Markdown via simple DOM walker (h1-3, strong, em, li, pre). All via Blob + `URL.createObjectURL`.
-- `src/features/documents/PreviewMode.tsx` — read-only div, runs `hljs.highlightAll()` and KaTeX over `$...$` / `$$...$$`. (KaTeX + highlight.js already in deps.)
+### PART 2: Database — Lesson History
 
-Footer counters: live debounced 80 ms — words/chars/lines exactly per the formulas in the brief.
-
-## 4. Feature 3 — Lumina Computer improvements (additive only)
-
-Edit `src/pages/LuminaComputer.tsx` to mount three new components without touching existing layout:
-- `src/features/computer/FilesPanel.tsx` — reactive list. Subscribes to agent output stream; pushes `{name, type, content, sizeKB}` to a Zustand `filesStore`. Icon by type, truncate name, size right. HTML rows: "Open in Canvas" → write `lumina_canvas_import` + navigate `/chat`. All rows: "→ Docs" → write `lumina_doc_import` + navigate `/documents`.
-- `src/features/computer/pipeline/PipelineStrip.tsx` — 6 nodes (Planner, Router, Executor, Debug, Verify, Polish). Always rendered above the activity log. State machine driven by the agent runner. Active = teal fill + glow + 900 ms scale pulse. Done = purple + ✓. Error = `#dc2626` + ✗. Below each, 11 px italic log line.
-- `src/features/computer/InputArea.tsx` (refactor existing input only): attach icon 32 px, rounded textarea matching chat input tokens, teal 32 px circle send. Prompt cards restyled to `#0f0f17` + ✦/↗.
-
-Agent runner (`src/features/computer/agent.ts`, new): orchestrates Planner → Router → Executor[*] → Debug → Verify → Polish using the updated model assignments. Planner and Router use the exact JSON-only system prompts from the brief. Executor selects per-step model via the routing table.
-
-## 5. Artifact Viewer redesign — `src/features/chat/components/ArtifactViewer.tsx`
-
-Claude-style chrome: rounded card, title bar with filename + lang chip, copy + download + expand buttons, monospace code with JetBrains Mono, gradient header. HTML artifacts: tabs "Preview / Code", iframe sandboxed without `allow-same-origin` (keep current XSS hardening). Visual tokens from the design system. Behavior unchanged.
-
-## 6. Lumina persona
-
-Update `supabase/functions/chat/index.ts` to prepend the **Lumina Intellectual Companion** system prompt (full text from the brief) to every non-Computer-mode chat. Keep Computer agentic prompt as-is. Add small per-feature personas:
-- Canvas debug prompt as specified.
-- Documents AI side panel writing assistant prompt as specified.
-- Planner / Router prompts wired into agent runner.
-
-## 7. Routing additions in `src/App.tsx`
-
-Only add:
+**Migration:** Create `guided_lessons` table:
+```sql
+CREATE TABLE guided_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  topic text NOT NULL,
+  difficulty text DEFAULT 'intermediate',
+  steps_completed integer DEFAULT 0,
+  total_steps integer DEFAULT 5,
+  score numeric DEFAULT 0,
+  total_questions integer DEFAULT 0,
+  correct_answers integer DEFAULT 0,
+  completed_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+-- RLS: users can CRUD own lessons
 ```
-<Route path="/documents" element={<Documents />} />
-```
-inside the existing `<Routes>` (outside `ProtectedLayout` since the brief says no nav/sidebar). `/computer` already exists — untouched.
 
-## 8. State bridges
+---
 
-- `lumina_canvas_export` — Canvas → Documents
-- `lumina_canvas_import` — Computer → Canvas (ChatPage reads on mount, opens canvas with that code)
-- `lumina_doc_import` — Computer → Documents
-- `lumina_doc_content` — Documents autosave
+### PART 3: Frontend — Complete UI Rewrite
 
-## 9. Mobile <768 px
+**File: `src/pages/GuidedLesson.tsx`** — Full rewrite (~800 lines)
 
-- Canvas: tabs (Chat | Canvas) instead of split.
-- Documents ribbon collapses behind a "Format ▾" dropdown.
-- Computer: stack files / pipeline / chat vertically.
+**Phase 1 — Setup Screen:**
+- Large centered hero with Brain icon + subtle glow animation
+- "What do you want to learn today?" input (large, prominent)
+- Collapsible "Options" section: difficulty dropdown + goal text input
+- Quick topic chips below input
+- Glowing "Start Lesson" CTA button
+- Dark academic aesthetic: `#0c0e1a` background feel, teal accents (`#00d4c8`), glassmorphic cards
 
-## 10. Open questions before build
+**Phase 2 — Lesson Roadmap:**
+- After outline generates: show visual step tracker (horizontal on desktop, vertical on mobile)
+- Each step: number circle + title
+- Current step: glowing pulse animation with teal ring
+- Completed: green checkmark
+- Future: dimmed/locked appearance
+- Sticky at top during lesson
 
-1. **OpenRouter key**: brief says `VITE_OPENROUTER_KEY` (client-side). The project today uses server-side `OPENROUTER_API_KEY` via edge functions. Exposing the key client-side is a security risk. **Recommendation**: route all OpenRouter calls through a new `supabase/functions/openrouter-proxy` edge function using the existing server key, keep the routing logic client-side, stream SSE back. Confirm before I build it client-direct.
-2. **Documents route**: brief says "no nav rail, no sidebar" → it'll be mounted outside `ProtectedLayout`. That also removes auth gating. OK, or should it stay behind auth (still hide chrome)?
-3. **`execCommand`** is deprecated but matches the brief exactly. OK to proceed?
+**Phase 3 — Lesson Steps (core loop):**
 
-## Technical notes (non-user-facing)
+TEACH sub-phase:
+- "Step X of Y" small caps label
+- Step title as heading
+- AI explanation rendered as rich markdown (bold, bullets, analogies)
+- "AI-generated" subtle label in corner
+- 3 ghost buttons below explanation: "Explain Simpler", "Give Example", "Go Deeper"
+- Each button calls the edge function with the appropriate mode, response appears inline below
+- "Read Aloud" button using browser `speechSynthesis` API
+- After reading, a "Ready for questions" CTA button
 
-- Reuse `src/lib/aiStream.ts` SSE parser; add a thin OpenRouter-specific wrapper.
-- Zustand stores: `canvasStore`, `filesStore`, `pipelineStore` — co-located with their features.
-- All new components consume design tokens from `index.css` / `tailwind.config.ts`; no hardcoded hex outside the explicit values listed in the brief.
-- Highlight.js and KaTeX already installed; reuse.
-- No DB migrations required.
-- No new secrets unless we keep `VITE_OPENROUTER_KEY` client-side (see Q1).
+CHECK sub-phase:
+- 1-2 questions per step (mix MCQ + short answer)
+- MCQ: styled answer cards with letter badges, tap to select
+- Short answer: text input with "Submit" button
+- Short answer evaluation: calls `evaluate` mode on edge function
+- Submit locks answers
+
+FEEDBACK sub-phase:
+- Correct: card pulses green glow, "Nailed it!" message
+- Wrong: gentle CSS shake animation, soft crimson highlight, specific hint from AI
+- Retry up to 2 times on wrong answers
+- After 2 wrong: AI re-teaches (calls `simplify` mode) then asks a simpler question
+- Never says "Wrong" — always explains why and redirects
+
+**Phase 4 — Step Transitions:**
+- Content slides out left, new content fades in from right (framer-motion)
+- Progress bar fills with glowing leading edge
+- Milestone celebrations at 25%, 50%, 75%, 100%
+
+**Phase 5 — Lesson Complete:**
+- Expanding ring animation from center
+- Summary card: topic, steps, questions answered, accuracy %
+- 3 CTAs: "Review Lesson" (scrollable read-only summary), "Take Final Quiz" (5 Qs), "New Lesson"
+- Final quiz: 5 mixed questions, scored, with explanations
+- Save to `guided_lessons` table on completion
+
+**Layout:**
+- Single column, centered, max-width 720px
+- Fixed sticky progress tracker at top
+- Fixed bottom action bar with primary CTA
+- Mobile-first responsive
+- Loading: typing indicator (3 animated dots) + skeleton after 3s
+
+**Animations (CSS + framer-motion):**
+- `@keyframes shake` for wrong answers
+- `@keyframes glowPulse` for active step indicator
+- `@keyframes ringExpand` for lesson complete
+- Staggered card entrance with framer-motion
+
+---
+
+### PART 4: Deploy + Wire Up
+
+- Deploy updated `guided-lesson` edge function
+- Add `guided_lesson` usage limit key (already exists in useUsageLimits)
+- Save completed lessons to Supabase
+
+---
+
+### Files to modify/create:
+1. `supabase/functions/guided-lesson/index.ts` — Enhanced with 7 modes
+2. `src/pages/GuidedLesson.tsx` — Complete rewrite
+3. Database migration — `guided_lessons` table
+
+### Files NOT changing:
+- `_shared/models.ts` — Already has the correct model tiers
+- `App.tsx` — Route already exists
+- `AppSidebarContent.tsx` — Link already exists
+

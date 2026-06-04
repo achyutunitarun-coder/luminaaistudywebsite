@@ -329,33 +329,24 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           >
             Back
           </button>
-          <div className="flex items-center gap-3">
-            <button
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Button
               type="button"
-              onClick={handleComplete}
-              className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors underline-offset-4 hover:underline"
+              onClick={handleNext}
+              disabled={!canProceed}
+              className="h-11 px-6 rounded-2xl gradient-primary text-primary-foreground shadow-lg shadow-primary/20"
             >
-              Skip for now
-            </button>
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={!canProceed}
-                className="h-11 px-6 rounded-2xl gradient-primary text-primary-foreground shadow-lg shadow-primary/20"
-              >
-                {isLast ? (
-                  <>
-                    Get Started <Sparkles className="w-4 h-4 ml-2" />
-                  </>
-                ) : (
-                  <>
-                    Continue <ArrowRight className="w-4 h-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </motion.div>
-          </div>
+              {isLast ? (
+                <>
+                  Get Started <Sparkles className="w-4 h-4 ml-2" />
+                </>
+              ) : (
+                <>
+                  Continue <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </motion.div>
         </motion.div>
       </div>
     </motion.div>

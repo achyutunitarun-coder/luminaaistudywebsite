@@ -3,16 +3,9 @@ export type LuminaMeta = {
   mode?: string;
 };
 
-export type LuminaUsage = {
-  total_tokens?: number;
-  model?: string;
-  continuations?: number;
-};
-
 type StreamOptions = {
   onDelta?: (chunk: string) => void;
   onMeta?: (meta: LuminaMeta) => void;
-  onUsage?: (usage: LuminaUsage) => void;
 };
 
 function parseSseLine(rawLine: string, options: StreamOptions): 'continue' | 'done' | 'retry' {
@@ -28,10 +21,6 @@ function parseSseLine(rawLine: string, options: StreamOptions): 'continue' | 'do
     const parsed = JSON.parse(jsonStr);
     if (parsed?.lumina_meta) {
       options.onMeta?.(parsed.lumina_meta);
-      return 'continue';
-    }
-    if (parsed?.lumina_usage) {
-      options.onUsage?.(parsed.lumina_usage);
       return 'continue';
     }
 

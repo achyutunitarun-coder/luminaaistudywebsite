@@ -1,10 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { requireUser } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4 || 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch { return null; }
+};
+
+const extractUserId = (authHeader: string | null): string => {
+  const token = authHeader?.replace("Bearer ", "").trim() || "";
+  if (token.split(".").length === 3) {
+    const payload = decodeJwtPayload(token);
+    const sub = typeof payload?.sub === "string" ? payload.sub : null;
+    if (sub && UUID_REGEX.test(sub)) return sub;
+  }
+  return crypto.randomUUID();
 };
 
 async function processTranscription(jobId: string, audioBytes: Uint8Array, mimeType: string) {
@@ -105,10 +126,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const _auth = await requireUser(req, corsHeaders);
-    if ("error" in _auth) return _auth.error;
-    const userId = _auth.user.id;
-
     const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
     if (!DEEPGRAM_API_KEY) throw new Error("DEEPGRAM_API_KEY is not configured. Please add your Deepgram API key.");
     
@@ -119,22 +136,21 @@ serve(async (req) => {
     const url = new URL(req.url);
     const jobId = url.searchParams.get("job_id");
 
-    // Poll for job status — must belong to caller
+    // Poll for job status
     if (jobId) {
       const { data, error } = await supabase
         .from("transcription_jobs")
         .select("status, result, error")
         .eq("id", jobId)
-        .eq("user_id", userId)
         .single();
-      if (error) return new Response(JSON.stringify({ error: "Job not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (error) throw new Error("Job not found");
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const contentLength = Number(req.headers.get("content-length") ?? 0);
-    const maxRequestBytes = 25 * 1024 * 1024;
+    const maxRequestBytes = 25 * 1024 * 1024; // Deepgram supports larger files
     if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
       return new Response(
         JSON.stringify({ error: "Audio chunk too large (max 25MB)." }),
@@ -147,7 +163,7 @@ serve(async (req) => {
     if (!audioFile) throw new Error("No audio file provided");
     if (audioFile.size === 0) throw new Error("Audio file is empty");
 
-
+    const userId = extractUserId(req.headers.get("authorization"));
 
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBytes = new Uint8Array(arrayBuffer);

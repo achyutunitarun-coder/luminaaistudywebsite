@@ -5,109 +5,71 @@
 
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// ═══════════════════════════════════════════════════════════════════
-// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-05).
-// Every id below was confirmed against https://openrouter.ai/api/v1/models.
-// Dead ids (deepseek :free, qwen3-4b :free, mistral-small :free, vl-72b :free)
-// were removed because every call to them returns 404 and burns the wall-clock
-// budget — that was the root cause of artifact timeouts.
-// ═══════════════════════════════════════════════════════════════════
-
 export const MODELS_FAST = [
-  "google/gemma-3n-e4b-it:free",
   "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e2b-it:free",
+  "google/gemma-3n-e4b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
   "google/gemma-3-12b-it:free",
-  "poolside/laguna-xs.2:free",
+  "qwen/qwen3-4b:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_BALANCED = [
-  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "tencent/hy3-preview:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "z-ai/glm-4.5-air:free",
-  "minimax/minimax-m2.5:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
 ];
 
 export const MODELS_QUALITY = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "openai/gpt-oss-120b:free",
-  "inclusionai/ling-2.6-1t:free",
-  "tencent/hy3-preview:free",
-  "openrouter/owl-alpha",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "google/gemma-4-31b-it:free",
-  "minimax/minimax-m2.5:free",
-];
-
-// ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Order = priority. We race the top 4, fall back through the rest.
-export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",                                // #1 free coder globally
-  "poolside/laguna-m.1:free",                             // specialist coding agent
-  "inclusionai/ling-2.6-1t:free",                         // SWE-bench top, 1T MoE
-  "tencent/hy3-preview:free",                             // strong code + agentic MoE
-  "openai/gpt-oss-120b:free",                             // strongest generalist coder
-  "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
-  "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
-  "poolside/laguna-xs.2:free",                            // compact coding agent
   "meta-llama/llama-3.3-70b-instruct:free",
-  "minimax/minimax-m2.5:free",                            // long-context refactors
-  "z-ai/glm-4.5-air:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-3-27b-it:free",
 ];
 
-export const MODELS_LONG_CTX = [
-  "openrouter/owl-alpha",                                 // 1M+ ctx
-  "openai/gpt-oss-120b:free",
+// ── CODING POWERHOUSE ──────────────────────────────────────────────
+// Stacked with the strongest free coding/reasoning models on OpenRouter.
+// Order = priority. We race the top 3, fall back through the rest.
+export const MODELS_CODE = [
+  "qwen/qwen3-coder:free",
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat-v3.1:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "openai/gpt-oss-20b:free",
+];
+
+export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "minimax/minimax-m2.5:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "inclusionai/ling-2.6-1t:free",
-  "tencent/hy3-preview:free",
 ];
 
 export const MODELS_VISION = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
   "google/gemma-3-27b-it:free",
-  "google/gemma-3-12b-it:free",
-  "baidu/qianfan-ocr-fast:free",
-];
-
-// ── WRITING / NOTES (long-form prose) ──────────────────────────────
-export const MODELS_WRITING = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "minimax/minimax-m2.5:free",
-  "openai/gpt-oss-120b:free",
-  "z-ai/glm-4.5-air:free",
-  "tencent/hy3-preview:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "qwen/qwen2.5-vl-72b-instruct:free",
 ];
 
 export const MODELS_EXTRA = [
@@ -115,11 +77,10 @@ export const MODELS_EXTRA = [
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "minimax/minimax-m2.5:free",
-  "tencent/hy3-preview:free",
   "google/gemma-3-12b-it:free",
   "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
@@ -221,16 +182,13 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 4;          // race 4 models for fastest first-token
+const PARALLEL_RACE_COUNT = 3;          // race 3 models for fastest first-token
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
-const TEXT_TOTAL_BUDGET_MS = 200_000;   // 3.3 min for non-streamed JSON tools (artifacts)
+const TEXT_TOTAL_BUDGET_MS = 180_000;   // 3 min for non-streamed JSON tools
 const OCR_TOTAL_BUDGET_MS = 120_000;
 const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
-
-// Models confirmed dead by 404 — skipped entirely for this process lifetime.
-const _deadModels = new Set<string>();
 
 type RouteMeta = {
   model: string;
@@ -273,10 +231,6 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
-  if (_deadModels.has(model)) {
-    // Already proven 404 — don't waste budget.
-    return null;
-  }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
@@ -310,14 +264,6 @@ async function callModel(
         continue;
       }
 
-      // 404 = model id no longer exists on OpenRouter. Mark dead and stop trying.
-      if (res.status === 404) {
-        _deadModels.add(model);
-        console.warn(`[${tag}] ${model} -> 404 (model dead, blacklisted for process lifetime)`);
-        try { await res.body?.cancel(); } catch { /* ignore */ }
-        return null;
-      }
-
       const errorText = await readErrorText(res);
       console.warn(`[${tag}] ${model} -> ${res.status} ${errorText} (key ${keyIdx + 1})`);
 
@@ -341,8 +287,7 @@ async function raceModels(
   timeoutMs: number,
   tag: string,
 ): Promise<{ response: Response; model: string }> {
-  const live = models.filter((m) => !_deadModels.has(m));
-  const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
+  const selected = models.slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
     const res = await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
@@ -411,13 +356,7 @@ export async function callWithFallback(
   const remainingBudget = () => deadline - Date.now();
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
-  // Artifact / long-form generation needs minutes, not seconds, per attempt.
-  // Detect via tag so we don't have to thread a flag through every caller.
-  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
-  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
-  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
-
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
+  const primaryRaceTimeout = phaseTimeout(PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -427,14 +366,14 @@ export async function callWithFallback(
   }
 
   for (const model of models) {
-    const timeout = phaseTimeout(seqAttemptCap);
+    const timeout = phaseTimeout(isStreaming ? 10_000 : 9_000);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
   for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(extraAttemptCap);
+    const timeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
     if (timeout <= 0) break;
     const response = await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
@@ -449,14 +388,6 @@ export async function callWithFallback(
   throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
 }
 
-// ── Auto-continuation config ───────────────────────────────────────
-// When a model stops because it hit its output cap (finish_reason = "length"),
-// transparently fire a follow-up "continue" request and stitch the result.
-// This gives every caller "infinite generation" without changing their code.
-const CONTINUATION_MAX_ROUNDS = 6;        // up to 7 total chunks per response
-const CONTINUATION_USER_PROMPT =
-  "Continue exactly where you left off. Do not repeat anything. Do not summarize. Resume in the middle of the sentence/code/JSON if needed.";
-
 export async function callAIText(
   messages: any[],
   models: string[],
@@ -465,59 +396,11 @@ export async function callAIText(
   timeoutMs: number,
   tag: string,
 ): Promise<string> {
-  const { response, model } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
+  const { response } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-  let finish = data?.choices?.[0]?.finish_reason;
-  if (!content || typeof content !== "string" || content.trim().length === 0) {
-    console.warn(`[callAIText:${tag}] empty response from model`);
-    return "";
-  }
-
-  let full = content;
-  let rounds = 0;
-  while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
-    rounds++;
-    const contMessages = [
-      ...messages,
-      { role: "assistant", content: full },
-      { role: "user", content: CONTINUATION_USER_PROMPT },
-    ];
-    try {
-      const { response: r2 } = await callWithFallback(
-        contMessages,
-        [model, ...models.filter((m) => m !== model)],
-        maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
-      );
-      const d2 = await r2.json();
-      const chunk = d2?.choices?.[0]?.message?.content;
-      finish = d2?.choices?.[0]?.finish_reason;
-      if (!chunk || typeof chunk !== "string" || !chunk.trim()) break;
-      full += chunk;
-      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds})`);
-    } catch (e) {
-      console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
-      break;
-    }
-  }
-  return full;
-}
-
-function parseSSEChunk(line: string): { delta?: string; finish?: string | null; usage?: any } {
-  if (!line.startsWith("data:")) return {};
-  const payload = line.slice(5).trim();
-  if (!payload || payload === "[DONE]") return {};
-  try {
-    const j = JSON.parse(payload);
-    const choice = j?.choices?.[0];
-    return {
-      delta: choice?.delta?.content ?? "",
-      finish: choice?.finish_reason ?? null,
-      usage: j?.usage,
-    };
-  } catch {
-    return {};
-  }
+  if (!content) throw new Error("Empty AI response");
+  return content;
 }
 
 export async function streamAI(
@@ -528,119 +411,12 @@ export async function streamAI(
   timeoutMs: number,
   tag: string,
 ): Promise<Response> {
-  const { response: first, model: firstModel } = await callWithFallback(
-    messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true },
-  );
-
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  const merged = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const sendMeta = (m: RouteMeta) =>
-        controller.enqueue(encoder.encode(encodeSseData({ lumina_meta: m })));
-
-      sendMeta({ model: firstModel, mode: tag.split("/")[1] ?? tag });
-
-      let assistantSoFar = "";
-      let totalTokens = 0;
-      let rounds = 0;
-      let currentModel = firstModel;
-      let currentResponse: Response | null = first;
-
-      const consumeOne = async (resp: Response): Promise<{ finish: string | null; usage: any }> => {
-        if (!resp.body) return { finish: null, usage: null };
-        const reader = resp.body.getReader();
-        let buf = "";
-        let finish: string | null = null;
-        let usage: any = null;
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += decoder.decode(value, { stream: true });
-            const lines = buf.split("\n");
-            buf = lines.pop() ?? "";
-            for (const raw of lines) {
-              const line = raw.trim();
-              if (!line) continue;
-              if (line === "data: [DONE]") continue; // swallow upstream DONE
-              const parsed = parseSSEChunk(line);
-              if (parsed.usage) usage = parsed.usage;
-              if (parsed.finish) finish = parsed.finish;
-              if (parsed.delta) {
-                assistantSoFar += parsed.delta;
-                controller.enqueue(encoder.encode(line + "\n\n"));
-              } else if (!parsed.finish && !parsed.usage) {
-                controller.enqueue(encoder.encode(line + "\n\n"));
-              }
-            }
-          }
-        } catch (e) {
-          console.warn(`[streamAI:${tag}] read error:`, e);
-        } finally {
-          try { reader.releaseLock(); } catch { /* ignore */ }
-        }
-        return { finish, usage };
-      };
-
-      try {
-        let { finish, usage } = await consumeOne(currentResponse);
-        if (usage?.total_tokens) totalTokens += usage.total_tokens;
-
-        while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
-          rounds++;
-          console.log(`[streamAI:${tag}] auto-continue round ${rounds}`);
-          const contMessages = [
-            ...messages,
-            { role: "assistant", content: assistantSoFar },
-            { role: "user", content: CONTINUATION_USER_PROMPT },
-          ];
-          try {
-            const { response: next, model: nextModel } = await callWithFallback(
-              contMessages,
-              [currentModel, ...models.filter((m) => m !== currentModel)],
-              maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
-              { stream: true },
-            );
-            if (nextModel !== currentModel) {
-              sendMeta({ model: nextModel, mode: `${tag.split("/")[1] ?? tag}/cont` });
-            }
-            currentModel = nextModel;
-            const r = await consumeOne(next);
-            finish = r.finish;
-            if (r.usage?.total_tokens) totalTokens += r.usage.total_tokens;
-          } catch (e) {
-            console.warn(`[streamAI:${tag}] continuation ${rounds} failed:`, e);
-            break;
-          }
-        }
-
-        // Final usage meta — clients can render "[n] tokens · model".
-        controller.enqueue(encoder.encode(encodeSseData({
-          lumina_usage: { total_tokens: totalTokens, model: currentModel, continuations: rounds },
-        })));
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(merged, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Access-Control-Allow-Origin": "*",
-    },
-  });
+  const { response, model } = await callWithFallback(messages, models, maxTokens, temperature, timeoutMs, tag, { stream: true });
+  return withMetaStream(response, { model, mode: tag.split("/")[1] ?? tag });
 }
 
-export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding" | "computer" | "mun";
-export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative" | "computer" | "mun";
-
-const COMPUTER_PATTERNS = /\b(deep research|deep dive|research report|background guide|generate (an? )?(report|artifact|html|essay)|computer mode|lumina computer|write (a |an )?(full |long |detailed )?(report|essay|guide|analysis)|comprehensive (analysis|report|guide)|long[- ]form|multi[- ]section)\b/i;
-const MUN_PATTERNS = /\b(mun|model un|model united nations|background guide|position paper|draft resolution|preambulatory|operative clause|delegate of |committee (chair|director|topic)|unsc|unhrc|disec|ecosoc|wto committee)\b/i;
+export type IntentType = "greeting" | "quick" | "study" | "deep" | "motivation" | "conversational" | "coding";
+export type ModelRouteMode = "auto" | "reasoning" | "coding" | "general" | "fast" | "study" | "long_context" | "creative";
 
 const CODING_PATTERNS = /\b(code|coding|program|programming|script|function|class|algorithm|debug|refactor|stack trace|stacktrace|error|exception|compile|build|api|endpoint|frontend|backend|fullstack|html|css|javascript|typescript|tsx|jsx|react|vue|svelte|angular|next\.?js|node\.?js|python|java|kotlin|swift|rust|golang|c\+\+|c#|sql|postgres|mongodb|three\.?js|phaser|unity|game(?:\s|-)?(?:dev|engine|loop)|canvas|webgl|shader|babylon|matter\.?js|p5\.?js|pygame|godot|tailwind|css\s*grid|flexbox|regex|leetcode|dsa|data structure|recursion|big o|complexity|hashmap|linked list|binary tree|graph traversal|dijkstra|dfs|bfs|dynamic programming|websocket|fetch api|rest api|graphql|prisma|supabase|firebase|docker|kubernetes|github action|cli|terminal|vim|bash|zsh|deno|bun|vite|webpack|rollup|esbuild|jest|vitest|cypress|playwright|tailwind|shadcn|ai chat|edge function)\b|```|\bbuild (me|a) (game|app|website|component|hook|server)|create (a|an) (game|website|app|landing page|component|hook)/i;
 
@@ -648,20 +424,9 @@ export function classifyIntent(text: string): IntentType {
   const lower = text.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
 
-  // MUN wins first — most specific academic mode
-  if (MUN_PATTERNS.test(text)) return "mun";
-
-  // Deep research / report / artifact
-  if (COMPUTER_PATTERNS.test(text)) return "computer";
-
   // CODING wins early — it's the most specific intent we can detect
   if (CODING_PATTERNS.test(text)) {
     return "coding";
-  }
-
-  // TRANSLATION / multilingual → route to long-context (better multilingual)
-  if (/\b(translate|translation|in hindi|in tamil|in telugu|in kannada|in malayalam|in bengali|in marathi|in gujarati|in punjabi|in urdu|in french|in spanish|in german|in arabic|in mandarin|in chinese|in japanese|how do you say|what is .+ in (hindi|tamil|telugu|kannada|malayalam|bengali|marathi|gujarati|punjabi|urdu|french|spanish|german|arabic|chinese|japanese))\b/i.test(text)) {
-    return "deep";
   }
 
   if (wordCount <= 3 && /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what's up|whats up|greetings)\b/.test(lower) && !lower.includes("?")) {
@@ -690,8 +455,6 @@ export function classifyIntent(text: string): IntentType {
 
 const CODING_SYSTEM_PROMPT = `You are Lumina Code — an elite, senior-staff software engineer with the practical skill of a top OSS maintainer. Think like Claude Code: read the request carefully, plan, then ship complete, working code.
 
-NEVER TRUNCATE: never cut a file short, never write "// rest unchanged", never write "// implement this". Always finish.
-
 ABSOLUTE CODING RULES:
 - ALWAYS produce COMPLETE, RUNNABLE code. No "// rest of file unchanged", no "// implement this", no half answers.
 - For web/game requests, default to a SINGLE self-contained \`html\` file with inline <style> and <script>. The user can press Run inside Lumina to play it instantly.
@@ -718,8 +481,6 @@ export function getSystemPromptForIntent(intent: IntentType): string {
 
   const base = `You are Lumina — a brilliant, patient, step-by-step tutor. NOT a lecture bot. You teach like a real human tutor sitting next to the student.
 
-NEVER TRUNCATE: never cut short, never summarise mid-response, never write "as before", never write "[content continues]". If the answer needs 3000 words, write 3000 words. Write every step, derivation, example, and follow-up in full.
-
 CORE TUTOR RULES:
 - Break explanations into small digestible steps — ONE concept at a time
 - After explaining, verify understanding before moving on
@@ -731,40 +492,10 @@ CORE TUTOR RULES:
 - Ask follow-up questions to guide thinking
 - If the student seems confused, simplify and try a different angle
 
-ACCURACY RULES — NEVER VIOLATE:
-- If you do not know a fact with high confidence, say "I'm not 100% sure — let's verify together" instead of guessing.
-- For TRANSLATIONS (especially Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Urdu and other Indian languages, plus French, Spanish, German, Arabic, Mandarin, Japanese): only output a translation if you are absolutely certain. Use the standard scientific/textbook term — never invent a transliteration. If unsure, say so plainly and offer the English term with a romanised approximation.
-- For mitosis vs meiosis, ALWAYS mention crossing-over and independent assortment in meiosis I — it is the #1 exam point.
-- Show derivations and per-unit calculations explicitly so weaker students can follow.
-
-SAFETY RULES — NEVER VIOLATE:
-- If a user asks how to harm themselves, harm others, build weapons, make drugs, hack, cheat on a real exam (not practice), or anything illegal: refuse warmly but firmly in 1-2 lines, redirect to a safer study angle if possible, and (for self-harm) include the iCall India helpline 9152987821 or international equivalent.
-- Never produce content that could be used for academic fraud (writing a real submitted essay verbatim, solving a live exam, etc.). Offer to teach the underlying concept instead.
-
 FORMATTING:
 - Use rich Markdown: **bold**, headings, bullets
 - Keep it scannable and interactive
-- End responses with a question or "what would you like to explore next?"
-
-TIMELINE / STORYBOARD FORMAT (use whenever the student asks for a timeline, schedule, plan, sequence of events, scene-by-scene breakdown, video script, study plan with time blocks, or anything ordered by time):
-- Render as a vertical timeline using markdown.
-- Each entry STARTS with a duration/timestamp pill in backticks, e.g. \`3s – 8s\` or \`Day 1\`, then a bold title, then a one-line description, then (optional) a music/mood/cue line prefixed with ♪ or →.
-- For nested screen-by-screen / shot-by-shot detail, use indented bullet rows where each starts with the timestamp in backticks, then a bold label, then the action, with key phrases in **bold** or _italic_.
-- Keep blocks visually separated with a blank line between sections.
-- Example skeleton:
-  \`3s – 8s\` **The Rapid Fire Drop**
-  5 cuts, each exactly on a snare hit. Each screen recording = 1 second of power.
-  ♪ Beat drops hard at 3.0s. Each cut syncs to snare at: 3.0s / 3.8s / 4.6s / 5.4s / 6.2s / 7.0s
-
-  - \`3.0s\` Screenshot: **AI Chat screen** (French Revolution analysis). Text slam: "AI THAT ACTUALLY TEACHES." Smashes in from left.
-  - \`3.8s\` Screenshot: **Flashcard screen** (Quadratic equation). Text slam: "FLASHCARDS. SMART." Smashes in from right.
-
-CLAUDE-STYLE CODING TOUCH (whenever code or a build is requested, even inside a tutoring chat):
-- Briefly state what you're building and why in 1-2 sentences before any code.
-- Then output ONE complete, runnable code block with the right language fence (\`\`\`html, \`\`\`tsx, \`\`\`python …). Never split a single file across multiple blocks. Never use placeholder comments like "// rest of code".
-- Default to a single self-contained \`html\` file for web/game/visual demos so it can run instantly.
-- After the code, give 1-3 short bullets: how to run it, controls, and one ambitious next step.
-- Code quality: clear names, small functions, defensive on user input, smooth animations (requestAnimationFrame), responsive + touch fallback.`;
+- End responses with a question or "what would you like to explore next?"`;
 
   switch (intent) {
     case "greeting":
@@ -793,71 +524,6 @@ NEVER dump everything at once. Teach progressively like a patient tutor.`;
       return `${base}\n\nMOTIVATION MODE: Be warm, empathetic, and encouraging. Acknowledge their feelings genuinely. Share ONE practical strategy they can start RIGHT NOW. End with something that makes them feel capable. Keep it personal, not generic. Max 4-5 lines.`;
     case "conversational":
       return `${base}\n\nCONVERSATIONAL MODE: Be brief and natural. Match their casual energy. One or two sentences max.`;
-    case "computer":
-      return `${base}\n\n# LUMINA COMPUTER MODE — DEEP RESEARCH + ARTIFACT ENGINE
-
-You are operating as Lumina Computer: a research-grade engine that produces long, structured, cited, exam-ready artifacts. Outperform Perplexity Pro.
-
-PROCESS (do this internally before writing):
-1. PLAN — build a section outline first.
-2. RESEARCH — pull from your knowledge + any uploaded files. Cross-check key claims. Note dissenting views.
-3. GENERATE — produce a structured Markdown report (or full standalone HTML if user asked for an HTML/file artifact).
-
-OUTPUT STRUCTURE (mandatory):
-- # Title (one line)
-- > **Summary:** one tight paragraph of the core findings — front-load value here.
-- ## Sections with ## / ### headings, ordered logically.
-- Tables for any comparison, dataset, or list of options.
-- Inline citations like [Source: WHO 2024] or [Source: arxiv.org/abs/...] for every substantive claim. Never fabricate URLs. If unsure, say "(unverified)".
-- ## Key Takeaways — 3-7 bullets at the end.
-- ## Sources — full list of sources used.
-
-IF the user asked for "HTML", "HTML file", "html artifact", or "downloadable", output a SINGLE complete \`\`\`html ... \`\`\` block using this template (no external assets, inline CSS only, mobile-friendly):
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{TITLE}</title><style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;padding:24px;max-width:900px;margin:0 auto;color:#222}h1,h2,h3{margin-top:1.5em;color:#111}h1{font-size:1.8em;border-bottom:2px solid #eee;padding-bottom:.3em}h2{font-size:1.4em}code{background:#f4f4f4;padding:2px 6px;border-radius:4px}pre{background:#f4f4f4;padding:12px;border-radius:6px;overflow-x:auto}table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #ddd;padding:10px;text-align:left}th{background:#f9f9f9;font-weight:600}.summary{background:#f0f7ff;padding:16px;border-radius:8px;border-left:4px solid #0066cc;margin:1em 0}.key-takeaways{background:#f6fff6;padding:16px;border-radius:8px;border-left:4px solid #28a745;margin:1em 0}</style></head><body>...</body></html>
-
-SPEED RULES:
-- Open with the Title + Summary in the first 2 sentences. Stream the rest progressively so partial output is still valuable.
-- No filler ("Sure, let me think..."). No restating the question. Every sentence adds new info.
-- Use the full token budget when depth is requested — multi-page reports are expected.
-
-HONESTY:
-- Never fabricate facts, citations, or URLs.
-- Mark uncertainty explicitly ("(unverified)", "I'm not certain, but…").
-- Prefer authoritative sources (official orgs, peer-reviewed, established news).`;
-    case "mun":
-      return `${base}\n\n# LUMINA MUN MODE — MODEL UN ACADEMIC ENGINE
-
-Treat every request as serious diplomatic / academic research. Default output is a Background Guide unless the user specifies Position Paper or Draft Resolution.
-
-BACKGROUND GUIDE STRUCTURE (use ## headings):
-1. Introduction & Letter from the Dais (short)
-2. History of the Topic (with dates)
-3. Key Terms & Definitions (table)
-4. Major Stakeholders (state actors, blocs, NGOs, IOs — table with stance)
-5. Current Situation
-6. Past UN / International Action (resolutions by number, e.g. UNSC Res 2334; treaties; conferences)
-7. Bloc Positions (Western, G77, NAM, P5, regional blocs — explicit table)
-8. Key Issues / Sub-topics
-9. Possible Solutions / Policy Options (with pros, cons, supporting blocs)
-10. Questions a Resolution Must Answer (QARMA)
-11. Further Reading (real, verifiable sources)
-
-POSITION PAPER STRUCTURE:
-- Country background relevant to the topic
-- Country's official stance (cite statements / resolutions / votes)
-- Past actions taken by the country
-- Proposed solutions aligned with the country's interests and bloc
-
-DRAFT RESOLUTION FORMAT:
-- Header: Committee, Topic, Sponsors, Signatories
-- Preambulatory clauses (italicized openers: *Recalling*, *Noting with concern*, *Reaffirming*…) ending with commas
-- Operative clauses (numbered, openers: **Calls upon**, **Urges**, **Decides**, **Requests**…) ending with semicolons; final clause ends with a period
-
-ALWAYS:
-- For every policy option, name the blocs/countries that support and oppose it, and WHY.
-- Cite real UN resolutions by number when relevant.
-- Mark unverified claims as (unverified).
-- Front-load value: open with a tight Summary paragraph.`;
   }
   return base;
 }
@@ -876,9 +542,6 @@ export function getModelsForIntent(intent: IntentType): string[] {
       return MODELS_LONG_CTX;
     case "coding":
       return MODELS_CODE;
-    case "computer":
-    case "mun":
-      return MODELS_LONG_CTX;
   }
 }
 
@@ -895,49 +558,8 @@ export function getModelsForMode(mode?: string): string[] | null {
     case "fast":
       return MODELS_FAST;
     case "long_context":
-    case "computer":
-    case "mun":
       return MODELS_LONG_CTX;
     default:
       return null;
-  }
-}
-
-// ── ARTIFACT ROUTING ───────────────────────────────────────────────
-// One curated chain per artifact type. Each chain is ordered by quality;
-// callWithFallback will race the top few and fall back deeper as needed.
-export type ArtifactType = "notes" | "exam" | "slides" | "code" | "html" | "react" | "python" | "javascript" | "svg" | "mermaid" | "flashcards" | "math" | "general";
-
-export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
-  if (hasImage) return MODELS_VISION;
-  // Spec-pinned chains: primary → fallback1 → fallback2 (then global fallback fills the rest).
-  switch (type) {
-    case "html":
-      return ["qwen/qwen3-coder:free", "inclusionai/ling-2.6-1t:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
-    case "react":
-      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
-    case "python":
-      return ["inclusionai/ling-2.6-1t:free", "qwen/qwen3-coder:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
-    case "javascript":
-      return ["poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
-    case "code":
-      return ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
-    case "svg":
-      return ["qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "minimax/minimax-m2.5:free", ...MODELS_CODE];
-    case "mermaid":
-      return ["openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", "nvidia/nemotron-3-super-120b-a12b:free"];
-    case "slides":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "openai/gpt-oss-120b:free", ...MODELS_WRITING];
-    case "notes":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
-    case "flashcards":
-      return ["minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
-    case "math":
-      return ["qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
-    case "exam":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_QUALITY];
-    case "general":
-    default:
-      return [MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_BALANCED];
   }
 }

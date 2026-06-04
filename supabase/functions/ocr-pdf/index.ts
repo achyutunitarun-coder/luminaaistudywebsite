@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { requireUser } from "../_shared/auth.ts";
 import { callWithFallback, MODELS_VISION } from "../_shared/models.ts";
 
 const corsHeaders = {
@@ -11,8 +10,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const _auth = await requireUser(req, corsHeaders);
-    if ("error" in _auth) return _auth.error;
     const body = await req.json();
     const images = Array.isArray(body?.images) ? body.images : [];
     const filename = typeof body?.filename === "string" ? body.filename : "document.pdf";

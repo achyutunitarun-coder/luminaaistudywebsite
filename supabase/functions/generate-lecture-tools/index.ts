@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { requireUser } from "../_shared/auth.ts";
 import { callAIText, MODELS_FAST } from "../_shared/models.ts";
 
 const corsHeaders = {
@@ -10,8 +9,6 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const _auth = await requireUser(req, corsHeaders);
-    if ("error" in _auth) return _auth.error;
     const body = await req.text();
     if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { notes, type } = JSON.parse(body);

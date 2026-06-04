@@ -12,7 +12,6 @@ import {
   ClipboardList,
   Clock,
   Coins,
-  Cpu,
   FileText,
   Flame,
   Gamepad2,
@@ -58,8 +57,6 @@ const sidebarSections = [
     label: 'Study',
     items: [
       { title: 'AI Chat', url: '/chat', icon: MessageSquare },
-      { title: 'Lumina Computer', url: '/computer', icon: Cpu },
-      { title: 'Documents', url: '/documents', icon: FileText },
       { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
       { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
       { title: 'Quick Study', url: '/quick-study', icon: Zap },
