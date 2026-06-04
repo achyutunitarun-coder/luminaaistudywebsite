@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Maximize2, Download, X, FileText, FileEdit, Presentation } from "lucide-react";
+import { Maximize2, Download, X, FileText, FileEdit } from "lucide-react";
 
 export interface ArtifactPayload {
   id: string;
-  artifact_type: "notes" | "exam" | "slides";
+  artifact_type: "notes" | "exam";
   theme: string;
   title: string;
   html: string;
@@ -25,9 +25,8 @@ function downloadHTML(html: string, filename: string) {
 
 export const ArtifactCard = ({ artifact }: { artifact: ArtifactPayload }) => {
   const [expanded, setExpanded] = useState(false);
-  const Icon = artifact.artifact_type === "notes" ? FileText
-             : artifact.artifact_type === "slides" ? Presentation
-             : FileEdit;
+  const isNotes = artifact.artifact_type === "notes";
+  const Icon = isNotes ? FileText : FileEdit;
   const filename = `${artifact.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${artifact.artifact_type}.html`;
 
   return (
@@ -64,7 +63,7 @@ export const ArtifactCard = ({ artifact }: { artifact: ArtifactPayload }) => {
         >
           <iframe
             srcDoc={artifact.html}
-            sandbox="allow-same-origin allow-scripts"
+            sandbox="allow-same-origin"
             title={artifact.title}
             className="border-0 pointer-events-none"
             style={{

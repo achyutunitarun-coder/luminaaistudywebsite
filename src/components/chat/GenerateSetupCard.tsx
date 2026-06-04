@@ -2,17 +2,15 @@ import { useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NOTES_THEMES, EXAM_THEMES, SLIDES_THEMES, type ThemePreview } from "@/lib/artifactThemes";
+import { NOTES_THEMES, EXAM_THEMES, type ThemePreview } from "@/lib/artifactThemes";
 
 export interface GenerateConfig {
   topic: string;
   subject: string;
   grade: string;
-  types: ("notes" | "exam" | "slides")[];
+  types: ("notes" | "exam")[];
   notesTheme: string;
   examTheme: string;
-  slidesTheme: string;
-  slideCount: number;
   totalMarks: number;
   durationMin: number;
 }
@@ -32,7 +30,6 @@ const ThemePicker = ({ themes, value, onChange, label }: {
       {themes.map(t => (
         <button
           key={t.key}
-          type="button"
           onClick={() => onChange(t.key)}
           className={`flex-shrink-0 rounded-lg border-2 p-1.5 transition-all ${
             value === t.key ? "border-primary shadow-sm shadow-primary/20" : "border-border/15 hover:border-border/40"
@@ -53,54 +50,36 @@ const ThemePicker = ({ themes, value, onChange, label }: {
   </div>
 );
 
-const detectInitialTypes = (topic: string): { notes: boolean; exam: boolean; slides: boolean } => {
-  const l = topic.toLowerCase();
-  const slides = /\b(slide|slides|presentation|deck|slideshow|powerpoint|pptx|keynote)\b/.test(l);
-  const exam   = /\b(exam|paper|test paper|practice exam|worksheet)\b/.test(l);
-  const notes  = /\b(notes|revision|cheatsheet|study guide)\b/.test(l);
-  // If nothing detected, default to notes
-  if (!slides && !exam && !notes) return { notes: true, exam: false, slides: false };
-  return { notes, exam, slides };
-};
-
 export const GenerateSetupCard = ({ initialTopic, onConfirm, onCancel }: Props) => {
-  const initial = detectInitialTypes(initialTopic);
   const [topic, setTopic] = useState(initialTopic);
   const [subject, setSubject] = useState("Mathematics");
   const [grade, setGrade] = useState("MYP 5");
-  const [makeNotes, setMakeNotes] = useState(initial.notes);
-  const [makeExam, setMakeExam] = useState(initial.exam);
-  const [makeSlides, setMakeSlides] = useState(initial.slides);
+  const [makeNotes, setMakeNotes] = useState(true);
+  const [makeExam, setMakeExam] = useState(true);
   const [notesTheme, setNotesTheme] = useState("academic-dark");
   const [examTheme, setExamTheme] = useState("classic-paper");
-  const [slidesTheme, setSlidesTheme] = useState("lumina-dark");
-  const [slideCount, setSlideCount] = useState(10);
   const [totalMarks, setTotalMarks] = useState(60);
   const [durationMin, setDurationMin] = useState(90);
 
   const randomize = () => {
     setNotesTheme(NOTES_THEMES[Math.floor(Math.random() * NOTES_THEMES.length)].key);
     setExamTheme(EXAM_THEMES[Math.floor(Math.random() * EXAM_THEMES.length)].key);
-    setSlidesTheme(SLIDES_THEMES[Math.floor(Math.random() * SLIDES_THEMES.length)].key);
   };
 
   const submit = () => {
-    const types: ("notes" | "exam" | "slides")[] = [];
+    const types: ("notes" | "exam")[] = [];
     if (makeNotes) types.push("notes");
     if (makeExam) types.push("exam");
-    if (makeSlides) types.push("slides");
     if (types.length === 0) return;
-    onConfirm({ topic, subject, grade, types, notesTheme, examTheme, slidesTheme, slideCount, totalMarks, durationMin });
+    onConfirm({ topic, subject, grade, types, notesTheme, examTheme, totalMarks, durationMin });
   };
-
-  const anySelected = makeNotes || makeExam || makeSlides;
 
   return (
     <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-background p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="text-sm font-semibold">Quick setup</span>
-        <button type="button" onClick={onCancel} className="ml-auto p-1 rounded hover:bg-muted/30 text-muted-foreground">
+        <button onClick={onCancel} className="ml-auto p-1 rounded hover:bg-muted/30 text-muted-foreground">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -113,7 +92,7 @@ export const GenerateSetupCard = ({ initialTopic, onConfirm, onCancel }: Props) 
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs">
+      <div className="flex items-center gap-3 text-xs">
         <span className="text-muted-foreground">Generate:</span>
         <label className="flex items-center gap-1.5 cursor-pointer">
           <input type="checkbox" checked={makeNotes} onChange={e => setMakeNotes(e.target.checked)} className="accent-primary" />
@@ -123,11 +102,7 @@ export const GenerateSetupCard = ({ initialTopic, onConfirm, onCancel }: Props) 
           <input type="checkbox" checked={makeExam} onChange={e => setMakeExam(e.target.checked)} className="accent-primary" />
           Exam Paper
         </label>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input type="checkbox" checked={makeSlides} onChange={e => setMakeSlides(e.target.checked)} className="accent-primary" />
-          Slides
-        </label>
-        <button type="button" onClick={randomize} className="ml-auto text-[11px] px-2 py-1 rounded-md bg-muted/20 hover:bg-muted/30">🎲 Randomize</button>
+        <button onClick={randomize} className="ml-auto text-[11px] px-2 py-1 rounded-md bg-muted/20 hover:bg-muted/30">🎲 Randomize</button>
       </div>
 
       {makeNotes && <ThemePicker themes={NOTES_THEMES} value={notesTheme} onChange={setNotesTheme} label="Notes Theme" />}
@@ -146,28 +121,12 @@ export const GenerateSetupCard = ({ initialTopic, onConfirm, onCancel }: Props) 
           </div>
         </>
       )}
-      {makeSlides && (
-        <>
-          <ThemePicker themes={SLIDES_THEMES} value={slidesTheme} onChange={setSlidesTheme} label="Slide Deck Theme" />
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">Slide count</div>
-            <Input
-              type="number"
-              min={5}
-              max={30}
-              value={slideCount}
-              onChange={e => setSlideCount(Math.max(5, Math.min(30, parseInt(e.target.value) || 10)))}
-              className="h-8 text-sm"
-            />
-          </div>
-        </>
-      )}
 
       <div className="flex gap-2 pt-1">
-        <Button type="button" onClick={submit} disabled={!anySelected} className="flex-1 h-9 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm">
+        <Button onClick={submit} disabled={!makeNotes && !makeExam} className="flex-1 h-9 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-sm">
           ✦ Generate Now
         </Button>
-        <Button type="button" onClick={onCancel} variant="ghost" className="h-9 text-sm">Cancel</Button>
+        <Button onClick={onCancel} variant="ghost" className="h-9 text-sm">Cancel</Button>
       </div>
     </div>
   );
