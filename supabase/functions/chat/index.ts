@@ -186,9 +186,14 @@ serve(async (req) => {
         ? MODELS_LONG_CTX
         : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
 
+    // Free OpenRouter models cap output around 32k. Stay well under to avoid 400s.
     const maxTokens = isComputerMode
-      ? 65000
-      : (intent === "greeting" || intent === "conversational" ? 1200 : 131072);
+      ? 24000
+      : intent === "greeting" || intent === "conversational"
+        ? 1200
+        : intent === "coding" || intent === "deep"
+          ? 12000
+          : 6000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
     const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
 
