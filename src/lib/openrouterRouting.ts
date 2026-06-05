@@ -16,7 +16,7 @@ export type ModeChip =
   | "creative" | "fast" | "general";
 
 const ROUTING: Record<string, string> = {
-  "chat-low": "deepseek/deepseek-v4-flash:free",
+  "chat-low": "openai/gpt-oss-20b:free",
   "chat-medium": "z-ai/glm-4.5-air:free",
   "chat-high": "nvidia/nemotron-3-super-120b-a12b:free",
   "code": "qwen/qwen3-coder:free",
@@ -26,7 +26,7 @@ const ROUTING: Record<string, string> = {
   "plan": "openai/gpt-oss-120b:free",
   "creative": "moonshotai/kimi-k2.6:free",
   "vision": "nvidia/nemotron-nano-12b-v2-vl:free",
-  "data": "minimax/minimax-m2.5:free",
+  "data": "qwen/qwen3-next-80b-a3b-instruct:free",
   "agent": "openrouter/owl-alpha",
 };
 
@@ -37,7 +37,7 @@ const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   reasoning: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   deepDive: "nvidia/nemotron-3-super-120b-a12b:free",
   creative: "moonshotai/kimi-k2.6:free",
-  fast: "deepseek/deepseek-v4-flash:free",
+  fast: "openai/gpt-oss-20b:free",
   general: "meta-llama/llama-3.3-70b-instruct:free",
 };
 
@@ -72,7 +72,7 @@ export async function classifyIntent(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: await authHeader() },
       body: JSON.stringify({
-        model: "deepseek/deepseek-v4-flash:free",
+        model: "openai/gpt-oss-20b:free",
         stream: false,
         max_tokens: 80,
         messages: [

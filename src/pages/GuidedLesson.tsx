@@ -58,7 +58,7 @@ const ringExpandKeyframes = `@keyframes ringExpand { 0%{transform:scale(0);opaci
 
 const GuidedLesson = () => {
   const { checkAndIncrement, showUpgrade, setShowUpgrade } = useUsageLimits();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   // ── State ──
   const [topic, setTopic] = useState('');
@@ -106,17 +106,21 @@ const GuidedLesson = () => {
 
   /* ─── API Helper ─── */
   const callAPI = useCallback(async (body: Record<string, unknown>) => {
+    if (!session?.access_token) throw new Error('Please sign in to use guided lessons.');
     const resp = await fetch(FUNC_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify(body),
     });
-    if (!resp.ok) throw new Error(`API error ${resp.status}`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => null);
+      throw new Error(err?.error || `API error ${resp.status}`);
+    }
     return resp.json();
-  }, []);
+  }, [session?.access_token]);
 
   /* ─── Start Lesson ─── */
   const startLesson = async () => {

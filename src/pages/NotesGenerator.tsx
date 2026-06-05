@@ -25,7 +25,7 @@ const noteStyles = [
 ];
 
 const NotesGenerator = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [topic, setTopic] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -73,7 +73,11 @@ const NotesGenerator = () => {
   }, [notes, generating, user, topic, sourceText, savedId]);
 
   const generate = async () => {
-    if (!topic.trim() && !sourceText.trim()) return;
+    if (!topic.trim() && !sourceText.trim() && uploadedFiles.length === 0) return;
+    if (!user || !session?.access_token) {
+      toast.error('Please sign in to generate notes.');
+      return;
+    }
     const allowed = await checkAndIncrement('notes_generations');
     if (!allowed) return;
     setGenerating(true);
@@ -88,7 +92,7 @@ const NotesGenerator = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ topic, sourceText: fullSourceText, style: selectedStyle }),
       });
@@ -256,7 +260,7 @@ const NotesGenerator = () => {
 
             <Button
               onClick={generate}
-              disabled={generating || (!topic.trim() && !sourceText.trim())}
+              disabled={generating || (!topic.trim() && !sourceText.trim() && uploadedFiles.length === 0)}
               className="gradient-primary text-primary-foreground h-14 px-10 text-base rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
             >
               {generating ? (

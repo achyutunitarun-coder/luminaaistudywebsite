@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 interface Props {
   value: string;
   onChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (overrideText?: string) => void;
   onStop: () => void;
   isLoading: boolean;
   disabled?: boolean;
@@ -39,8 +39,8 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
   }, [value]);
 
-  const flushAttachments = () => {
-    if (attachments.length === 0) return;
+  const buildValueWithAttachments = () => {
+    if (attachments.length === 0) return value;
     const blobs: string[] = [];
     for (const a of attachments) {
       if (a.kind === 'text' && a.text) {
@@ -49,15 +49,15 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         blobs.push(`\n\n[attached image: ${a.name}]`);
       }
     }
-    if (blobs.length) onChange((value || '') + blobs.join(''));
-    setAttachments([]);
+    return blobs.length ? (value || '') + blobs.join('') : value;
   };
 
   const submit = () => {
     if (!value.trim() && attachments.length === 0) return;
-    flushAttachments();
-    // Defer one tick so onChange propagates before send
-    setTimeout(() => onSend(), 0);
+    const nextValue = buildValueWithAttachments();
+    onChange(nextValue);
+    setAttachments([]);
+    onSend(nextValue);
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

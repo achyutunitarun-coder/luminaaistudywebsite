@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   transcript: string;
@@ -40,6 +41,8 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
     if (isRefine) { setIsRefining(true); } else { setLoading(true); setNotes(''); }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Please sign in to generate notes.');
       const stylePreset = STYLE_PRESETS.find((s) => s.value === selectedStyle);
       const styleLabel = stylePreset?.label || 'Detailed & Structured';
       let userPrompt = `Create comprehensive study notes from this lecture content. Style: ${styleLabel}.`;
@@ -52,7 +55,7 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ topic: 'Lecture Analysis', sourceText: userPrompt, style: selectedStyle, isRefinement: isRefine }),
       });
 

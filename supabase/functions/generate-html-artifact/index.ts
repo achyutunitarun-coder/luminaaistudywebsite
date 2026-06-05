@@ -16,8 +16,7 @@ const HTML_MODELS = [
   "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
-  "google/gemma-3-27b-it:free",
-  "minimax/minimax-m2.5:free",
+  "moonshotai/kimi-k2.6:free",
 ];
 
 // Each theme spec ends with STRUCTURE: which forces a distinct LAYOUT (not just colors).

@@ -3,6 +3,7 @@ import { Loader2, ClipboardList, CheckCircle2, XCircle, RotateCcw, Sparkles, Tro
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Question { question: string; options: string[]; correct: number; explanation: string; }
 interface Props { notes: string; onBeforeGenerate?: () => Promise<boolean>; }
@@ -17,9 +18,11 @@ const LectureQuiz = ({ notes, onBeforeGenerate }: Props) => {
     if (onBeforeGenerate) { const allowed = await onBeforeGenerate(); if (!allowed) return; }
     setLoading(true); setAnswers({}); setShowResults(false);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Please sign in to generate a quiz.');
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lecture-tools`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ notes, type: 'quiz' }),
       });
       if (!resp.ok) throw new Error('Failed');

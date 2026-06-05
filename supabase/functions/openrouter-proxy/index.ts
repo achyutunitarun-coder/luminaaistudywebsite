@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════
 // OpenRouter Proxy — server-side key, client-side routing
 // Streams SSE back. Handles universal fallback chain primary → openrouter/free
-// → deepseek-v4-flash with one retry after 800ms.
+// → current fast free models with one retry after 800ms.
 // ════════════════════════════════════════════════════════════════════
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireUser } from "../_shared/auth.ts";
@@ -12,13 +12,14 @@ const cors = {
 };
 
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FALLBACK_CHAIN = ["openrouter/free", "deepseek/deepseek-v4-flash:free"];
+const FALLBACK_CHAIN = ["openrouter/free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.2-3b-instruct:free"];
 
 function pickKey(): string {
   const keys = [
     Deno.env.get("OPENROUTER_API_KEY"),
     Deno.env.get("OPENROUTER_KEY_2"),
     Deno.env.get("OPENROUTER_KEY_3"),
+    Deno.env.get("OPENROUTER_KEY_4"),
   ].filter(Boolean) as string[];
   if (keys.length === 0) throw new Error("No OpenRouter key configured");
   return keys[Math.floor(Math.random() * keys.length)];
@@ -41,7 +42,7 @@ async function callOR(model: string, body: any, stream: boolean) {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
-    const auth = await requireUser(req);
+    const auth = await requireUser(req, cors);
     if ("error" in auth) return auth.error;
 
     const body = await req.json();

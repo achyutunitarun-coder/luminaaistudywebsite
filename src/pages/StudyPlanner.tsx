@@ -33,7 +33,7 @@ const typeColors: Record<string, { dot: string; bg: string; text: string }> = {
 };
 
 const StudyPlanner = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { profile } = useProfile();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<'study' | 'exam'>('study');
@@ -72,6 +72,7 @@ const StudyPlanner = () => {
   const generatePlan = async () => {
     const filteredSubjects = subjects.filter(s => s.trim());
     if (!filteredSubjects.length || !examDate || !user) return;
+    if (!session?.access_token) { toast.error('Please sign in to save study plans'); return; }
     const allowed = await checkAndIncrement('study_planners');
     if (!allowed) return;
     setGenerating(true);
@@ -80,7 +81,7 @@ const StudyPlanner = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           subjects: filteredSubjects,
@@ -105,6 +106,7 @@ const StudyPlanner = () => {
 
   const generateExamPlan = async () => {
     if (!examSubject.trim() || !examSyllabus.trim() || !examDateExam || !user) return;
+    if (!session?.access_token) { toast.error('Please sign in to save exam plans'); return; }
     const allowed = await checkAndIncrement('study_planners');
     if (!allowed) return;
     setGeneratingExam(true);
@@ -114,7 +116,7 @@ const StudyPlanner = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           subjects: [examSubject],

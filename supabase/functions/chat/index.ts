@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY } from "../_shared/models.ts";
+import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY, MODELS_VISION, messageText, messagesHaveImages } from "../_shared/models.ts";
 import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
 
 // ── Lumina Computer agentic prompt ──────────────────────────────────
@@ -80,8 +80,9 @@ serve(async (req) => {
 
     // Adaptive intent classification
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
-    const queryText = lastMsg?.content || "";
+    const queryText = messageText(lastMsg);
     const hasFiles = queryText.includes("--- ATTACHED FILES ---");
+    const hasImages = messagesHaveImages(messages);
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
 
@@ -177,14 +178,12 @@ serve(async (req) => {
     }
 
     const models = isComputerMode
-      ? Array.from(new Set([
-          "openrouter/owl-alpha",
-          ...MODELS_LONG_CTX,
-          ...MODELS_QUALITY,
-        ]))
+      ? Array.from(new Set(hasImages ? [...MODELS_VISION, ...MODELS_LONG_CTX] : ["openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
       : artifactFeature
         ? MODELS_LONG_CTX
-        : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
+        : hasImages
+          ? MODELS_VISION
+          : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
 
     // Free OpenRouter models cap output around 32k. Stay well under to avoid 400s.
     const maxTokens = isComputerMode
