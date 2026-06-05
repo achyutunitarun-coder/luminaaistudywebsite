@@ -57,14 +57,13 @@ async function queueJob(
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const auth =
-      session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!session?.access_token) return { error: "sign_in_required" };
 
     const res = await fetch(ARTIFACT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${auth}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         type,

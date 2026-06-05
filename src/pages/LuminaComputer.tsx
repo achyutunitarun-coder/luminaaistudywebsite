@@ -43,6 +43,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
+import { extractDocumentText, DOCUMENT_ACCEPT } from "@/lib/extractDocumentText";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -444,8 +445,8 @@ export default function LuminaComputer() {
     if (!fileList) return;
     const next: Attachment[] = [];
     for (const file of Array.from(fileList)) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} is too large (max 5MB)`);
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`${file.name} is too large (max 20MB)`);
         continue;
       }
       if (file.type.startsWith("image/")) {
@@ -461,11 +462,8 @@ export default function LuminaComputer() {
           size: file.size,
           preview: dataUrl,
         });
-      } else if (
-        file.type.startsWith("text/") ||
-        /\.(md|json|csv|txt|html|css|js|ts|tsx|jsx|py)$/i.test(file.name)
-      ) {
-        const text = await file.text();
+      } else {
+        const text = await extractDocumentText(file, true);
         next.push({
           id: uid(),
           name: file.name,
@@ -473,8 +471,6 @@ export default function LuminaComputer() {
           size: file.size,
           text: text.slice(0, 50000),
         });
-      } else {
-        toast.error(`Unsupported file: ${file.name}`);
       }
     }
     setAttachments((prev) => [...prev, ...next]);
@@ -527,14 +523,14 @@ export default function LuminaComputer() {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        const auth = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        if (!session?.access_token) throw new Error("Please sign in to use Lumina Computer.");
 
         const content = buildMessageContent(trimmed);
         setAttachments([]);
 
         const res = await fetch(CHAT_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             messages: [{ role: "user", content }],
             mode: "computer",
@@ -834,7 +830,7 @@ export default function LuminaComputer() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.md,.txt,.json,.csv,.html,.css,.js,.ts,.tsx,.jsx,.py"
+                  accept={DOCUMENT_ACCEPT}
                   hidden
                   onChange={(e) => handleFiles(e.target.files)}
                 />

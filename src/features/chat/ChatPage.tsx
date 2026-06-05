@@ -344,15 +344,14 @@ const ChatPage = () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const auth =
-        session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!session?.access_token) throw new Error("Please sign in to use Lumina Chat.");
 
       const wireMode = model === "deepDive" ? "long_context" : model;
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${auth}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
         signal: ctrl.signal,
@@ -475,13 +474,12 @@ Q3: ... || A: ...
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const auth =
-        session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (!session?.access_token) throw new Error("Please sign in to use Quick Study.");
       const res = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${auth}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: aiMessages, mode: "study" }),
         signal: ctrl.signal,
@@ -996,7 +994,7 @@ Q3: ... || A: ...
             <InputBar
               value={input}
               onChange={setInput}
-              onSend={() => handleSend()}
+              onSend={(text) => handleSend(text)}
               onStop={handleStop}
               isLoading={loading}
               onPickArtifact={(t) => {

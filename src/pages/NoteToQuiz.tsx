@@ -15,7 +15,7 @@ type MCQ = { question: string; options: string[]; correct: number; explanation: 
 type ShortAnswer = { question: string; answer: string };
 
 const NoteToQuiz = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [quiz, setQuiz] = useState<{ mcq: MCQ[]; short_answer: ShortAnswer[]; conceptual: ShortAnswer[] } | null>(null);
@@ -26,7 +26,11 @@ const NoteToQuiz = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const generate = async () => {
-    if (!notes.trim()) return;
+    if (!notes.trim() && uploadedFiles.length === 0) return;
+    if (!user || !session?.access_token) {
+      toast.error('Please sign in to generate quizzes.');
+      return;
+    }
     const allowed = await checkAndIncrement('note_to_quiz');
     if (!allowed) return;
     setGenerating(true);
@@ -35,12 +39,12 @@ const NoteToQuiz = () => {
     setShowAnswers(false);
     try {
       const fileContext = buildFileContext(uploadedFiles);
-      const fullNotes = notes + fileContext;
+      const fullNotes = (notes.trim() || 'Use the attached material to create the quiz.') + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/note-to-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ notes: fullNotes }),
       });
@@ -112,7 +116,7 @@ const NoteToQuiz = () => {
                 className="bg-muted/20 border-border/30 rounded-xl min-h-[200px] px-5 py-4 text-sm leading-relaxed resize-none"
               />
               <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} maxFiles={5} />
-              <Button onClick={generate} disabled={generating || !notes.trim()} className="gradient-primary text-primary-foreground h-13 px-8 rounded-2xl shadow-lg shadow-primary/20">
+              <Button onClick={generate} disabled={generating || (!notes.trim() && uploadedFiles.length === 0)} className="gradient-primary text-primary-foreground h-13 px-8 rounded-2xl shadow-lg shadow-primary/20">
                 {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 Generate Quiz
               </Button>

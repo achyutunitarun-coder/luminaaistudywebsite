@@ -20,7 +20,7 @@ type Lesson = {
 const quickTopics = ['Photosynthesis', 'Quadratic Equations', 'Newton\'s Laws', 'Cell Division', 'Thermodynamics', 'Organic Chemistry'];
 
 const QuickStudy = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -53,7 +53,11 @@ const QuickStudy = () => {
   };
 
   const generate = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim() && uploadedFiles.length === 0) return;
+    if (!user || !session?.access_token) {
+      toast.error('Please sign in to generate a lesson.');
+      return;
+    }
     const allowed = await checkAndIncrement('quick_study');
     if (!allowed) return;
     setGenerating(true);
@@ -63,12 +67,12 @@ const QuickStudy = () => {
     setActiveTab('concepts');
     try {
       const fileContext = buildFileContext(uploadedFiles);
-      const fullTopic = topic + fileContext;
+      const fullTopic = (topic.trim() || 'Uploaded study material') + fileContext;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quick-study`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ topic: fullTopic }),
       });
@@ -170,7 +174,7 @@ const QuickStudy = () => {
 
                 <Button
                   onClick={generate}
-                  disabled={generating || !topic.trim()}
+                  disabled={generating || (!topic.trim() && uploadedFiles.length === 0)}
                   className="gradient-primary text-primary-foreground h-14 px-10 text-base rounded-2xl shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
                 >
                   {generating ? (

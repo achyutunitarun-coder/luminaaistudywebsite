@@ -14,14 +14,11 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // ═══════════════════════════════════════════════════════════════════
 
 export const MODELS_FAST = [
-  "google/gemma-3n-e4b-it:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e2b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
+  "openai/gpt-oss-20b:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
   "liquid/lfm-2.5-1.2b-thinking:free",
-  "google/gemma-3-12b-it:free",
   "poolside/laguna-xs.2:free",
 ];
 
@@ -31,26 +28,22 @@ export const MODELS_BALANCED = [
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
-  "tencent/hy3-preview:free",
   "openai/gpt-oss-20b:free",
-  "google/gemma-3-27b-it:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "z-ai/glm-4.5-air:free",
-  "minimax/minimax-m2.5:free",
+  "moonshotai/kimi-k2.6:free",
 ];
 
 export const MODELS_QUALITY = [
   "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
-  "inclusionai/ling-2.6-1t:free",
-  "tencent/hy3-preview:free",
   "openrouter/owl-alpha",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "google/gemma-4-31b-it:free",
-  "minimax/minimax-m2.5:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
 // ── CODING POWERHOUSE ──────────────────────────────────────────────
@@ -58,53 +51,46 @@ export const MODELS_QUALITY = [
 export const MODELS_CODE = [
   "qwen/qwen3-coder:free",                                // #1 free coder globally
   "poolside/laguna-m.1:free",                             // specialist coding agent
-  "inclusionai/ling-2.6-1t:free",                         // SWE-bench top, 1T MoE
-  "tencent/hy3-preview:free",                             // strong code + agentic MoE
   "openai/gpt-oss-120b:free",                             // strongest generalist coder
   "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
   "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
   "poolside/laguna-xs.2:free",                            // compact coding agent
   "meta-llama/llama-3.3-70b-instruct:free",
-  "minimax/minimax-m2.5:free",                            // long-context refactors
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "openai/gpt-oss-20b:free",
   "google/gemma-4-31b-it:free",
-  "google/gemma-3-27b-it:free",
 ];
 
 export const MODELS_LONG_CTX = [
   "openrouter/owl-alpha",                                 // 1M+ ctx
+  "qwen/qwen3-coder:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "minimax/minimax-m2.5:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "inclusionai/ling-2.6-1t:free",
-  "tencent/hy3-preview:free",
+  "moonshotai/kimi-k2.6:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
 export const MODELS_VISION = [
+  "moonshotai/kimi-k2.6:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
-  "google/gemma-3-27b-it:free",
-  "google/gemma-3-12b-it:free",
-  "baidu/qianfan-ocr-fast:free",
+  "nvidia/nemotron-3.5-content-safety:free",
 ];
 
 // ── WRITING / NOTES (long-form prose) ──────────────────────────────
 export const MODELS_WRITING = [
   "meta-llama/llama-3.3-70b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
-  "minimax/minimax-m2.5:free",
   "openai/gpt-oss-120b:free",
   "z-ai/glm-4.5-air:free",
-  "tencent/hy3-preview:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "google/gemma-4-31b-it:free",
   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
@@ -114,11 +100,9 @@ export const MODELS_EXTRA = [
   "openai/gpt-oss-20b:free",
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "minimax/minimax-m2.5:free",
-  "tencent/hy3-preview:free",
-  "google/gemma-3-12b-it:free",
-  "google/gemma-3-4b-it:free",
-  "google/gemma-3n-e4b-it:free",
+  "moonshotai/kimi-k2.6:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
@@ -221,13 +205,13 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-const PARALLEL_RACE_COUNT = 4;          // race 4 models for fastest first-token
+const PARALLEL_RACE_COUNT = 2;          // race 2 models; too many parallel calls were burning key limits
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
-const STREAM_TOTAL_BUDGET_MS = 240_000; // 4 min for streamed chat (covers full games)
-const TEXT_TOTAL_BUDGET_MS = 200_000;   // 3.3 min for non-streamed JSON tools (artifacts)
+const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
+const TEXT_TOTAL_BUDGET_MS = 90_000;    // keep JSON tools responsive
 const OCR_TOTAL_BUDGET_MS = 120_000;
-const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // tight first-token race for snappy UX
+const PRIMARY_RACE_TIMEOUT_MS = 6_000;  // tight first-token race for snappy UX
 
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
@@ -240,9 +224,30 @@ type RouteMeta = {
 function sanitizeMessages(messages: any[]) {
   return messages.map((message) => {
     const role = message?.role === "assistant" || message?.role === "system" ? message.role : "user";
-    const content = typeof message?.content === "string" ? message.content : String(message?.content ?? "");
+    const content = Array.isArray(message?.content)
+      ? message.content
+          .map((part: any) => {
+            if (part?.type === "image_url" && part?.image_url?.url) {
+              return { type: "image_url", image_url: { url: String(part.image_url.url) } };
+            }
+            if (part?.type === "text") return { type: "text", text: String(part.text ?? "") };
+            return { type: "text", text: String(part?.text ?? "") };
+          })
+          .filter((part: any) => part.type !== "text" || part.text.trim())
+      : typeof message?.content === "string" ? message.content : String(message?.content ?? "");
     return { role, content };
   });
+}
+
+export function messageText(message: any): string {
+  const content = message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) return content.map((part) => part?.type === "text" ? String(part.text ?? "") : "[attached image]").join("\n");
+  return String(content ?? "");
+}
+
+export function messagesHaveImages(messages: any[]): boolean {
+  return messages.some((m) => Array.isArray(m?.content) && m.content.some((p: any) => p?.type === "image_url" && p?.image_url?.url));
 }
 
 export async function fetchWithTimeout(
@@ -413,11 +418,12 @@ export async function callWithFallback(
 
   // Artifact / long-form generation needs minutes, not seconds, per attempt.
   // Detect via tag so we don't have to thread a flag through every caller.
-  const isArtifact = /artifact|html|generate-html|notes|exam|slides|code/i.test(tag);
+  const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag);
+  const isJsonTool = /guided-|quick-study|note-to-quiz|flashcards|generate-test|plan|lecture-tools/i.test(tag) && !isArtifact;
   const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
-  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 7_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 30_000 : PRIMARY_RACE_TIMEOUT_MS);
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 0 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
@@ -913,31 +919,31 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
   // Spec-pinned chains: primary → fallback1 → fallback2 (then global fallback fills the rest).
   switch (type) {
     case "html":
-      return ["qwen/qwen3-coder:free", "inclusionai/ling-2.6-1t:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
+      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
     case "react":
       return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
     case "python":
-      return ["inclusionai/ling-2.6-1t:free", "qwen/qwen3-coder:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
+      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
     case "javascript":
       return ["poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
     case "code":
       return ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
     case "svg":
-      return ["qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "minimax/minimax-m2.5:free", ...MODELS_CODE];
+      return ["qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
     case "mermaid":
-      return ["openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+      return ["openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
     case "slides":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "openai/gpt-oss-120b:free", ...MODELS_WRITING];
+      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
     case "notes":
       return ["nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
     case "flashcards":
-      return ["minimax/minimax-m2.5:free", "meta-llama/llama-4-maverick:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
+      return ["openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
     case "math":
       return ["qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
     case "exam":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_QUALITY];
+      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
     case "general":
     default:
-      return [MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "inclusionai/ling-2.6-1t:free", ...MODELS_BALANCED];
+      return [MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
   }
 }

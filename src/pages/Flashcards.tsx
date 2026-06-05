@@ -48,6 +48,7 @@ const Flashcards = () => {
 
   const generateDeck = async () => {
     if (!title.trim() || !user) return;
+    if (!session?.access_token) { toast.error('Please sign in to generate flashcards.'); return; }
     const allowed = await checkAndIncrement('flashcard_sets');
     if (!allowed) return;
     setGenerating(true);
@@ -62,7 +63,7 @@ const Flashcards = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ content: fullContent, title, cardCount }),
       });

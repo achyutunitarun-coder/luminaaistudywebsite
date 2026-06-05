@@ -51,6 +51,7 @@ const Tests = () => {
 
   const generateTest = async () => {
     if (!syllabus.trim() || !user) return;
+    if (!session?.access_token) { toast.error('Please sign in to generate tests.'); return; }
     const allowed = await checkAndIncrement('test_generations');
     if (!allowed) return;
     setGenerating(true);
@@ -66,7 +67,7 @@ const Tests = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ syllabus: fullSyllabus, subject, numQuestions }),
       });
