@@ -111,18 +111,27 @@ const Quest = () => {
             <div className="text-5xl mb-2">⚔️</div>
             <h3 className="text-xl font-display font-bold text-foreground">Choose Your Battle Topic</h3>
             <p className="text-muted-foreground text-sm max-w-md mx-auto">The AI will generate a boss with questions for you to defeat!</p>
-            <div className="max-w-md mx-auto flex gap-2">
+            <form
+              className="max-w-md mx-auto flex gap-2"
+              onSubmit={(e) => { e.preventDefault(); if (!generating && topic.trim()) generateBoss(); }}
+            >
               <Input
+                type="text"
+                name="quest-topic"
+                autoComplete="off"
                 placeholder="e.g., Algebra, Photosynthesis..."
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 className="bg-muted/20 border-border/30 rounded-xl"
-                onKeyDown={e => e.key === 'Enter' && generateBoss()}
               />
-              <Button onClick={generateBoss} disabled={generating || !topic.trim()} className="gradient-primary text-primary-foreground rounded-xl">
+              <Button
+                type="submit"
+                disabled={generating || !topic.trim()}
+                className="gradient-primary text-primary-foreground rounded-xl"
+              >
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               </Button>
-            </div>
+            </form>
           </div>
         )}
 
@@ -132,10 +141,10 @@ const Quest = () => {
             <h3 className="text-xl font-display font-bold text-foreground mb-2">{boss.name}</h3>
             <p className="text-muted-foreground text-sm mb-6">Defeat this boss on {topic}!</p>
             <div className="flex gap-2 justify-center">
-              <Button onClick={startBattle} className="gradient-primary text-primary-foreground rounded-2xl h-12 px-8 shadow-lg shadow-primary/20">
+              <Button type="button" onClick={startBattle} className="gradient-primary text-primary-foreground rounded-2xl h-12 px-8 shadow-lg shadow-primary/20">
                 <Swords className="w-4 h-4 mr-2" /> Start Battle
               </Button>
-              <Button onClick={() => { setBoss(null); setTopic(''); }} variant="ghost" className="rounded-2xl h-12">Change Topic</Button>
+              <Button type="button" onClick={() => { setBoss(null); setTopic(''); }} variant="ghost" className="rounded-2xl h-12">Change Topic</Button>
             </div>
           </div>
         )}

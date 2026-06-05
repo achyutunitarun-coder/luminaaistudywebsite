@@ -1,0 +1,2 @@
+ALTER TABLE public.chat_artifacts DROP CONSTRAINT IF EXISTS chat_artifacts_artifact_type_check;
+ALTER TABLE public.chat_artifacts ADD CONSTRAINT chat_artifacts_artifact_type_check CHECK (artifact_type = ANY (ARRAY['notes'::text, 'exam'::text, 'slides'::text]));

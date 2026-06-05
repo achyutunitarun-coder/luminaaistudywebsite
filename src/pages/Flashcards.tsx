@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Sparkles, RotateCcw, ChevronLeft, ChevronRight, Loader2, ArrowLeft, Layers, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,19 @@ const Flashcards = () => {
   };
 
   // ── Active Deck / Card Review ──
+  // Keyboard navigation: ← prev, → next, space flip
+  useEffect(() => {
+    if (!activeDeck || !cards) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.key === 'ArrowRight') { setFlipped(false); setCardIndex((i) => Math.min((cards?.length ?? 1) - 1, i + 1)); }
+      else if (e.key === 'ArrowLeft') { setFlipped(false); setCardIndex((i) => Math.max(0, i - 1)); }
+      else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFlipped((f) => !f); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeDeck, cards]);
+
   if (activeDeck && cards) {
     const card = cards[cardIndex];
     const progress = cards.length > 0 ? ((cardIndex + 1) / cards.length) * 100 : 0;
@@ -116,17 +129,17 @@ const Flashcards = () => {
 
         {card && (
           <div className="flex flex-col items-center pt-4">
-            <div className="w-full perspective-[1200px]">
+            <div className="w-full" style={{ perspective: '1200px' }}>
               <motion.div
-                className="relative w-full aspect-[4/3] cursor-pointer"
-                onClick={() => setFlipped(!flipped)}
+                className="relative w-full aspect-[4/3] cursor-pointer select-none"
+                onClick={() => setFlipped((f) => !f)}
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: flipped ? 180 : 0 }}
                 transition={{ duration: 0.5, type: 'spring', stiffness: 80 }}
               >
                 <div
                   className="absolute inset-0 rounded-[2rem] liquid-glass-intense flex flex-col items-center justify-center p-10"
-                  style={{ backfaceVisibility: 'hidden' }}
+                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', pointerEvents: flipped ? 'none' : 'auto' }}
                 >
                   <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-6 bg-primary/10 px-3 py-1 rounded-full">Question</span>
                   <p className="text-xl md:text-2xl text-foreground font-display font-semibold text-center leading-relaxed">{card.front}</p>
@@ -134,7 +147,7 @@ const Flashcards = () => {
                 </div>
                 <div
                   className="absolute inset-0 rounded-[2rem] liquid-glass-intense border-success/20 flex flex-col items-center justify-center p-10"
-                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)', pointerEvents: flipped ? 'auto' : 'none' }}
                 >
                   <span className="text-[10px] font-bold text-success uppercase tracking-[0.2em] mb-6 bg-success/10 px-3 py-1 rounded-full">Answer</span>
                   <p className="text-xl md:text-2xl text-foreground font-display font-semibold text-center leading-relaxed">{card.back}</p>
@@ -142,26 +155,51 @@ const Flashcards = () => {
               </motion.div>
             </div>
 
-            <div className="flex items-center gap-3 mt-8">
-              <Button variant="outline" size="lg" onClick={() => { setCardIndex(Math.max(0, cardIndex - 1)); setFlipped(false); }} disabled={cardIndex === 0} className="rounded-2xl h-12 w-12">
+            <div className="flex items-center gap-3 mt-8 relative z-10">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={(e) => { e.stopPropagation(); setFlipped(false); setCardIndex((i) => Math.max(0, i - 1)); }}
+                disabled={cardIndex === 0}
+                className="rounded-2xl h-12 w-12"
+                aria-label="Previous card"
+              >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" onClick={() => setFlipped(false)} className="rounded-2xl h-12 w-12">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={(e) => { e.stopPropagation(); setFlipped((f) => !f); }}
+                className="rounded-2xl h-12 w-12"
+                aria-label="Flip card"
+              >
                 <RotateCcw className="w-4 h-4" />
               </Button>
-              <Button variant="outline" size="lg" onClick={() => { setCardIndex(Math.min(cards.length - 1, cardIndex + 1)); setFlipped(false); }} disabled={cardIndex === cards.length - 1} className="rounded-2xl h-12 w-12">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={(e) => { e.stopPropagation(); setFlipped(false); setCardIndex((i) => Math.min(cards.length - 1, i + 1)); }}
+                disabled={cardIndex >= cards.length - 1}
+                className="rounded-2xl h-12 w-12"
+                aria-label="Next card"
+              >
                 <ChevronRight className="w-5 h-5" />
               </Button>
             </div>
 
-            <div className="flex gap-1.5 mt-6 flex-wrap justify-center max-w-md">
+            <div className="flex gap-1.5 mt-6 flex-wrap justify-center max-w-md relative z-10">
               {cards.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => { setCardIndex(i); setFlipped(false); }}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === cardIndex ? 'bg-primary w-6' : i < cardIndex ? 'bg-primary/40' : 'bg-muted/50'
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setCardIndex(i); setFlipped(false); }}
+                  className={`h-2 rounded-full transition-all ${
+                    i === cardIndex ? 'bg-primary w-6' : i < cardIndex ? 'bg-primary/40 w-2' : 'bg-muted/50 w-2'
                   }`}
+                  aria-label={`Go to card ${i + 1}`}
                 />
               ))}
             </div>

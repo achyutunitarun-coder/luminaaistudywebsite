@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import rehypeRaw from 'rehype-raw';
+// rehype-raw intentionally removed for XSS hardening on AI-generated content.
 import 'katex/dist/katex.min.css';
 import { Check, Copy, Download, Play, X } from 'lucide-react';
 
@@ -268,8 +268,10 @@ const markdownComponents = {
 };
 
 // CRITICAL: remarkMath MUST come before remarkGfm to prevent pipe conflicts in tables
+// Security: rehypeRaw removed — AI-generated content must not bypass React escaping.
+// KaTeX trust: false — disable \url, \href, \htmlClass, \htmlStyle, \includegraphics.
 const remarkPlugins = [remarkMath, remarkGfm];
-const rehypePlugins = [[rehypeKatex, { strict: false, throwOnError: false, trust: true }], rehypeRaw] as any[];
+const rehypePlugins = [[rehypeKatex, { strict: false, throwOnError: false, trust: false }]] as any[];
 
 export default function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
   const processed = useMemo(() => preprocessLatex(children), [children]);
