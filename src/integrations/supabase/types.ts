@@ -2010,6 +2010,16 @@ export type Database = {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
       }
+      lookup_squad_by_invite_code: {
+        Args: { _code: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          id: string
+          invite_code: string
+          name: string
+        }[]
+      }
       spend_user_credits: {
         Args: { _action?: string; _amount: number }
         Returns: {

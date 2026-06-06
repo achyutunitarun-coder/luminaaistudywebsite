@@ -147,8 +147,9 @@ const SquadPage = () => {
     if (!joinCode.trim() || !user) return;
     setJoining(true);
     const code = joinCode.trim().toUpperCase();
-    const { data: squad, error: lookupErr } = await supabase.from('squads').select('*').eq('invite_code', code).maybeSingle();
+    const { data: lookup, error: lookupErr } = await (supabase as any).rpc('lookup_squad_by_invite_code', { _code: code });
     if (lookupErr) console.error('Squad lookup error:', lookupErr);
+    const squad = Array.isArray(lookup) ? lookup[0] : lookup;
     if (!squad) { toast.error('Invalid invite code'); setJoining(false); return; }
     const { data: existing } = await supabase.from('squad_members').select('id').eq('squad_id', squad.id).eq('user_id', user.id).maybeSingle();
     if (existing) { toast.info('Already in this squad'); setJoining(false); return; }
