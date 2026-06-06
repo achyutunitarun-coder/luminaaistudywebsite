@@ -291,6 +291,33 @@ export type Database = {
         }
         Relationships: []
       }
+      crisis_sessions: {
+        Row: {
+          id: string
+          initiated_at: string
+          last_updated: string
+          notes: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          initiated_at?: string
+          last_updated?: string
+          notes?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          initiated_at?: string
+          last_updated?: string
+          notes?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_quests: {
         Row: {
           coin_reward: number
@@ -638,6 +665,39 @@ export type Database = {
           total_questions?: number | null
           total_steps?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      hot_cache: {
+        Row: {
+          answer: string
+          board: string
+          canonical_query: string
+          feature: string
+          generated_at: string
+          hit_count: number
+          id: string
+          query_hash: string
+        }
+        Insert: {
+          answer: string
+          board?: string
+          canonical_query: string
+          feature: string
+          generated_at?: string
+          hit_count?: number
+          id?: string
+          query_hash: string
+        }
+        Update: {
+          answer?: string
+          board?: string
+          canonical_query?: string
+          feature?: string
+          generated_at?: string
+          hit_count?: number
+          id?: string
+          query_hash?: string
         }
         Relationships: []
       }
@@ -1239,6 +1299,30 @@ export type Database = {
         }
         Relationships: []
       }
+      safety_events: {
+        Row: {
+          event_type: string
+          feature: string | null
+          id: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          event_type: string
+          feature?: string | null
+          id?: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          event_type?: string
+          feature?: string | null
+          id?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_lectures: {
         Row: {
           created_at: string
@@ -1674,6 +1758,36 @@ export type Database = {
           title?: string
           total_questions?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      thread_summaries: {
+        Row: {
+          created_at: string
+          id: string
+          messages_covered: number
+          summary_text: string
+          thread_id: string
+          token_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          messages_covered: number
+          summary_text: string
+          thread_id: string
+          token_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          messages_covered?: number
+          summary_text?: string
+          thread_id?: string
+          token_count?: number | null
           user_id?: string
         }
         Relationships: []
