@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY, MODELS_VISION, messageText, messagesHaveImages } from "../_shared/models.ts";
 import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
+import { preFlight } from "../_shared/preflight.ts";
 
 // ── Lumina Computer agentic prompt ──────────────────────────────────
 const COMPUTER_AGENTIC_PROMPT = `
@@ -86,6 +87,25 @@ serve(async (req) => {
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
 
+    // ── Pre-flight: crisis detection + stress addon ───────────────────
+    const flight = await preFlight({
+      userId: user.id, userMessage: queryText, feature: `chat/${requestedMode}`, authHeader,
+    });
+    if (!flight.proceed && flight.interceptResponse) {
+      // Stream the hardcoded crisis response back as SSE.
+      const encoder = new TextEncoder();
+      const safeText = flight.interceptResponse;
+      const stream = new ReadableStream({
+        start(ctrl) {
+          const payload = JSON.stringify({ choices: [{ delta: { content: safeText } }] });
+          ctrl.enqueue(encoder.encode(`data: ${payload}\n\n`));
+          ctrl.enqueue(encoder.encode(`data: [DONE]\n\n`));
+          ctrl.close();
+        },
+      });
+      return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+    }
+
     // Artifact requests (slides / notes / exam) are handled by the dedicated
     // generate-html-artifact pipeline on the client (GenerateSetupCard → ArtifactCard).
     // We deliberately do NOT inline raw HTML in chat — it produced broken UX.
@@ -93,6 +113,7 @@ serve(async (req) => {
 
     // Prepend Lumina older-brother persona to EVERY non-Computer chat surface.
     let systemPrompt: string = `${LUMINA_PERSONA}\n\n---\n\n${getSystemPromptForIntent(intent)}`;
+    if (flight.systemAddon) systemPrompt += flight.systemAddon;
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
     // ── LIVE WEB RESEARCH for Computer / MUN / Deep modes ─────────────

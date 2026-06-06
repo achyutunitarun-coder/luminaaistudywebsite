@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { callAIText, MODELS_FAST } from "../_shared/models.ts";
+import { preFlight, hotCacheLookup, maybeStoreHotCache } from "../_shared/preflight.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,9 +46,26 @@ serve(async (req) => {
   try {
     const _auth = await requireUser(req, corsHeaders);
     if ("error" in _auth) return _auth.error;
+    const authHeader = req.headers.get("Authorization") ?? undefined;
+    const userId = (_auth as any).user?.id ?? (_auth as any).userId;
     const body = await req.text();
     if (body.length > 2_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic } = JSON.parse(body);
+
+    // Pre-flight crisis check.
+    if (userId) {
+      const flight = await preFlight({ userId, userMessage: String(topic ?? ""), feature: "quick_study", authHeader });
+      if (!flight.proceed && flight.interceptResponse) {
+        return new Response(JSON.stringify({ intercepted: true, message: flight.interceptResponse }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Hot-path cache lookup — zero LLM call on hit.
+    const cached = await hotCacheLookup(String(topic ?? ""), "quick_study", authHeader);
+    if (cached) {
+      try { return new Response(cached, { headers: { ...corsHeaders, "Content-Type": "application/json", "X-Lumina-Cache": "hit" } }); }
+      catch { /* fall through to regenerate */ }
+    }
 
     const text = await callAIText(
       [
@@ -57,7 +75,10 @@ serve(async (req) => {
       MODELS_FAST, 3000, 0.5, 40_000, "quick-study"
     );
     const parsed = cleanJSON(text);
-    return new Response(JSON.stringify(parsed || fallbackLesson(topic)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const payload = JSON.stringify(parsed || fallbackLesson(topic));
+    // Store generic queries in hot cache (best effort).
+    void maybeStoreHotCache(String(topic ?? ""), "quick_study", payload);
+    return new Response(payload, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("quick-study error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
