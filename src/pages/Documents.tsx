@@ -339,7 +339,7 @@ export default function Documents() {
             <article
               className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9]"
               style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
-              dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML ?? "" }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(editorRef.current?.innerHTML ?? "") }}
             />
           ) : (
             <div
