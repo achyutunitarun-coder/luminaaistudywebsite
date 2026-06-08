@@ -97,6 +97,7 @@ export function PremiumArtifactWorkspace({ messages, onClose, onQuote, onRegener
     const next = Math.max(33, Math.min(66, (event.clientX / window.innerWidth) * 100));
     const snap = [33, 50, 66].find((n) => Math.abs(next - n) < 2.2) ?? next;
     setSplit(snap);
+    window.dispatchEvent(new CustomEvent("lumina-artifact-split", { detail: snap }));
   }, []);
 
   const stopDrag = useCallback(() => {
