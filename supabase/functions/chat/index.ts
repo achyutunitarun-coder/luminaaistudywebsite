@@ -217,11 +217,11 @@ serve(async (req) => {
 
     // Free OpenRouter models cap output around 32k. Stay well under to avoid 400s.
     const maxTokens = isComputerMode
-      ? 24000
+      ? 32000
       : intent === "greeting" || intent === "conversational"
         ? 1200
         : intent === "coding" || intent === "deep"
-          ? 12000
+          ? 16000
           : 6000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
     const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
