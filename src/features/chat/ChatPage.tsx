@@ -793,6 +793,7 @@ Q3: ... || A: ...
       input,
       loading,
       messages,
+      navigate,
       persistMessage,
       runArtifact,
       runQuickStudy,
