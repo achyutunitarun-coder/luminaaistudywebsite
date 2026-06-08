@@ -3,6 +3,7 @@ import { User, Sparkles, AlertCircle, Zap, Copy, RefreshCw, ThumbsUp, ThumbsDown
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { ArtifactViewer } from './ArtifactViewer';
 import { LoadingStages } from './LoadingStages';
+import { ActionConfirmCard } from './ActionConfirmCard';
 import { CREDIT_PACKS, openCheckout } from '@/features/credits/DodoPayments';
 import { toast } from 'sonner';
 import type { Message } from '../ChatPage';
@@ -13,6 +14,8 @@ interface Props {
   onRetry?: () => void;
   onEdit?: (newText: string) => void;
   onTopUp?: () => void;
+  onConfirmAction?: () => void | Promise<void>;
+  onCancelAction?: () => void;
   loadingStage?: string;
 }
 
