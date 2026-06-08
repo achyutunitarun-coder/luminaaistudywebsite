@@ -19,7 +19,7 @@ const cors = {
 const GOOGLE_SCOPES: Record<string, string> = {
   gmail: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose",
   calendar: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
-  drive: "https://www.googleapis.com/auth/drive.readonly",
+  drive: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/documents",
   profile: "openid email profile",
 };
 
