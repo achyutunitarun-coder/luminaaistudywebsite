@@ -45,15 +45,15 @@ export default function Documents() {
       const docImport = localStorage.getItem("lumina_doc_import");
       const canvasTitle = localStorage.getItem("lumina_canvas_export_title");
       if (canvasExport) {
-        editor.innerHTML = canvasExport;
+        editor.innerHTML = sanitizeHtml(canvasExport);
         localStorage.removeItem("lumina_canvas_export");
         if (canvasTitle) { setTitle(canvasTitle); localStorage.removeItem("lumina_canvas_export_title"); }
       } else if (docImport) {
-        editor.innerHTML = docImport;
+        editor.innerHTML = sanitizeHtml(docImport);
         localStorage.removeItem("lumina_doc_import");
       } else {
         const saved = localStorage.getItem(DOC_KEY);
-        if (saved) editor.innerHTML = saved;
+        if (saved) editor.innerHTML = sanitizeHtml(saved);
         const savedTitle = localStorage.getItem(TITLE_KEY);
         if (savedTitle) setTitle(savedTitle);
       }
