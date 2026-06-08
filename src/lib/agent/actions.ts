@@ -224,15 +224,31 @@ const USER_TZ = (() => {
  * datetimes being silently coerced to UTC.
  */
 function calendarTime(iso: string): { dateTime: string; timeZone: string } {
-  const hasOffset = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
-  if (hasOffset) {
-    return { dateTime: new Date(iso).toISOString(), timeZone: USER_TZ };
-  }
-  const clean = iso.replace(/\.\d+$/, "");
+  const input = String(iso || "").trim();
+  const wallTime = input.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/);
+  const clean = wallTime
+    ? `${wallTime[1]}T${wallTime[2]}:${wallTime[3] ?? "00"}`
+    : input.replace(/\.\d+$/, "").replace(/[zZ]|[+-]\d{2}:?\d{2}$/, "");
   const withSecs = /T\d{2}:\d{2}:\d{2}$/.test(clean)
     ? clean
     : /T\d{2}:\d{2}$/.test(clean) ? `${clean}:00` : clean;
   return { dateTime: withSecs, timeZone: USER_TZ };
+}
+
+async function createVerifiedCalendarEvent(event: Record<string, unknown>) {
+  await ensureGoogleService("calendar");
+  const created = await calendarApi.create(event);
+  const data = created.data as any;
+  const eventId = data?.id;
+  if (!eventId) {
+    throw new Error(`Google Calendar did not return an event ID: ${JSON.stringify(data).slice(0, 300)}`);
+  }
+  const verified = await calendarApi.get(eventId);
+  const verifiedData = verified.data as any;
+  if (!verifiedData?.id || verifiedData.status === "cancelled") {
+    throw new Error(`Google Calendar could not verify the created event (${eventId}).`);
+  }
+  return verifiedData;
 }
 
 const fmtTime = (iso: string) =>
@@ -249,6 +265,7 @@ export async function executeAgentAction(
   switch (action.kind) {
     case "send_email": {
       try {
+        await ensureGoogleService("gmail");
         let subject = action.subject || "";
         let body = action.body || "";
         if (!subject || !body) {
@@ -272,17 +289,17 @@ export async function executeAgentAction(
     }
     case "create_event": {
       try {
-        const r = await calendarApi.create({
+        const event = await createVerifiedCalendarEvent({
           summary: action.title,
           description: action.description,
           start: calendarTime(action.start),
           end: calendarTime(action.end),
           reminders: { useDefault: true },
         });
-        const link = (r.data as any)?.htmlLink;
+        const link = event?.htmlLink;
         return {
           ok: true,
-          message: `📅 Added **${action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
+          message: `📅 Verified in Google Calendar: **${event.summary ?? action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
         };
       } catch (e: any) {
         return { ok: false, message: `Calendar add failed: ${e?.message || e}` };
@@ -294,14 +311,14 @@ export async function executeAgentAction(
       let lastLink: string | undefined;
       for (const b of action.blocks) {
         try {
-          const r = await calendarApi.create({
+          const event = await createVerifiedCalendarEvent({
             summary: b.title,
             start: calendarTime(b.start),
             end: calendarTime(b.end),
             reminders: { useDefault: true },
           });
           okCount++;
-          lastLink = (r.data as any)?.htmlLink || lastLink;
+          lastLink = event?.htmlLink || lastLink;
           lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title}`);
         } catch (e: any) {
           lines.push(`• ❌ ${b.title} — ${e?.message || e}`);
