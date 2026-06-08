@@ -1105,7 +1105,10 @@ Q3: ... || A: ...
         </div>
       )}
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div
+        className="min-w-0 flex flex-col transition-[flex-basis] duration-200 lg:flex-none"
+        style={{ flexBasis: activeArtifactId ? `${artifactSplit}%` : "100%", flexGrow: activeArtifactId ? 0 : 1 }}
+      >
         <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             <button
@@ -1213,6 +1216,13 @@ Q3: ... || A: ...
             onClose={() => setCanvasOpen(false)}
           />
         </div>
+      )}
+      {activeArtifactId && (
+        <PremiumArtifactWorkspace
+          messages={messages}
+          onQuote={(text) => setInput((prev) => `${prev}${prev ? "\n\n" : ""}${text}`)}
+          onRegenerate={(messageId) => handleRegenerate(messageId)}
+        />
       )}
     </div>
   );
