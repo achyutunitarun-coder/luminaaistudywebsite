@@ -24,6 +24,8 @@ const STAGE_LABELS: Record<PipelineStage, string> = {
 
 const STAGES: PipelineStage[] = ["orchestrate", "plan", "research", "build", "debug", "optimize"];
 
+export interface ActiveSkill { id: string; label: string; icon: string; }
+
 const PIPELINE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lumina-pipeline`;
 
 export function useLuminaPipeline() {
@@ -34,6 +36,8 @@ export function useLuminaPipeline() {
   const [finalOutput, setFinalOutput] = useState<string>("");
   const [running, setRunning] = useState(false);
   const [intercepted, setIntercepted] = useState(false);
+  const [skills, setSkills] = useState<ActiveSkill[]>([]);
+  const [tier, setTier] = useState<"TIER_3" | "TIER_2" | "TIER_1" | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -42,6 +46,8 @@ export function useLuminaPipeline() {
     setFinalOutput("");
     setRunning(false);
     setIntercepted(false);
+    setSkills([]);
+    setTier(null);
   }, []);
 
   const cancel = useCallback(() => {
@@ -94,19 +100,26 @@ export function useLuminaPipeline() {
           if (!payload || payload === "[DONE]") continue;
           try {
             const evt = JSON.parse(payload) as {
-              stage: PipelineStage | "final";
+              stage: PipelineStage | "final" | "meta";
               status: StageStatus;
               label?: string;
               output?: string;
               intercepted?: boolean;
               error?: string;
+              skills?: ActiveSkill[];
+              tier_target?: string;
+              tier_achieved?: string;
             };
-            if (evt.stage === "final") {
+            if (evt.stage === "meta") {
+              if (evt.skills) setSkills(evt.skills);
+              if (evt.tier_target === "TIER_1") setTier("TIER_2");
+              if (evt.tier_achieved === "TIER_1") setTier("TIER_1");
+            } else if (evt.stage === "final") {
               if (evt.intercepted) setIntercepted(true);
               if (evt.output) setFinalOutput(evt.output);
             } else {
-              setStates((s) => ({ ...s, [evt.stage]: evt.status }));
-              if (evt.status === "working") setActiveLabel(evt.label ?? STAGE_LABELS[evt.stage]);
+              setStates((s) => ({ ...s, [evt.stage as PipelineStage]: evt.status }));
+              if (evt.status === "working") setActiveLabel(evt.label ?? STAGE_LABELS[evt.stage as PipelineStage]);
             }
           } catch { /* ignore malformed line */ }
         }
@@ -117,5 +130,5 @@ export function useLuminaPipeline() {
     }
   }, [reset]);
 
-  return { states, activeLabel, finalOutput, running, intercepted, run, cancel, reset, STAGE_LABELS };
+  return { states, activeLabel, finalOutput, running, intercepted, skills, tier, run, cancel, reset, STAGE_LABELS };
 }
