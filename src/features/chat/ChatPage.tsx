@@ -1119,6 +1119,8 @@ Q3: ... || A: ...
               onRetry={handleRetry}
               onEdit={handleEdit}
               onTopUp={() => setBuyOpen(true)}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
             />
           )}
 
