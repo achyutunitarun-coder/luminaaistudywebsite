@@ -737,7 +737,7 @@ Q3: ... || A: ...
 
           if (action && action.kind === "artifact") {
             setLoadingStage(`Queueing your ${action.type}…`);
-            await runArtifact(action.type, action.topic, text, chatId);
+            await runArtifact(action.type, action.topic, text, chatId, history.slice(-6).map((m) => m.id));
             return;
           }
 
@@ -838,7 +838,7 @@ Q3: ... || A: ...
                   ? "slides"
                   : "code";
           setLoadingStage(`Queueing your ${type}…`);
-          await runArtifact(type, topic, text, chatId);
+          await runArtifact(type, topic, text, chatId, history.slice(-6).map((m) => m.id));
         }
       } catch (e: any) {
         const isAbort = e?.name === "AbortError";
