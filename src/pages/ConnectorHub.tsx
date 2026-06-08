@@ -66,6 +66,7 @@ export default function ConnectorHub() {
                   {items.map((c) => {
                     const connected = isServiceConnected(c.id);
                     const accountConn = connections.find((x) => x.provider === c.provider);
+                    const addingPermission = !connected && c.provider === "google" && !!accountConn;
                     return (
                       <div
                         key={c.id}
@@ -99,7 +100,7 @@ export default function ConnectorHub() {
                               onClick={() => handleConnect(c.provider, c.id)}
                               disabled={busy === c.id}
                               className="text-[11.5px] px-2.5 py-1 rounded-md bg-teal-500/15 border border-teal-500/30 text-teal-100 hover:bg-teal-500/25 disabled:opacity-50"
-                            >{busy === c.id ? "Opening…" : "Connect"}</button>
+                            >{busy === c.id ? "Opening…" : addingPermission ? "Add permission" : "Connect"}</button>
                           )}
                         </div>
                       </div>
