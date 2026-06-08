@@ -60,11 +60,6 @@ function ManualRestoreModal({
       return;
     }
     const uniqueId = paymentId.trim();
-    if (!uniqueId) {
-      // Server now requires a verifiable payment id — no more client-side mint fallback.
-      setStatus('error');
-      return;
-    }
     if (isPaymentProcessed(uniqueId)) {
       setStatus('duplicate');
       return;
@@ -72,7 +67,7 @@ function ManualRestoreModal({
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       const { data, error } = await supabase.functions.invoke('restore-dodo-credits', {
-        body: { product_id: productId, payment_id: uniqueId },
+        body: { product_id: productId, payment_id: uniqueId || undefined },
       });
       if (error || !data?.applied) {
         if (data?.duplicate) {
@@ -84,8 +79,9 @@ function ManualRestoreModal({
       }
       const plan = data.plan === 'ultimate' || data.plan === 'pro_plus' || data.plan === 'free' ? data.plan : undefined;
       setBalance(Number(data.balance), plan);
-      markPaymentProcessed(uniqueId);
+      if (uniqueId) markPaymentProcessed(uniqueId);
       sessionStorage.removeItem('pending_payment_id');
+      window.dispatchEvent(new CustomEvent('lumina:subscription-refresh'));
       setStatus('success');
       window.dispatchEvent(
         new CustomEvent('lumina:credits-added', {
