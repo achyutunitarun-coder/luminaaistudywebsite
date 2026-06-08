@@ -567,6 +567,7 @@ Q3: ... || A: ...
       topic: string,
       originalPrompt: string,
       chatId: string | null,
+      contextMessageIds: string[] = [],
     ) => {
       const action = `${type}_artifact` as CreditAction;
       const cost = CREDIT_COSTS[action];
@@ -661,7 +662,7 @@ Q3: ... || A: ...
           html: result.content,
           createdAt: finalMessage.timestamp,
           sourceMessageId: finalMessage.id,
-          contextMessageIds: history.slice(-6).map((m) => m.id),
+          contextMessageIds,
           summary: `Created ${type} from chat prompt`,
         });
         openArtifact(finalMessage.id);
