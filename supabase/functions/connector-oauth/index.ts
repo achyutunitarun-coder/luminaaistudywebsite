@@ -66,7 +66,19 @@ serve(async (req) => {
         const requested: string[] = Array.isArray(body.services) && body.services.length
           ? body.services
           : ["gmail", "calendar", "drive"];
-        const services = Array.from(new Set([...requested, "profile"]));
+        const { data: existingGoogle } = await admin
+          .from("user_connections")
+          .select("scopes")
+          .eq("user_id", user.id)
+          .eq("provider", "google")
+          .maybeSingle();
+        const existingScopes = String((existingGoogle?.scopes ?? []).join(" "));
+        const keepExisting = [
+          /gmail/.test(existingScopes) ? "gmail" : "",
+          /calendar/.test(existingScopes) ? "calendar" : "",
+          /drive|documents/.test(existingScopes) ? "drive" : "",
+        ].filter(Boolean);
+        const services = Array.from(new Set([...requested, ...keepExisting, "profile"]));
         const scope = services.map((s) => GOOGLE_SCOPES[s]).filter(Boolean).join(" ");
         const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
         url.searchParams.set("client_id", clientId);
