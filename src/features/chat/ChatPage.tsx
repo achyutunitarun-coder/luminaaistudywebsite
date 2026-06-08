@@ -37,6 +37,8 @@ import {
   type CreditAction,
 } from "@/features/credits/creditsSystem";
 import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
+import { detectAgentAction, executeAgentAction } from "@/lib/agent/actions";
+import { useNavigate } from "react-router-dom";
 
 export interface Message {
   id: string;
