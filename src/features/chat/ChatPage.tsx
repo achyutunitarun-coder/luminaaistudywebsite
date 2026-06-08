@@ -178,6 +178,22 @@ const ChatPage = () => {
     currentChatIdRef.current = currentChatId;
   }, [currentChatId]);
 
+  useEffect(() => {
+    messages.forEach((m, index) => {
+      if (m.type !== "artifact" || !m.artifactHtml || !m.artifactType) return;
+      upsertArtifact({
+        id: m.id,
+        type: m.artifactType,
+        title: m.topic || "Untitled artifact",
+        html: m.artifactHtml,
+        createdAt: m.timestamp,
+        sourceMessageId: m.id,
+        contextMessageIds: messages.slice(Math.max(0, index - 6), index + 1).map((msg) => msg.id),
+        summary: "Restored from chat history",
+      });
+    });
+  }, [messages, upsertArtifact]);
+
   const refreshChats = useCallback(async () => {
     if (!user) {
       setChatSessions([]);
