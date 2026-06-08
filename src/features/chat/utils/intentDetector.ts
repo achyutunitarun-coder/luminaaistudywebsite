@@ -24,7 +24,7 @@ const NOTES_PHRASES = [
   'detailed notes', 'bullet notes', 'notes artifact', 'download notes',
   'summarise', 'summarize',
   'artifact on', 'artifact for', 'study guide', 'revision guide',
-  'cheat sheet', 'formula sheet', 'visual notes', 'worksheet',
+  'cheat sheet', 'formula sheet', 'visual notes',
   'learning pack', 'exam pack', 'mind map', 'mindmap', 'concept map',
   'infographic', 'one pager', 'one-pager', 'make an artifact', 'create an artifact',
 ];
@@ -35,7 +35,7 @@ const EXAM_PHRASES = [
   'create exam', 'generate exam', 'make exam', 'make a test',
   'make an exam', 'build an exam', 'create a test',
   'exam on', 'questions on',
-  'worksheet questions', 'practice questions', 'quiz me', 'make a quiz',
+  'worksheet', 'worksheet questions', 'practice questions', 'quiz', 'quiz me', 'make a quiz',
   'generate quiz', 'question bank', 'marks scheme', 'mark scheme',
 ];
 
