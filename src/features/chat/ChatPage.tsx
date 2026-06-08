@@ -23,6 +23,8 @@ import { MessageList } from "./components/MessageList";
 import { InputBar } from "./components/InputBar";
 import { CanvasPanel } from "@/features/canvas/CanvasPanel";
 import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
+import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWorkspace";
+import { useArtifactStore } from "@/features/artifacts/artifactStore";
 import { ModelSelector, type ModelMode } from "./components/ModelSelector";
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
@@ -144,6 +146,9 @@ const ChatPage = () => {
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
+  const upsertArtifact = useArtifactStore((s) => s.upsertArtifact);
+  const openArtifact = useArtifactStore((s) => s.openArtifact);
+  const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
 
   // ── Canvas Mode ──────────────────────────────────────────────────
   const [canvasOpen, setCanvasOpen] = useState(false);
