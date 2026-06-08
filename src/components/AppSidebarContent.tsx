@@ -237,6 +237,13 @@ export const AppSidebarContent = memo(
       )}
 
       <div className="px-3 pb-4 pt-2 border-t border-border/10 mt-2 flex-shrink-0">
+        {!collapsed && (
+          <div className="flex items-center justify-center gap-2 px-3 py-2 text-[11px] text-muted-foreground/60">
+            <NavLink to="/privacy" className="hover:text-muted-foreground transition-colors">Privacy</NavLink>
+            <span>·</span>
+            <NavLink to="/terms" className="hover:text-muted-foreground transition-colors">Terms</NavLink>
+          </div>
+        )}
         <button
           onClick={onSignOut}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-all w-full ${
