@@ -1,95 +1,181 @@
 /**
  * Lumina agentic actions — executed client-side from the AI chat.
- * Detects high-confidence intents (send email, create calendar event/timetable,
- * navigate, create task) and runs them through the existing connector APIs.
- *
- * Returns a result that ChatPage can render as an assistant confirmation,
- * or `null` when no agentic intent applies (chat falls through to the LLM).
+ * Uses the server-side `agent-plan` edge function for LLM-based intent detection
+ * (360° coverage with conversation context), then executes via the connector APIs.
  */
 
-import { gmailApi, calendarApi } from "@/lib/connectors/api";
+import { gmailApi, calendarApi, driveApi, notionApi, listConnections } from "@/lib/connectors/api";
 import { supabase } from "@/integrations/supabase/client";
 import { streamSSE } from "@/lib/aiStream";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-
-/**
- * Ask Lumina to draft a real subject + body from an instruction.
- * Falls back to the raw instruction if anything goes wrong.
- */
-async function draftEmailWithAI(
-  instruction: string,
-  recipient: string,
-): Promise<{ subject: string; body: string }> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("no_session");
-
-    const sys =
-      "You are Lumina, drafting a real email on the user's behalf. " +
-      "Given an instruction, produce a polished, sincere email — appropriate tone, natural human phrasing, no AI tells, no preamble. " +
-      "Output STRICT JSON only, no markdown fences, no commentary: " +
-      `{"subject":"...","body":"..."} ` +
-      "Subject ≤ 80 chars. Body is plain text with real line breaks (\\n). " +
-      "If the recipient is a family member or friend, use a warm personal tone. " +
-      "Sign off with the user's first name only if obvious, otherwise no signature.";
-
-    const userMsg =
-      `Recipient: ${recipient}\nInstruction: ${instruction}\n\nReturn only the JSON.`;
-
-    const res = await fetch(CHAT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: userMsg },
-        ],
-        mode: "conversational",
-      }),
-    });
-    if (!res.ok) throw new Error(`chat ${res.status}`);
-
-    let full = "";
-    await streamSSE(res, { onDelta: (c) => { full += c; } });
-
-    const cleaned = full
-      .replace(/```json\s*/gi, "")
-      .replace(/```\s*/g, "")
-      .trim();
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("no_json");
-    const parsed = JSON.parse(cleaned.slice(start, end + 1));
-    const subject = String(parsed.subject || "").trim().slice(0, 200);
-    const body = String(parsed.body || "").trim();
-    if (!subject || !body) throw new Error("empty_draft");
-    return { subject, body };
-  } catch (e) {
-    console.warn("[draftEmailWithAI] falling back to raw:", e);
-    return {
-      subject: "A message for you",
-      body: instruction,
-    };
-  }
-}
+const PLAN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-plan`;
 
 export type AgentAction =
-  | { kind: "send_email"; to: string; subject: string; body: string; instruction?: string; draft?: boolean }
-  | { kind: "create_event"; title: string; start: Date; end: Date; description?: string }
-  | { kind: "create_timetable"; blocks: Array<{ title: string; start: Date; end: Date }> }
+  | { kind: "send_email"; to: string; subject?: string; body?: string; instruction?: string }
+  | { kind: "create_event"; title: string; start: string; end: string; description?: string }
+  | { kind: "create_timetable"; blocks: Array<{ title: string; start: string; end: string }> }
+  | { kind: "drive_create_doc"; title: string; content: string }
+  | { kind: "notion_create_page"; title: string; content: string; parent_id?: string }
+  | { kind: "drive_search"; query: string }
+  | { kind: "drive_read"; file_id?: string; query?: string }
+  | { kind: "notion_search"; query: string }
+  | { kind: "notion_read"; page_id?: string; query?: string }
+  | { kind: "gmail_search"; query: string }
   | { kind: "navigate"; path: string; label: string }
-  | { kind: "create_task"; title: string; when?: Date };
+  | { kind: "artifact"; type: "notes" | "exam" | "slides" | "code"; topic: string };
+
+export interface AgentPlan {
+  kind: AgentAction["kind"] | "chat";
+  params: Record<string, unknown>;
+  summary: string;
+  confirmation_required: boolean;
+}
 
 export interface AgentResult {
   ok: boolean;
   message: string;
 }
 
-// ───────────── helpers ─────────────
+// ────────────── plan via edge function ──────────────
+
+/**
+ * Ask the LLM router to extract a structured action from natural language + chat history.
+ * Returns `{ kind: "chat" }` when no agentic action applies.
+ */
+export async function planAction(
+  message: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<AgentPlan> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return chatFallback();
+
+    let connected = { google: false, notion: false };
+    try {
+      const conns = await listConnections();
+      connected = {
+        google: conns.some((c) => c.provider === "google"),
+        notion: conns.some((c) => c.provider === "notion"),
+      };
+    } catch {}
+
+    const res = await fetch(PLAN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        message,
+        history: history.slice(-8),
+        connected,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
+    });
+
+    if (!res.ok) return chatFallback();
+    const j = await res.json();
+    if (!j?.plan?.kind) return chatFallback();
+    return j.plan as AgentPlan;
+  } catch (e) {
+    console.warn("[planAction] fell back to chat:", e);
+    return chatFallback();
+  }
+}
+
+function chatFallback(): AgentPlan {
+  return { kind: "chat", params: {}, summary: "", confirmation_required: false };
+}
+
+/** Convert a validated AgentPlan into a strongly-typed AgentAction. Returns null if invalid. */
+export function planToAction(plan: AgentPlan): AgentAction | null {
+  const p = plan.params as any;
+  switch (plan.kind) {
+    case "send_email":
+      if (!p?.to || typeof p.to !== "string") return null;
+      return {
+        kind: "send_email",
+        to: p.to,
+        subject: p.subject || undefined,
+        body: p.body || undefined,
+        instruction: p.instruction || undefined,
+      };
+    case "create_event":
+      if (!p?.title || !p?.start || !p?.end) return null;
+      return { kind: "create_event", title: p.title, start: p.start, end: p.end, description: p.description };
+    case "create_timetable":
+      if (!Array.isArray(p?.blocks) || p.blocks.length === 0) return null;
+      return {
+        kind: "create_timetable",
+        blocks: p.blocks
+          .filter((b: any) => b?.title && b?.start && b?.end)
+          .map((b: any) => ({ title: String(b.title), start: String(b.start), end: String(b.end) })),
+      };
+    case "drive_create_doc":
+      if (!p?.title) return null;
+      return { kind: "drive_create_doc", title: p.title, content: p.content || "" };
+    case "notion_create_page":
+      if (!p?.title) return null;
+      return { kind: "notion_create_page", title: p.title, content: p.content || "", parent_id: p.parent_id };
+    case "drive_search":
+      return { kind: "drive_search", query: String(p?.query ?? "") };
+    case "drive_read":
+      return { kind: "drive_read", file_id: p?.file_id, query: p?.query };
+    case "notion_search":
+      return { kind: "notion_search", query: String(p?.query ?? "") };
+    case "notion_read":
+      return { kind: "notion_read", page_id: p?.page_id, query: p?.query };
+    case "gmail_search":
+      return { kind: "gmail_search", query: String(p?.query ?? "") };
+    case "navigate":
+      if (!p?.path) return null;
+      return { kind: "navigate", path: p.path, label: p.label || p.path };
+    case "artifact":
+      if (!p?.type || !p?.topic) return null;
+      return { kind: "artifact", type: p.type, topic: p.topic };
+    default:
+      return null;
+  }
+}
+
+// ────────────── AI-drafted email ──────────────
+
+async function draftEmailWithAI(instruction: string, recipient: string) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("no_session");
+    const sys =
+      "You are Lumina, drafting a real email on the user's behalf. Output STRICT JSON only: " +
+      `{"subject":"...","body":"..."}. Subject ≤ 80 chars. Body is plain text with \\n line breaks. ` +
+      "Warm/personal for family/friends; professional otherwise. Sign off with first name only if obvious.";
+    const res = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: `Recipient: ${recipient}\nInstruction: ${instruction}\n\nReturn only the JSON.` },
+        ],
+        mode: "conversational",
+      }),
+    });
+    let full = "";
+    await streamSSE(res, { onDelta: (c) => { full += c; } });
+    const cleaned = full.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(m ? m[0] : cleaned);
+    return {
+      subject: String(parsed.subject || "").trim().slice(0, 200) || "A message for you",
+      body: String(parsed.body || "").trim() || instruction,
+    };
+  } catch (e) {
+    console.warn("[draftEmailWithAI] fallback:", e);
+    return { subject: "A message for you", body: instruction };
+  }
+}
+
+// ────────────── helpers ──────────────
 
 function rfc2822Email(to: string, subject: string, body: string): string {
   const msg = [
@@ -100,160 +186,16 @@ function rfc2822Email(to: string, subject: string, body: string): string {
     "",
     body,
   ].join("\r\n");
-  // base64url
   return btoa(unescape(encodeURIComponent(msg)))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function parseTimeOfDay(s: string): { h: number; m: number } | null {
-  const m = s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = m[2] ? parseInt(m[2], 10) : 0;
-  const ap = m[3]?.toLowerCase();
-  if (ap === "pm" && h < 12) h += 12;
-  if (ap === "am" && h === 12) h = 0;
-  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
-  return { h, m: min };
-}
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
-function nextDateFor(when: string): Date {
-  const now = new Date();
-  const d = new Date(now);
-  const lower = when.toLowerCase();
-  if (lower.includes("tomorrow")) d.setDate(d.getDate() + 1);
-  else if (lower.includes("tonight")) { /* today */ }
-  return d;
-}
-
-// ───────────── intent detection ─────────────
-
-const NAV_ROUTES: Array<{ keywords: RegExp; path: string; label: string }> = [
-  { keywords: /\b(dashboard|home)\b/i, path: "/", label: "Dashboard" },
-  { keywords: /\b(tests?|exam(s)?)\b/i, path: "/tests", label: "Tests" },
-  { keywords: /\b(flashcards?)\b/i, path: "/flashcards", label: "Flashcards" },
-  { keywords: /\b(doubt(s)?|doubt\s*solver)\b/i, path: "/doubt-solver", label: "Doubt Solver" },
-  { keywords: /\b(quest|games?)\b/i, path: "/quest", label: "Quest" },
-  { keywords: /\b(weakness|radar)\b/i, path: "/weakness-radar", label: "Weakness Radar" },
-  { keywords: /\b(study\s*planner|planner|timetable)\b/i, path: "/study-planner", label: "Study Planner" },
-  { keywords: /\b(notes?\s*generator|generate\s*notes)\b/i, path: "/notes-generator", label: "Notes Generator" },
-  { keywords: /\b(quick\s*study)\b/i, path: "/quick-study", label: "Quick Study" },
-  { keywords: /\b(guided\s*lesson)\b/i, path: "/guided-lesson", label: "Guided Lesson" },
-  { keywords: /\b(lecture\s*ai|lecture)\b/i, path: "/lecture-ai", label: "Lecture AI" },
-  { keywords: /\b(smart\s*notebook)\b/i, path: "/smart-notebook", label: "Smart Notebook" },
-  { keywords: /\b(resources)\b/i, path: "/resources", label: "Resources" },
-  { keywords: /\b(leaderboard)\b/i, path: "/leaderboard", label: "Leaderboard" },
-  { keywords: /\b(performance|analytics)\b/i, path: "/performance", label: "Performance" },
-  { keywords: /\b(squad)\b/i, path: "/squad", label: "Study Squads" },
-  { keywords: /\b(brain\s*hub|hub|lumina\s*hub)\b/i, path: "/hub", label: "Lumina Hub" },
-  { keywords: /\b(lumina\s*computer|computer|agentic)\b/i, path: "/computer", label: "Lumina Computer" },
-  { keywords: /\b(documents?)\b/i, path: "/documents", label: "Documents" },
-  { keywords: /\b(connectors?)\b/i, path: "/connectors", label: "Connectors" },
-  { keywords: /\b(settings?)\b/i, path: "/settings", label: "Settings" },
-  { keywords: /\b(upgrade|pricing|plans?)\b/i, path: "/upgrade", label: "Upgrade" },
-];
-
-export function detectAgentAction(text: string): AgentAction | null {
-  const t = text.trim();
-  if (!t) return null;
-  const low = t.toLowerCase();
-
-  // ─────────── 1. Send email ───────────
-  // Triggers: "send/email/mail/write/draft/compose/shoot/fire off ... to <email>"
-  //           OR "<verb> an email/message ... saying/about/regarding ..."
-  const emailVerbRx = /\b(send|email|mail|write|draft|compose|shoot|fire\s*off|reply|respond)\b/i;
-  const hasEmailAddr = /([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i.test(t);
-  const mentionsEmail = /\b(email|gmail|mail|message|inbox)\b/i.test(t);
-  if (emailVerbRx.test(t) && (hasEmailAddr || mentionsEmail)) {
-    const toMatch = t.match(/([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i);
-    if (toMatch) {
-      const to = toMatch[1];
-      // Explicit content only when the user literally quotes a body or says
-      // "with body: ...". Otherwise we let Lumina draft the email properly.
-      const explicitBodyMatch = t.match(/(?:body:|content:|that\s+says\s*[:"“'])\s*["“']?([\s\S]+?)["”']?$/i);
-      const explicitSubjMatch = t.match(/(?:subject:)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:body:|content:)|[.!?]|$)/i);
-      if (explicitBodyMatch) {
-        return {
-          kind: "send_email",
-          to,
-          subject: (explicitSubjMatch?.[1] || "Message from Lumina").trim().slice(0, 200),
-          body: explicitBodyMatch[1].trim(),
-          draft: false,
-        };
-      }
-      // Strip the recipient email so the drafter sees only the instruction.
-      const instruction = t.replace(toMatch[0], "").trim();
-      return {
-        kind: "send_email",
-        to,
-        subject: "",
-        body: "",
-        instruction,
-        draft: true,
-      };
-    }
-  }
-
-  // ─────────── 2. Timetable / study plan ───────────
-  if (/\b(create|make|build|generate|plan|set\s*up|put\s*together)\b.*\b(timetable|schedule|study\s*plan|study\s*timetable|revision\s*plan|daily\s*plan|weekly\s*plan)\b/i.test(t)
-      || /^\s*(timetable|schedule|study\s*plan)\s+(for|covering|with)\b/i.test(t)) {
-    const range = t.match(/from\s+([\d:apm\s]+?)\s+to\s+([\d:apm\s]+?)(?:\s|$|[.,])/i);
-    const start = parseTimeOfDay(range?.[1] || "9am") ?? { h: 9, m: 0 };
-    const end = parseTimeOfDay(range?.[2] || "5pm") ?? { h: 17, m: 0 };
-    const subjMatch = t.match(/(?:for|covering|with subjects?|including|on)\s+([^.]+?)(?:\s+from\b|\s+between\b|$)/i);
-    const subjects = (subjMatch?.[1] || "")
-      .split(/,| and | & /i).map(s => s.trim()).filter(Boolean);
-    const base = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today");
-    base.setSeconds(0, 0);
-    const totalMinutes = Math.max(60, (end.h * 60 + end.m) - (start.h * 60 + start.m));
-    const slots = Math.max(1, Math.min(8, subjects.length || 4));
-    const slotLen = Math.max(30, Math.floor(totalMinutes / slots));
-    const blocks: Array<{ title: string; start: Date; end: Date }> = [];
-    for (let i = 0; i < slots; i++) {
-      const s = new Date(base);
-      s.setHours(start.h, start.m + i * slotLen, 0, 0);
-      const e = new Date(s);
-      e.setMinutes(s.getMinutes() + slotLen - 5);
-      blocks.push({ title: subjects[i] || `Study Block ${i + 1}`, start: s, end: e });
-    }
-    return { kind: "create_timetable", blocks };
-  }
-
-  // ─────────── 3. Single calendar event / reminder ───────────
-  const eventRx = /\b(add|schedule|create|set|put|book)\b.*\b(event|meeting|reminder|study\s*block|session|class|appointment|call|exam)\b/i;
-  const remindRx = /\b(remind me|set (?:a )?reminder|add to (?:my )?calendar|put (?:in|on) (?:my )?calendar)\b/i;
-  if (eventRx.test(t) || remindRx.test(t)) {
-    const time = parseTimeOfDay(t) ?? { h: 18, m: 0 };
-    const base = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today");
-    base.setHours(time.h, time.m, 0, 0);
-    const end = new Date(base); end.setHours(end.getHours() + 1);
-    const titleMatch = t.match(/(?:for|about|titled|called|named|to)\s+["“']?([^"”'\n]+?)["”']?(?:\s+(?:at|on|tomorrow|today|by)|[.!?]|$)/i);
-    const title = (titleMatch?.[1] || "Study Block").trim();
-    return { kind: "create_event", title, start: base, end };
-  }
-
-  // ─────────── 4. Task creation ───────────
-  if (/\b(add|create|make)\b.*\b(task|todo|to-do|to do)\b/i.test(t)) {
-    const titleMatch = t.match(/(?:task|todo|to-do|to do)\s*(?:to|:|called|named)?\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:at|on|by|tomorrow|today)|[.!?]|$)/i);
-    const title = (titleMatch?.[1] || "New task").trim();
-    const time = parseTimeOfDay(t);
-    const when = time ? (() => { const d = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today"); d.setHours(time.h, time.m, 0, 0); return d; })() : undefined;
-    return { kind: "create_task", title, when };
-  }
-
-  // ─────────── 5. Navigation ───────────
-  // Triggers: "go/open/take me/show me/jump/navigate to X", "/X please", "head over to X"
-  if (/\b(go|navigate|open|take me|show me|jump|head|bring me|launch)\b.*\b(to|into|over)\b/i.test(t)
-      || /^(open|show|launch)\s+/i.test(t)) {
-    const hit = NAV_ROUTES.find(r => r.keywords.test(t));
-    if (hit) return { kind: "navigate", path: hit.path, label: hit.label };
-  }
-
-  return null;
-}
-
-
-// ───────────── executor ─────────────
+// ────────────── executor ──────────────
 
 export async function executeAgentAction(
   action: AgentAction,
@@ -262,11 +204,11 @@ export async function executeAgentAction(
   switch (action.kind) {
     case "send_email": {
       try {
-        let subject = action.subject;
-        let body = action.body;
-        if (action.draft || !subject || !body) {
+        let subject = action.subject || "";
+        let body = action.body || "";
+        if (!subject || !body) {
           const drafted = await draftEmailWithAI(
-            action.instruction || action.body || "Write a friendly message.",
+            action.instruction || body || "Write a friendly message.",
             action.to,
           );
           subject = drafted.subject;
@@ -278,9 +220,9 @@ export async function executeAgentAction(
       } catch (e: any) {
         const msg = String(e?.message || e);
         if (msg.includes("not_connected") || msg.includes("missing a required permission")) {
-          return { ok: false, message: `I couldn't send that email — Gmail isn't connected with send permission. Go to **Connectors → Gmail** and reconnect with the "Send email" scope, then try again.` };
+          return { ok: false, message: `Gmail isn't connected with send permission. Open **Connectors → Gmail** and approve "Send email".` };
         }
-        return { ok: false, message: `I tried to send the email but Gmail returned an error: ${msg}` };
+        return { ok: false, message: `Gmail returned an error: ${msg}` };
       }
     }
     case "create_event": {
@@ -288,12 +230,12 @@ export async function executeAgentAction(
         await calendarApi.create({
           summary: action.title,
           description: action.description,
-          start: { dateTime: action.start.toISOString() },
-          end: { dateTime: action.end.toISOString() },
+          start: { dateTime: new Date(action.start).toISOString() },
+          end: { dateTime: new Date(action.end).toISOString() },
         });
-        return { ok: true, message: `📅 Added **${action.title}** to your Google Calendar — ${action.start.toLocaleString()} → ${action.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` };
+        return { ok: true, message: `📅 Added **${action.title}** — ${fmtDate(action.start)} ${fmtTime(action.start)} → ${fmtTime(action.end)}` };
       } catch (e: any) {
-        return { ok: false, message: `Calendar add failed: ${e?.message || e}. Reconnect Google Calendar from Connectors.` };
+        return { ok: false, message: `Calendar add failed: ${e?.message || e}` };
       }
     }
     case "create_timetable": {
@@ -303,39 +245,200 @@ export async function executeAgentAction(
         try {
           await calendarApi.create({
             summary: b.title,
-            start: { dateTime: b.start.toISOString() },
-            end: { dateTime: b.end.toISOString() },
+            start: { dateTime: new Date(b.start).toISOString() },
+            end: { dateTime: new Date(b.end).toISOString() },
           });
           okCount++;
-          lines.push(`• **${b.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${b.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}** — ${b.title}`);
+          lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title}`);
         } catch (e: any) {
           lines.push(`• ❌ ${b.title} — ${e?.message || e}`);
         }
       }
-      const ok = okCount === action.blocks.length;
       return {
-        ok,
-        message: `📅 **Timetable for ${action.blocks[0]?.start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}**\n\nAdded ${okCount}/${action.blocks.length} blocks to Google Calendar:\n\n${lines.join("\n")}`,
+        ok: okCount === action.blocks.length,
+        message: `📅 **Timetable for ${fmtDate(action.blocks[0].start)}** — added ${okCount}/${action.blocks.length} blocks:\n\n${lines.join("\n")}`,
       };
     }
-    case "create_task": {
-      // Tasks API not yet wired — represent as calendar event for now
-      const end = new Date(action.when || new Date());
-      end.setMinutes(end.getMinutes() + 30);
+    case "drive_create_doc": {
       try {
-        await calendarApi.create({
-          summary: `[Task] ${action.title}`,
-          start: { dateTime: (action.when || new Date()).toISOString() },
-          end: { dateTime: end.toISOString() },
-        });
-        return { ok: true, message: `✅ Task **${action.title}** added to your calendar.` };
+        const r = await driveApi.createDoc(action.title, action.content);
+        const url = (r.data as any)?.url;
+        return { ok: true, message: `📄 Created Google Doc **${action.title}**${url ? `\n\n[Open document →](${url})` : ""}` };
       } catch (e: any) {
-        return { ok: false, message: `Couldn't create task: ${e?.message || e}` };
+        return { ok: false, message: `Google Docs failed: ${e?.message || e}` };
+      }
+    }
+    case "notion_create_page": {
+      try {
+        const r = await notionApi.createPage(action.title, action.content, action.parent_id);
+        const url = (r.data as any)?.url;
+        return { ok: true, message: `📝 Created Notion page **${action.title}**${url ? `\n\n[Open in Notion →](${url})` : ""}` };
+      } catch (e: any) {
+        return { ok: false, message: `Notion create failed: ${e?.message || e}` };
+      }
+    }
+    case "drive_search": {
+      try {
+        const r = await driveApi.list(action.query);
+        const files = r.data?.files ?? [];
+        if (files.length === 0) return { ok: true, message: `No Drive files matched **${action.query}**.` };
+        return {
+          ok: true,
+          message: `📂 **Drive results for "${action.query}":**\n\n` +
+            files.map((f: any) => `• [${f.name}](${f.webViewLink}) — ${f.mimeType.split(".").pop()}`).join("\n"),
+        };
+      } catch (e: any) {
+        return { ok: false, message: `Drive search failed: ${e?.message || e}` };
+      }
+    }
+    case "drive_read": {
+      try {
+        let fileId = action.file_id;
+        let name = "file";
+        if (!fileId && action.query) {
+          const r = await driveApi.list(action.query);
+          const first = r.data?.files?.[0];
+          if (!first) return { ok: true, message: `No Drive file matched **${action.query}**.` };
+          fileId = first.id; name = first.name;
+        }
+        if (!fileId) return { ok: false, message: "Need a file_id or query." };
+        let text = "";
+        try {
+          const r = await driveApi.export(fileId, "text/plain");
+          text = typeof r.data === "string" ? r.data : JSON.stringify(r.data);
+        } catch {
+          const r = await driveApi.download(fileId);
+          text = typeof r.data === "string" ? r.data : JSON.stringify(r.data);
+        }
+        return { ok: true, message: `📄 **${name}**\n\n${text.slice(0, 4000)}${text.length > 4000 ? "\n\n…(truncated)" : ""}` };
+      } catch (e: any) {
+        return { ok: false, message: `Drive read failed: ${e?.message || e}` };
+      }
+    }
+    case "notion_search": {
+      try {
+        const r = await notionApi.search(action.query);
+        const pages = (r.data?.results ?? []).filter((p: any) => p.object === "page");
+        if (pages.length === 0) return { ok: true, message: `No Notion pages matched **${action.query}**.` };
+        return {
+          ok: true,
+          message: `📝 **Notion results for "${action.query}":**\n\n` +
+            pages.slice(0, 8).map((p: any) => {
+              const title = p.properties?.title?.title?.[0]?.plain_text
+                || p.properties?.Name?.title?.[0]?.plain_text
+                || "Untitled";
+              return `• [${title}](${p.url})`;
+            }).join("\n"),
+        };
+      } catch (e: any) {
+        return { ok: false, message: `Notion search failed: ${e?.message || e}` };
+      }
+    }
+    case "notion_read": {
+      try {
+        let pageId = action.page_id;
+        let title = "page";
+        if (!pageId && action.query) {
+          const r = await notionApi.search(action.query);
+          const first = (r.data?.results ?? []).find((p: any) => p.object === "page");
+          if (!first) return { ok: true, message: `No Notion page matched **${action.query}**.` };
+          pageId = first.id;
+          title = first.properties?.title?.title?.[0]?.plain_text || "Untitled";
+        }
+        if (!pageId) return { ok: false, message: "Need a page_id or query." };
+        const r = await notionApi.blocks(pageId);
+        const text = (r.data?.results ?? []).map((b: any) => {
+          const rich = b[b.type]?.rich_text ?? [];
+          return rich.map((t: any) => t.plain_text).join("");
+        }).filter(Boolean).join("\n");
+        return { ok: true, message: `📝 **${title}**\n\n${text.slice(0, 4000)}${text.length > 4000 ? "\n\n…(truncated)" : ""}` };
+      } catch (e: any) {
+        return { ok: false, message: `Notion read failed: ${e?.message || e}` };
+      }
+    }
+    case "gmail_search": {
+      try {
+        const r = await gmailApi.search(action.query, 8);
+        const ids = (r.data?.messages ?? []).slice(0, 5);
+        if (ids.length === 0) return { ok: true, message: `No Gmail messages matched **${action.query}**.` };
+        const previews: string[] = [];
+        for (const m of ids) {
+          try {
+            const msg = await gmailApi.get(m.id);
+            const headers = (msg.data as any)?.payload?.headers ?? [];
+            const subj = headers.find((h: any) => h.name === "Subject")?.value || "(no subject)";
+            const from = headers.find((h: any) => h.name === "From")?.value || "";
+            const snippet = (msg.data as any)?.snippet || "";
+            previews.push(`• **${subj}** — _${from}_\n  ${snippet.slice(0, 180)}`);
+          } catch {}
+        }
+        return { ok: true, message: `📧 **Gmail results for "${action.query}":**\n\n${previews.join("\n\n")}` };
+      } catch (e: any) {
+        return { ok: false, message: `Gmail search failed: ${e?.message || e}` };
       }
     }
     case "navigate": {
       if (navigate) navigate(action.path);
       return { ok: true, message: `🧭 Opening **${action.label}**…` };
     }
+    case "artifact": {
+      // Artifact execution is handled by ChatPage.runArtifact — the planner just identifies intent.
+      return { ok: true, message: `Generating ${action.type} on **${action.topic}**…` };
+    }
   }
+}
+
+/**
+ * User-friendly confirmation card details for a pending action.
+ */
+export function describeAction(action: AgentAction): { title: string; details: string[] } {
+  switch (action.kind) {
+    case "send_email":
+      return {
+        title: "Send email",
+        details: [
+          `To: ${action.to}`,
+          action.subject ? `Subject: ${action.subject}` : "Subject: (Lumina will draft)",
+          action.body ? `Body: ${action.body.slice(0, 200)}${action.body.length > 200 ? "…" : ""}` :
+            action.instruction ? `Instruction: ${action.instruction.slice(0, 200)}` : "Body: (Lumina will draft)",
+        ],
+      };
+    case "create_event":
+      return {
+        title: "Add calendar event",
+        details: [
+          `Title: ${action.title}`,
+          `When: ${fmtDate(action.start)} · ${fmtTime(action.start)} – ${fmtTime(action.end)}`,
+        ],
+      };
+    case "create_timetable":
+      return {
+        title: `Add ${action.blocks.length} calendar events`,
+        details: [
+          `Day: ${fmtDate(action.blocks[0].start)}`,
+          ...action.blocks.slice(0, 6).map((b) => `${fmtTime(b.start)}–${fmtTime(b.end)} · ${b.title}`),
+          ...(action.blocks.length > 6 ? [`…and ${action.blocks.length - 6} more`] : []),
+        ],
+      };
+    case "drive_create_doc":
+      return {
+        title: "Create Google Doc",
+        details: [`Title: ${action.title}`, `Length: ${action.content.length} chars`],
+      };
+    case "notion_create_page":
+      return {
+        title: "Create Notion page",
+        details: [`Title: ${action.title}`, `Length: ${action.content.length} chars`],
+      };
+    default:
+      return { title: "Run action", details: [action.kind] };
+  }
+}
+
+/** Whether this action mutates external state (and should prompt confirmation). */
+export function actionRequiresConfirmation(action: AgentAction): boolean {
+  return [
+    "send_email", "create_event", "create_timetable",
+    "drive_create_doc", "notion_create_page",
+  ].includes(action.kind);
 }
