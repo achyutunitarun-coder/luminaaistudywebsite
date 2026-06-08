@@ -74,7 +74,14 @@ const QUICK_STUDY_PHRASES = [
 
 function countHits(text: string, phrases: string[]): number {
   let n = 0;
-  for (const p of phrases) if (text.includes(p)) n++;
+  for (const p of phrases) {
+    if (/^[a-z0-9 ]+$/.test(p)) {
+      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) n++;
+    } else if (text.includes(p)) {
+      n++;
+    }
+  }
   return n;
 }
 
