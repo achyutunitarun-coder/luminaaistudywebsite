@@ -28,16 +28,19 @@ function j(status: number, body: unknown) {
   });
 }
 
-async function refreshGoogleToken(refreshToken: string) {
+async function refreshGoogleToken(refreshToken: string, scopes: string[] = []) {
+  const body = new URLSearchParams({
+    client_id: Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!,
+    client_secret: Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+  if (scopes.length) body.set("scope", scopes.join(" "));
+
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")!,
-      client_secret: Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")!,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
+    body,
   });
   const tok = await res.json();
   if (!res.ok) throw new Error(`refresh_failed: ${JSON.stringify(tok)}`);
@@ -80,7 +83,7 @@ serve(async (req) => {
     // Load connection
     const { data: conn, error: cerr } = await admin
       .from("user_connections")
-      .select("access_token,refresh_token,token_expires_at,metadata")
+      .select("access_token,refresh_token,token_expires_at,scopes,metadata")
       .eq("user_id", user.id)
       .eq("provider", provider)
       .maybeSingle();
@@ -94,7 +97,7 @@ serve(async (req) => {
       const exp = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
       if (!exp || exp - Date.now() < 30_000) {
         try {
-          const r = await refreshGoogleToken(conn.refresh_token);
+          const r = await refreshGoogleToken(conn.refresh_token, conn.scopes ?? []);
           accessToken = r.access_token;
           await admin.from("user_connections").update({
             access_token: r.access_token,
