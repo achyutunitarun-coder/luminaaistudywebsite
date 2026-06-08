@@ -83,8 +83,6 @@ export type AgentAction =
   | { kind: "create_timetable"; blocks: Array<{ title: string; start: Date; end: Date }> }
   | { kind: "navigate"; path: string; label: string }
   | { kind: "create_task"; title: string; when?: Date };
-  | { kind: "navigate"; path: string; label: string }
-  | { kind: "create_task"; title: string; when?: Date };
 
 export interface AgentResult {
   ok: boolean;
