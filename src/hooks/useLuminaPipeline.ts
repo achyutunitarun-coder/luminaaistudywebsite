@@ -24,6 +24,8 @@ const STAGE_LABELS: Record<PipelineStage, string> = {
 
 const STAGES: PipelineStage[] = ["orchestrate", "plan", "research", "build", "debug", "optimize"];
 
+export interface ActiveSkill { id: string; label: string; icon: string; }
+
 const PIPELINE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lumina-pipeline`;
 
 export function useLuminaPipeline() {
@@ -34,6 +36,8 @@ export function useLuminaPipeline() {
   const [finalOutput, setFinalOutput] = useState<string>("");
   const [running, setRunning] = useState(false);
   const [intercepted, setIntercepted] = useState(false);
+  const [skills, setSkills] = useState<ActiveSkill[]>([]);
+  const [tier, setTier] = useState<"TIER_3" | "TIER_2" | "TIER_1" | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -42,6 +46,8 @@ export function useLuminaPipeline() {
     setFinalOutput("");
     setRunning(false);
     setIntercepted(false);
+    setSkills([]);
+    setTier(null);
   }, []);
 
   const cancel = useCallback(() => {
