@@ -889,6 +889,45 @@ Q3: ... || A: ...
     [handleSend, messages, removePersistedFrom],
   );
 
+  const handleConfirmAction = useCallback(
+    async (msgId: string) => {
+      const msg = messages.find((m) => m.id === msgId);
+      if (!msg?.pendingAction) return;
+      // Mark this confirm card as resolved
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, actionResolved: true } : m)));
+      const chatId = currentChatIdRef.current;
+      try {
+        const result = await executeAgentAction(msg.pendingAction, (p) => navigate(p));
+        const finalMessage: Message = {
+          id: uid(),
+          role: "assistant",
+          content: result.message,
+          type: result.ok ? "text" : "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, finalMessage]);
+        await persistMessage(chatId, finalMessage);
+      } catch (e: any) {
+        const finalMessage: Message = {
+          id: uid(), role: "assistant",
+          content: `Action failed: ${e?.message || e}`,
+          type: "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, finalMessage]);
+        await persistMessage(chatId, finalMessage);
+      }
+    },
+    [messages, navigate, persistMessage],
+  );
+
+  const handleCancelAction = useCallback((msgId: string) => {
+    setMessages((prev) => prev.map((m) =>
+      m.id === msgId ? { ...m, actionResolved: true, content: "Cancelled." } : m
+    ));
+  }, []);
+
+
   const empty = messages.length === 0;
 
   return (
