@@ -104,6 +104,7 @@ async function pollJob(
   const started = Date.now();
   let pollDelay = 1800;
   let lastStatus = "queued";
+  let offeredRecovery = false;
 
   while (Date.now() - started < timeoutMs) {
     const { data, error } = await (supabase as any)
@@ -124,6 +125,13 @@ async function pollJob(
     if (status === "completed") return { html: data.html ?? "" };
     if (status === "failed")
       return { html: "", error: data.error_message ?? "generation_failed" };
+
+    const updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : started;
+    if (!offeredRecovery && status === "running" && Date.now() - updatedAt > 150_000) {
+      offeredRecovery = true;
+      onStage?.("Recovering a stalled generation…");
+      return { html: "", error: "generation_stalled_retry" };
+    }
 
     const elapsed = Date.now() - started;
     if (elapsed > 120_000)
@@ -157,7 +165,7 @@ export async function attemptGeneration(
   config: GenerationConfig,
 ): Promise<GenerationResult> {
   const start = Date.now();
-  const maxRetries = config.maxRetries ?? 0;
+  const maxRetries = config.maxRetries ?? 1;
 
   for (let i = 0; i <= maxRetries; i++) {
     if (i > 0) config.onStage?.(`Retrying (${i}/${maxRetries})…`);
