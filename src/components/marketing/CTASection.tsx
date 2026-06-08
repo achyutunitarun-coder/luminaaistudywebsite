@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { openPricing } from '@/lib/pricing';
 
 export const CTASection = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export const CTASection = () => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => window.open('https://monumental-custard-d06d45.netlify.app/#pricing', '_blank', 'noopener')}
+            onClick={openPricing}
             className="rounded-[10px] px-6 text-[14px] font-semibold"
             style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#f1f5f9' }}
           >

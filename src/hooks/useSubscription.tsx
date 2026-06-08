@@ -41,6 +41,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   useEffect(() => { fetchSubscription(); }, [fetchSubscription]);
+  useEffect(() => {
+    window.addEventListener('lumina:subscription-refresh', fetchSubscription);
+    return () => window.removeEventListener('lumina:subscription-refresh', fetchSubscription);
+  }, [fetchSubscription]);
 
   const isPro = plan === 'ultimate' || plan === 'pro_plus';
   const isProPlus = plan === 'pro_plus';

@@ -7,7 +7,7 @@ const DODO_BASE = 'https://checkout.dodopayments.com/buy';
 const RETURN_URL = 'https://luminaai.co.in';
 
 const checkoutUrl = (productId: string, extra = '') => {
-  const returnUrl = `${RETURN_URL}?source=dodo&product_id=${productId}`;
+  const returnUrl = `${RETURN_URL}?source=dodo&product_id=${productId}${extra}`;
   return `${DODO_BASE}/${productId}?quantity=1${extra}&return_url=${encodeURIComponent(returnUrl)}`;
 };
 

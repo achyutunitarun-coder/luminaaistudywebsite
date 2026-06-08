@@ -36,6 +36,7 @@ import {
   hasEnoughCredits,
   type CreditAction,
 } from "@/features/credits/creditsSystem";
+import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
 
 export interface Message {
   id: string;
@@ -699,9 +700,34 @@ Q3: ... || A: ...
           topic = r.topic || text;
         }
 
+        let effectiveText = text;
+        let effectiveHistory = history;
+        if (intent === "CHAT" && isGmailRequest(text)) {
+          setLoadingStage("Reading Gmail…");
+          try {
+            const gmailContext = await loadRecentGmailContext(5);
+            effectiveText = `${text}\n\n${gmailContext}\n\nUse the live Gmail context above directly. Do not claim you cannot access email; if the context is sparse, say exactly what was available.`;
+            effectiveHistory = history.map((m) =>
+              m.id === userMsg.id ? { ...m, content: effectiveText } : m,
+            );
+          } catch (connectorError) {
+            const msg = connectorError instanceof Error ? connectorError.message : String(connectorError);
+            const finalMessage: Message = {
+              id: uid(),
+              role: "assistant",
+              content: `I tried to read Gmail, but the connector failed: ${msg}\n\nReconnect Gmail from Connectors, then ask me again.`,
+              type: "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
+        }
+
         if (intent === "CHAT") {
           setLoadingStage("Thinking…");
-          await streamChat(history, chatId);
+          await streamChat(effectiveHistory, chatId);
         } else if (intent === "QUICK_STUDY") {
           setLoadingStage("Building 10-minute revision guide…");
           await runQuickStudy(topic, history, chatId);

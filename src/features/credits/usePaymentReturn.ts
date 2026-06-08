@@ -43,7 +43,7 @@ function handleReturnUrl() {
 
   // CASE 1: product_id present
   if (productId && DODO_CREDIT_MAP[productId]) {
-    const uniqueId = paymentId || subscriptionId || `return_${productId}_${Date.now()}`;
+    const uniqueId = paymentId || subscriptionId || '';
     if (store.isPaymentProcessed(uniqueId)) {
       cleanUrl();
       return;
@@ -64,7 +64,7 @@ function handleReturnUrl() {
     };
     const data = planMap[planParam.toLowerCase()];
     if (data) {
-      const uniqueId = subscriptionId || paymentId || `${planParam}_${Date.now()}`;
+      const uniqueId = subscriptionId || paymentId || '';
       if (!store.isPaymentProcessed(uniqueId)) {
         void applyCreditsServerFirst(data.productId, uniqueId, { name: data.name, type: 'subscription' }, data.credits, data.tier);
       }
@@ -91,10 +91,11 @@ async function applyCreditsServerFirst(
   const store = useCreditsStore.getState();
   try {
     const { supabase } = await import('@/integrations/supabase/client');
-    // Server verifies the Dodo payment before granting credits. We no longer
-    // mint credits client-side if this fails — silently failing is safer.
+    // Server verifies the Dodo payment before granting credits. If Dodo didn't
+    // return a payment id, the backend searches recent paid purchases by product
+    // and the signed-in user's email.
     const { data, error } = await supabase.functions.invoke('restore-dodo-credits', {
-      body: { product_id: productId, payment_id: paymentId },
+      body: { product_id: productId, payment_id: paymentId || undefined },
     });
     if (error || !data?.applied) {
       if (!data?.duplicate) {
@@ -104,7 +105,8 @@ async function applyCreditsServerFirst(
     }
     const plan = data.plan === 'ultimate' || data.plan === 'pro_plus' || data.plan === 'free' ? data.plan : undefined;
     store.setBalance(Number(data.balance ?? store.balance), plan);
-    store.markPaymentProcessed(paymentId);
+    if (paymentId) store.markPaymentProcessed(paymentId);
+    window.dispatchEvent(new CustomEvent('lumina:subscription-refresh'));
     if (!data.duplicate) showSuccessToast(Number(data.credits_added ?? fallbackCredits), data.product_name ?? details.name, details.type);
   } catch (e) {
     console.warn('[Credits] Server credit apply failed; not minting locally:', e);

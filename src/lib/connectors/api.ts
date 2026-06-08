@@ -98,7 +98,15 @@ export async function proxy<T = unknown>(args: ProxyArgs): Promise<{ ok: boolean
     headers: await authHeaders(),
     body: JSON.stringify({ method: "GET", ...args }),
   });
-  return res.json();
+  const payload = await res.json().catch(() => ({ ok: false, status: res.status, data: null, error: "bad_proxy_response" }));
+  if (!res.ok || payload?.ok === false) {
+    const detail = payload?.data?.error?.message || payload?.data?.error || payload?.error || `connector_http_${payload?.status ?? res.status}`;
+    const message = String(detail).includes("insufficient")
+      ? "The connected account is missing a required permission. Reconnect it from Connectors and approve Gmail/Calendar/Drive access."
+      : String(detail);
+    throw new Error(message);
+  }
+  return payload;
 }
 
 // ── Convenience wrappers per service ─────────────────────────────────
