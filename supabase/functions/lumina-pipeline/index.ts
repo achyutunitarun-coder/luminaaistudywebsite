@@ -128,9 +128,21 @@ serve(async (req) => {
       authHeader,
     });
 
+    // Detect skills + build skills/tier prompt block
+    const activeSkills = detectSkills(userRequest);
+    const skillsBlock = buildSkillsBlock(activeSkills);
+
     const stream = new ReadableStream({
       async start(ctrl) {
         try {
+          // Surface skills + tier target up-front so the UI can render badges.
+          ctrl.enqueue(sseLine({
+            stage: "meta",
+            status: "done",
+            skills: activeSkills.map((s) => ({ id: s.id, label: s.label, icon: s.icon })),
+            tier_target: "TIER_1",
+          }));
+
           if (!flight.proceed && flight.interceptResponse) {
             ctrl.enqueue(sseLine({ stage: "final", status: "done", output: flight.interceptResponse, intercepted: true }));
             ctrl.close();
@@ -142,12 +154,18 @@ serve(async (req) => {
 
           for (const stage of STAGES) {
             ctrl.enqueue(sseLine({ stage: stage.stage, status: "working", label: stage.label }));
+            // Inject skills + TIER directive into Builder and Optimizer.
+            const stageSkillsAddon =
+              stage.stage === "build" || stage.stage === "optimize" || stage.stage === "orchestrate"
+                ? `\n\n${skillsBlock}`
+                : "";
             const messages = [
-              { role: "system", content: stage.systemPrompt(userRequest) },
+              { role: "system", content: stage.systemPrompt(userRequest) + stageSkillsAddon },
               { role: "user", content:
                 `ORIGINAL REQUEST:\n${userRequest}\n\n` +
                 (prevOutput ? `PREVIOUS STAGE OUTPUT:\n${prevOutput}\n\n` : "") +
-                (stage.stage === "build" && flight.systemAddon ? flight.systemAddon : "")
+                (stage.stage === "build" && flight.systemAddon ? flight.systemAddon : "") +
+                (stage.stage === "optimize" ? `\n\nPUSH_TO_TIER_1: Identify the current tier of the draft above. If TIER 2 or below, elevate it to TIER 1. Add ONE memorable detail. Strip placeholders and generic language. Output ONLY the improved artifact.\n` : "")
               },
             ];
 
@@ -159,6 +177,9 @@ serve(async (req) => {
               );
               prevOutput = out;
               if (stage.stage === "build") buildOutput = out;
+              if (stage.stage === "optimize") {
+                ctrl.enqueue(sseLine({ stage: "meta", status: "done", tier_achieved: "TIER_1" }));
+              }
 
               // One revision pass if debug rejects.
               if (stage.stage === "debug") {
