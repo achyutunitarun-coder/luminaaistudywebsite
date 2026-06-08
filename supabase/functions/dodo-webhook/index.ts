@@ -106,12 +106,17 @@ serve(async (req) => {
 
     const userId = user.id;
     const isActive = status === "active" || ACTIVE_STATUSES.has(rawStatus);
+    const entitlementPaymentId = paymentId || (
+      subscriptionId && isActive
+        ? `${type}:${subscriptionId}:${data?.current_period_end || data?.current_period_end_at || data?.next_billing_date || data?.updated_at || new Date().toISOString()}`
+        : subscriptionId
+    );
 
     if (productId && CREDIT_PRODUCTS[productId]) {
       const { error: creditError } = await supabase.rpc("sync_dodo_entitlement_for_user", {
         _user_id: userId,
         _product_id: productId,
-        _payment_id: String(paymentId || subscriptionId || `${type}:${productId}:${userId}`),
+        _payment_id: String(entitlementPaymentId || `${type}:${productId}:${userId}`),
         _subscription_id: subscriptionId ? String(subscriptionId) : null,
         _status: isActive ? "active" : "inactive",
         _current_period_end: data?.current_period_end || data?.current_period_end_at || data?.next_billing_date || null,
