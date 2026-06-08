@@ -44,7 +44,7 @@ export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  type: "text" | "artifact" | "error" | "loading" | "insufficient_credits";
+  type: "text" | "artifact" | "error" | "loading" | "insufficient_credits" | "action_confirm";
   artifactHtml?: string;
   artifactType?: "notes" | "exam" | "slides" | "code";
   topic?: string;
@@ -53,6 +53,9 @@ export interface Message {
   requiredCredits?: number;
   currentBalance?: number;
   isStreaming?: boolean;
+  pendingAction?: AgentAction;
+  actionSummary?: string;
+  actionResolved?: boolean;
   timestamp: number;
 }
 
