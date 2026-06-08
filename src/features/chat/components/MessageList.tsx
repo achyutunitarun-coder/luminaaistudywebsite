@@ -9,9 +9,13 @@ interface Props {
   onRetry: (id: string) => void;
   onEdit?: (id: string, newText: string) => void;
   onTopUp?: () => void;
+  onConfirmAction?: (id: string) => void;
+  onCancelAction?: (id: string) => void;
 }
 
-export const MessageList = ({ messages, loadingStage, onRegenerate, onRetry, onEdit, onTopUp }: Props) => {
+export const MessageList = ({
+  messages, loadingStage, onRegenerate, onRetry, onEdit, onTopUp, onConfirmAction, onCancelAction,
+}: Props) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -28,6 +32,8 @@ export const MessageList = ({ messages, loadingStage, onRegenerate, onRetry, onE
           onRetry={() => onRetry(m.id)}
           onEdit={onEdit ? (text) => onEdit(m.id, text) : undefined}
           onTopUp={onTopUp}
+          onConfirmAction={onConfirmAction ? () => onConfirmAction(m.id) : undefined}
+          onCancelAction={onCancelAction ? () => onCancelAction(m.id) : undefined}
         />
       ))}
       <div ref={endRef} />
