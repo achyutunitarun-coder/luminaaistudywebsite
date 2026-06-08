@@ -10,6 +10,10 @@ const USER_TZ = (() => {
   catch { return "UTC"; }
 })();
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const localDateTime = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -75,7 +79,7 @@ export function CalendarMiniBrowser({ open, onClose, onInsert }: Props) {
         summary: `Lumina · ${form.topic}`,
         description: "Created from Lumina AI",
         start: { dateTime: `${form.date}T${form.time}:00`, timeZone: USER_TZ },
-        end: { dateTime: end.toISOString().slice(0, 19), timeZone: USER_TZ },
+        end: { dateTime: localDateTime(end), timeZone: USER_TZ },
         colorId: "7",
       });
       const eventId = (r.data as any)?.id;
