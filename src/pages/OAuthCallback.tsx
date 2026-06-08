@@ -6,6 +6,14 @@ import { toast } from "sonner";
 
 interface Props { provider: "google" | "notion"; }
 
+const hasScopeFor = (scopes: string[] | undefined, service: string) => {
+  const joined = (scopes ?? []).join(" ");
+  if (service === "gmail") return /gmail/.test(joined);
+  if (service === "calendar") return /calendar/.test(joined);
+  if (service === "drive") return /drive|documents/.test(joined);
+  return true;
+};
+
 export default function OAuthCallback({ provider }: Props) {
   const nav = useNavigate();
   const loc = useLocation();
@@ -29,6 +37,14 @@ export default function OAuthCallback({ provider }: Props) {
     (async () => {
       try {
         const r = await exchangeOAuth(provider, code);
+        if (provider === "google") {
+          const pending = JSON.parse(sessionStorage.getItem("lumina_google_pending_services") || "[]") as string[];
+          const missing = pending.filter((service) => !hasScopeFor(r.scopes, service));
+          sessionStorage.removeItem("lumina_google_pending_services");
+          if (missing.length) {
+            throw new Error(`Google did not grant ${missing.join(", ")} permission. Reconnect and approve every requested checkbox on the Google screen.`);
+          }
+        }
         setStatus("ok");
         setMessage(`Connected${r.account_email ? ` as ${r.account_email}` : ""}.`);
         toast.success(`${provider === "google" ? "Google" : "Notion"} connected`);
