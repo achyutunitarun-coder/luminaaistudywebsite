@@ -40,7 +40,7 @@ export interface AgentResult {
 function hasGoogleScope(scopes: string[] | undefined, service: "gmail" | "calendar" | "drive"): boolean {
   const joined = (scopes ?? []).join(" ");
   if (service === "gmail") return /gmail/.test(joined);
-  if (service === "calendar") return /calendar/.test(joined);
+  if (service === "calendar") return /calendar\.events/.test(joined);
   if (service === "drive") return /drive|documents/.test(joined);
   return false;
 }

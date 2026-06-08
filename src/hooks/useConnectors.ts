@@ -30,7 +30,7 @@ export function useConnectors() {
       // crude scope check
       const scopes = (google.scopes ?? []).join(" ");
       if (service === "gmail") return /gmail/.test(scopes);
-      if (service === "calendar") return /calendar/.test(scopes);
+      if (service === "calendar") return /calendar\.events/.test(scopes);
       if (service === "drive") return /drive|documents/.test(scopes);
       return false;
     },
