@@ -123,7 +123,6 @@ export function PremiumArtifactWorkspace({ messages, onClose, onQuote, onRegener
     <ArtifactStage
       artifact={artifact}
       contextMessages={context}
-      allMessages={messages}
       onClose={() => {
         setDrawerOpen(false);
         closeArtifact();
@@ -199,7 +198,6 @@ export function PremiumArtifactWorkspace({ messages, onClose, onQuote, onRegener
 function ArtifactStage({
   artifact,
   contextMessages,
-  allMessages,
   onClose,
   onQuote,
   onRegenerate,
@@ -208,7 +206,6 @@ function ArtifactStage({
 }: {
   artifact: ArtifactRecord;
   contextMessages: Message[];
-  allMessages: Message[];
   onClose: () => void;
   onQuote?: (text: string) => void;
   onRegenerate?: (messageId: string) => void;
@@ -338,7 +335,7 @@ function ArtifactStage({
         </main>
 
         <aside className={cn("hidden w-72 shrink-0 border-l border-white/10 bg-background/25 p-4 backdrop-blur-xl md:block", contextOpen && "block absolute inset-y-0 right-0 z-20")}>
-          <ContextPanel messages={contextMessages} allMessages={allMessages} onQuote={onQuote} />
+          <ContextPanel messages={contextMessages} onQuote={onQuote} />
         </aside>
 
         {versionOpen && (
@@ -446,7 +443,7 @@ function MarkdownRenderer({ html, artifact }: { html: string; artifact: Artifact
   return <div className="flex h-full min-h-[520px] overflow-hidden"><aside className="hidden w-56 shrink-0 border-r border-white/10 p-4 lg:block"><div className="text-xs font-semibold text-muted-foreground">Contents</div><div className="mt-3 space-y-2">{headings.map((h) => <a key={h} href={`#${h}`} className="block truncate text-xs text-muted-foreground hover:text-foreground">{h}</a>)}</div></aside><article className="min-w-0 flex-1 overflow-auto p-6 text-sm leading-7"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h1: (p) => <h1 className="mb-4 text-3xl font-semibold" {...p} />, h2: (p) => <h2 id={String(p.children)} className="mt-8 mb-3 text-xl font-semibold text-foreground" {...p} />, h3: (p) => <h3 id={String(p.children)} className="mt-6 mb-2 text-base font-semibold" {...p} /> }}>{md}</ReactMarkdown></article></div>;
 }
 
-function ContextPanel({ messages, allMessages, onQuote }: { messages: Message[]; allMessages: Message[]; onQuote?: (text: string) => void }) {
+function ContextPanel({ messages, onQuote }: { messages: Message[]; onQuote?: (text: string) => void }) {
   return <div className="flex h-full flex-col"><div className="mb-4 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><MessageSquareText className="h-3.5 w-3.5" /> Context</div><div className="min-h-0 flex-1 space-y-3 overflow-auto">{messages.length === 0 ? <p className="text-xs text-muted-foreground">No linked context yet.</p> : messages.map((m) => <button key={m.id} type="button" onClick={() => { document.getElementById(`msg-${m.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); document.getElementById(`msg-${m.id}`)?.animate([{ outlineColor: "transparent" }, { outlineColor: "var(--artifact-accent)" }, { outlineColor: "transparent" }], { duration: 900 }); }} className="w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">{m.role} · {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div><p className="line-clamp-4 text-xs text-foreground/80">{m.content || "Artifact created here"}</p></button>)}</div><button type="button" onClick={() => onQuote?.(messages.map((m) => m.content).join("\n\n").slice(0, 2000))} className="artifact-tool-btn mt-4 h-9 justify-center"><ChevronLeft className="h-3.5 w-3.5" /> Drop context to chat</button></div>;
 }
 
