@@ -98,11 +98,34 @@ serve(async (req) => {
         content: String(m.content ?? "").slice(0, 2000),
       }));
 
+    // Compute today/tomorrow as wall-clock dates IN THE USER'S TIMEZONE
+    // (so "tomorrow 9 AM" resolves to their tomorrow, not UTC tomorrow).
+    let localToday = new Date().toISOString().slice(0, 10);
+    let localTomorrow = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+    let localNow = new Date().toISOString().slice(0, 19);
+    if (timezone && typeof timezone === "string") {
+      try {
+        const fmt = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+        });
+        const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+        localToday = `${parts.year}-${parts.month}-${parts.day}`;
+        const t = new Date(Date.now() + 86400_000);
+        const partsT = Object.fromEntries(fmt.formatToParts(t).map((p) => [p.type, p.value]));
+        localTomorrow = `${partsT.year}-${partsT.month}-${partsT.day}`;
+        localNow = `${localToday}T${parts.hour}:${parts.minute}:${parts.second}`;
+      } catch {}
+    }
+
     const userBlock =
-      `CURRENT TIME (ISO): ${TODAY_ISO()}\n` +
+      `LOCAL NOW (naive, user's tz): ${localNow}\n` +
+      `TODAY (user's tz): ${localToday}\n` +
+      `TOMORROW (user's tz): ${localTomorrow}\n` +
       `USER TIMEZONE: ${timezone ?? "unknown"}\n` +
       `CONNECTED SERVICES: google=${connected.google ? "yes" : "no"}, notion=${connected.notion ? "yes" : "no"}\n\n` +
       `USER MESSAGE:\n${message}\n\n` +
+      `Reminder: datetimes for calendar actions MUST be naive local ISO like "${localTomorrow}T09:00:00" — no Z, no offset.\n` +
       `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
