@@ -225,6 +225,18 @@ const USER_TZ = (() => {
  */
 function calendarTime(iso: string): { dateTime: string; timeZone: string } {
   const input = String(iso || "").trim();
+  const hasOffset = /[zZ]|[+-]\d{2}:?\d{2}$/.test(input);
+  if (hasOffset) {
+    const d = new Date(input);
+    if (!Number.isNaN(d.getTime())) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+        timeZone: USER_TZ,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      }).formatToParts(d).map((p) => [p.type, p.value]));
+      return { dateTime: `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`, timeZone: USER_TZ };
+    }
+  }
   const wallTime = input.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/);
   const clean = wallTime
     ? `${wallTime[1]}T${wallTime[2]}:${wallTime[3] ?? "00"}`
