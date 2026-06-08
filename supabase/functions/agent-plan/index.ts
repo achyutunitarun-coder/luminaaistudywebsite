@@ -1,0 +1,156 @@
+// Lumina Agent Planner — LLM-based 360° intent detection.
+// Uses Lovable AI Gateway (gemini-3-flash) with structured JSON output to extract
+// concrete tool calls from natural language + recent conversation context.
+//
+// POST { message, history?: [{role,content}], connected: {google,notion}, route? }
+//   → { plan: { kind, params, summary, confirmation_required, fallback_chat? } }
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const j = (s: number, b: unknown) =>
+  new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+
+const SYSTEM = `You are Lumina's Agent Router — a high-IQ intent classifier and parameter extractor.
+
+You decide, for every user message, EXACTLY ONE of these action kinds:
+
+CONNECTOR ACTIONS (require user confirmation):
+- send_email       params: { to: string, instruction: string, subject?: string, body?: string }
+- create_event     params: { title: string, start: ISO8601, end: ISO8601, description?: string }
+- create_timetable params: { blocks: [{ title, start: ISO8601, end: ISO8601 }] }
+- drive_create_doc params: { title: string, content: string }       (creates a Google Doc)
+- notion_create_page params: { title: string, content: string, parent_id?: string }
+- drive_search     params: { query: string }
+- drive_read       params: { file_id?: string, query?: string }
+- notion_search    params: { query: string }
+- notion_read      params: { page_id?: string, query?: string }
+- gmail_search     params: { query: string }   (e.g. "from:mom subject:trip")
+
+NAVIGATION:
+- navigate         params: { path: string, label: string }
+   Valid paths: /dashboard /chat /tests /flashcards /doubt-solver /quest /weakness-radar
+   /study-planner /notes-generator /quick-study /guided-lesson /lecture-ai /smart-notebook
+   /resources /leaderboard /performance /squad /hub /computer /documents /connectors
+   /settings /upgrade /artifact-gallery
+
+ARTIFACT GENERATION (no confirmation needed):
+- artifact         params: { type: "notes"|"exam"|"slides"|"code", topic: string }
+
+FALLBACK:
+- chat             params: {}   (regular conversation, Q&A, explanations)
+
+RULES:
+1. Use conversation HISTORY to resolve references. If the user says "add them to my calendar"
+   and the assistant just listed a timetable, EXTRACT those time-blocks and emit create_timetable
+   with concrete ISO datetimes (use TODAY's date if none specified, TOMORROW if user says tomorrow).
+2. ALL datetimes must be valid ISO8601 in the user's local timezone (assume +00:00 if unknown).
+3. For emails, if the user didn't write the body verbatim, leave subject/body empty and pass the
+   raw instruction — the executor will draft it.
+4. confirmation_required = true for ALL connector actions (email, calendar, drive create,
+   notion create). false for read/search and chat/artifact/navigate.
+5. summary: ONE friendly sentence describing what you'll do, e.g. "Add 6 study blocks to your Google Calendar tomorrow 9 AM – 5 PM."
+6. If the user clearly wants a complex artifact (notes/exam/slides/code), pick artifact + type.
+7. If the action requires a connector the user hasn't connected, set kind = "chat" and explain
+   in summary that they need to connect it.
+8. NEVER invent emails the user didn't mention.
+9. Be aggressive: 360° coverage. If there's any plausible structured action, extract it. Only
+   fall back to "chat" for pure Q&A, explanations, definitions, opinions, and ambiguous requests.
+
+Return STRICT JSON only, no markdown fences.`;
+
+const TODAY_ISO = () => new Date().toISOString();
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  try {
+    const auth = req.headers.get("Authorization");
+    if (!auth?.startsWith("Bearer ")) return j(401, { error: "unauthorized" });
+
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: auth } } },
+    );
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return j(401, { error: "unauthorized" });
+
+    const { message, history = [], connected = { google: false, notion: false }, timezone } =
+      await req.json();
+    if (!message || typeof message !== "string") return j(400, { error: "message required" });
+
+    const key = Deno.env.get("LOVABLE_API_KEY");
+    if (!key) return j(500, { error: "missing_lovable_key" });
+
+    const ctxHistory = (Array.isArray(history) ? history : [])
+      .slice(-8)
+      .map((m: any) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: String(m.content ?? "").slice(0, 2000),
+      }));
+
+    const userBlock =
+      `CURRENT TIME (ISO): ${TODAY_ISO()}\n` +
+      `USER TIMEZONE: ${timezone ?? "unknown"}\n` +
+      `CONNECTED SERVICES: google=${connected.google ? "yes" : "no"}, notion=${connected.notion ? "yes" : "no"}\n\n` +
+      `USER MESSAGE:\n${message}\n\n` +
+      `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
+
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: SYSTEM },
+          ...ctxHistory,
+          { role: "user", content: userBlock },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!aiRes.ok) {
+      const txt = await aiRes.text().catch(() => "");
+      return j(aiRes.status, { error: "ai_planner_failed", detail: txt.slice(0, 500) });
+    }
+    const aiJson = await aiRes.json();
+    const raw = aiJson?.choices?.[0]?.message?.content ?? "{}";
+    let plan: any = { kind: "chat", params: {}, summary: "", confirmation_required: false };
+    try {
+      plan = JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
+    } catch {
+      // Try to recover JSON from fenced or partial content
+      const m = String(raw).match(/\{[\s\S]*\}/);
+      if (m) {
+        try { plan = JSON.parse(m[0]); } catch {}
+      }
+    }
+
+    // Sanitize
+    const validKinds = new Set([
+      "chat", "send_email", "create_event", "create_timetable",
+      "drive_create_doc", "notion_create_page", "drive_search", "drive_read",
+      "notion_search", "notion_read", "gmail_search", "navigate", "artifact",
+    ]);
+    if (!validKinds.has(plan.kind)) plan.kind = "chat";
+    plan.params = plan.params && typeof plan.params === "object" ? plan.params : {};
+    plan.summary = String(plan.summary ?? "").slice(0, 500);
+    plan.confirmation_required = !!plan.confirmation_required;
+
+    return j(200, { plan });
+  } catch (e) {
+    return j(500, { error: e instanceof Error ? e.message : String(e) });
+  }
+});

@@ -117,6 +117,11 @@ export const gmailApi = {
       provider: "google",
       url: `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${max}&q=in:inbox`,
     }),
+  search: (q: string, max = 10) =>
+    proxy<{ messages?: Array<{ id: string; threadId: string }> }>({
+      provider: "google",
+      url: `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${max}&q=${encodeURIComponent(q)}`,
+    }),
   get: (id: string) =>
     proxy<any>({
       provider: "google",
@@ -182,6 +187,35 @@ export const driveApi = {
       provider: "google",
       url: `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
     }),
+  // Create a Google Doc with the given content. Two-step: create file → insert text.
+  createDoc: async (title: string, content: string) => {
+    const created = await proxy<{ documentId: string }>({
+      provider: "google",
+      method: "POST",
+      url: `https://docs.googleapis.com/v1/documents`,
+      body: { title },
+    });
+    // Allow docs.googleapis.com via proxy too — we add it server-side. Insert text:
+    const documentId = (created.data as any)?.documentId;
+    if (documentId && content) {
+      await proxy<any>({
+        provider: "google",
+        method: "POST",
+        url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+        body: {
+          requests: [{ insertText: { location: { index: 1 }, text: content } }],
+        },
+      });
+    }
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        documentId,
+        url: documentId ? `https://docs.google.com/document/d/${documentId}/edit` : null,
+      },
+    };
+  },
 };
 
 export const notionApi = {
@@ -197,4 +231,42 @@ export const notionApi = {
       provider: "notion",
       url: `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`,
     }),
+  // Create a Notion page under a parent. If no parent_id given, pick the most recent
+  // page the integration has access to as the parent.
+  createPage: async (title: string, content: string, parentId?: string) => {
+    let parent_id = parentId;
+    if (!parent_id) {
+      const s = await notionApi.search("");
+      const firstPage = s.data?.results?.find((r: any) => r.object === "page");
+      parent_id = firstPage?.id;
+      if (!parent_id) {
+        throw new Error("No accessible Notion page found. Share a page with the Lumina Notion integration first.");
+      }
+    }
+    // Split content into paragraph blocks (Notion max 2000 chars per rich_text)
+    const chunks: string[] = [];
+    const paras = (content || "").split(/\n{2,}/);
+    for (const p of paras) {
+      const t = p.trim();
+      if (!t) continue;
+      for (let i = 0; i < t.length; i += 1800) chunks.push(t.slice(i, i + 1800));
+    }
+    const children = chunks.map((text) => ({
+      object: "block",
+      type: "paragraph",
+      paragraph: { rich_text: [{ type: "text", text: { content: text } }] },
+    }));
+    return proxy<any>({
+      provider: "notion",
+      method: "POST",
+      url: `https://api.notion.com/v1/pages`,
+      body: {
+        parent: { page_id: parent_id },
+        properties: {
+          title: { title: [{ type: "text", text: { content: title.slice(0, 200) } }] },
+        },
+        children,
+      },
+    });
+  },
 };
