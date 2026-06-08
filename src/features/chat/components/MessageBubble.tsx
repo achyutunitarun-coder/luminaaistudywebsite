@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import { User, Sparkles, AlertCircle, Zap, Copy, RefreshCw, ThumbsUp, ThumbsDown, Pencil, Brain, ChevronRight } from 'lucide-react';
+import { User, Sparkles, AlertCircle, Zap, Copy, RefreshCw, ThumbsUp, ThumbsDown, Pencil, Brain, ChevronRight, FileText, ArrowUpRight } from 'lucide-react';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-import { ArtifactViewer } from './ArtifactViewer';
 import { LoadingStages } from './LoadingStages';
 import { ActionConfirmCard } from './ActionConfirmCard';
+import { useArtifactStore } from '@/features/artifacts/artifactStore';
 import { CREDIT_PACKS, openCheckout } from '@/features/credits/DodoPayments';
 import { toast } from 'sonner';
 import type { Message } from '../ChatPage';
@@ -54,6 +54,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
+  const openArtifact = useArtifactStore((s) => s.openArtifact);
 
   if (message.type === 'action_confirm' && message.pendingAction) {
     return (
@@ -245,13 +246,23 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
       <div className="min-w-0 flex-1">
         {message.type === 'artifact' && message.artifactHtml && message.artifactType ? (
           <>
-            <ArtifactViewer
-              html={message.artifactHtml}
-              type={message.artifactType}
-              topic={message.topic ?? ''}
-              onRegenerate={onRegenerate}
-              creditsUsed={message.creditsUsed}
-            />
+            <button
+              type="button"
+              id={`msg-${message.id}`}
+              onClick={() => openArtifact(message.id)}
+              className="group/artifact-card w-full rounded-2xl border border-white/10 bg-card/50 p-4 text-left shadow-xl backdrop-blur-xl transition-all hover:scale-[1.01] hover:border-primary/40 hover:bg-card/70"
+            >
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-foreground truncate">{message.topic || 'Generated artifact'}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{message.artifactType.toUpperCase()} · opened in Artifact Studio</div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover/artifact-card:translate-x-0.5 group-hover/artifact-card:-translate-y-0.5" />
+              </div>
+            </button>
             {typeof message.creditsUsed === 'number' && message.creditsUsed > 0 && (
               <div className="mt-1.5 inline-flex items-center gap-2 text-[11px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300">
                 <Zap className="w-3 h-3" fill="currentColor" />
