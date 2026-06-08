@@ -40,6 +40,8 @@ import Squad from "@/pages/Squad";
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
+import ConnectorHub from "@/pages/ConnectorHub";
+import OAuthCallback from "@/pages/OAuthCallback";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
@@ -131,6 +133,9 @@ const App = () => (
               <Route path="/squad" element={<Squad />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/training-data" element={<TrainingData />} />
+              <Route path="/connectors" element={<ConnectorHub />} />
+              <Route path="/oauth/google/callback" element={<OAuthCallback provider="google" />} />
+              <Route path="/oauth/notion/callback" element={<OAuthCallback provider="notion" />} />
               <Route path="/brain-hub" element={<Navigate to="/hub" replace />} />
             </Route>
 
