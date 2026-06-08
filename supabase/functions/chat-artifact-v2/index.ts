@@ -99,6 +99,37 @@ async function generateHtml(
   const started = Date.now();
   let lastErr = "";
 
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (lovableKey) {
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableKey}`,
+        },
+        body: JSON.stringify({
+          model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash",
+          messages: [
+            { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
+            { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
+          ],
+          temperature: 0.35,
+          max_tokens: type === "notes" ? 12000 : 14000,
+        }),
+        signal: AbortSignal.timeout(58_000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `lovable_gateway_${res.status}`);
+      const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
+      if (validHtml(cleaned)) return { html: cleaned, model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash" };
+      lastErr = cleaned ? "invalid_html_from_gateway" : "empty_from_gateway";
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.warn("[artifact-job] Lovable AI gateway failed:", lastErr);
+    }
+  }
+
   // Keep the background task well below edge runtime limits; otherwise rows stay
   // stuck as "running" and the client times out forever.
   for (let attempt = 0; attempt < 2; attempt++) {
