@@ -705,6 +705,19 @@ Q3: ... || A: ...
           const plan = await planAction(text, history10);
           const action = plan.kind === "chat" ? null : planToAction(plan);
 
+          if (plan.kind === "chat" && /not connected|required permission|reconnect/i.test(plan.summary || "")) {
+            const finalMessage: Message = {
+              id: uid(),
+              role: "assistant",
+              content: plan.summary,
+              type: "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
+
           if (action && action.kind === "artifact") {
             setLoadingStage(`Queueing your ${action.type}…`);
             await runArtifact(action.type, action.topic, text, chatId);
