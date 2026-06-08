@@ -44,6 +44,8 @@ import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
 import { extractDocumentText, DOCUMENT_ACCEPT } from "@/lib/extractDocumentText";
+import { AgentPipelinePanel } from "@/components/AgentPipelinePanel";
+import { useLuminaPipeline } from "@/hooks/useLuminaPipeline";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
