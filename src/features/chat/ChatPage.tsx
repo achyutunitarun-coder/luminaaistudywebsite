@@ -705,7 +705,7 @@ Q3: ... || A: ...
           const plan = await planAction(text, history10);
           const action = plan.kind === "chat" ? null : planToAction(plan);
 
-          if (plan.kind === "chat" && /not connected|required permission|reconnect/i.test(plan.summary || "")) {
+          if (plan.kind === "chat" && /connect|permission|reconnect|required/i.test(plan.summary || "")) {
             const finalMessage: Message = {
               id: uid(),
               role: "assistant",
