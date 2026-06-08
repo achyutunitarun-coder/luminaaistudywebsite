@@ -6,6 +6,10 @@ import {
   X, FileText, ChevronDown, Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
+
+const sanitizeHtml = (html: string) =>
+  DOMPurify.sanitize(html, { FORCE_BODY: true, ADD_ATTR: ["target"] });
 import { exportMarkdown, exportHTML, exportPDF } from "@/features/documents/exports";
 import { streamOpenRouter, pickModel } from "@/lib/openrouterRouting";
 import { useAuth } from "@/hooks/useAuth";
