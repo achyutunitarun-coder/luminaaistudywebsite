@@ -37,6 +37,23 @@ export interface AgentResult {
   message: string;
 }
 
+function hasGoogleScope(scopes: string[] | undefined, service: "gmail" | "calendar" | "drive"): boolean {
+  const joined = (scopes ?? []).join(" ");
+  if (service === "gmail") return /gmail/.test(joined);
+  if (service === "calendar") return /calendar/.test(joined);
+  if (service === "drive") return /drive|documents/.test(joined);
+  return false;
+}
+
+async function ensureGoogleService(service: "gmail" | "calendar" | "drive") {
+  const conns = await listConnections();
+  const google = conns.find((c) => c.provider === "google");
+  if (!google || !hasGoogleScope(google.scopes, service)) {
+    const label = service === "calendar" ? "Google Calendar" : service === "drive" ? "Google Drive" : "Gmail";
+    throw new Error(`${label} is not connected with the required permission. Open Connectors, reconnect ${label}, and approve the permission screen.`);
+  }
+}
+
 // ────────────── plan via edge function ──────────────
 
 /**
@@ -51,12 +68,16 @@ export async function planAction(
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return chatFallback();
 
-    let connected = { google: false, notion: false };
+    let connected = { google: false, notion: false, gmail: false, calendar: false, drive: false };
     try {
       const conns = await listConnections();
+      const google = conns.find((c) => c.provider === "google");
       connected = {
-        google: conns.some((c) => c.provider === "google"),
+        google: !!google,
         notion: conns.some((c) => c.provider === "notion"),
+        gmail: !!google && hasGoogleScope(google.scopes, "gmail"),
+        calendar: !!google && hasGoogleScope(google.scopes, "calendar"),
+        drive: !!google && hasGoogleScope(google.scopes, "drive"),
       };
     } catch {}
 
