@@ -137,7 +137,7 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
   }
 
   const lines = file.content.split("\n");
-  const cap = 4000;
+  const cap = 20000;
   const renderLines = lines.length > cap ? lines.slice(-cap) : lines;
   const lineOffset = lines.length > cap ? lines.length - cap : 0;
 
