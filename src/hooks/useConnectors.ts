@@ -31,7 +31,7 @@ export function useConnectors() {
       const scopes = (google.scopes ?? []).join(" ");
       if (service === "gmail") return /gmail/.test(scopes);
       if (service === "calendar") return /calendar/.test(scopes);
-      if (service === "drive") return /drive/.test(scopes);
+      if (service === "drive") return /drive|documents/.test(scopes);
       return false;
     },
     [connections],

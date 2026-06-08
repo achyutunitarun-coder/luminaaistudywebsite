@@ -599,8 +599,8 @@ Q3: ... || A: ...
         topic,
         prompt: originalPrompt,
         chatId: chatId ?? undefined,
-        timeoutMs: 300_000,
-        maxRetries: 0,
+        timeoutMs: 540_000,
+        maxRetries: 1,
         onStage: (s) => setLoadingStage(s),
       });
 

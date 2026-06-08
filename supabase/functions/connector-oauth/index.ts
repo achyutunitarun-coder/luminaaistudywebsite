@@ -147,19 +147,21 @@ serve(async (req) => {
           .eq("provider", "google")
           .maybeSingle();
 
+        const scopes = String(tok.scope || "").split(" ").filter(Boolean);
+
         const { error: upErr } = await admin.from("user_connections").upsert({
           user_id: user.id,
           provider: "google",
           account_email: email,
           account_label: email ?? "Google",
-          scopes: String(tok.scope || "").split(" ").filter(Boolean),
+          scopes,
           access_token: tok.access_token,
           refresh_token: tok.refresh_token ?? existing?.refresh_token ?? null,
           token_expires_at: expiresAt,
           metadata: { token_type: tok.token_type ?? "Bearer" },
         }, { onConflict: "user_id,provider" });
         if (upErr) return j(500, { error: "store_failed", detail: upErr.message });
-        return j(200, { ok: true, provider: "google", account_email: email });
+        return j(200, { ok: true, provider: "google", account_email: email, scopes });
       }
 
       if (provider === "notion") {

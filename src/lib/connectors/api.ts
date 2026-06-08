@@ -37,7 +37,8 @@ export async function listConnections(): Promise<UserConnection[]> {
     headers: await authHeaders(),
     body: JSON.stringify({ action: "list" }),
   });
-  const j = await res.json();
+  const j = await res.json().catch(() => ({ error: "bad_oauth_response" }));
+  if (!res.ok) throw new Error(j?.error || "connector_list_failed");
   return (j.connections as UserConnection[]) ?? [];
 }
 
@@ -46,6 +47,10 @@ export async function startOAuth(
   services?: ConnectorServiceId[],
 ): Promise<string> {
   const path = provider === "google" ? GOOGLE_REDIRECT_PATH : NOTION_REDIRECT_PATH;
+  if (provider === "google" && typeof sessionStorage !== "undefined") {
+    const requested = (services ?? ["gmail", "calendar", "drive"]).filter((s) => s !== "notion");
+    sessionStorage.setItem("lumina_google_pending_services", JSON.stringify(requested));
+  }
   const res = await fetch(OAUTH_FN, {
     method: "POST",
     headers: await authHeaders(),
@@ -62,7 +67,7 @@ export async function startOAuth(
 export async function exchangeOAuth(
   provider: ConnectorProvider,
   code: string,
-): Promise<{ ok: boolean; account_email?: string }> {
+): Promise<{ ok: boolean; account_email?: string; scopes?: string[] }> {
   const path = provider === "google" ? GOOGLE_REDIRECT_PATH : NOTION_REDIRECT_PATH;
   const res = await fetch(OAUTH_FN, {
     method: "POST",

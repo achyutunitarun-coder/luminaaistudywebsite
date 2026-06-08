@@ -18,6 +18,9 @@ const corsHeaders = {
 // This keeps routing centralised and consistent with the rest of the app.
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+const JOB_BUDGET_MS = 115_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function cleanHtml(raw: string): string {
   let h = (raw || "").trim();
@@ -96,10 +99,11 @@ async function generateHtml(
   const started = Date.now();
   let lastErr = "";
 
-  // Up to 3 attempts; each capped so total stays under ~210s with waitUntil.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const remaining = 210_000 - (Date.now() - started);
-    if (remaining < 15_000) break;
+  // Keep the background task well below edge runtime limits; otherwise rows stay
+  // stuck as "running" and the client times out forever.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
+    if (remaining < 8_000) break;
     try {
       const { response, model } = await callWithFallback(
         [
@@ -116,9 +120,9 @@ async function generateHtml(
           },
         ],
         models,
-        type === "notes" ? 12000 : 16000,
+        type === "notes" ? 9000 : 11000,
         0.45,
-        Math.min(remaining, 70_000),
+        Math.min(remaining, 42_000),
         `chat-artifact-v2/${type}`,
       );
       const data = await response.json();
@@ -154,12 +158,12 @@ async function processJob(
     .eq("id", jobId);
 
   try {
-    const { html, model } = await generateHtml(
-      payload.type,
-      payload.topic,
-      payload.userPrompt,
-      payload.systemPrompt,
-    );
+    const { html, model } = await Promise.race([
+      generateHtml(payload.type, payload.topic, payload.userPrompt, payload.systemPrompt),
+      sleep(JOB_BUDGET_MS).then(() => {
+        throw new Error("artifact_generation_timeout");
+      }),
+    ]);
     await admin
       .from("artifact_jobs")
       .update({
