@@ -136,7 +136,13 @@ export function detectIntent(message: string): IntentResult {
   const tied = (Object.values(scores) as number[]).filter((v) => v === max).length;
   if (tied > 1) {
     if (/\b(artifact|interactive|html|build|create|make|generate|design)\b/i.test(message)) {
-      const priority: Array<Exclude<Intent, 'CHAT'>> = ['CODE_ARTIFACT', 'SLIDES_ARTIFACT', 'EXAM_ARTIFACT', 'NOTES_ARTIFACT', 'QUICK_STUDY'];
+      const priority: Array<Exclude<Intent, 'CHAT'>> = /\b(quiz|worksheet|question|exam|test|paper|mark scheme)\b/i.test(message)
+        ? ['EXAM_ARTIFACT', 'CODE_ARTIFACT', 'NOTES_ARTIFACT', 'SLIDES_ARTIFACT', 'QUICK_STUDY']
+        : /\b(slide|deck|presentation|ppt|keynote)\b/i.test(message)
+          ? ['SLIDES_ARTIFACT', 'CODE_ARTIFACT', 'NOTES_ARTIFACT', 'EXAM_ARTIFACT', 'QUICK_STUDY']
+          : /\b(note|study guide|revision|cheat sheet|mind ?map|concept map|infographic|one-?pager)\b/i.test(message)
+            ? ['NOTES_ARTIFACT', 'CODE_ARTIFACT', 'EXAM_ARTIFACT', 'SLIDES_ARTIFACT', 'QUICK_STUDY']
+            : ['CODE_ARTIFACT', 'SLIDES_ARTIFACT', 'EXAM_ARTIFACT', 'NOTES_ARTIFACT', 'QUICK_STUDY'];
       winner = priority.find((k) => scores[k] === max) ?? winner;
     } else {
     return { intent: 'CHAT', confidence: 1, topic: message.trim() };
