@@ -37,6 +37,8 @@ import {
   type CreditAction,
 } from "@/features/credits/creditsSystem";
 import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
+import { detectAgentAction, executeAgentAction } from "@/lib/agent/actions";
+import { useNavigate } from "react-router-dom";
 
 export interface Message {
   id: string;
@@ -122,6 +124,7 @@ const rowToMessage = (row: SavedMessageRow): Message => ({
 const ChatPage = () => {
   const { user } = useAuth();
   const { isPro } = useSubscription();
+  const navigate = useNavigate();
   const credits = useCreditsStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -689,6 +692,27 @@ Q3: ... || A: ...
       setLoadingStage("Detecting intent…");
 
       try {
+        // ── Agentic actions: send email, create calendar event/timetable, navigate ──
+        const agent = detectAgentAction(text);
+        if (agent) {
+          setLoadingStage(
+            agent.kind === "send_email" ? "Sending email…"
+            : agent.kind === "navigate" ? "Navigating…"
+            : "Updating your calendar…"
+          );
+          const result = await executeAgentAction(agent, (p) => navigate(p));
+          const finalMessage: Message = {
+            id: uid(),
+            role: "assistant",
+            content: result.message,
+            type: result.ok ? "text" : "error",
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, finalMessage]);
+          await persistMessage(chatId, finalMessage);
+          return;
+        }
+
         let intent: Intent;
         let topic = text;
         if (forcedType) {
@@ -769,6 +793,7 @@ Q3: ... || A: ...
       input,
       loading,
       messages,
+      navigate,
       persistMessage,
       runArtifact,
       runQuickStudy,
