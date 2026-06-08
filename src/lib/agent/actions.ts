@@ -247,8 +247,25 @@ function calendarTime(iso: string): { dateTime: string; timeZone: string } {
   return { dateTime: withSecs, timeZone: USER_TZ };
 }
 
+function localWallDate(iso: string): Date {
+  const dt = calendarTime(iso).dateTime;
+  const m = dt.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return new Date(iso);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0));
+}
+
+function eventWindowIso(startIso: string, endIso: string) {
+  const start = localWallDate(startIso);
+  const end = localWallDate(endIso);
+  return {
+    timeMin: new Date(start.getTime() - 5 * 60_000).toISOString(),
+    timeMax: new Date(end.getTime() + 5 * 60_000).toISOString(),
+  };
+}
+
 async function createVerifiedCalendarEvent(event: Record<string, unknown>) {
   await ensureGoogleService("calendar");
+  const calendar = await calendarApi.calendar("primary").catch(() => null);
   const created = await calendarApi.create(event);
   const data = created.data as any;
   const eventId = data?.id;
@@ -260,13 +277,20 @@ async function createVerifiedCalendarEvent(event: Record<string, unknown>) {
   if (!verifiedData?.id || verifiedData.status === "cancelled") {
     throw new Error(`Google Calendar could not verify the created event (${eventId}).`);
   }
+  const startValue = (event.start as any)?.dateTime;
+  const endValue = (event.end as any)?.dateTime;
+  if (startValue && endValue) {
+    const { timeMin, timeMax } = eventWindowIso(startValue, endValue);
+    const around = await calendarApi.listAround(timeMin, timeMax);
+    const found = (around.data?.items ?? []).some((item: any) => item.id === eventId || item.iCalUID === verifiedData.iCalUID);
+    if (!found) throw new Error(`Google created the event, but it was not visible in the primary calendar time window. Event ID: ${eventId}`);
+  }
+  verifiedData.__calendarSummary = calendar?.data?.summary ?? calendar?.data?.id ?? "Primary calendar";
   return verifiedData;
 }
 
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: USER_TZ });
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", timeZone: USER_TZ });
+const fmtTime = (iso: string) => localWallDate(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtDate = (iso: string) => localWallDate(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
 // ────────────── executor ──────────────
 
