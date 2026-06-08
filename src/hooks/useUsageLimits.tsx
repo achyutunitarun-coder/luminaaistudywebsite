@@ -5,16 +5,17 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
 const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
-  chat_messages:      { limit: 50,  period: 'daily' },
+  // BASIC tier — strict per new pricing page
+  chat_messages:      { limit: 20,  period: 'daily' },
+  doubt_messages:     { limit: 20,  period: 'daily' },
+  notes_generations:  { limit: 3,   period: 'daily' },
+  test_generations:   { limit: 3,   period: 'daily' },
+  flashcard_sets:     { limit: 3,   period: 'daily' },
+  quick_study:        { limit: 3,   period: 'daily' },
+  quest_games:        { limit: 10,  period: 'daily' },
   study_sessions:     { limit: 3,   period: 'daily' },
-  test_generations:   { limit: 10,  period: 'daily' },
-  flashcard_sets:     { limit: 10,  period: 'daily' },
-  notes_generations:  { limit: 6,   period: 'daily' },
-  quest_games:        { limit: 25,  period: 'daily' },
-  doubt_messages:     { limit: 50,  period: 'daily' },
   summaries:          { limit: 5,   period: 'daily' },
   note_to_quiz:       { limit: 10,  period: 'daily' },
-  quick_study:        { limit: 10,  period: 'daily' },
   study_planners:     { limit: 15,  period: 'daily' },
   smart_notebook:     { limit: 5,   period: 'daily' },
   audio_analysis:     { limit: 5,   period: 'daily' },
