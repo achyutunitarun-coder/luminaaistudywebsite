@@ -165,6 +165,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   if (isUser) {
     return (
       <div
+        id={`msg-${message.id}`}
         className="flex gap-3 max-w-3xl mx-auto px-4 justify-end group"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -236,6 +237,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   // Assistant
   return (
     <div
+      id={`msg-${message.id}`}
       className="flex gap-3 max-w-3xl mx-auto px-4 group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
