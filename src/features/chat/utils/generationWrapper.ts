@@ -141,7 +141,7 @@ async function pollJob(
 async function singleAttempt(
   config: GenerationConfig,
 ): Promise<{ html: string; error?: string }> {
-  const { timeoutMs = 300_000 } = config;
+  const { timeoutMs = 480_000 } = config;
   config.onStage?.("Queueing artifact…");
   const queued = await queueJob(config);
 

@@ -96,10 +96,10 @@ async function generateHtml(
   const started = Date.now();
   let lastErr = "";
 
-  // Two high-quality attempts max. waitUntil prevents browser timeout; this cap prevents runaway workers.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const remaining = 135_000 - (Date.now() - started);
-    if (remaining < 18_000) break;
+  // Up to 3 attempts; each capped so total stays under ~210s with waitUntil.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const remaining = 210_000 - (Date.now() - started);
+    if (remaining < 15_000) break;
     try {
       const { response, model } = await callWithFallback(
         [
@@ -112,13 +112,13 @@ async function generateHtml(
             content:
               attempt === 0
                 ? userPrompt
-                : `Create a focused complete ${type} artifact about ${topic}.`,
+                : `Create a focused, complete ${type} artifact about ${topic}. Keep it tight and finish in one response.`,
           },
         ],
         models,
-        type === "notes" ? 16000 : 24000,
+        type === "notes" ? 12000 : 16000,
         0.45,
-        Math.min(remaining, 95_000),
+        Math.min(remaining, 70_000),
         `chat-artifact-v2/${type}`,
       );
       const data = await response.json();

@@ -42,6 +42,9 @@ import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
 import ConnectorHub from "@/pages/ConnectorHub";
 import OAuthCallback from "@/pages/OAuthCallback";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
+import ArtifactGallery from "@/pages/ArtifactGallery";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
@@ -102,9 +105,12 @@ const App = () => (
           <CreditToast />
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
 
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/artifacts" element={<ArtifactGallery />} />
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
