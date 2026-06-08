@@ -78,9 +78,11 @@ async function draftEmailWithAI(
 }
 
 export type AgentAction =
-  | { kind: "send_email"; to: string; subject: string; body: string }
+  | { kind: "send_email"; to: string; subject: string; body: string; instruction?: string; draft?: boolean }
   | { kind: "create_event"; title: string; start: Date; end: Date; description?: string }
   | { kind: "create_timetable"; blocks: Array<{ title: string; start: Date; end: Date }> }
+  | { kind: "navigate"; path: string; label: string }
+  | { kind: "create_task"; title: string; when?: Date };
   | { kind: "navigate"; path: string; label: string }
   | { kind: "create_task"; title: string; when?: Date };
 
