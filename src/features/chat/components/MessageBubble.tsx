@@ -263,6 +263,9 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-transform group-hover/artifact-card:translate-x-0.5 group-hover/artifact-card:-translate-y-0.5" />
               </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-background/70">
+                <div className="h-full w-2/3 rounded-full bg-primary/70 shadow-[0_0_16px_hsl(var(--primary)/.45)]" />
+              </div>
             </button>
             {typeof message.creditsUsed === 'number' && message.creditsUsed > 0 && (
               <div className="mt-1.5 inline-flex items-center gap-2 text-[11px] px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300">
