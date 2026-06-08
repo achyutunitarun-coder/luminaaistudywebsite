@@ -1106,8 +1106,8 @@ Q3: ... || A: ...
       )}
 
       <div
-        className="min-w-0 flex flex-col transition-[flex-basis] duration-200 lg:flex-none"
-        style={{ flexBasis: activeArtifactId ? `${artifactSplit}%` : "100%", flexGrow: activeArtifactId ? 0 : 1 }}
+        className="min-w-0 flex flex-1 flex-col transition-[flex-basis] duration-200 lg:flex-none lg:basis-[var(--chat-basis)]"
+        style={{ "--chat-basis": activeArtifactId ? `${artifactSplit}%` : "100%" } as React.CSSProperties}
       >
         <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground flex items-center gap-2">
