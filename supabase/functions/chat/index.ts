@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY, MODELS_VISION, messageText, messagesHaveImages } from "../_shared/models.ts";
 import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
 import { preFlight } from "../_shared/preflight.ts";
+import { condenseHistory } from "../_shared/contextManager.ts";
 
 // ── Lumina Computer agentic prompt ──────────────────────────────────
 const COMPUTER_AGENTIC_PROMPT = `
@@ -217,9 +218,40 @@ serve(async (req) => {
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
     const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
 
-    const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    // ── Centralised conversation summarisation ───────────────────────
+    // Every chat surface (chat/hub/squad/computer) goes through here, so
+    // we condense long histories once on the server instead of per-component.
+    const condensed = await condenseHistory(messages as any);
+    const aiMessages = [{ role: "system", content: systemPrompt }, ...condensed.messages];
 
     const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${artifactFeature ?? intent}`);
+
+    // If we summarised, prepend a small SSE meta event so the client can
+    // surface a "Memory active" badge.
+    if (condensed.summarized && res.body) {
+      const meta = `data: ${JSON.stringify({
+        lumina_meta: {
+          summarized: true,
+          original_count: condensed.originalCount,
+          summary: condensed.summary,
+        },
+      })}\n\n`;
+      const reader = res.body.getReader();
+      const enc = new TextEncoder();
+      const merged = new ReadableStream({
+        async start(ctrl) {
+          ctrl.enqueue(enc.encode(meta));
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            ctrl.enqueue(value);
+          }
+          ctrl.close();
+        },
+      });
+      return new Response(merged, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+    }
+
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
   } catch (e) {
     console.error("chat error:", e);

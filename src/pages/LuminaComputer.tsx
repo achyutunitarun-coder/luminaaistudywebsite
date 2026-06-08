@@ -44,6 +44,8 @@ import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
 import { extractDocumentText, DOCUMENT_ACCEPT } from "@/lib/extractDocumentText";
+import { AgentPipelinePanel } from "@/components/AgentPipelinePanel";
+import { useLuminaPipeline } from "@/hooks/useLuminaPipeline";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -349,6 +351,9 @@ export default function LuminaComputer() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
+
+  // 6-agent pipeline status (hook drives the lumina-pipeline edge function).
+  const pipeline = useLuminaPipeline();
 
   const activeFile = useMemo(
     () => files.find((f) => f.path === activePath) ?? files[0] ?? null,
@@ -680,6 +685,37 @@ export default function LuminaComputer() {
             <Plus className="w-3.5 h-3.5" /> New
           </button>
           <button
+            onClick={async () => {
+              const text = prompt.trim();
+              if (!text) {
+                toast.error("Type a request first to run the agent pipeline.");
+                return;
+              }
+              try {
+                await pipeline.run(text);
+                if (pipeline.finalOutput) {
+                  setFiles((prev) => [
+                    ...prev.filter((f) => f.path !== "pipeline-output.md"),
+                    { path: "pipeline-output.md", lang: "md", content: pipeline.finalOutput, done: true } as LuminaFile,
+                  ]);
+                  setActivePath("pipeline-output.md");
+                }
+              } catch (e: any) {
+                toast.error(e?.message ?? "Pipeline failed");
+              }
+            }}
+            disabled={pipeline.running}
+            title="Run the 6-agent pipeline (Orchestrate → Plan → Research → Build → Debug → Optimize)"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition disabled:opacity-50"
+          >
+            {pipeline.running ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            Pipeline
+          </button>
+          <button
             onClick={() => setPreviewOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
               previewOpen
@@ -745,6 +781,17 @@ export default function LuminaComputer() {
                 <div className="text-[12px] text-white/70 leading-relaxed bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
                   <MarkdownRenderer>{plan}</MarkdownRenderer>
                 </div>
+              </div>
+            )}
+
+            {(pipeline.running ||
+              Object.values(pipeline.states).some((s) => s !== "idle")) && (
+              <div className="mt-4 px-3">
+                <AgentPipelinePanel
+                  states={pipeline.states}
+                  activeLabel={pipeline.activeLabel}
+                  running={pipeline.running}
+                />
               </div>
             )}
           </div>
