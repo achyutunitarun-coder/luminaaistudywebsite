@@ -176,6 +176,39 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         </div>
       )}
 
+      {contextBlocks.length > 0 && (
+        <div className="flex flex-col gap-1.5 mb-2 px-1">
+          {contextBlocks.map((b) => (
+            <motion.div
+              key={b.id}
+              initial={{ opacity: 0, y: 4, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.18 }}
+              className="group flex items-start gap-2.5 px-3 py-2 rounded-xl border border-teal-500/20 bg-teal-500/[0.04] backdrop-blur"
+            >
+              <span className="text-[15px] leading-none mt-0.5">
+                {b.service === 'gmail' ? '✉️' : b.service === 'calendar' ? '📅' : b.service === 'drive' ? '📂' : '📝'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[10.5px] uppercase tracking-wide text-teal-300/80">{b.sourceLabel}</div>
+                <div className="text-[12.5px] font-medium text-white/90 truncate">{b.title}</div>
+                <div className="text-[11.5px] text-white/55 line-clamp-2">{b.preview}</div>
+              </div>
+              <button
+                onClick={() => removeContextBlock(b.id)}
+                className="p-1 rounded hover:bg-white/[0.06] text-white/45 hover:text-white"
+                aria-label="Remove context"
+              ><X className="w-3 h-3" /></button>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <GmailMiniBrowser    open={activeBrowser === 'gmail'}    onClose={() => setActiveBrowser(null)} onInsert={addContextBlock} />
+      <CalendarMiniBrowser open={activeBrowser === 'calendar'} onClose={() => setActiveBrowser(null)} onInsert={addContextBlock} />
+      <DriveMiniBrowser    open={activeBrowser === 'drive'}    onClose={() => setActiveBrowser(null)} onInsert={addContextBlock} />
+      <NotionMiniBrowser   open={activeBrowser === 'notion'}   onClose={() => setActiveBrowser(null)} onInsert={addContextBlock} />
+
       <input
         ref={fileRef}
         type="file"
@@ -196,6 +229,7 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         >
           <Paperclip className="w-4 h-4" />
         </button>
+        <ConnectorPlusMenu onPickService={(id) => setActiveBrowser(id)} />
         <button
           type="button"
           onClick={() => setPickerOpen((o) => !o)}
