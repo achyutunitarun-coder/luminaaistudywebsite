@@ -654,6 +654,17 @@ Q3: ... || A: ...
           newBalance,
           timestamp: Date.now(),
         };
+        upsertArtifact({
+          id: finalMessage.id,
+          type,
+          title: topic,
+          html: result.content,
+          createdAt: finalMessage.timestamp,
+          sourceMessageId: finalMessage.id,
+          contextMessageIds: history.slice(-6).map((m) => m.id),
+          summary: `Created ${type} from chat prompt`,
+        });
+        openArtifact(finalMessage.id);
         setMessages((prev) =>
           prev.filter((m) => m.id !== loadingId).concat(finalMessage),
         );
@@ -672,7 +683,7 @@ Q3: ... || A: ...
         await persistMessage(chatId, finalMessage);
       }
     },
-    [credits.balance, isPro, persistMessage, user],
+    [credits.balance, isPro, openArtifact, persistMessage, upsertArtifact, user],
   );
 
   const handleSend = useCallback(
