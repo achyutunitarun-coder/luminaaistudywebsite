@@ -190,10 +190,34 @@ function rfc2822Email(to: string, subject: string, body: string): string {
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+const USER_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; }
+  catch { return "UTC"; }
+})();
+
+/**
+ * Build a Google Calendar `EventDateTime`. Accepts naive local ISO
+ * ("2026-06-09T09:00:00"), zoned ISO with offset, or Z-suffixed UTC.
+ * Always attaches the user's IANA timeZone so wall-clock times land on the
+ * intended day — fixes the "event created but invisible" bug caused by naive
+ * datetimes being silently coerced to UTC.
+ */
+function calendarTime(iso: string): { dateTime: string; timeZone: string } {
+  const hasOffset = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
+  if (hasOffset) {
+    return { dateTime: new Date(iso).toISOString(), timeZone: USER_TZ };
+  }
+  const clean = iso.replace(/\.\d+$/, "");
+  const withSecs = /T\d{2}:\d{2}:\d{2}$/.test(clean)
+    ? clean
+    : /T\d{2}:\d{2}$/.test(clean) ? `${clean}:00` : clean;
+  return { dateTime: withSecs, timeZone: USER_TZ };
+}
+
 const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: USER_TZ });
 const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", timeZone: USER_TZ });
 
 // ────────────── executor ──────────────
 
@@ -227,13 +251,18 @@ export async function executeAgentAction(
     }
     case "create_event": {
       try {
-        await calendarApi.create({
+        const r = await calendarApi.create({
           summary: action.title,
           description: action.description,
-          start: { dateTime: new Date(action.start).toISOString() },
-          end: { dateTime: new Date(action.end).toISOString() },
+          start: calendarTime(action.start),
+          end: calendarTime(action.end),
+          reminders: { useDefault: true },
         });
-        return { ok: true, message: `📅 Added **${action.title}** — ${fmtDate(action.start)} ${fmtTime(action.start)} → ${fmtTime(action.end)}` };
+        const link = (r.data as any)?.htmlLink;
+        return {
+          ok: true,
+          message: `📅 Added **${action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
+        };
       } catch (e: any) {
         return { ok: false, message: `Calendar add failed: ${e?.message || e}` };
       }
@@ -241,14 +270,17 @@ export async function executeAgentAction(
     case "create_timetable": {
       const lines: string[] = [];
       let okCount = 0;
+      let lastLink: string | undefined;
       for (const b of action.blocks) {
         try {
-          await calendarApi.create({
+          const r = await calendarApi.create({
             summary: b.title,
-            start: { dateTime: new Date(b.start).toISOString() },
-            end: { dateTime: new Date(b.end).toISOString() },
+            start: calendarTime(b.start),
+            end: calendarTime(b.end),
+            reminders: { useDefault: true },
           });
           okCount++;
+          lastLink = (r.data as any)?.htmlLink || lastLink;
           lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title}`);
         } catch (e: any) {
           lines.push(`• ❌ ${b.title} — ${e?.message || e}`);
@@ -256,7 +288,7 @@ export async function executeAgentAction(
       }
       return {
         ok: okCount === action.blocks.length,
-        message: `📅 **Timetable for ${fmtDate(action.blocks[0].start)}** — added ${okCount}/${action.blocks.length} blocks:\n\n${lines.join("\n")}`,
+        message: `📅 **Timetable for ${fmtDate(action.blocks[0].start)}** (${USER_TZ}) — added ${okCount}/${action.blocks.length} blocks:\n\n${lines.join("\n")}${lastLink ? `\n\n[Open Google Calendar →](${lastLink})` : ""}`,
       };
     }
     case "drive_create_doc": {
