@@ -23,6 +23,8 @@ import { MessageList } from "./components/MessageList";
 import { InputBar } from "./components/InputBar";
 import { CanvasPanel } from "@/features/canvas/CanvasPanel";
 import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
+import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWorkspace";
+import { useArtifactStore } from "@/features/artifacts/artifactStore";
 import { ModelSelector, type ModelMode } from "./components/ModelSelector";
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
@@ -141,9 +143,13 @@ const ChatPage = () => {
   const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [artifactSplit, setArtifactSplit] = useState(40);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
+  const upsertArtifact = useArtifactStore((s) => s.upsertArtifact);
+  const openArtifact = useArtifactStore((s) => s.openArtifact);
+  const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
 
   // ── Canvas Mode ──────────────────────────────────────────────────
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -172,6 +178,31 @@ const ChatPage = () => {
   useEffect(() => {
     currentChatIdRef.current = currentChatId;
   }, [currentChatId]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<number>).detail;
+      if (typeof detail === "number") setArtifactSplit(detail);
+    };
+    window.addEventListener("lumina-artifact-split", handler);
+    return () => window.removeEventListener("lumina-artifact-split", handler);
+  }, []);
+
+  useEffect(() => {
+    messages.forEach((m, index) => {
+      if (m.type !== "artifact" || !m.artifactHtml || !m.artifactType) return;
+      upsertArtifact({
+        id: m.id,
+        type: m.artifactType,
+        title: m.topic || "Untitled artifact",
+        html: m.artifactHtml,
+        createdAt: m.timestamp,
+        sourceMessageId: m.id,
+        contextMessageIds: messages.slice(Math.max(0, index - 6), index + 1).map((msg) => msg.id),
+        summary: "Restored from chat history",
+      });
+    });
+  }, [messages, upsertArtifact]);
 
   const refreshChats = useCallback(async () => {
     if (!user) {
@@ -562,6 +593,7 @@ Q3: ... || A: ...
       topic: string,
       originalPrompt: string,
       chatId: string | null,
+      contextMessageIds: string[] = [],
     ) => {
       const action = `${type}_artifact` as CreditAction;
       const cost = CREDIT_COSTS[action];
@@ -649,6 +681,17 @@ Q3: ... || A: ...
           newBalance,
           timestamp: Date.now(),
         };
+        upsertArtifact({
+          id: finalMessage.id,
+          type,
+          title: topic,
+          html: result.content,
+          createdAt: finalMessage.timestamp,
+          sourceMessageId: finalMessage.id,
+          contextMessageIds,
+          summary: `Created ${type} from chat prompt`,
+        });
+        openArtifact(finalMessage.id);
         setMessages((prev) =>
           prev.filter((m) => m.id !== loadingId).concat(finalMessage),
         );
@@ -667,7 +710,7 @@ Q3: ... || A: ...
         await persistMessage(chatId, finalMessage);
       }
     },
-    [credits.balance, isPro, persistMessage, user],
+    [credits.balance, isPro, openArtifact, persistMessage, upsertArtifact, user],
   );
 
   const handleSend = useCallback(
@@ -720,7 +763,7 @@ Q3: ... || A: ...
 
           if (action && action.kind === "artifact") {
             setLoadingStage(`Queueing your ${action.type}…`);
-            await runArtifact(action.type, action.topic, text, chatId);
+            await runArtifact(action.type, action.topic, text, chatId, history.slice(-6).map((m) => m.id));
             return;
           }
 
@@ -821,7 +864,7 @@ Q3: ... || A: ...
                   ? "slides"
                   : "code";
           setLoadingStage(`Queueing your ${type}…`);
-          await runArtifact(type, topic, text, chatId);
+          await runArtifact(type, topic, text, chatId, history.slice(-6).map((m) => m.id));
         }
       } catch (e: any) {
         const isAbort = e?.name === "AbortError";
@@ -1062,7 +1105,10 @@ Q3: ... || A: ...
         </div>
       )}
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div
+        className="min-w-0 flex flex-1 flex-col transition-[flex-basis] duration-200 lg:flex-none lg:basis-[var(--chat-basis)]"
+        style={{ "--chat-basis": activeArtifactId ? `${artifactSplit}%` : "100%" } as React.CSSProperties}
+      >
         <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             <button
@@ -1170,6 +1216,13 @@ Q3: ... || A: ...
             onClose={() => setCanvasOpen(false)}
           />
         </div>
+      )}
+      {activeArtifactId && (
+        <PremiumArtifactWorkspace
+          messages={messages}
+          onQuote={(text) => setInput((prev) => `${prev}${prev ? "\n\n" : ""}${text}`)}
+          onRegenerate={(messageId) => handleRegenerate(messageId)}
+        />
       )}
     </div>
   );

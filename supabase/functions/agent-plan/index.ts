@@ -111,7 +111,8 @@ serve(async (req) => {
         });
         const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
         localToday = `${parts.year}-${parts.month}-${parts.day}`;
-        const t = new Date(Date.now() + 86400_000);
+        const [y, mo, d] = localToday.split("-").map(Number);
+        const t = new Date(Date.UTC(y, mo - 1, d + 1, 12, 0, 0));
         const partsT = Object.fromEntries(fmt.formatToParts(t).map((p) => [p.type, p.value]));
         localTomorrow = `${partsT.year}-${partsT.month}-${partsT.day}`;
         localNow = `${localToday}T${parts.hour}:${parts.minute}:${parts.second}`;

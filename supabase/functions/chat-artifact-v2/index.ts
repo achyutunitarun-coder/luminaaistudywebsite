@@ -60,15 +60,16 @@ function fallbackHtml(
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>${safeTopic} — Lumina ${type}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0f1117;--surface:#161b27;--card:#1c2333;--border:#2a3449;--primary:#6366f1;--accent:#a78bfa;--text:#e5e7eb;--muted:#94a3b8;--green:#4ade80;--yellow:#fbbf24;--red:#f87171;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);line-height:1.65}.wrap{max-width:960px;margin:0 auto;padding:48px 22px}.hero{border:1px solid var(--border);background:linear-gradient(135deg,var(--surface),var(--card));border-radius:18px;padding:32px}h1{font-size:clamp(34px,6vw,68px);line-height:1;margin:0 0 12px}h2{margin-top:32px;color:var(--accent)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:18px}.tag{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px}.warn{border-left:4px solid var(--yellow);padding:14px;background:rgba(251,191,36,.08);border-radius:10px}button{background:var(--primary);color:white;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}</style>
+:root{--bg:#050508;--surface:#0a0a0f;--card:rgba(255,255,255,.055);--border:rgba(255,255,255,.11);--primary:#14b8a6;--accent:#8b5cf6;--gold:#f59e0b;--text:rgba(255,255,255,.93);--muted:rgba(255,255,255,.55);font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,rgba(20,184,166,.18),transparent 34%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.18),transparent 28%),var(--bg);color:var(--text);line-height:1.7}.wrap{max-width:1120px;margin:0 auto;padding:56px 24px 80px}.hero{position:relative;overflow:hidden;border:1px solid var(--border);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.025));border-radius:28px;padding:42px;box-shadow:0 28px 90px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.12)}.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);animation:shine 1.6s ease-out forwards}@keyframes shine{to{transform:translateX(100%)}}h1{font-size:clamp(42px,8vw,92px);line-height:.95;margin:16px 0;font-weight:800;letter-spacing:-.04em}h2{margin:44px 0 18px;font-size:clamp(26px,4vw,44px);letter-spacing:-.025em}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{border:1px solid var(--border);border-radius:20px;background:var(--card);backdrop-filter:blur(18px);padding:22px;transition:.2s}.card:hover{transform:translateY(-3px);border-color:rgba(20,184,166,.5);box-shadow:0 0 30px rgba(20,184,166,.12)}.tag{display:inline-flex;border:1px solid rgba(20,184,166,.3);border-radius:999px;padding:7px 12px;color:#7dd3fc;background:rgba(20,184,166,.08);font:600 11px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase}.warn{border:1px solid rgba(245,158,11,.22);padding:16px 18px;background:rgba(245,158,11,.08);border-radius:18px;color:#fde68a}button{background:var(--primary);color:#04100f;border:0;border-radius:14px;padding:12px 18px;cursor:pointer;font-weight:700;transition:.2s}button:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(20,184,166,.3)}ol{padding-left:24px}.muted{color:var(--muted)}@media(max-width:700px){.wrap{padding:24px 14px}.hero{padding:26px;border-radius:22px}}</style>
 </head>
 <body>
 <main class="wrap">
-  <section class="hero"><span class="tag">Lumina ${type}</span><h1>${safeTopic}</h1><p>This artifact was recovered with a fast safe template because the generation network stalled. You were not charged unless the app confirmed success.</p></section>
-  <h2>Core overview</h2><div class="grid"><div class="card"><strong>Definition</strong><p>${safeTopic} is the central topic. Start by identifying the key terms, relationships, and exam expectations.</p></div><div class="card"><strong>How to study it</strong><p>Build a concept map, practise active recall, and explain the process in your own words.</p></div><div class="card"><strong>Exam focus</strong><p>Look for cause-effect chains, common misconceptions, diagrams, and short-answer wording.</p></div></div>
-  <h2>Quick learning path</h2><ol><li>Write the main definition from memory.</li><li>List 5 key facts.</li><li>Create one worked example or diagram.</li><li>Answer 3 practice questions without notes.</li></ol>
-  <div class="warn"><strong>Status:</strong> ${errorHint}. Try regenerating for a richer custom version.</div>
+  <section class="hero"><span class="tag">Lumina recovered ${type}</span><h1>${safeTopic}</h1><p class="muted">The main generator hit a network budget, so Lumina built a complete safe version instead of leaving you with a broken spinner.</p></section>
+  <h2>Core overview</h2><div class="grid"><div class="card"><strong>Definition</strong><p>${safeTopic} is the central topic. Identify its key terms, relationships, inputs, outputs, and exam expectations.</p></div><div class="card"><strong>Study strategy</strong><p>Use active recall: explain the idea, draw it once, solve one example, then correct gaps from memory.</p></div><div class="card"><strong>Exam focus</strong><p>Prioritize cause-effect chains, diagrams, command words, and common misconceptions.</p></div></div>
+  <h2>Quick learning path</h2><ol><li>Write the main definition without notes.</li><li>List five non-obvious facts and connect each to an example.</li><li>Create one worked example, diagram, or mini-project.</li><li>Answer three practice questions under time pressure.</li><li>Teach the topic aloud in sixty seconds.</li></ol>
+  <div class="warn"><strong>Recovery note:</strong> ${errorHint}. Regenerate for a deeper bespoke version when the model queue is clear.</div>
   <p><button onclick="window.print()">Print / Save</button></p>
 </main>
 </body>
@@ -98,6 +99,37 @@ async function generateHtml(
   const models = getModelsForArtifact((["notes","exam","slides","code"].includes(type) ? type : "notes") as ArtifactType);
   const started = Date.now();
   let lastErr = "";
+
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (lovableKey) {
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableKey}`,
+        },
+        body: JSON.stringify({
+          model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash",
+          messages: [
+            { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
+            { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
+          ],
+          temperature: 0.35,
+          max_tokens: type === "notes" ? 12000 : 14000,
+        }),
+        signal: AbortSignal.timeout(58_000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `lovable_gateway_${res.status}`);
+      const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
+      if (validHtml(cleaned)) return { html: cleaned, model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash" };
+      lastErr = cleaned ? "invalid_html_from_gateway" : "empty_from_gateway";
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      console.warn("[artifact-job] Lovable AI gateway failed:", lastErr);
+    }
+  }
 
   // Keep the background task well below edge runtime limits; otherwise rows stay
   // stuck as "running" and the client times out forever.
