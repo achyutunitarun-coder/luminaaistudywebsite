@@ -791,6 +791,8 @@ export default function LuminaComputer() {
                   states={pipeline.states}
                   activeLabel={pipeline.activeLabel}
                   running={pipeline.running}
+                  skills={pipeline.skills}
+                  tier={pipeline.tier}
                 />
               </div>
             )}
