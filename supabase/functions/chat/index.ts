@@ -4,6 +4,7 @@ import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent,
 import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
 import { preFlight } from "../_shared/preflight.ts";
 import { condenseHistory } from "../_shared/contextManager.ts";
+import { detectSkills, buildSkillsBlock } from "../_shared/skills.ts";
 
 // ── Lumina Computer agentic prompt ──────────────────────────────────
 const COMPUTER_AGENTIC_PROMPT = `
@@ -199,6 +200,13 @@ serve(async (req) => {
       systemPrompt += COMPUTER_AGENTIC_PROMPT;
     }
 
+    // ── Skills System: auto-activate expert modules + TIER directive ──
+    const activeSkills = detectSkills(queryText);
+    systemPrompt += `\n\n${buildSkillsBlock(activeSkills)}`;
+    if (activeSkills.length > 0) {
+      console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
+    }
+
     const models = isComputerMode
       ? Array.from(new Set(hasImages ? [...MODELS_VISION, ...MODELS_LONG_CTX] : ["openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
       : artifactFeature
@@ -226,14 +234,16 @@ serve(async (req) => {
 
     const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${artifactFeature ?? intent}`);
 
-    // If we summarised, prepend a small SSE meta event so the client can
-    // surface a "Memory active" badge.
-    if (condensed.summarized && res.body) {
+    // Prepend SSE meta event (memory + active skills) so the client can
+    // surface badges.
+    if ((condensed.summarized || activeSkills.length > 0) && res.body) {
       const meta = `data: ${JSON.stringify({
         lumina_meta: {
-          summarized: true,
+          summarized: condensed.summarized,
           original_count: condensed.originalCount,
           summary: condensed.summary,
+          skills: activeSkills.map((s) => ({ id: s.id, label: s.label, icon: s.icon })),
+          tier_target: "TIER_1",
         },
       })}\n\n`;
       const reader = res.body.getReader();
