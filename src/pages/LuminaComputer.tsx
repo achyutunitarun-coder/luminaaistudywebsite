@@ -685,6 +685,37 @@ export default function LuminaComputer() {
             <Plus className="w-3.5 h-3.5" /> New
           </button>
           <button
+            onClick={async () => {
+              const text = prompt.trim();
+              if (!text) {
+                toast.error("Type a request first to run the agent pipeline.");
+                return;
+              }
+              try {
+                await pipeline.run(text);
+                if (pipeline.finalOutput) {
+                  setFiles((prev) => [
+                    ...prev.filter((f) => f.path !== "pipeline-output.md"),
+                    { path: "pipeline-output.md", lang: "md", content: pipeline.finalOutput, done: true } as LuminaFile,
+                  ]);
+                  setActivePath("pipeline-output.md");
+                }
+              } catch (e: any) {
+                toast.error(e?.message ?? "Pipeline failed");
+              }
+            }}
+            disabled={pipeline.running}
+            title="Run the 6-agent pipeline (Orchestrate → Plan → Research → Build → Debug → Optimize)"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition disabled:opacity-50"
+          >
+            {pipeline.running ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            Pipeline
+          </button>
+          <button
             onClick={() => setPreviewOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
               previewOpen
