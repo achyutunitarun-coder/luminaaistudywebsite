@@ -49,8 +49,11 @@ FALLBACK:
 RULES:
 1. Use conversation HISTORY to resolve references. If the user says "add them to my calendar"
    and the assistant just listed a timetable, EXTRACT those time-blocks and emit create_timetable
-   with concrete ISO datetimes (use TODAY's date if none specified, TOMORROW if user says tomorrow).
-2. ALL datetimes must be valid ISO8601 in the user's local timezone (assume +00:00 if unknown).
+   with concrete datetimes (use TODAY's date if none specified, TOMORROW if user says tomorrow).
+2. CRITICAL — datetimes for create_event / create_timetable must be NAIVE LOCAL ISO in the
+   user's timezone, WITHOUT any "Z" or "+HH:MM" offset. Example: "2026-06-09T09:00:00".
+   The client attaches the IANA timeZone itself. NEVER emit UTC ("Z") — it will land on the
+   wrong day for the user. If the user says "9 AM tomorrow", emit "<tomorrow's date>T09:00:00".
 3. For emails, if the user didn't write the body verbatim, leave subject/body empty and pass the
    raw instruction — the executor will draft it.
 4. confirmation_required = true for ALL connector actions (email, calendar, drive create,
@@ -95,11 +98,34 @@ serve(async (req) => {
         content: String(m.content ?? "").slice(0, 2000),
       }));
 
+    // Compute today/tomorrow as wall-clock dates IN THE USER'S TIMEZONE
+    // (so "tomorrow 9 AM" resolves to their tomorrow, not UTC tomorrow).
+    let localToday = new Date().toISOString().slice(0, 10);
+    let localTomorrow = new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
+    let localNow = new Date().toISOString().slice(0, 19);
+    if (timezone && typeof timezone === "string") {
+      try {
+        const fmt = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+        });
+        const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+        localToday = `${parts.year}-${parts.month}-${parts.day}`;
+        const t = new Date(Date.now() + 86400_000);
+        const partsT = Object.fromEntries(fmt.formatToParts(t).map((p) => [p.type, p.value]));
+        localTomorrow = `${partsT.year}-${partsT.month}-${partsT.day}`;
+        localNow = `${localToday}T${parts.hour}:${parts.minute}:${parts.second}`;
+      } catch {}
+    }
+
     const userBlock =
-      `CURRENT TIME (ISO): ${TODAY_ISO()}\n` +
+      `LOCAL NOW (naive, user's tz): ${localNow}\n` +
+      `TODAY (user's tz): ${localToday}\n` +
+      `TOMORROW (user's tz): ${localTomorrow}\n` +
       `USER TIMEZONE: ${timezone ?? "unknown"}\n` +
       `CONNECTED SERVICES: google=${connected.google ? "yes" : "no"}, notion=${connected.notion ? "yes" : "no"}\n\n` +
       `USER MESSAGE:\n${message}\n\n` +
+      `Reminder: datetimes for calendar actions MUST be naive local ISO like "${localTomorrow}T09:00:00" — no Z, no offset.\n` +
       `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
