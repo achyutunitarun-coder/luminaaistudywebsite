@@ -335,7 +335,7 @@ export async function executeAgentAction(
         const link = event?.htmlLink;
         return {
           ok: true,
-          message: `📅 Verified in Google Calendar: **${event.summary ?? action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
+          message: `📅 Verified in **${event.__calendarSummary ?? "Google Calendar"}**: **${event.summary ?? action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})\n\nEvent ID: \`${event.id}\`${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
         };
       } catch (e: any) {
         return { ok: false, message: `Calendar add failed: ${e?.message || e}` };
@@ -355,7 +355,7 @@ export async function executeAgentAction(
           });
           okCount++;
           lastLink = event?.htmlLink || lastLink;
-          lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title}`);
+          lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title} · verified \`${event.id}\``);
         } catch (e: any) {
           lines.push(`• ❌ ${b.title} — ${e?.message || e}`);
         }
