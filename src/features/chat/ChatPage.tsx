@@ -695,25 +695,64 @@ Q3: ... || A: ...
       setLoadingStage("Detecting intent…");
 
       try {
-        // ── Agentic actions: send email, create calendar event/timetable, navigate ──
-        const agent = detectAgentAction(text);
-        if (agent) {
-          setLoadingStage(
-            agent.kind === "send_email" ? "Sending email…"
-            : agent.kind === "navigate" ? "Navigating…"
-            : "Updating your calendar…"
-          );
-          const result = await executeAgentAction(agent, (p) => navigate(p));
-          const finalMessage: Message = {
-            id: uid(),
-            role: "assistant",
-            content: result.message,
-            type: result.ok ? "text" : "error",
-            timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, finalMessage]);
-          await persistMessage(chatId, finalMessage);
-          return;
+        // ── LLM-powered agent planner: 360° intent detection w/ chat history context ──
+        if (!forcedType) {
+          setLoadingStage("Routing…");
+          const history10 = history
+            .filter((m) => m.type === "text" || m.type === "artifact")
+            .slice(-10)
+            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content || "" }));
+          const plan = await planAction(text, history10);
+          const action = plan.kind === "chat" ? null : planToAction(plan);
+
+          if (action && action.kind === "artifact") {
+            setLoadingStage(`Queueing your ${action.type}…`);
+            await runArtifact(action.type, action.topic, text, chatId);
+            return;
+          }
+
+          if (action && action.kind === "navigate") {
+            const result = await executeAgentAction(action, (p) => navigate(p));
+            const finalMessage: Message = {
+              id: uid(), role: "assistant",
+              content: result.message,
+              type: result.ok ? "text" : "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
+
+          if (action) {
+            // Confirmation-required actions get a card; read-only ones execute immediately.
+            if (actionRequiresConfirmation(action)) {
+              const confirmMsg: Message = {
+                id: uid(),
+                role: "assistant",
+                type: "action_confirm",
+                content: plan.summary || "I'd like to run this — confirm?",
+                pendingAction: action,
+                actionSummary: plan.summary,
+                timestamp: Date.now(),
+              };
+              setMessages((prev) => [...prev, confirmMsg]);
+              await persistMessage(chatId, confirmMsg);
+              return;
+            }
+            // Read-only: execute now.
+            setLoadingStage("Working…");
+            const result = await executeAgentAction(action, (p) => navigate(p));
+            const finalMessage: Message = {
+              id: uid(), role: "assistant",
+              content: result.message,
+              type: result.ok ? "text" : "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
         }
 
         let intent: Intent;
@@ -722,6 +761,7 @@ Q3: ... || A: ...
           intent = (forcedType.toUpperCase() + "_ARTIFACT") as Intent;
           topic = text;
         } else {
+          // Planner returned chat — also fall back to deterministic detector as safety net
           const r = detectIntent(text);
           intent = r.confidence < 0.85 ? "CHAT" : r.intent;
           topic = r.topic || text;
