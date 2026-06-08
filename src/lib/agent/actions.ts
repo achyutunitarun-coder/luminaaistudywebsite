@@ -118,7 +118,7 @@ export function detectAgentAction(text: string): AgentAction | null {
     const totalMinutes = (end.h * 60 + end.m) - (start.h * 60 + start.m);
     const slots = Math.max(1, subjects.length || 4);
     const slotLen = Math.max(30, Math.floor(totalMinutes / slots));
-    const blocks: AgentAction extends infer A ? A extends { kind: "create_timetable" } ? A["blocks"] : never : never = [];
+    const blocks: Array<{ title: string; start: Date; end: Date }> = [];
     for (let i = 0; i < slots; i++) {
       const s = new Date(base);
       s.setHours(start.h, start.m + i * slotLen, 0, 0);
