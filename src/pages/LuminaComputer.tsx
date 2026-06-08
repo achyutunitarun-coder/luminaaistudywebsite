@@ -752,6 +752,17 @@ export default function LuminaComputer() {
                 </div>
               </div>
             )}
+
+            {(pipeline.running ||
+              Object.values(pipeline.states).some((s) => s !== "idle")) && (
+              <div className="mt-4 px-3">
+                <AgentPipelinePanel
+                  states={pipeline.states}
+                  activeLabel={pipeline.activeLabel}
+                  running={pipeline.running}
+                />
+              </div>
+            )}
           </div>
         </aside>
 
