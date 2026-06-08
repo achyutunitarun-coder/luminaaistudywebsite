@@ -271,7 +271,7 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
           <button
             type="button"
             onClick={submit}
-            disabled={(!value.trim() && attachments.length === 0) || disabled}
+            disabled={(!value.trim() && attachments.length === 0 && contextBlocks.length === 0) || disabled}
             className="shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             title="Send"
           >
