@@ -250,7 +250,6 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
           <>
             <button
               type="button"
-              id={`msg-${message.id}`}
               onClick={() => openArtifact(message.id)}
               className="group/artifact-card w-full rounded-2xl border border-white/10 bg-card/50 p-4 text-left shadow-xl backdrop-blur-xl transition-all hover:scale-[1.01] hover:border-primary/40 hover:bg-card/70"
             >
