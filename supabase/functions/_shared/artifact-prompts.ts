@@ -293,12 +293,23 @@ ERROR-PROOFING:
 
 export type ArtifactFeature = "slides" | "notes" | "exam";
 
+const FRONTEND_DESIGN_SKILL = `
+FRONTEND DESIGN & AESTHETICS SKILL:
+- Before writing HTML, silently commit to PURPOSE, TONE, CONSTRAINTS, and DIFFERENTIATION.
+- Create a distinctive production-grade interface, not generic AI slop.
+- Pick one bold visual anchor and lean into it completely.
+- Do not use Inter, Roboto, Arial, Space Grotesk, or default system fonts as the primary identity; choose characterful Google Fonts.
+- Avoid clichéd purple/blue gradients over flat white or pitch-black backgrounds. Avoid card soup.
+- Implement one unforgettable visual detail and one intentional page-load choreography.
+- Keep accessibility, responsiveness, performance, and complete working interactivity non-negotiable.
+`.trim();
+
 export function buildArtifactSystemPrompt(feature: ArtifactFeature): string {
   const base =
     feature === "slides" ? SLIDES_PROMPT :
     feature === "exam"   ? EXAM_PROMPT   :
     NOTES_PROMPT;
-  return base + "\n\n" + UNIVERSAL_UPGRADES;
+  return FRONTEND_DESIGN_SKILL + "\n\n" + base + "\n\n" + UNIVERSAL_UPGRADES;
 }
 
 export function detectArtifactFeature(text: string): ArtifactFeature | null {
