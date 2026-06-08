@@ -8,9 +8,77 @@
  */
 
 import { gmailApi, calendarApi } from "@/lib/connectors/api";
+import { supabase } from "@/integrations/supabase/client";
+import { streamSSE } from "@/lib/aiStream";
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+/**
+ * Ask Lumina to draft a real subject + body from an instruction.
+ * Falls back to the raw instruction if anything goes wrong.
+ */
+async function draftEmailWithAI(
+  instruction: string,
+  recipient: string,
+): Promise<{ subject: string; body: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("no_session");
+
+    const sys =
+      "You are Lumina, drafting a real email on the user's behalf. " +
+      "Given an instruction, produce a polished, sincere email — appropriate tone, natural human phrasing, no AI tells, no preamble. " +
+      "Output STRICT JSON only, no markdown fences, no commentary: " +
+      `{"subject":"...","body":"..."} ` +
+      "Subject ≤ 80 chars. Body is plain text with real line breaks (\\n). " +
+      "If the recipient is a family member or friend, use a warm personal tone. " +
+      "Sign off with the user's first name only if obvious, otherwise no signature.";
+
+    const userMsg =
+      `Recipient: ${recipient}\nInstruction: ${instruction}\n\nReturn only the JSON.`;
+
+    const res = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: userMsg },
+        ],
+        mode: "conversational",
+      }),
+    });
+    if (!res.ok) throw new Error(`chat ${res.status}`);
+
+    let full = "";
+    await streamSSE(res, { onDelta: (c) => { full += c; } });
+
+    const cleaned = full
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("no_json");
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
+    const subject = String(parsed.subject || "").trim().slice(0, 200);
+    const body = String(parsed.body || "").trim();
+    if (!subject || !body) throw new Error("empty_draft");
+    return { subject, body };
+  } catch (e) {
+    console.warn("[draftEmailWithAI] falling back to raw:", e);
+    return {
+      subject: "A message for you",
+      body: instruction,
+    };
+  }
+}
 
 export type AgentAction =
-  | { kind: "send_email"; to: string; subject: string; body: string }
+  | { kind: "send_email"; to: string; subject: string; body: string; instruction?: string; draft?: boolean }
   | { kind: "create_event"; title: string; start: Date; end: Date; description?: string }
   | { kind: "create_timetable"; blocks: Array<{ title: string; start: Date; end: Date }> }
   | { kind: "navigate"; path: string; label: string }
@@ -100,11 +168,29 @@ export function detectAgentAction(text: string): AgentAction | null {
     const toMatch = t.match(/([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i);
     if (toMatch) {
       const to = toMatch[1];
-      const subjMatch = t.match(/(?:subject:|about|regarding|re:|titled)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:saying|body:|with body|that says|content:|message:|telling them|asking|and (?:say|tell))|[.!?]|$)/i);
-      const bodyMatch = t.match(/(?:saying|body:|content:|message:|telling them|that says|and (?:say|tell)(?:\s+(?:him|her|them))?)\s*["“']?([\s\S]+?)["”']?$/i);
-      const subject = (subjMatch?.[1] || "Message from Lumina").trim().slice(0, 200);
-      const body = (bodyMatch?.[1] || subjMatch?.[1] || t.replace(toMatch[0], "").trim()).trim();
-      return { kind: "send_email", to, subject, body };
+      // Explicit content only when the user literally quotes a body or says
+      // "with body: ...". Otherwise we let Lumina draft the email properly.
+      const explicitBodyMatch = t.match(/(?:body:|content:|that\s+says\s*[:"“'])\s*["“']?([\s\S]+?)["”']?$/i);
+      const explicitSubjMatch = t.match(/(?:subject:)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:body:|content:)|[.!?]|$)/i);
+      if (explicitBodyMatch) {
+        return {
+          kind: "send_email",
+          to,
+          subject: (explicitSubjMatch?.[1] || "Message from Lumina").trim().slice(0, 200),
+          body: explicitBodyMatch[1].trim(),
+          draft: false,
+        };
+      }
+      // Strip the recipient email so the drafter sees only the instruction.
+      const instruction = t.replace(toMatch[0], "").trim();
+      return {
+        kind: "send_email",
+        to,
+        subject: "",
+        body: "",
+        instruction,
+        draft: true,
+      };
     }
   }
 
@@ -176,9 +262,19 @@ export async function executeAgentAction(
   switch (action.kind) {
     case "send_email": {
       try {
-        const raw = rfc2822Email(action.to, action.subject, action.body);
+        let subject = action.subject;
+        let body = action.body;
+        if (action.draft || !subject || !body) {
+          const drafted = await draftEmailWithAI(
+            action.instruction || action.body || "Write a friendly message.",
+            action.to,
+          );
+          subject = drafted.subject;
+          body = drafted.body;
+        }
+        const raw = rfc2822Email(action.to, subject, body);
         await gmailApi.send(raw);
-        return { ok: true, message: `✅ Email sent to **${action.to}**\n\n**Subject:** ${action.subject}\n\n${action.body}` };
+        return { ok: true, message: `✅ Email sent to **${action.to}**\n\n**Subject:** ${subject}\n\n${body}` };
       } catch (e: any) {
         const msg = String(e?.message || e);
         if (msg.includes("not_connected") || msg.includes("missing a required permission")) {

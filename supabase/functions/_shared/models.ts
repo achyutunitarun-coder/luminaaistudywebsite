@@ -459,7 +459,7 @@ export async function callWithFallback(
 // When a model stops because it hit its output cap (finish_reason = "length"),
 // transparently fire a follow-up "continue" request and stitch the result.
 // This gives every caller "infinite generation" without changing their code.
-const CONTINUATION_MAX_ROUNDS = 6;        // up to 7 total chunks per response
+const CONTINUATION_MAX_ROUNDS = 14;       // up to 15 total chunks per response — long Computer/code outputs
 const CONTINUATION_USER_PROMPT =
   "Continue exactly where you left off. Do not repeat anything. Do not summarize. Resume in the middle of the sentence/code/JSON if needed.";
 
