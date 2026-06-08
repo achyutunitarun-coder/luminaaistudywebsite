@@ -21,6 +21,7 @@ import { UpgradePopup } from '@/components/UpgradePopup';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
+import { openPricing } from '@/lib/pricing';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -805,7 +806,7 @@ const LuminaHub = () => {
               </div>
             </div>
             <Button
-              onClick={() => window.open('https://monumental-custard-d06d45.netlify.app/#pricing', '_blank', 'noopener')}
+              onClick={openPricing}
               size="sm"
               className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90 px-5"
             >
