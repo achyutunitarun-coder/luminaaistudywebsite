@@ -49,8 +49,11 @@ FALLBACK:
 RULES:
 1. Use conversation HISTORY to resolve references. If the user says "add them to my calendar"
    and the assistant just listed a timetable, EXTRACT those time-blocks and emit create_timetable
-   with concrete ISO datetimes (use TODAY's date if none specified, TOMORROW if user says tomorrow).
-2. ALL datetimes must be valid ISO8601 in the user's local timezone (assume +00:00 if unknown).
+   with concrete datetimes (use TODAY's date if none specified, TOMORROW if user says tomorrow).
+2. CRITICAL — datetimes for create_event / create_timetable must be NAIVE LOCAL ISO in the
+   user's timezone, WITHOUT any "Z" or "+HH:MM" offset. Example: "2026-06-09T09:00:00".
+   The client attaches the IANA timeZone itself. NEVER emit UTC ("Z") — it will land on the
+   wrong day for the user. If the user says "9 AM tomorrow", emit "<tomorrow's date>T09:00:00".
 3. For emails, if the user didn't write the body verbatim, leave subject/body empty and pass the
    raw instruction — the executor will draft it.
 4. confirmation_required = true for ALL connector actions (email, calendar, drive create,
