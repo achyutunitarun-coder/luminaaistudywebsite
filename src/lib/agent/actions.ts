@@ -37,6 +37,23 @@ export interface AgentResult {
   message: string;
 }
 
+function hasGoogleScope(scopes: string[] | undefined, service: "gmail" | "calendar" | "drive"): boolean {
+  const joined = (scopes ?? []).join(" ");
+  if (service === "gmail") return /gmail/.test(joined);
+  if (service === "calendar") return /calendar/.test(joined);
+  if (service === "drive") return /drive|documents/.test(joined);
+  return false;
+}
+
+async function ensureGoogleService(service: "gmail" | "calendar" | "drive") {
+  const conns = await listConnections();
+  const google = conns.find((c) => c.provider === "google");
+  if (!google || !hasGoogleScope(google.scopes, service)) {
+    const label = service === "calendar" ? "Google Calendar" : service === "drive" ? "Google Drive" : "Gmail";
+    throw new Error(`${label} is not connected with the required permission. Open Connectors, reconnect ${label}, and approve the permission screen.`);
+  }
+}
+
 // ────────────── plan via edge function ──────────────
 
 /**
@@ -51,12 +68,16 @@ export async function planAction(
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return chatFallback();
 
-    let connected = { google: false, notion: false };
+    let connected = { google: false, notion: false, gmail: false, calendar: false, drive: false };
     try {
       const conns = await listConnections();
+      const google = conns.find((c) => c.provider === "google");
       connected = {
-        google: conns.some((c) => c.provider === "google"),
+        google: !!google,
         notion: conns.some((c) => c.provider === "notion"),
+        gmail: !!google && hasGoogleScope(google.scopes, "gmail"),
+        calendar: !!google && hasGoogleScope(google.scopes, "calendar"),
+        drive: !!google && hasGoogleScope(google.scopes, "drive"),
       };
     } catch {}
 
@@ -203,15 +224,43 @@ const USER_TZ = (() => {
  * datetimes being silently coerced to UTC.
  */
 function calendarTime(iso: string): { dateTime: string; timeZone: string } {
-  const hasOffset = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
+  const input = String(iso || "").trim();
+  const hasOffset = /[zZ]|[+-]\d{2}:?\d{2}$/.test(input);
   if (hasOffset) {
-    return { dateTime: new Date(iso).toISOString(), timeZone: USER_TZ };
+    const d = new Date(input);
+    if (!Number.isNaN(d.getTime())) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+        timeZone: USER_TZ,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      }).formatToParts(d).map((p) => [p.type, p.value]));
+      return { dateTime: `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`, timeZone: USER_TZ };
+    }
   }
-  const clean = iso.replace(/\.\d+$/, "");
+  const wallTime = input.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/);
+  const clean = wallTime
+    ? `${wallTime[1]}T${wallTime[2]}:${wallTime[3] ?? "00"}`
+    : input.replace(/\.\d+$/, "").replace(/[zZ]|[+-]\d{2}:?\d{2}$/, "");
   const withSecs = /T\d{2}:\d{2}:\d{2}$/.test(clean)
     ? clean
     : /T\d{2}:\d{2}$/.test(clean) ? `${clean}:00` : clean;
   return { dateTime: withSecs, timeZone: USER_TZ };
+}
+
+async function createVerifiedCalendarEvent(event: Record<string, unknown>) {
+  await ensureGoogleService("calendar");
+  const created = await calendarApi.create(event);
+  const data = created.data as any;
+  const eventId = data?.id;
+  if (!eventId) {
+    throw new Error(`Google Calendar did not return an event ID: ${JSON.stringify(data).slice(0, 300)}`);
+  }
+  const verified = await calendarApi.get(eventId);
+  const verifiedData = verified.data as any;
+  if (!verifiedData?.id || verifiedData.status === "cancelled") {
+    throw new Error(`Google Calendar could not verify the created event (${eventId}).`);
+  }
+  return verifiedData;
 }
 
 const fmtTime = (iso: string) =>
@@ -228,6 +277,7 @@ export async function executeAgentAction(
   switch (action.kind) {
     case "send_email": {
       try {
+        await ensureGoogleService("gmail");
         let subject = action.subject || "";
         let body = action.body || "";
         if (!subject || !body) {
@@ -251,17 +301,17 @@ export async function executeAgentAction(
     }
     case "create_event": {
       try {
-        const r = await calendarApi.create({
+        const event = await createVerifiedCalendarEvent({
           summary: action.title,
           description: action.description,
           start: calendarTime(action.start),
           end: calendarTime(action.end),
           reminders: { useDefault: true },
         });
-        const link = (r.data as any)?.htmlLink;
+        const link = event?.htmlLink;
         return {
           ok: true,
-          message: `📅 Added **${action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
+          message: `📅 Verified in Google Calendar: **${event.summary ?? action.title}** — ${fmtDate(action.start)} · ${fmtTime(action.start)} → ${fmtTime(action.end)} (${USER_TZ})${link ? `\n\n[Open in Google Calendar →](${link})` : ""}`,
         };
       } catch (e: any) {
         return { ok: false, message: `Calendar add failed: ${e?.message || e}` };
@@ -273,14 +323,14 @@ export async function executeAgentAction(
       let lastLink: string | undefined;
       for (const b of action.blocks) {
         try {
-          const r = await calendarApi.create({
+          const event = await createVerifiedCalendarEvent({
             summary: b.title,
             start: calendarTime(b.start),
             end: calendarTime(b.end),
             reminders: { useDefault: true },
           });
           okCount++;
-          lastLink = (r.data as any)?.htmlLink || lastLink;
+          lastLink = event?.htmlLink || lastLink;
           lines.push(`• **${fmtTime(b.start)} – ${fmtTime(b.end)}** — ${b.title}`);
         } catch (e: any) {
           lines.push(`• ❌ ${b.title} — ${e?.message || e}`);

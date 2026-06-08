@@ -5,6 +5,15 @@ import { calendarApi } from "@/lib/connectors/api";
 import type { ContextBlock } from "@/lib/connectors/contextBlock";
 import { toast } from "sonner";
 
+const USER_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; }
+  catch { return "UTC"; }
+})();
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const localDateTime = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -69,11 +78,13 @@ export function CalendarMiniBrowser({ open, onClose, onInsert }: Props) {
       const r = await calendarApi.create({
         summary: `Lumina · ${form.topic}`,
         description: "Created from Lumina AI",
-        start: { dateTime: start.toISOString() },
-        end: { dateTime: end.toISOString() },
+        start: { dateTime: `${form.date}T${form.time}:00`, timeZone: USER_TZ },
+        end: { dateTime: localDateTime(end), timeZone: USER_TZ },
         colorId: "7",
       });
-      if (!r.ok) throw new Error(JSON.stringify(r.data));
+      const eventId = (r.data as any)?.id;
+      if (!eventId) throw new Error(JSON.stringify(r.data));
+      await calendarApi.get(eventId);
       toast.success("Study block added to your calendar");
       setCreating(false);
       setForm({ topic: "", date: "", time: "09:00", minutes: 50 });

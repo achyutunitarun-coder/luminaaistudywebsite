@@ -152,11 +152,16 @@ export const calendarApi = {
       url: `https://www.googleapis.com/calendar/v3/calendars/primary/events?${p}`,
     });
   },
-  create: (event: Record<string, unknown>) =>
+  get: (eventId: string, calendarId = "primary") =>
+    proxy<any>({
+      provider: "google",
+      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    }),
+  create: (event: Record<string, unknown>, calendarId = "primary") =>
     proxy<any>({
       provider: "google",
       method: "POST",
-      url: `https://www.googleapis.com/calendar/v3/calendars/primary/events`,
+      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
       body: event,
     }),
 };

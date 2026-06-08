@@ -19,7 +19,7 @@ const cors = {
 const GOOGLE_SCOPES: Record<string, string> = {
   gmail: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.compose",
   calendar: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
-  drive: "https://www.googleapis.com/auth/drive.readonly",
+  drive: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/documents",
   profile: "openid email profile",
 };
 
@@ -63,9 +63,22 @@ serve(async (req) => {
       if (provider === "google") {
         const clientId = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID");
         if (!clientId) return j(500, { error: "GOOGLE_OAUTH_CLIENT_ID missing" });
-        const services: string[] = Array.isArray(body.services) && body.services.length
+        const requested: string[] = Array.isArray(body.services) && body.services.length
           ? body.services
-          : ["gmail", "calendar", "drive", "profile"];
+          : ["gmail", "calendar", "drive"];
+        const { data: existingGoogle } = await admin
+          .from("user_connections")
+          .select("scopes")
+          .eq("user_id", user.id)
+          .eq("provider", "google")
+          .maybeSingle();
+        const existingScopes = String((existingGoogle?.scopes ?? []).join(" "));
+        const keepExisting = [
+          /gmail/.test(existingScopes) ? "gmail" : "",
+          /calendar/.test(existingScopes) ? "calendar" : "",
+          /drive|documents/.test(existingScopes) ? "drive" : "",
+        ].filter(Boolean);
+        const services = Array.from(new Set([...requested, ...keepExisting, "profile"]));
         const scope = services.map((s) => GOOGLE_SCOPES[s]).filter(Boolean).join(" ");
         const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
         url.searchParams.set("client_id", clientId);
@@ -127,6 +140,13 @@ serve(async (req) => {
           ? new Date(Date.now() + (Number(tok.expires_in) - 60) * 1000).toISOString()
           : null;
 
+        const { data: existing } = await admin
+          .from("user_connections")
+          .select("refresh_token")
+          .eq("user_id", user.id)
+          .eq("provider", "google")
+          .maybeSingle();
+
         const { error: upErr } = await admin.from("user_connections").upsert({
           user_id: user.id,
           provider: "google",
@@ -134,7 +154,7 @@ serve(async (req) => {
           account_label: email ?? "Google",
           scopes: String(tok.scope || "").split(" ").filter(Boolean),
           access_token: tok.access_token,
-          refresh_token: tok.refresh_token ?? null,
+          refresh_token: tok.refresh_token ?? existing?.refresh_token ?? null,
           token_expires_at: expiresAt,
           metadata: { token_type: tok.token_type ?? "Bearer" },
         }, { onConflict: "user_id,provider" });
