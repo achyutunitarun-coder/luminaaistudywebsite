@@ -56,7 +56,7 @@ function validHtml(html: string): boolean {
     html.length > 900 &&
     (lower.includes("<!doctype") || lower.includes("<html")) &&
     lower.includes("</html>") &&
-    !/todo|lorem ipsum|coming soon|rest of (the )?content|\.\.\./i.test(html)
+    !/todo|lorem ipsum|coming soon|rest of (the )?content/i.test(html)
   );
 }
 
