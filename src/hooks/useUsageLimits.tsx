@@ -4,56 +4,80 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
 
-const LIMITS: Record<string, { limit: number; period: 'daily' | 'weekly' }> = {
-  // BASIC tier — strict per new pricing page
-  chat_messages:      { limit: 20,  period: 'daily' },
-  doubt_messages:     { limit: 20,  period: 'daily' },
-  notes_generations:  { limit: 3,   period: 'daily' },
-  test_generations:   { limit: 3,   period: 'daily' },
-  flashcard_sets:     { limit: 3,   period: 'daily' },
-  quick_study:        { limit: 3,   period: 'daily' },
-  quest_games:        { limit: 10,  period: 'daily' },
-  study_sessions:     { limit: 3,   period: 'daily' },
-  summaries:          { limit: 5,   period: 'daily' },
-  note_to_quiz:       { limit: 10,  period: 'daily' },
-  study_planners:     { limit: 15,  period: 'daily' },
-  smart_notebook:     { limit: 5,   period: 'daily' },
-  audio_analysis:     { limit: 5,   period: 'daily' },
-  lecture_notes:      { limit: 6,   period: 'daily' },
-  lecture_flashcards: { limit: 6,   period: 'daily' },
-  lecture_quiz:       { limit: 6,   period: 'daily' },
-  podcast_generation: { limit: 1,   period: 'weekly' },
-  weakness_radar:     { limit: 1,   period: 'weekly' },
-  // Hub modules
-  recall_mode:        { limit: 20,  period: 'daily' },
-  spaced_scheduler:   { limit: 5,   period: 'daily' },
-  smart_shuffle:      { limit: 2,   period: 'daily' },
-  explain_mode:       { limit: 2,   period: 'daily' },
-  why_engine:         { limit: 3,   period: 'daily' },
-  visualize_mode:     { limit: 1,   period: 'daily' },
-  cognitive_dashboard:{ limit: 3,   period: 'daily' },
-  // New Hub modules
-  pomodoro_timer:     { limit: 5,   period: 'daily' },
-  mind_mapping:       { limit: 3,   period: 'daily' },
-  sq3r_method:        { limit: 2,   period: 'daily' },
-  guided_lesson:      { limit: 5,   period: 'daily' },
+type Period = 'daily' | 'weekly' | 'monthly';
+type TierLimit = { limit: number; period: Period };
+type FeatureLimits = { basic: TierLimit; ultimate: TierLimit; pro_plus: TierLimit };
+
+// -1 = unlimited. Single source of truth for every plan tier.
+// Numbers come from the production pricing page (Basic / Ultimate ₹199 / PRO+ ₹499).
+const LIMITS: Record<string, FeatureLimits> = {
+  // ── Core chat & doubts ──
+  chat_messages:      { basic: { limit: 20,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  doubt_messages:     { basic: { limit: 20,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+
+  // ── Generators ──
+  notes_generations:  { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  test_generations:   { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  flashcard_sets:     { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  quick_study:        { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  summaries:          { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 50,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  note_to_quiz:       { basic: { limit: 10,  period: 'daily' }, ultimate: { limit: 50,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  study_planners:     { basic: { limit: 15,  period: 'daily' }, ultimate: { limit: 60,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+
+  // ── Sessions / games ──
+  study_sessions:     { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 20,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  quest_games:        { basic: { limit: 10,  period: 'daily' }, ultimate: { limit: 50,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+
+  // ── Smart Notebook / Resources ──
+  smart_notebook:     { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+
+  // ── Audio / Lecture pipeline ──
+  audio_analysis:     { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  lecture_notes:      { basic: { limit: 6,   period: 'daily' }, ultimate: { limit: 40,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  lecture_flashcards: { basic: { limit: 6,   period: 'daily' }, ultimate: { limit: 40,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  lecture_quiz:       { basic: { limit: 6,   period: 'daily' }, ultimate: { limit: 40,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  podcast_generation: { basic: { limit: 1,   period: 'weekly' }, ultimate: { limit: 5,  period: 'weekly' }, pro_plus: { limit: -1, period: 'weekly' } },
+
+  // ── Insights ──
+  weakness_radar:     { basic: { limit: 1,   period: 'weekly' }, ultimate: { limit: 5,  period: 'weekly' }, pro_plus: { limit: -1, period: 'weekly' } },
+
+  // ── Lumina Hub modules ──
+  recall_mode:        { basic: { limit: 20,  period: 'daily' }, ultimate: { limit: 100, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  spaced_scheduler:   { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  smart_shuffle:      { basic: { limit: 2,   period: 'daily' }, ultimate: { limit: 15,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  explain_mode:       { basic: { limit: 2,   period: 'daily' }, ultimate: { limit: 15,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  why_engine:         { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 20,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  visualize_mode:     { basic: { limit: 1,   period: 'daily' }, ultimate: { limit: 10,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  cognitive_dashboard:{ basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 20,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  pomodoro_timer:     { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  mind_mapping:       { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 20,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  sq3r_method:        { basic: { limit: 2,   period: 'daily' }, ultimate: { limit: 15,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  guided_lesson:      { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
 };
 
 export const useUsageLimits = () => {
   const { user } = useAuth();
-  const { isPro } = useSubscription();
+  const { plan, isProPlus } = useSubscription();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  const limitFor = useCallback((feature: string): TierLimit | null => {
+    const row = LIMITS[feature];
+    if (!row) return null;
+    return row[plan] ?? row.basic;
+  }, [plan]);
+
   const checkAndIncrement = useCallback(async (feature: string): Promise<boolean> => {
-    if (isPro) return true;
-    if (feature === 'resource_generation') return true;
+    // PRO+ users bypass everything.
+    if (isProPlus) return true;
+    if (feature === 'resource_generation' || feature === 'resources') return true;
     if (!user) {
       toast.error('Please sign in to use this feature.');
       return false;
     }
 
-    const config = LIMITS[feature];
+    const config = limitFor(feature);
     if (!config) return true;
+    if (config.limit < 0) return true; // unlimited
 
     try {
       const { data: currentCount } = await supabase.rpc('get_usage_count', {
@@ -64,7 +88,8 @@ export const useUsageLimits = () => {
 
       if ((currentCount ?? 0) >= config.limit) {
         const periodLabel = config.period === 'weekly' ? 'weekly' : 'daily';
-        toast.error(`You've reached your ${periodLabel} limit of ${config.limit} for this feature. Upgrade to Pro for unlimited access!`);
+        const upgradeTarget = plan === 'basic' ? 'Ultimate (₹199) or PRO+ (₹499)' : 'PRO+ (₹499)';
+        toast.error(`You've hit your ${periodLabel} limit of ${config.limit} for this tool. Upgrade to ${upgradeTarget} for more.`);
         setShowUpgrade(true);
         return false;
       }
@@ -78,7 +103,7 @@ export const useUsageLimits = () => {
       const newCount = (currentCount ?? 0) + 1;
       if (newCount >= Math.floor(config.limit * 0.8) && newCount < config.limit) {
         const remaining = config.limit - newCount;
-        toast.warning(`You have ${remaining} use${remaining === 1 ? '' : 's'} left for this feature today.`);
+        toast.warning(`Heads up — ${remaining} use${remaining === 1 ? '' : 's'} left ${config.period === 'weekly' ? 'this week' : 'today'}.`);
       }
 
       return true;
@@ -86,11 +111,11 @@ export const useUsageLimits = () => {
       console.error('Usage check failed:', err);
       return true;
     }
-  }, [user, isPro]);
+  }, [user, isProPlus, plan, limitFor]);
 
   const getUsage = useCallback(async (feature: string): Promise<{ used: number; limit: number } | null> => {
-    if (!user || isPro) return null;
-    const config = LIMITS[feature];
+    if (!user || isProPlus) return null;
+    const config = limitFor(feature);
     if (!config) return null;
 
     const { data } = await supabase.rpc('get_usage_count', {
@@ -100,7 +125,7 @@ export const useUsageLimits = () => {
     });
 
     return { used: data ?? 0, limit: config.limit };
-  }, [user, isPro]);
+  }, [user, isProPlus, limitFor]);
 
   return { checkAndIncrement, getUsage, showUpgrade, setShowUpgrade, LIMITS };
 };

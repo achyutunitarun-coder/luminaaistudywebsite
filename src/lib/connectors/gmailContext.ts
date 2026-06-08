@@ -36,9 +36,15 @@ function decodeBody(payload: any): string {
 }
 
 export function isGmailRequest(text: string): boolean {
-  return /\b(gmail|email|emails|inbox|mail)\b/i.test(text) &&
-    /\b(check|read|recent|latest|summari[sz]e|review|scan|find|look|show)\b/i.test(text);
+  const t = text.toLowerCase();
+  // Direct mentions of inbox / unread always qualify.
+  if (/\b(my\s+inbox|inbox|unread|new\s+(?:emails?|mails?)|any\s+(?:emails?|mails?))\b/.test(t)) return true;
+  // Otherwise we need an email noun + an action verb.
+  const noun = /\b(gmail|email|emails|mail|mails|message|messages)\b/.test(t);
+  const verb = /\b(check|read|recent|latest|summari[sz]e|review|scan|find|look|show|list|fetch|get|pull|open|got|have)\b/.test(t);
+  return noun && verb;
 }
+
 
 export async function loadRecentGmailContext(max = 5): Promise<string> {
   const list = await gmailApi.list(max);

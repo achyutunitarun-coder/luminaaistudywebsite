@@ -87,36 +87,40 @@ const NAV_ROUTES: Array<{ keywords: RegExp; path: string; label: string }> = [
 
 export function detectAgentAction(text: string): AgentAction | null {
   const t = text.trim();
+  if (!t) return null;
   const low = t.toLowerCase();
 
-  // Send email
-  const sendEmail = /^(send|write|compose|draft|email|mail)\b.*\b(to|@)\b/i.test(t) &&
-    /@/.test(t);
-  if (sendEmail) {
-    const toMatch = t.match(/([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+  // ─────────── 1. Send email ───────────
+  // Triggers: "send/email/mail/write/draft/compose/shoot/fire off ... to <email>"
+  //           OR "<verb> an email/message ... saying/about/regarding ..."
+  const emailVerbRx = /\b(send|email|mail|write|draft|compose|shoot|fire\s*off|reply|respond)\b/i;
+  const hasEmailAddr = /([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i.test(t);
+  const mentionsEmail = /\b(email|gmail|mail|message|inbox)\b/i.test(t);
+  if (emailVerbRx.test(t) && (hasEmailAddr || mentionsEmail)) {
+    const toMatch = t.match(/([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i);
     if (toMatch) {
       const to = toMatch[1];
-      // Subject: after "about" / "subject:" / "saying"
-      const subjMatch = t.match(/(?:subject:|about|regarding|re:)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:saying|body:|with body|that says|content:|message:|telling them)|[.!?]|$)/i);
-      const bodyMatch = t.match(/(?:saying|body:|content:|message:|telling them|that says)\s*["“']?([\s\S]+?)["”']?$/i);
+      const subjMatch = t.match(/(?:subject:|about|regarding|re:|titled)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:saying|body:|with body|that says|content:|message:|telling them|asking|and (?:say|tell))|[.!?]|$)/i);
+      const bodyMatch = t.match(/(?:saying|body:|content:|message:|telling them|that says|and (?:say|tell)(?:\s+(?:him|her|them))?)\s*["“']?([\s\S]+?)["”']?$/i);
       const subject = (subjMatch?.[1] || "Message from Lumina").trim().slice(0, 200);
-      const body = (bodyMatch?.[1] || subjMatch?.[1] || t).trim();
+      const body = (bodyMatch?.[1] || subjMatch?.[1] || t.replace(toMatch[0], "").trim()).trim();
       return { kind: "send_email", to, subject, body };
     }
   }
 
-  // Calendar timetable
-  if (/\b(create|make|build|generate)\b.*\b(timetable|schedule|study\s*plan)\b/i.test(t)) {
-    // Parse "from 9am to 5pm" range, otherwise default 9-17
-    const range = t.match(/from\s+([\d:apm]+)\s+to\s+([\d:apm]+)/i);
+  // ─────────── 2. Timetable / study plan ───────────
+  if (/\b(create|make|build|generate|plan|set\s*up|put\s*together)\b.*\b(timetable|schedule|study\s*plan|study\s*timetable|revision\s*plan|daily\s*plan|weekly\s*plan)\b/i.test(t)
+      || /^\s*(timetable|schedule|study\s*plan)\s+(for|covering|with)\b/i.test(t)) {
+    const range = t.match(/from\s+([\d:apm\s]+?)\s+to\s+([\d:apm\s]+?)(?:\s|$|[.,])/i);
     const start = parseTimeOfDay(range?.[1] || "9am") ?? { h: 9, m: 0 };
     const end = parseTimeOfDay(range?.[2] || "5pm") ?? { h: 17, m: 0 };
-    const subjects = (t.match(/(?:for|covering|with subjects?)\s+([^.]+)$/i)?.[1] || "")
-      .split(/,| and /i).map(s => s.trim()).filter(Boolean);
+    const subjMatch = t.match(/(?:for|covering|with subjects?|including|on)\s+([^.]+?)(?:\s+from\b|\s+between\b|$)/i);
+    const subjects = (subjMatch?.[1] || "")
+      .split(/,| and | & /i).map(s => s.trim()).filter(Boolean);
     const base = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today");
     base.setSeconds(0, 0);
-    const totalMinutes = (end.h * 60 + end.m) - (start.h * 60 + start.m);
-    const slots = Math.max(1, subjects.length || 4);
+    const totalMinutes = Math.max(60, (end.h * 60 + end.m) - (start.h * 60 + start.m));
+    const slots = Math.max(1, Math.min(8, subjects.length || 4));
     const slotLen = Math.max(30, Math.floor(totalMinutes / slots));
     const blocks: Array<{ title: string; start: Date; end: Date }> = [];
     for (let i = 0; i < slots; i++) {
@@ -129,26 +133,39 @@ export function detectAgentAction(text: string): AgentAction | null {
     return { kind: "create_timetable", blocks };
   }
 
-  // Single calendar event / task
-  const eventMatch = t.match(/\b(add|schedule|create|set)\b.*\b(event|meeting|reminder|study\s*block|session)\b\s+(?:for|at|on)?\s*([\s\S]+)/i);
-  if (eventMatch || /\b(remind me|add to (my )?calendar)\b/i.test(t)) {
+  // ─────────── 3. Single calendar event / reminder ───────────
+  const eventRx = /\b(add|schedule|create|set|put|book)\b.*\b(event|meeting|reminder|study\s*block|session|class|appointment|call|exam)\b/i;
+  const remindRx = /\b(remind me|set (?:a )?reminder|add to (?:my )?calendar|put (?:in|on) (?:my )?calendar)\b/i;
+  if (eventRx.test(t) || remindRx.test(t)) {
     const time = parseTimeOfDay(t) ?? { h: 18, m: 0 };
     const base = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today");
     base.setHours(time.h, time.m, 0, 0);
     const end = new Date(base); end.setHours(end.getHours() + 1);
-    const titleMatch = t.match(/(?:for|about|titled|called|named)\s+["“']?([^"”'\n]+?)["”']?(?:\s+(?:at|on|tomorrow|today)|[.!?]|$)/i);
+    const titleMatch = t.match(/(?:for|about|titled|called|named|to)\s+["“']?([^"”'\n]+?)["”']?(?:\s+(?:at|on|tomorrow|today|by)|[.!?]|$)/i);
     const title = (titleMatch?.[1] || "Study Block").trim();
     return { kind: "create_event", title, start: base, end };
   }
 
-  // Navigation
-  if (/^(go|navigate|open|take me|show me|jump)\s+(to|into)?\b/i.test(t)) {
+  // ─────────── 4. Task creation ───────────
+  if (/\b(add|create|make)\b.*\b(task|todo|to-do|to do)\b/i.test(t)) {
+    const titleMatch = t.match(/(?:task|todo|to-do|to do)\s*(?:to|:|called|named)?\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:at|on|by|tomorrow|today)|[.!?]|$)/i);
+    const title = (titleMatch?.[1] || "New task").trim();
+    const time = parseTimeOfDay(t);
+    const when = time ? (() => { const d = nextDateFor(low.includes("tomorrow") ? "tomorrow" : "today"); d.setHours(time.h, time.m, 0, 0); return d; })() : undefined;
+    return { kind: "create_task", title, when };
+  }
+
+  // ─────────── 5. Navigation ───────────
+  // Triggers: "go/open/take me/show me/jump/navigate to X", "/X please", "head over to X"
+  if (/\b(go|navigate|open|take me|show me|jump|head|bring me|launch)\b.*\b(to|into|over)\b/i.test(t)
+      || /^(open|show|launch)\s+/i.test(t)) {
     const hit = NAV_ROUTES.find(r => r.keywords.test(t));
     if (hit) return { kind: "navigate", path: hit.path, label: hit.label };
   }
 
   return null;
 }
+
 
 // ───────────── executor ─────────────
 
