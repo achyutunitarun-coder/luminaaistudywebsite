@@ -1887,6 +1887,51 @@ export type Database = {
           },
         ]
       }
+      user_connections: {
+        Row: {
+          access_token: string
+          account_email: string | null
+          account_label: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          provider: string
+          refresh_token: string | null
+          scopes: string[] | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          account_email?: string | null
+          account_label?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          provider: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          account_email?: string | null
+          account_label?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          provider?: string
+          refresh_token?: string | null
+          scopes?: string[] | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_credit_balances: {
         Row: {
           balance: number
