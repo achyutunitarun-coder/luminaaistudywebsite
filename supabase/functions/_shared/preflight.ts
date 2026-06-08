@@ -114,20 +114,39 @@ export async function preFlight(opts: PreFlightOptions): Promise<PreFlightResult
   if (!userMessage || !userId) return { proceed: true };
   const sb = svcClient(authHeader);
 
+  // Re-score the incoming message up front.
+  const { tier: incomingTier } = scoreCrisisSignal(userMessage);
+
   // Existing crisis session?
   try {
     const { data: active } = await sb
       .from("crisis_sessions")
-      .select("state")
+      .select("state, last_updated")
       .eq("user_id", userId)
       .maybeSingle();
     if (active && active.state !== "resolved" && active.state !== "escalated") {
-      const next = nextStateFor(active.state as CrisisState, userMessage);
-      await sb.from("crisis_sessions").upsert(
-        { user_id: userId, state: next, last_updated: new Date().toISOString() },
-        { onConflict: "user_id" },
-      );
-      return { proceed: false, interceptResponse: CRISIS_RESPONSES[next] };
+      const ageMs = active.last_updated
+        ? Date.now() - new Date(active.last_updated as string).getTime()
+        : Infinity;
+      const stale = ageMs > 2 * 60 * 60 * 1000; // 2h
+      // If the new message is clearly an academic/safe query (no distress signals
+      // and not a tiny emotional reply), auto-resolve and proceed normally.
+      const clearlySafe = incomingTier === "safe" && userMessage.trim().length > 12;
+
+      if (stale || clearlySafe) {
+        await sb.from("crisis_sessions").upsert(
+          { user_id: userId, state: "resolved", last_updated: new Date().toISOString() },
+          { onConflict: "user_id" },
+        );
+        // fall through to normal preflight (no intercept)
+      } else {
+        const next = nextStateFor(active.state as CrisisState, userMessage);
+        await sb.from("crisis_sessions").upsert(
+          { user_id: userId, state: next, last_updated: new Date().toISOString() },
+          { onConflict: "user_id" },
+        );
+        return { proceed: false, interceptResponse: CRISIS_RESPONSES[next] };
+      }
     }
   } catch (e) {
     console.warn("preflight crisis session lookup failed", e);
