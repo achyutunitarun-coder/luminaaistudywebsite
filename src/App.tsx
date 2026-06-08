@@ -45,6 +45,7 @@ import OAuthCallback from "@/pages/OAuthCallback";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import ArtifactGallery from "@/pages/ArtifactGallery";
+import Landing from "@/pages/Landing";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
@@ -70,6 +71,8 @@ const ProtectedLayout = () => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
+  // Note: '/' is the public landing. Authenticated users land on /dashboard.
+
   return (
     <SubscriptionProvider>
       <StudyTimerProvider>
@@ -89,7 +92,7 @@ const ProtectedLayout = () => {
 const AuthRoute = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <Auth />;
 };
 
@@ -104,12 +107,13 @@ const App = () => (
           <PaymentReturnHandler />
           <CreditToast />
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
 
             <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/artifacts" element={<ArtifactGallery />} />
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
