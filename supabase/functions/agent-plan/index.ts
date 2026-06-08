@@ -175,6 +175,21 @@ serve(async (req) => {
     plan.summary = String(plan.summary ?? "").slice(0, 500);
     plan.confirmation_required = !!plan.confirmation_required;
 
+    const needsGoogle = ["send_email", "create_event", "create_timetable", "drive_create_doc", "drive_search", "drive_read", "gmail_search"];
+    const missingCalendar = ["create_event", "create_timetable"].includes(plan.kind) && !connected.calendar;
+    const missingGmail = ["send_email", "gmail_search"].includes(plan.kind) && !connected.gmail;
+    const missingDrive = ["drive_create_doc", "drive_search", "drive_read"].includes(plan.kind) && !connected.drive;
+    const missingNotion = ["notion_create_page", "notion_search", "notion_read"].includes(plan.kind) && !connected.notion;
+    if ((needsGoogle.includes(plan.kind) && !connected.google) || missingCalendar || missingGmail || missingDrive || missingNotion) {
+      const service = missingCalendar ? "Google Calendar" : missingGmail ? "Gmail" : missingDrive ? "Google Drive" : missingNotion ? "Notion" : "Google";
+      plan = {
+        kind: "chat",
+        params: {},
+        summary: `${service} is not connected with the required permission. Open Connectors, reconnect ${service}, and approve the permission screen.`,
+        confirmation_required: false,
+      };
+    }
+
     return j(200, { plan });
   } catch (e) {
     return j(500, { error: e instanceof Error ? e.message : String(e) });
