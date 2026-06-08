@@ -2,7 +2,7 @@
 // Uses Lovable AI Gateway (gemini-3-flash) with structured JSON output to extract
 // concrete tool calls from natural language + recent conversation context.
 //
-// POST { message, history?: [{role,content}], connected: {google,notion}, route? }
+// POST { message, history?: [{role,content}], connected: {google,notion,gmail,calendar,drive}, route? }
 //   → { plan: { kind, params, summary, confirmation_required, fallback_chat? } }
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -60,8 +60,8 @@ RULES:
    notion create). false for read/search and chat/artifact/navigate.
 5. summary: ONE friendly sentence describing what you'll do, e.g. "Add 6 study blocks to your Google Calendar tomorrow 9 AM – 5 PM."
 6. If the user clearly wants a complex artifact (notes/exam/slides/code), pick artifact + type.
-7. If the action requires a connector the user hasn't connected, set kind = "chat" and explain
-   in summary that they need to connect it.
+7. If the action requires a connector/service the user hasn't connected, set kind = "chat" and explain
+   in summary that they need to connect that exact service.
 8. NEVER invent emails the user didn't mention.
 9. Be aggressive: 360° coverage. If there's any plausible structured action, extract it. Only
    fall back to "chat" for pure Q&A, explanations, definitions, opinions, and ambiguous requests.
@@ -123,7 +123,7 @@ serve(async (req) => {
       `TODAY (user's tz): ${localToday}\n` +
       `TOMORROW (user's tz): ${localTomorrow}\n` +
       `USER TIMEZONE: ${timezone ?? "unknown"}\n` +
-      `CONNECTED SERVICES: google=${connected.google ? "yes" : "no"}, notion=${connected.notion ? "yes" : "no"}\n\n` +
+      `CONNECTED SERVICES: google=${connected.google ? "yes" : "no"}, gmail=${connected.gmail ? "yes" : "no"}, calendar=${connected.calendar ? "yes" : "no"}, drive=${connected.drive ? "yes" : "no"}, notion=${connected.notion ? "yes" : "no"}\n\n` +
       `USER MESSAGE:\n${message}\n\n` +
       `Reminder: datetimes for calendar actions MUST be naive local ISO like "${localTomorrow}T09:00:00" — no Z, no offset.\n` +
       `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
