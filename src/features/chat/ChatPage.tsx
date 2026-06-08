@@ -143,6 +143,7 @@ const ChatPage = () => {
   const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [artifactSplit, setArtifactSplit] = useState(40);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
@@ -177,6 +178,15 @@ const ChatPage = () => {
   useEffect(() => {
     currentChatIdRef.current = currentChatId;
   }, [currentChatId]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<number>).detail;
+      if (typeof detail === "number") setArtifactSplit(detail);
+    };
+    window.addEventListener("lumina-artifact-split", handler);
+    return () => window.removeEventListener("lumina-artifact-split", handler);
+  }, []);
 
   useEffect(() => {
     messages.forEach((m, index) => {
