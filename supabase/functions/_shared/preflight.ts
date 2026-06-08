@@ -152,7 +152,7 @@ export async function preFlight(opts: PreFlightOptions): Promise<PreFlightResult
     console.warn("preflight crisis session lookup failed", e);
   }
 
-  const { tier } = scoreCrisisSignal(userMessage);
+  const tier = incomingTier;
 
   if (tier === "crisis") {
     try {
