@@ -352,6 +352,9 @@ export default function LuminaComputer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
 
+  // 6-agent pipeline status (hook drives the lumina-pipeline edge function).
+  const pipeline = useLuminaPipeline();
+
   const activeFile = useMemo(
     () => files.find((f) => f.path === activePath) ?? files[0] ?? null,
     [files, activePath],
