@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronLeft,
@@ -398,7 +398,7 @@ function DeviceSwitch({ device, onChange }: { device: Device; onChange: (v: Devi
   return <div className="hidden rounded-full border border-white/10 bg-white/[0.035] p-1 sm:inline-flex">{entries.map(([id, Icon]) => <button key={id} type="button" title={id} onClick={() => onChange(id)} className={cn("artifact-icon-btn", device === id && "bg-white/12 text-foreground")}><Icon className="h-3.5 w-3.5" /></button>)}</div>;
 }
 
-function HtmlPreview({ html, device, onConsole }: { html: string; device: Device; onConsole: React.Dispatch<React.SetStateAction<string[]>> }) {
+function HtmlPreview({ html, device, onConsole }: { html: string; device: Device; onConsole: Dispatch<SetStateAction<string[]>> }) {
   const srcDoc = useMemo(() => `${html}<script>['log','warn','error'].forEach(function(k){var old=console[k];console[k]=function(){parent.postMessage({type:'lumina-console',level:k,args:[].slice.call(arguments).map(String)},'*');old.apply(console,arguments)}});window.addEventListener('error',function(e){parent.postMessage({type:'lumina-console',level:'error',args:[e.message]},'*')});<\/script>`, [html]);
   useEffect(() => {
     const handler = (event: MessageEvent) => {
