@@ -6,6 +6,10 @@ import {
   X, FileText, ChevronDown, Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
+
+const sanitizeHtml = (html: string) =>
+  DOMPurify.sanitize(html, { FORCE_BODY: true, ADD_ATTR: ["target"] });
 import { exportMarkdown, exportHTML, exportPDF } from "@/features/documents/exports";
 import { streamOpenRouter, pickModel } from "@/lib/openrouterRouting";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,15 +45,15 @@ export default function Documents() {
       const docImport = localStorage.getItem("lumina_doc_import");
       const canvasTitle = localStorage.getItem("lumina_canvas_export_title");
       if (canvasExport) {
-        editor.innerHTML = canvasExport;
+        editor.innerHTML = sanitizeHtml(canvasExport);
         localStorage.removeItem("lumina_canvas_export");
         if (canvasTitle) { setTitle(canvasTitle); localStorage.removeItem("lumina_canvas_export_title"); }
       } else if (docImport) {
-        editor.innerHTML = docImport;
+        editor.innerHTML = sanitizeHtml(docImport);
         localStorage.removeItem("lumina_doc_import");
       } else {
         const saved = localStorage.getItem(DOC_KEY);
-        if (saved) editor.innerHTML = saved;
+        if (saved) editor.innerHTML = sanitizeHtml(saved);
         const savedTitle = localStorage.getItem(TITLE_KEY);
         if (savedTitle) setTitle(savedTitle);
       }
@@ -335,7 +339,7 @@ export default function Documents() {
             <article
               className="lumina-editor max-w-[760px] mx-auto px-8 py-16 text-[17px] leading-[1.8] text-white/[0.9]"
               style={{ caretColor: "#14b8a6", fontFamily: "var(--font-body)" }}
-              dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML ?? "" }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(editorRef.current?.innerHTML ?? "") }}
             />
           ) : (
             <div

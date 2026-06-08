@@ -213,7 +213,7 @@ export default function ArtifactGallery() {
           <iframe
             title={result.preset.label}
             srcDoc={result.html}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-forms allow-popups"
             className={`w-full ${fullscreen ? "h-[calc(100vh-49px)]" : "h-[720px]"} bg-white`}
           />
         </div>
