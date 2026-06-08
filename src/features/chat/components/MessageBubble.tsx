@@ -50,10 +50,22 @@ const ThinkingBlock = ({ content }: { content: string }) => {
   );
 };
 
-export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp, loadingStage }: Props) => {
+export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp, onConfirmAction, onCancelAction, loadingStage }: Props) => {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
+
+  if (message.type === 'action_confirm' && message.pendingAction) {
+    return (
+      <ActionConfirmCard
+        action={message.pendingAction}
+        summary={message.actionSummary || message.content}
+        done={message.actionResolved}
+        onConfirm={async () => { await onConfirmAction?.(); }}
+        onCancel={() => onCancelAction?.()}
+      />
+    );
+  }
 
   if (message.type === 'loading') {
     return (
