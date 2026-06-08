@@ -168,11 +168,29 @@ export function detectAgentAction(text: string): AgentAction | null {
     const toMatch = t.match(/([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})/i);
     if (toMatch) {
       const to = toMatch[1];
-      const subjMatch = t.match(/(?:subject:|about|regarding|re:|titled)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:saying|body:|with body|that says|content:|message:|telling them|asking|and (?:say|tell))|[.!?]|$)/i);
-      const bodyMatch = t.match(/(?:saying|body:|content:|message:|telling them|that says|and (?:say|tell)(?:\s+(?:him|her|them))?)\s*["“']?([\s\S]+?)["”']?$/i);
-      const subject = (subjMatch?.[1] || "Message from Lumina").trim().slice(0, 200);
-      const body = (bodyMatch?.[1] || subjMatch?.[1] || t.replace(toMatch[0], "").trim()).trim();
-      return { kind: "send_email", to, subject, body };
+      // Explicit content only when the user literally quotes a body or says
+      // "with body: ...". Otherwise we let Lumina draft the email properly.
+      const explicitBodyMatch = t.match(/(?:body:|content:|that\s+says\s*[:"“'])\s*["“']?([\s\S]+?)["”']?$/i);
+      const explicitSubjMatch = t.match(/(?:subject:)\s*["“']?([^"”'\n]+?)["”']?(?:\s+(?:body:|content:)|[.!?]|$)/i);
+      if (explicitBodyMatch) {
+        return {
+          kind: "send_email",
+          to,
+          subject: (explicitSubjMatch?.[1] || "Message from Lumina").trim().slice(0, 200),
+          body: explicitBodyMatch[1].trim(),
+          draft: false,
+        };
+      }
+      // Strip the recipient email so the drafter sees only the instruction.
+      const instruction = t.replace(toMatch[0], "").trim();
+      return {
+        kind: "send_email",
+        to,
+        subject: "",
+        body: "",
+        instruction,
+        draft: true,
+      };
     }
   }
 
