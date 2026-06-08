@@ -37,14 +37,14 @@ import {
   type CreditAction,
 } from "@/features/credits/creditsSystem";
 import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
-import { detectAgentAction, executeAgentAction } from "@/lib/agent/actions";
+import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  type: "text" | "artifact" | "error" | "loading" | "insufficient_credits";
+  type: "text" | "artifact" | "error" | "loading" | "insufficient_credits" | "action_confirm";
   artifactHtml?: string;
   artifactType?: "notes" | "exam" | "slides" | "code";
   topic?: string;
@@ -53,6 +53,9 @@ export interface Message {
   requiredCredits?: number;
   currentBalance?: number;
   isStreaming?: boolean;
+  pendingAction?: AgentAction;
+  actionSummary?: string;
+  actionResolved?: boolean;
   timestamp: number;
 }
 
@@ -692,25 +695,64 @@ Q3: ... || A: ...
       setLoadingStage("Detecting intent…");
 
       try {
-        // ── Agentic actions: send email, create calendar event/timetable, navigate ──
-        const agent = detectAgentAction(text);
-        if (agent) {
-          setLoadingStage(
-            agent.kind === "send_email" ? "Sending email…"
-            : agent.kind === "navigate" ? "Navigating…"
-            : "Updating your calendar…"
-          );
-          const result = await executeAgentAction(agent, (p) => navigate(p));
-          const finalMessage: Message = {
-            id: uid(),
-            role: "assistant",
-            content: result.message,
-            type: result.ok ? "text" : "error",
-            timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, finalMessage]);
-          await persistMessage(chatId, finalMessage);
-          return;
+        // ── LLM-powered agent planner: 360° intent detection w/ chat history context ──
+        if (!forcedType) {
+          setLoadingStage("Routing…");
+          const history10 = history
+            .filter((m) => m.type === "text" || m.type === "artifact")
+            .slice(-10)
+            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content || "" }));
+          const plan = await planAction(text, history10);
+          const action = plan.kind === "chat" ? null : planToAction(plan);
+
+          if (action && action.kind === "artifact") {
+            setLoadingStage(`Queueing your ${action.type}…`);
+            await runArtifact(action.type, action.topic, text, chatId);
+            return;
+          }
+
+          if (action && action.kind === "navigate") {
+            const result = await executeAgentAction(action, (p) => navigate(p));
+            const finalMessage: Message = {
+              id: uid(), role: "assistant",
+              content: result.message,
+              type: result.ok ? "text" : "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
+
+          if (action) {
+            // Confirmation-required actions get a card; read-only ones execute immediately.
+            if (actionRequiresConfirmation(action)) {
+              const confirmMsg: Message = {
+                id: uid(),
+                role: "assistant",
+                type: "action_confirm",
+                content: plan.summary || "I'd like to run this — confirm?",
+                pendingAction: action,
+                actionSummary: plan.summary,
+                timestamp: Date.now(),
+              };
+              setMessages((prev) => [...prev, confirmMsg]);
+              await persistMessage(chatId, confirmMsg);
+              return;
+            }
+            // Read-only: execute now.
+            setLoadingStage("Working…");
+            const result = await executeAgentAction(action, (p) => navigate(p));
+            const finalMessage: Message = {
+              id: uid(), role: "assistant",
+              content: result.message,
+              type: result.ok ? "text" : "error",
+              timestamp: Date.now(),
+            };
+            setMessages((prev) => [...prev, finalMessage]);
+            await persistMessage(chatId, finalMessage);
+            return;
+          }
         }
 
         let intent: Intent;
@@ -719,6 +761,7 @@ Q3: ... || A: ...
           intent = (forcedType.toUpperCase() + "_ARTIFACT") as Intent;
           topic = text;
         } else {
+          // Planner returned chat — also fall back to deterministic detector as safety net
           const r = detectIntent(text);
           intent = r.confidence < 0.85 ? "CHAT" : r.intent;
           topic = r.topic || text;
@@ -845,6 +888,45 @@ Q3: ... || A: ...
     },
     [handleSend, messages, removePersistedFrom],
   );
+
+  const handleConfirmAction = useCallback(
+    async (msgId: string) => {
+      const msg = messages.find((m) => m.id === msgId);
+      if (!msg?.pendingAction) return;
+      // Mark this confirm card as resolved
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, actionResolved: true } : m)));
+      const chatId = currentChatIdRef.current;
+      try {
+        const result = await executeAgentAction(msg.pendingAction, (p) => navigate(p));
+        const finalMessage: Message = {
+          id: uid(),
+          role: "assistant",
+          content: result.message,
+          type: result.ok ? "text" : "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, finalMessage]);
+        await persistMessage(chatId, finalMessage);
+      } catch (e: any) {
+        const finalMessage: Message = {
+          id: uid(), role: "assistant",
+          content: `Action failed: ${e?.message || e}`,
+          type: "error",
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, finalMessage]);
+        await persistMessage(chatId, finalMessage);
+      }
+    },
+    [messages, navigate, persistMessage],
+  );
+
+  const handleCancelAction = useCallback((msgId: string) => {
+    setMessages((prev) => prev.map((m) =>
+      m.id === msgId ? { ...m, actionResolved: true, content: "Cancelled." } : m
+    ));
+  }, []);
+
 
   const empty = messages.length === 0;
 
@@ -1037,6 +1119,8 @@ Q3: ... || A: ...
               onRetry={handleRetry}
               onEdit={handleEdit}
               onTopUp={() => setBuyOpen(true)}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
             />
           )}
 

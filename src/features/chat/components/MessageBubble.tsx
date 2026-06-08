@@ -3,6 +3,7 @@ import { User, Sparkles, AlertCircle, Zap, Copy, RefreshCw, ThumbsUp, ThumbsDown
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { ArtifactViewer } from './ArtifactViewer';
 import { LoadingStages } from './LoadingStages';
+import { ActionConfirmCard } from './ActionConfirmCard';
 import { CREDIT_PACKS, openCheckout } from '@/features/credits/DodoPayments';
 import { toast } from 'sonner';
 import type { Message } from '../ChatPage';
@@ -13,6 +14,8 @@ interface Props {
   onRetry?: () => void;
   onEdit?: (newText: string) => void;
   onTopUp?: () => void;
+  onConfirmAction?: () => void | Promise<void>;
+  onCancelAction?: () => void;
   loadingStage?: string;
 }
 
@@ -47,10 +50,22 @@ const ThinkingBlock = ({ content }: { content: string }) => {
   );
 };
 
-export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp, loadingStage }: Props) => {
+export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp, onConfirmAction, onCancelAction, loadingStage }: Props) => {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
+
+  if (message.type === 'action_confirm' && message.pendingAction) {
+    return (
+      <ActionConfirmCard
+        action={message.pendingAction}
+        summary={message.actionSummary || message.content}
+        done={message.actionResolved}
+        onConfirm={async () => { await onConfirmAction?.(); }}
+        onCancel={() => onCancelAction?.()}
+      />
+    );
+  }
 
   if (message.type === 'loading') {
     return (

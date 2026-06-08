@@ -17,6 +17,8 @@ const ALLOWED_HOSTS = new Set([
   "gmail.googleapis.com",
   "www.googleapis.com",
   "calendar.googleapis.com",        // alias - some clients use this
+  "docs.googleapis.com",            // Google Docs (create/edit)
+  "sheets.googleapis.com",          // Google Sheets
   "api.notion.com",
 ]);
 
