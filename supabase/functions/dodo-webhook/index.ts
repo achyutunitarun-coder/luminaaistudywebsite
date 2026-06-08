@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const ACTIVE_STATUSES = new Set(["active", "paid", "succeeded", "success", "completed", "approved", "renewed", "on_trial"]);
+const INACTIVE_STATUSES = new Set(["cancelled", "canceled", "failed", "expired", "inactive", "past_due", "unpaid"]);
+
 async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
   const secret = Deno.env.get("DODO_WEBHOOK_SECRET");
   if (!secret) {
@@ -57,15 +60,14 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Extract customer email from Dodo payload
-    const customerEmail = data?.customer?.email || data?.customer_email || data?.email;
-    const subscriptionId = data?.subscription_id || data?.subscription?.id || data?.id;
-    const status = String(data?.status || data?.payment_status || '').toLowerCase();
-    const paymentId = data?.payment_id || data?.payment?.id || data?.order_id || data?.id;
-    const productId = data?.product_id || data?.product?.id || data?.items?.[0]?.product_id || data?.items?.[0]?.product?.id || '';
+    const customerEmail = String(data?.customer?.email || data?.customer_email || data?.email || "").toLowerCase();
+    const subscriptionId = data?.subscription_id || data?.subscription?.id || (String(type).startsWith("subscription.") ? data?.id : null);
+    const rawStatus = String(data?.status || data?.payment_status || type?.split(".")?.[1] || "").toLowerCase();
+    const status = ACTIVE_STATUSES.has(rawStatus) ? "active" : INACTIVE_STATUSES.has(rawStatus) ? "inactive" : rawStatus;
+    const paymentId = data?.payment_id || data?.payment?.id || data?.order_id || (!String(type).startsWith("subscription.") ? data?.id : null);
+    const productId = data?.product_id || data?.product?.id || data?.items?.[0]?.product_id || data?.items?.[0]?.product?.id || data?.product_cart?.[0]?.product_id || "";
 
     // Determine plan tier from product ID
-    const ULTIMATE_PRODUCT_ID = 'pdt_0NbKNHJ5nK556qajM5MKa';
     const PRO_PLUS_PRODUCT_ID = 'pdt_0Nbybrhl2M0GdzScdoAwb';
     let planTier = 'ultimate'; // default paid subscription tier
     if (productId === PRO_PLUS_PRODUCT_ID) planTier = 'pro_plus';
@@ -86,9 +88,13 @@ serve(async (req) => {
       });
     }
 
-    // Find user by email
-    const { data: userData } = await supabase.auth.admin.listUsers();
-    const user = userData?.users?.find((u: { email?: string }) => u.email === customerEmail);
+    let user: { id: string; email?: string } | undefined;
+    for (let page = 1; page <= 20 && !user; page++) {
+      const { data: userData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+      if (listError) throw listError;
+      user = userData?.users?.find((u: { email?: string }) => u.email?.toLowerCase() === customerEmail);
+      if (!userData?.users?.length || userData.users.length < 100) break;
+    }
 
     if (!user) {
       console.error("User not found for email:", customerEmail);
@@ -99,33 +105,21 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-    const isActive = ["active", "paid", "succeeded", "success", "completed", "approved"].includes(status);
+    const isActive = status === "active" || ACTIVE_STATUSES.has(rawStatus);
 
-    if (isActive && productId && CREDIT_PRODUCTS[productId]) {
-      const { error: creditError } = await supabase.rpc("apply_dodo_credits_for_user", {
+    if (productId && CREDIT_PRODUCTS[productId]) {
+      const { error: creditError } = await supabase.rpc("sync_dodo_entitlement_for_user", {
         _user_id: userId,
         _product_id: productId,
         _payment_id: String(paymentId || subscriptionId || `${type}:${productId}:${userId}`),
+        _subscription_id: subscriptionId ? String(subscriptionId) : null,
+        _status: isActive ? "active" : "inactive",
+        _current_period_end: data?.current_period_end || data?.current_period_end_at || data?.next_billing_date || null,
         _source: "dodo_webhook",
       });
       if (creditError) console.error("Credit allocation failed:", creditError);
-    }
-
-    if (productId === ULTIMATE_PRODUCT_ID || productId === PRO_PLUS_PRODUCT_ID || subscriptionId) {
-      const { error } = await supabase
-        .from("subscriptions")
-        .upsert({
-          user_id: userId,
-          subscription_id: subscriptionId,
-          status: isActive ? "active" : "inactive",
-          plan: isActive ? planTier : "basic",
-          current_period_end: data?.current_period_end || null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
-
-      if (error) {
-        console.error("DB error:", error);
-        return new Response(JSON.stringify({ error: "DB update failed" }), {
+      if (creditError) {
+        return new Response(JSON.stringify({ error: "Entitlement sync failed" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

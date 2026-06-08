@@ -2186,6 +2186,26 @@ export type Database = {
           success: boolean
         }[]
       }
+      sync_dodo_entitlement_for_user: {
+        Args: {
+          _current_period_end?: string
+          _payment_id?: string
+          _product_id: string
+          _source?: string
+          _status?: string
+          _subscription_id?: string
+          _user_id: string
+        }
+        Returns: {
+          applied: boolean
+          balance: number
+          credits_added: number
+          duplicate: boolean
+          plan: string
+          product_name: string
+          subscription_active: boolean
+        }[]
+      }
       sync_leaderboard: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: {
