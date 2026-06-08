@@ -44,9 +44,11 @@ interface Props {
   activeLabel?: string | null;
   running?: boolean;
   compact?: boolean;
+  skills?: Array<{ id: string; label: string; icon: string }>;
+  tier?: "TIER_3" | "TIER_2" | "TIER_1" | null;
 }
 
-export function AgentPipelinePanel({ states, activeLabel, running, compact }: Props) {
+export function AgentPipelinePanel({ states, activeLabel, running, compact, skills, tier }: Props) {
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="px-3.5 py-2.5 flex items-center gap-2 border-b border-white/[0.05]">
@@ -59,6 +61,33 @@ export function AgentPipelinePanel({ states, activeLabel, running, compact }: Pr
           </span>
         )}
       </div>
+
+      {(skills && skills.length > 0) || tier ? (
+        <div className="px-3.5 py-2 flex flex-wrap items-center gap-1.5 border-b border-white/[0.04] bg-white/[0.015]">
+          {skills?.map((s) => (
+            <span
+              key={s.id}
+              title={s.label}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium text-emerald-300/90 bg-emerald-400/[0.08] border border-emerald-400/20"
+            >
+              <span>{s.icon}</span>
+              <span className="truncate max-w-[110px]">{s.label}</span>
+            </span>
+          ))}
+          {tier && (
+            <span
+              className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
+                tier === "TIER_1"
+                  ? "text-amber-300 bg-amber-400/[0.10] border border-amber-400/30"
+                  : "text-white/60 bg-white/[0.04] border border-white/10"
+              }`}
+              title={tier === "TIER_1" ? "Stunning — TIER 1 achieved" : "Pushing output to TIER 1"}
+            >
+              {tier === "TIER_1" ? "✨ TIER 1" : "→ TIER 1"}
+            </span>
+          )}
+        </div>
+      ) : null}
 
       <ol className="p-2 space-y-1">
         {ORDER.map((stage, i) => {
