@@ -262,9 +262,19 @@ export async function executeAgentAction(
   switch (action.kind) {
     case "send_email": {
       try {
-        const raw = rfc2822Email(action.to, action.subject, action.body);
+        let subject = action.subject;
+        let body = action.body;
+        if (action.draft || !subject || !body) {
+          const drafted = await draftEmailWithAI(
+            action.instruction || action.body || "Write a friendly message.",
+            action.to,
+          );
+          subject = drafted.subject;
+          body = drafted.body;
+        }
+        const raw = rfc2822Email(action.to, subject, body);
         await gmailApi.send(raw);
-        return { ok: true, message: `✅ Email sent to **${action.to}**\n\n**Subject:** ${action.subject}\n\n${action.body}` };
+        return { ok: true, message: `✅ Email sent to **${action.to}**\n\n**Subject:** ${subject}\n\n${body}` };
       } catch (e: any) {
         const msg = String(e?.message || e);
         if (msg.includes("not_connected") || msg.includes("missing a required permission")) {
