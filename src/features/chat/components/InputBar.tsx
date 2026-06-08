@@ -5,6 +5,13 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { ConnectorPlusMenu } from '@/components/connectors/ConnectorPlusMenu';
+import { GmailMiniBrowser } from '@/components/connectors/GmailMiniBrowser';
+import { CalendarMiniBrowser } from '@/components/connectors/CalendarMiniBrowser';
+import { DriveMiniBrowser } from '@/components/connectors/DriveMiniBrowser';
+import { NotionMiniBrowser } from '@/components/connectors/NotionMiniBrowser';
+import { serializeContextBlocks, type ContextBlock } from '@/lib/connectors/contextBlock';
+import type { ConnectorServiceId } from '@/lib/connectors/config';
 
 interface Props {
   value: string;
@@ -31,6 +38,8 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
   const fileRef = useRef<HTMLInputElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [contextBlocks, setContextBlocks] = useState<ContextBlock[]>([]);
+  const [activeBrowser, setActiveBrowser] = useState<ConnectorServiceId | null>(null);
 
   useEffect(() => {
     const ta = taRef.current;
@@ -40,7 +49,6 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
   }, [value]);
 
   const buildValueWithAttachments = () => {
-    if (attachments.length === 0) return value;
     const blobs: string[] = [];
     for (const a of attachments) {
       if (a.kind === 'text' && a.text) {
@@ -49,16 +57,27 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         blobs.push(`\n\n[attached image: ${a.name}]`);
       }
     }
-    return blobs.length ? (value || '') + blobs.join('') : value;
+    const ctx = serializeContextBlocks(contextBlocks);
+    if (!blobs.length && !ctx) return value;
+    return (value || '') + blobs.join('') + ctx;
   };
 
   const submit = () => {
-    if (!value.trim() && attachments.length === 0) return;
+    if (!value.trim() && attachments.length === 0 && contextBlocks.length === 0) return;
     const nextValue = buildValueWithAttachments();
     onChange(nextValue);
     setAttachments([]);
+    setContextBlocks([]);
     onSend(nextValue);
   };
+
+  const addContextBlock = (b: ContextBlock) => {
+    setContextBlocks((prev) => prev.find((x) => x.id === b.id) ? prev : [...prev, b]);
+    toast.success('Added to chat context');
+  };
+
+  const removeContextBlock = (id: string) =>
+    setContextBlocks((p) => p.filter((b) => b.id !== id));
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
