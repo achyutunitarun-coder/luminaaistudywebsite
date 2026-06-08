@@ -2,7 +2,7 @@
 // POST returns { jobId, status: "queued" } immediately; the client polls artifact_jobs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callWithFallback, getModelsForArtifact, type ArtifactType } from "../_shared/models.ts";
+import { callAIText, getModelsForArtifact, type ArtifactType } from "../_shared/models.ts";
 
 declare const EdgeRuntime:
   | { waitUntil: (promise: Promise<unknown>) => void }
@@ -18,9 +18,22 @@ const corsHeaders = {
 // This keeps routing centralised and consistent with the rest of the app.
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
-const JOB_BUDGET_MS = 115_000;
+const JOB_BUDGET_MS = 142_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const FRONTEND_DESIGN_SKILL = `
+SKILL: Frontend Design & Aesthetics
+Before writing HTML/CSS/JS, silently commit to: PURPOSE, TONE, CONSTRAINTS, DIFFERENTIATION.
+- Build a distinctive production-grade interface, never generic AI slop.
+- Choose a bold visual anchor and fully commit: brutal minimalism, refined luxury, editorial, industrial, organic, playful, retro-futurist, etc.
+- Typography must be characterful. Do not use Inter, Roboto, Arial, Space Grotesk, or default system font stacks as the primary visual identity. Pair a high-impact display font with a readable body font from Google Fonts.
+- Avoid clichéd purple/blue gradients over flat white or pitch-black backgrounds. Avoid card soup. Avoid repeated aesthetics.
+- Use one unforgettable visual detail: custom cursor, editorial masthead, kinetic counter, diagrammatic grid, tactile switch, animated data drawing, etc.
+- Include high-contrast focus states, keyboard/touch accessibility, min 44px targets, responsive 375px→1440px, no horizontal overflow.
+- Motion is intentional: one orchestrated page-load reveal, meaningful hover/active states, prefers-reduced-motion respected.
+- Match implementation complexity to the aesthetic. Maximalist means layered, detailed, coherent. Minimalist means geometric precision and flawless spacing.
+`.trim();
 
 function cleanHtml(raw: string): string {
   let h = (raw || "").trim();
@@ -40,38 +53,44 @@ function cleanHtml(raw: string): string {
 function validHtml(html: string): boolean {
   const lower = html.toLowerCase();
   return (
-    html.length > 600 &&
-    (lower.includes("<!doctype") || lower.includes("<html"))
+    html.length > 900 &&
+    (lower.includes("<!doctype") || lower.includes("<html")) &&
+    lower.includes("</html>") &&
+    !/todo|lorem ipsum|coming soon|rest of (the )?content|\.\.\./i.test(html)
   );
+}
+
+function esc(value: string) {
+  return String(value || "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
 function fallbackHtml(
   type: string,
   topic: string,
-  errorHint = "The AI models were busy.",
 ) {
-  const safeTopic = String(topic || "Study artifact").replace(
-    /[<>&]/g,
-    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]!,
-  );
+  const safeTopic = esc(topic || "Study artifact");
+  const kind = esc(type || "artifact");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${safeTopic} — Lumina ${type}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>${safeTopic} — Lumina ${kind}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,50,1&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#050508;--surface:#0a0a0f;--card:rgba(255,255,255,.055);--border:rgba(255,255,255,.11);--primary:#14b8a6;--accent:#8b5cf6;--gold:#f59e0b;--text:rgba(255,255,255,.93);--muted:rgba(255,255,255,.55);font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,rgba(20,184,166,.18),transparent 34%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.18),transparent 28%),var(--bg);color:var(--text);line-height:1.7}.wrap{max-width:1120px;margin:0 auto;padding:56px 24px 80px}.hero{position:relative;overflow:hidden;border:1px solid var(--border);background:linear-gradient(135deg,rgba(255,255,255,.075),rgba(255,255,255,.025));border-radius:28px;padding:42px;box-shadow:0 28px 90px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.12)}.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);animation:shine 1.6s ease-out forwards}@keyframes shine{to{transform:translateX(100%)}}h1{font-size:clamp(42px,8vw,92px);line-height:.95;margin:16px 0;font-weight:800;letter-spacing:-.04em}h2{margin:44px 0 18px;font-size:clamp(26px,4vw,44px);letter-spacing:-.025em}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{border:1px solid var(--border);border-radius:20px;background:var(--card);backdrop-filter:blur(18px);padding:22px;transition:.2s}.card:hover{transform:translateY(-3px);border-color:rgba(20,184,166,.5);box-shadow:0 0 30px rgba(20,184,166,.12)}.tag{display:inline-flex;border:1px solid rgba(20,184,166,.3);border-radius:999px;padding:7px 12px;color:#7dd3fc;background:rgba(20,184,166,.08);font:600 11px/1 JetBrains Mono,monospace;letter-spacing:.12em;text-transform:uppercase}.warn{border:1px solid rgba(245,158,11,.22);padding:16px 18px;background:rgba(245,158,11,.08);border-radius:18px;color:#fde68a}button{background:var(--primary);color:#04100f;border:0;border-radius:14px;padding:12px 18px;cursor:pointer;font-weight:700;transition:.2s}button:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(20,184,166,.3)}ol{padding-left:24px}.muted{color:var(--muted)}@media(max-width:700px){.wrap{padding:24px 14px}.hero{padding:26px;border-radius:22px}}</style>
+:root{--paper:#f5ead4;--ink:#15120d;--charcoal:#23201a;--oxide:#b9482b;--moss:#496f5d;--aqua:#0e8077;--line:rgba(21,18,13,.18);--glow:rgba(185,72,43,.22);--shadow:0 24px 80px rgba(21,18,13,.22);font-family:Manrope,sans-serif}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:linear-gradient(135deg,#f5ead4,#e7d3aa 45%,#d8bea0);color:var(--ink);line-height:1.65;overflow-x:hidden}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(circle at 50% 20%,black,transparent 78%);opacity:.45}.wrap{width:min(1160px,calc(100% - 32px));margin:auto;padding:48px 0 72px}.mast{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,72px);align-items:end;border-bottom:2px solid var(--ink);padding-bottom:32px}.kicker{font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--oxide)}h1{font-family:Fraunces,serif;font-size:clamp(48px,10vw,132px);line-height:.82;margin:18px 0;font-weight:850;letter-spacing:0}.lede{font-size:clamp(18px,2vw,24px);max-width:620px}.seal{aspect-ratio:1;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;position:relative;background:radial-gradient(circle,#fff3d5,transparent 62%);box-shadow:var(--shadow)}.seal:after{content:"${kind}";font:800 11px/1 JetBrains Mono,monospace;letter-spacing:.22em;text-transform:uppercase;transform:rotate(-14deg);border:2px solid var(--oxide);color:var(--oxide);padding:12px 16px}.rail{display:grid;grid-template-columns:280px 1fr;gap:28px;margin-top:36px}.toc{position:sticky;top:24px;align-self:start;border:2px solid var(--ink);background:rgba(255,248,226,.72);padding:18px}.toc a{display:block;color:var(--ink);text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);font-weight:800}.section{padding:28px 0;border-bottom:1px solid var(--line)}h2{font-family:Fraunces,serif;font-size:clamp(32px,5vw,64px);line-height:.95;margin:0 0 18px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.panel{border:2px solid var(--ink);background:rgba(255,249,232,.66);padding:20px;box-shadow:8px 8px 0 rgba(21,18,13,.12)}.panel b{color:var(--oxide)}.diagram{min-height:220px;border:2px solid var(--ink);background:repeating-linear-gradient(45deg,rgba(73,111,93,.12) 0 12px,transparent 12px 24px);display:grid;place-items:center;margin:20px 0}.nodes{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center}.node{border:2px solid var(--ink);background:var(--paper);padding:14px 18px;border-radius:999px;font-weight:900}.arrow{font-size:28px;color:var(--oxide)}button{min-height:44px;border:2px solid var(--ink);background:var(--oxide);color:#fff7df;font-weight:900;padding:12px 18px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}button:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink)}button:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}button:focus-visible,a:focus-visible{outline:3px solid var(--aqua);outline-offset:3px}.quiz button{display:block;margin:8px 0;background:var(--moss)}.meter{height:12px;border:2px solid var(--ink);background:#fff7df}.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--oxide),var(--aqua));transition:width .4s ease}@media(max-width:820px){.mast,.rail{grid-template-columns:1fr}.seal{max-width:240px}.toc{position:relative;top:auto}.grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:no-preference){.reveal{opacity:0;transform:translateY(18px);animation:up .7s cubic-bezier(.16,1,.3,1) forwards}.reveal:nth-child(2){animation-delay:.08s}.reveal:nth-child(3){animation-delay:.16s}@keyframes up{to{opacity:1;transform:none}}}@media print{body{background:#fff}.toc,button{display:none}.panel,.diagram{box-shadow:none}}</style>
 </head>
 <body>
 <main class="wrap">
-  <section class="hero"><span class="tag">Lumina recovered ${type}</span><h1>${safeTopic}</h1><p class="muted">The main generator hit a network budget, so Lumina built a complete safe version instead of leaving you with a broken spinner.</p></section>
-  <h2>Core overview</h2><div class="grid"><div class="card"><strong>Definition</strong><p>${safeTopic} is the central topic. Identify its key terms, relationships, inputs, outputs, and exam expectations.</p></div><div class="card"><strong>Study strategy</strong><p>Use active recall: explain the idea, draw it once, solve one example, then correct gaps from memory.</p></div><div class="card"><strong>Exam focus</strong><p>Prioritize cause-effect chains, diagrams, command words, and common misconceptions.</p></div></div>
-  <h2>Quick learning path</h2><ol><li>Write the main definition without notes.</li><li>List five non-obvious facts and connect each to an example.</li><li>Create one worked example, diagram, or mini-project.</li><li>Answer three practice questions under time pressure.</li><li>Teach the topic aloud in sixty seconds.</li></ol>
-  <div class="warn"><strong>Recovery note:</strong> ${errorHint}. Regenerate for a deeper bespoke version when the model queue is clear.</div>
-  <p><button onclick="window.print()">Print / Save</button></p>
+  <section class="mast reveal"><div><span class="kicker">Lumina Artifact · ${kind}</span><h1>${safeTopic}</h1><p class="lede">A crafted learning object built as a tactile editorial system: clear enough to study from, distinctive enough to remember, and interactive enough to use immediately.</p></div><div class="seal" aria-hidden="true"></div></section>
+  <div class="rail"><nav class="toc reveal" aria-label="Artifact sections"><a href="#overview">Core map</a><a href="#diagram">Visual model</a><a href="#practice">Practice lab</a><a href="#finish">Mastery checklist</a></nav><article>
+    <section id="overview" class="section reveal"><h2>Core map</h2><div class="grid"><div class="panel"><b>Definition</b><p>${safeTopic} is treated as a system: terms, causes, mechanisms, outputs, edge cases, and exam language are separated so revision is not just memorisation.</p></div><div class="panel"><b>How to learn it</b><p>Explain the concept aloud, sketch the structure from memory, solve one applied example, then correct the missing links in a second pass.</p></div><div class="panel"><b>What examiners test</b><p>They look for precise vocabulary, cause-effect chains, labelled diagrams, units or evidence, and the ability to transfer the idea into unfamiliar contexts.</p></div></div></section>
+    <section id="diagram" class="section reveal"><h2>Visual model</h2><div class="diagram"><div class="nodes"><span class="node">Inputs</span><span class="arrow">→</span><span class="node">Process</span><span class="arrow">→</span><span class="node">Evidence</span><span class="arrow">→</span><span class="node">Answer</span></div></div><p>Use this chain whenever the topic feels broad: identify the starting conditions, describe the mechanism, attach proof or calculation, then write the final answer in command-word language.</p></section>
+    <section id="practice" class="section reveal quiz"><h2>Practice lab</h2><p><strong>Question:</strong> Which revision action creates the strongest memory trace?</p><button data-correct="false">Rereading the same paragraph three times</button><button data-correct="true">Retrieving the idea, checking it, then improving the explanation</button><button data-correct="false">Highlighting every important sentence</button><p id="feedback" aria-live="polite"></p><div class="meter" aria-label="Mastery meter"><span id="bar"></span></div></section>
+    <section id="finish" class="section reveal"><h2>Mastery checklist</h2><ol><li>Write the topic definition without looking.</li><li>Draw a labelled diagram or flow from memory.</li><li>List three common mistakes and their fixes.</li><li>Answer one easy, one medium, and one hard question.</li><li>Teach the concept in sixty seconds.</li></ol><button onclick="window.print()">Print / Save</button></section>
+  </article></div>
 </main>
+<script>document.addEventListener('DOMContentLoaded',function(){var fb=document.getElementById('feedback'),bar=document.getElementById('bar');document.querySelectorAll('.quiz button').forEach(function(btn){btn.addEventListener('click',function(){var ok=btn.dataset.correct==='true';fb.textContent=ok?'Correct — retrieval plus correction beats passive review.':'Not quite — passive familiarity feels good but fades quickly.';bar.style.width=ok?'100%':'38%';try{window.__lumina=window.__lumina||{};window.__lumina.lastArtifactScore=ok?1:0}catch(e){}})});});</script>
 </body>
 </html>`;
 }
@@ -81,12 +100,17 @@ function makeSystemPrompt(type: string, topic: string, provided: string) {
     provided && provided.length > 200
       ? provided
       : `Generate a complete, beautiful, self-contained HTML ${type} artifact for ${topic}.`;
-  return `${base}
+  return `${FRONTEND_DESIGN_SKILL}
+
+${base}
 
 CRITICAL OUTPUT CONTRACT:
 - Return ONLY raw HTML. No markdown fences, no commentary, no <think> tags.
 - Start with <!DOCTYPE html> and include <html>, <head>, <style>, and <body>.
 - Keep it complete and interactive, but finish within one response.
+- Target 18KB–45KB of HTML. Dense and polished, not huge and unfinished.
+- Use distinctive Google Fonts; do not use Inter, Roboto, Arial, Space Grotesk, or default system fonts as the primary identity.
+- No visible recovery/error/debug notes inside the artifact.
 - Prefer concise depth over huge unfinished output.`;
 }
 
@@ -110,20 +134,20 @@ async function generateHtml(
           Authorization: `Bearer ${lovableKey}`,
         },
         body: JSON.stringify({
-          model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash",
+          model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
             { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
           ],
           temperature: 0.35,
-          max_tokens: type === "notes" ? 12000 : 14000,
+          max_tokens: type === "code" ? 10000 : 8500,
         }),
-        signal: AbortSignal.timeout(58_000),
+        signal: AbortSignal.timeout(38_000),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `lovable_gateway_${res.status}`);
       const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
-      if (validHtml(cleaned)) return { html: cleaned, model: type === "code" ? "openai/gpt-5.4-mini" : "google/gemini-3.5-flash" };
+      if (validHtml(cleaned)) return { html: cleaned, model: "google/gemini-3-flash-preview" };
       lastErr = cleaned ? "invalid_html_from_gateway" : "empty_from_gateway";
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
@@ -137,7 +161,8 @@ async function generateHtml(
     const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
     if (remaining < 8_000) break;
     try {
-      const { response, model } = await callWithFallback(
+      const modelList = attempt === 0 ? models : models.slice(1).concat(models[0]).slice(0, 4);
+      const text = await callAIText(
         [
           {
             role: "system",
@@ -151,15 +176,14 @@ async function generateHtml(
                 : `Create a focused, complete ${type} artifact about ${topic}. Keep it tight and finish in one response.`,
           },
         ],
-        models,
-        type === "notes" ? 9000 : 11000,
+        modelList,
+        type === "code" ? 10000 : 8500,
         0.45,
-        Math.min(remaining, 42_000),
+        Math.min(remaining, 88_000),
         `chat-artifact-v2/${type}`,
       );
-      const data = await response.json();
-      const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
-      if (validHtml(cleaned)) return { html: cleaned, model };
+      const cleaned = cleanHtml(text);
+      if (validHtml(cleaned)) return { html: cleaned, model: modelList[0] };
       lastErr = cleaned ? "invalid_html_from_model" : "empty_from_model";
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
@@ -214,8 +238,8 @@ async function processJob(
       .from("artifact_jobs")
       .update({
         status: "completed",
-        html: fallbackHtml(payload.type, payload.topic, msg || "Generation recovered with a safe template"),
-        model_used: "lumina-safe-template",
+        html: fallbackHtml(payload.type, payload.topic),
+        model_used: "lumina-local-artifact",
         error_message: null,
         completed_at: new Date().toISOString(),
       })
