@@ -26,10 +26,10 @@ CSS variables you MUST define in :root:
   --text:#e2e8f0; --muted:#94a3b8;
   --green:#4ade80; --yellow:#fbbf24; --red:#f87171;
   --border:rgba(255,255,255,0.08); --glow:rgba(99,102,241,0.15);
-  --font-head:'Syne',sans-serif; --font-body:'Inter',sans-serif; --font-code:'JetBrains Mono',monospace;
+  --font-head:'Syne',sans-serif; --font-body:'Manrope',sans-serif; --font-code:'JetBrains Mono',monospace;
 
 Always include this Google Fonts import at the top of <style>:
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 Layout:
 - Slides are 100vw × 100vh, centered content; only ONE slide visible at a time (the rest hidden via .slide:not(.active){display:none})
@@ -127,9 +127,9 @@ CSS — DEFINE IN :root
   --text:#d1d5db; --heading:#f9fafb; --muted:#6b7280;
   --green:#4ade80; --yellow:#fbbf24; --red:#f87171; --blue:#60a5fa; --orange:#fb923c;
   --code-bg:#0d1117;
-  --font-head:'Syne',sans-serif; --font-body:'Inter',sans-serif; --font-code:'JetBrains Mono',monospace;
+  --font-head:'Syne',sans-serif; --font-body:'Manrope',sans-serif; --font-code:'JetBrains Mono',monospace;
 }
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 ════════════════════════════════════════════
 COMPONENT LIBRARY — USE ALL THAT APPLY
@@ -207,7 +207,7 @@ VISUAL DESIGN — EXAM AESTHETIC
   --text:#212529; --muted:#6c757d;
   --answer-bg:#fff8e1; --mark-bg:#ffebee; --success:#e8f5e9;
   --font-head:'Times New Roman',Georgia,serif;
-  --font-body:'Arial',Helvetica,sans-serif;
+  --font-body:'Source Sans 3',sans-serif;
   --font-code:'Courier New',monospace;
 }
 - A4 simulation: max-width 794px, margin auto
