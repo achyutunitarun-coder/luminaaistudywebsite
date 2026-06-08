@@ -258,8 +258,7 @@ export function detectTemplate(type: ArtifactType, topic: string): TemplateKey {
   }
   // Heuristic: short/specific topic → notes_pack. Full packs are only for explicit broad requests,
   // otherwise the generator overbuilds and risks timing out on ordinary prompts like "photosynthesis".
-  const wc = t.split(/\s+/).filter(Boolean).length;
-  return wc <= 4 ? "notes_pack" : "notes_pack";
+  return "notes_pack";
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
