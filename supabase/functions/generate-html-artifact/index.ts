@@ -189,19 +189,19 @@ serve(async (req) => {
             if (type === "notes") {
               themeKey = notesTheme;
               themeDesc = NOTES_THEMES[themeKey] || NOTES_THEMES["academic-dark"];
-              sysPrompt = buildNotesPrompt(themeDesc, themeKey);
+              sysPrompt = buildNotesPrompt(themeDesc, themeKey, topic);
               userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`;
               label = "study notes";
             } else if (type === "exam") {
               themeKey = examTheme;
               themeDesc = EXAM_THEMES[themeKey] || EXAM_THEMES["classic-paper"];
-              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin);
+              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin, topic);
               userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
               label = "exam paper";
             } else if (type === "slides") {
               themeKey = slidesTheme;
               themeDesc = SLIDES_THEMES[themeKey] || SLIDES_THEMES["lumina-dark"];
-              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount);
+              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount, topic);
               userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.`;
               label = "presentation deck";
             } else {
