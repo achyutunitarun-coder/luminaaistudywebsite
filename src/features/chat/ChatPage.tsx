@@ -669,10 +669,23 @@ Q3: ... || A: ...
             }
           }
         }
+        const noteLabel = ({
+          notes: "Study notes",
+          exam: "Exam paper",
+          slides: "Slide deck",
+          code: "Interactive build",
+        } as const)[type];
+        const artifactNote = [
+          `**${noteLabel} ready — ${topic}**`,
+          "",
+          `- **What it is:** a self-contained, fully interactive ${type === "code" ? "build" : noteLabel.toLowerCase()} you can open, study, and share.`,
+          `- **How to use:** click **Open** to view full-screen, or drag the divider to study it alongside chat.`,
+          `- **Tip:** ask follow-ups like "make it harder", "add a worked example", or "swap the aesthetic" and I'll regenerate.`,
+        ].join("\n");
         const finalMessage: Message = {
           id: uid(),
           role: "assistant",
-          content: "",
+          content: artifactNote,
           type: "artifact",
           artifactHtml: result.content,
           artifactType: type,

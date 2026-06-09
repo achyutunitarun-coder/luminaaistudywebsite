@@ -304,12 +304,15 @@ FRONTEND DESIGN & AESTHETICS SKILL:
 - Keep accessibility, responsiveness, performance, and complete working interactivity non-negotiable.
 `.trim();
 
-export function buildArtifactSystemPrompt(feature: ArtifactFeature): string {
+import { styleDirectiveBlock } from "./aestheticStyles.ts";
+
+export function buildArtifactSystemPrompt(feature: ArtifactFeature, topic = ""): string {
   const base =
     feature === "slides" ? SLIDES_PROMPT :
     feature === "exam"   ? EXAM_PROMPT   :
     NOTES_PROMPT;
-  return FRONTEND_DESIGN_SKILL + "\n\n" + base + "\n\n" + UNIVERSAL_UPGRADES;
+  const style = styleDirectiveBlock(`${feature}::${topic}`);
+  return FRONTEND_DESIGN_SKILL + "\n\n" + style + "\n\n" + base + "\n\n" + UNIVERSAL_UPGRADES;
 }
 
 export function detectArtifactFeature(text: string): ArtifactFeature | null {

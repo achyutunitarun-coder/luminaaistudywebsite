@@ -59,9 +59,9 @@ const STAGES: StageDef[] = [
     stage: "build",
     label: "Builder",
     models: ["moonshotai/kimi-k2.6:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
-    maxTokens: 24000, temperature: 0.55,
+    maxTokens: 32000, temperature: 0.55,
     systemPrompt: () =>
-      `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content.`,
+      `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,
   },
   {
     stage: "debug",
@@ -80,6 +80,44 @@ const STAGES: StageDef[] = [
       `You are the OPTIMIZER. Take the debug-approved output and return an improved final. Strengthen clarity, fix any generic language, ensure Lumina's warm, calm voice. Keep the same FORMAT (HTML stays HTML, code stays code, Markdown stays Markdown). Output ONLY the improved artifact — no commentary.`,
   },
 ];
+
+/**
+ * Detect whether builder/optimizer output looks truncated (mid-HTML, mid-code-fence,
+ * mid-sentence at the buffer cap). Returns true if we should ask the model to continue.
+ */
+function looksTruncated(out: string): boolean {
+  if (!out) return true;
+  const trimmed = out.trim();
+  const lower = trimmed.toLowerCase();
+  // HTML doc that never closed
+  if (lower.includes("<!doctype") || lower.startsWith("<html")) {
+    if (!lower.includes("</html>")) return true;
+  }
+  // Unbalanced fenced code blocks
+  const fences = (trimmed.match(/```/g) || []).length;
+  if (fences % 2 === 1) return true;
+  // No real terminal punctuation in last 4 chars (likely mid-word / mid-tag)
+  const tail = trimmed.slice(-6);
+  if (/[a-zA-Z0-9_/\-]$/.test(tail) && !/[.!?>}\]`]/.test(tail.slice(-1))) {
+    // Hint: model likely hit max_tokens
+    return trimmed.length > 8000;
+  }
+  return false;
+}
+
+/** Stitch two outputs intelligently, dropping any overlap the model echoed back. */
+function stitch(prev: string, next: string): string {
+  if (!next) return prev;
+  const trimmedNext = next.replace(/^```(?:html|tsx|jsx|ts|js)?\s*/i, "").trim();
+  // Drop any leading repetition: find longest suffix of prev that is a prefix of next
+  const maxOverlap = Math.min(prev.length, trimmedNext.length, 400);
+  for (let i = maxOverlap; i > 24; i--) {
+    if (prev.endsWith(trimmedNext.slice(0, i))) {
+      return prev + trimmedNext.slice(i);
+    }
+  }
+  return prev + trimmedNext;
+}
 
 function sseLine(obj: unknown) {
   return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
@@ -170,11 +208,42 @@ serve(async (req) => {
             ];
 
             try {
-              const out = await callAIText(
+              let out = await callAIText(
                 messages, stage.models, stage.maxTokens, stage.temperature,
                 stage.stage === "build" || stage.stage === "optimize" ? 240_000 : 90_000,
                 `pipeline/${stage.stage}`,
               );
+
+              // Auto-continuation for the heavy stages so massive code/HTML never
+              // gets truncated at the model's max_tokens ceiling.
+              if (stage.stage === "build" || stage.stage === "optimize") {
+                let continuations = 0;
+                while (continuations < 4 && looksTruncated(out)) {
+                  continuations++;
+                  ctrl.enqueue(sseLine({
+                    stage: stage.stage, status: "working",
+                    label: `${stage.label} (continuing ${continuations}/4)`,
+                  }));
+                  const tail = out.slice(-1800);
+                  try {
+                    const more = await callAIText(
+                      [
+                        { role: "system", content: stage.systemPrompt(userRequest) + stageSkillsAddon },
+                        { role: "user", content:
+                          `ORIGINAL REQUEST:\n${userRequest}\n\nThe previous response was cut off at the model's output limit. CONTINUE EXACTLY where it stopped. Do NOT repeat anything already written. Do NOT restart. Do NOT add commentary. Output only the remaining content so the document/code is complete and properly closed (e.g. </html>, closing braces, closing fences).\n\nLAST 1800 CHARACTERS WRITTEN:\n${tail}` },
+                      ],
+                      stage.models, stage.maxTokens, stage.temperature,
+                      180_000, `pipeline/${stage.stage}-cont${continuations}`,
+                    );
+                    if (!more || more.trim().length < 20) break;
+                    out = stitch(out, more);
+                  } catch (e) {
+                    console.warn(`[pipeline] continuation ${continuations} failed:`, e);
+                    break;
+                  }
+                }
+              }
+
               prevOutput = out;
               if (stage.stage === "build") buildOutput = out;
               if (stage.stage === "optimize") {

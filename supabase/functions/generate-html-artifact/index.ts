@@ -63,8 +63,8 @@ const SLIDES_THEMES: Record<string, string> = {
   "minimal-light":   "Minimal Light — bg #ffffff, indigo accents, ultra-clean Apple keynote vibe.",
 };
 
-function buildNotesPrompt(theme: string, themeKey: string) {
-  return `${buildArtifactSystemPrompt("notes")}
+function buildNotesPrompt(theme: string, themeKey: string, topic = "") {
+  return `${buildArtifactSystemPrompt("notes", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
@@ -85,8 +85,8 @@ CONTENT MUST INCLUDE (in addition to master spec):
 WRITING STYLE: friendly expert tutor, assume nothing, number every step. Use proper math: x², √, π, ≤, ≥, ±.`;
 }
 
-function buildExamPrompt(theme: string, themeKey: string, totalMarks: number, durationMin: number) {
-  return `${buildArtifactSystemPrompt("exam")}
+function buildExamPrompt(theme: string, themeKey: string, totalMarks: number, durationMin: number, topic = "") {
+  return `${buildArtifactSystemPrompt("exam", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
@@ -104,8 +104,8 @@ EXAM SPECIFICATIONS:
 ANSWER AREAS: every written sub-part is its own <textarea> with placeholder "Write your working and answer here..." and the height/style rules from the master spec.`;
 }
 
-function buildSlidesPrompt(theme: string, themeKey: string, slideCount: number) {
-  return `${buildArtifactSystemPrompt("slides")}
+function buildSlidesPrompt(theme: string, themeKey: string, slideCount: number, topic = "") {
+  return `${buildArtifactSystemPrompt("slides", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
@@ -189,19 +189,19 @@ serve(async (req) => {
             if (type === "notes") {
               themeKey = notesTheme;
               themeDesc = NOTES_THEMES[themeKey] || NOTES_THEMES["academic-dark"];
-              sysPrompt = buildNotesPrompt(themeDesc, themeKey);
+              sysPrompt = buildNotesPrompt(themeDesc, themeKey, topic);
               userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`;
               label = "study notes";
             } else if (type === "exam") {
               themeKey = examTheme;
               themeDesc = EXAM_THEMES[themeKey] || EXAM_THEMES["classic-paper"];
-              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin);
+              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin, topic);
               userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
               label = "exam paper";
             } else if (type === "slides") {
               themeKey = slidesTheme;
               themeDesc = SLIDES_THEMES[themeKey] || SLIDES_THEMES["lumina-dark"];
-              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount);
+              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount, topic);
               userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.`;
               label = "presentation deck";
             } else {
