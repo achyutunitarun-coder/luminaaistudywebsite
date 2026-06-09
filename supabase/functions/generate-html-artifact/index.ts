@@ -104,8 +104,8 @@ EXAM SPECIFICATIONS:
 ANSWER AREAS: every written sub-part is its own <textarea> with placeholder "Write your working and answer here..." and the height/style rules from the master spec.`;
 }
 
-function buildSlidesPrompt(theme: string, themeKey: string, slideCount: number) {
-  return `${buildArtifactSystemPrompt("slides")}
+function buildSlidesPrompt(theme: string, themeKey: string, slideCount: number, topic = "") {
+  return `${buildArtifactSystemPrompt("slides", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
