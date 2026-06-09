@@ -85,8 +85,8 @@ CONTENT MUST INCLUDE (in addition to master spec):
 WRITING STYLE: friendly expert tutor, assume nothing, number every step. Use proper math: x², √, π, ≤, ≥, ±.`;
 }
 
-function buildExamPrompt(theme: string, themeKey: string, totalMarks: number, durationMin: number) {
-  return `${buildArtifactSystemPrompt("exam")}
+function buildExamPrompt(theme: string, themeKey: string, totalMarks: number, durationMin: number, topic = "") {
+  return `${buildArtifactSystemPrompt("exam", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
