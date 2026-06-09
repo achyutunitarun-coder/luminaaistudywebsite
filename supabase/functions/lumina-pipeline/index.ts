@@ -81,6 +81,44 @@ const STAGES: StageDef[] = [
   },
 ];
 
+/**
+ * Detect whether builder/optimizer output looks truncated (mid-HTML, mid-code-fence,
+ * mid-sentence at the buffer cap). Returns true if we should ask the model to continue.
+ */
+function looksTruncated(out: string): boolean {
+  if (!out) return true;
+  const trimmed = out.trim();
+  const lower = trimmed.toLowerCase();
+  // HTML doc that never closed
+  if (lower.includes("<!doctype") || lower.startsWith("<html")) {
+    if (!lower.includes("</html>")) return true;
+  }
+  // Unbalanced fenced code blocks
+  const fences = (trimmed.match(/```/g) || []).length;
+  if (fences % 2 === 1) return true;
+  // No real terminal punctuation in last 4 chars (likely mid-word / mid-tag)
+  const tail = trimmed.slice(-6);
+  if (/[a-zA-Z0-9_/\-]$/.test(tail) && !/[.!?>}\]`]/.test(tail.slice(-1))) {
+    // Hint: model likely hit max_tokens
+    return trimmed.length > 8000;
+  }
+  return false;
+}
+
+/** Stitch two outputs intelligently, dropping any overlap the model echoed back. */
+function stitch(prev: string, next: string): string {
+  if (!next) return prev;
+  const trimmedNext = next.replace(/^```(?:html|tsx|jsx|ts|js)?\s*/i, "").trim();
+  // Drop any leading repetition: find longest suffix of prev that is a prefix of next
+  const maxOverlap = Math.min(prev.length, trimmedNext.length, 400);
+  for (let i = maxOverlap; i > 24; i--) {
+    if (prev.endsWith(trimmedNext.slice(0, i))) {
+      return prev + trimmedNext.slice(i);
+    }
+  }
+  return prev + trimmedNext;
+}
+
 function sseLine(obj: unknown) {
   return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
 }
