@@ -713,10 +713,13 @@ const BUILDERS: Record<TemplateKey, (topic: string) => string> = {
 /* ──────────────────────────────────────────────────────────────────────────
  * PUBLIC API
  * ────────────────────────────────────────────────────────────────────────── */
+import { styleDirectiveBlock } from "./aestheticStyles";
+
 export function buildPromptForType(type: ArtifactType, topic: string): string {
   const key = detectTemplate(type, topic);
   const body = BUILDERS[key](topic);
-  return `${GLOBAL_WRAPPER}\n\n${body}`;
+  const styleBlock = styleDirectiveBlock(`${type}::${topic}`);
+  return `${GLOBAL_WRAPPER}\n\n${styleBlock}\n\n${body}`;
 }
 
 // Legacy named exports kept in case anything else imports them.
