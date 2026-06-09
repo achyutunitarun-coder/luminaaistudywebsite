@@ -63,8 +63,8 @@ const SLIDES_THEMES: Record<string, string> = {
   "minimal-light":   "Minimal Light — bg #ffffff, indigo accents, ultra-clean Apple keynote vibe.",
 };
 
-function buildNotesPrompt(theme: string, themeKey: string) {
-  return `${buildArtifactSystemPrompt("notes")}
+function buildNotesPrompt(theme: string, themeKey: string, topic = "") {
+  return `${buildArtifactSystemPrompt("notes", topic)}
 
 ────────── PER-REQUEST OVERRIDES ──────────
 Active theme key: ${themeKey}
