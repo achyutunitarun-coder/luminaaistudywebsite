@@ -208,11 +208,42 @@ serve(async (req) => {
             ];
 
             try {
-              const out = await callAIText(
+              let out = await callAIText(
                 messages, stage.models, stage.maxTokens, stage.temperature,
                 stage.stage === "build" || stage.stage === "optimize" ? 240_000 : 90_000,
                 `pipeline/${stage.stage}`,
               );
+
+              // Auto-continuation for the heavy stages so massive code/HTML never
+              // gets truncated at the model's max_tokens ceiling.
+              if (stage.stage === "build" || stage.stage === "optimize") {
+                let continuations = 0;
+                while (continuations < 4 && looksTruncated(out)) {
+                  continuations++;
+                  ctrl.enqueue(sseLine({
+                    stage: stage.stage, status: "working",
+                    label: `${stage.label} (continuing ${continuations}/4)`,
+                  }));
+                  const tail = out.slice(-1800);
+                  try {
+                    const more = await callAIText(
+                      [
+                        { role: "system", content: stage.systemPrompt(userRequest) + stageSkillsAddon },
+                        { role: "user", content:
+                          `ORIGINAL REQUEST:\n${userRequest}\n\nThe previous response was cut off at the model's output limit. CONTINUE EXACTLY where it stopped. Do NOT repeat anything already written. Do NOT restart. Do NOT add commentary. Output only the remaining content so the document/code is complete and properly closed (e.g. </html>, closing braces, closing fences).\n\nLAST 1800 CHARACTERS WRITTEN:\n${tail}` },
+                      ],
+                      stage.models, stage.maxTokens, stage.temperature,
+                      180_000, `pipeline/${stage.stage}-cont${continuations}`,
+                    );
+                    if (!more || more.trim().length < 20) break;
+                    out = stitch(out, more);
+                  } catch (e) {
+                    console.warn(`[pipeline] continuation ${continuations} failed:`, e);
+                    break;
+                  }
+                }
+              }
+
               prevOutput = out;
               if (stage.stage === "build") buildOutput = out;
               if (stage.stage === "optimize") {
