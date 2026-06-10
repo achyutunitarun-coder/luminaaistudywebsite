@@ -346,8 +346,11 @@ export default function LuminaComputer() {
   const [model, setModel] = useState<string>("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const parserRef = useRef<LuminaParser | null>(null);
+  const rawAssistantRef = useRef<string>("");
+  const lastUserPromptRef = useRef<string>("");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
@@ -437,6 +440,10 @@ export default function LuminaComputer() {
     setFinalMd("");
     setActivePath(null);
     setAttachments([]);
+    setCanContinue(false);
+    rawAssistantRef.current = "";
+    lastUserPromptRef.current = "";
+    parserRef.current = null;
     seenActionsRef.current = new Set();
     setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
   }, [busy]);
@@ -504,23 +511,40 @@ export default function LuminaComputer() {
 
   // ── Send ───────────────────────────────────────────────────────────
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, opts: { continuation?: boolean } = {}) => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if ((!trimmed && !opts.continuation) || busy) return;
 
-      setFiles([]);
-      setPlan("");
-      setFinalMd("");
-      setActivePath(null);
+      const isCont = !!opts.continuation;
+
+      if (!isCont) {
+        setFiles([]);
+        setPlan("");
+        setFinalMd("");
+        setActivePath(null);
+        seenActionsRef.current = new Set();
+        parserRef.current = new LuminaParser();
+        rawAssistantRef.current = "";
+        lastUserPromptRef.current = trimmed;
+      } else if (!parserRef.current) {
+        // nothing to continue from
+        return;
+      }
+
       setPrompt("");
-      seenActionsRef.current = new Set();
+      setCanContinue(false);
       if (taRef.current) taRef.current.style.height = "auto";
       setBusy(true);
+
       const previewAttach =
         attachments.length > 0 ? ` (+${attachments.length} file${attachments.length > 1 ? "s" : ""})` : "";
-      log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
 
-      parserRef.current = new LuminaParser();
+      if (isCont) {
+        log("system", "Continuing from last cut-off…");
+      } else {
+        log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
+      }
+
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
@@ -530,16 +554,32 @@ export default function LuminaComputer() {
         } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error("Please sign in to use Lumina Computer.");
 
-        const content = buildMessageContent(trimmed);
-        setAttachments([]);
+        let messages: any[];
+        if (isCont) {
+          const tail = rawAssistantRef.current.slice(-2500);
+          const contPrompt =
+            `CONTINUE_LUMINA\n\nORIGINAL_REQUEST:\n${lastUserPromptRef.current}\n\n` +
+            `Your previous reply was cut off at the model output limit. ` +
+            `Resume EXACTLY where you stopped. Do NOT repeat anything already written. ` +
+            `Do NOT restart the plan. Do NOT add commentary. If you were inside a <lumina:file>, ` +
+            `finish its body and close </lumina:file>, then continue with any remaining files, ` +
+            `then close with <lumina:final>...</lumina:final>.\n\n` +
+            `LAST_${tail.length}_CHARS_OF_YOUR_PREVIOUS_REPLY:\n${tail}`;
+          messages = [
+            { role: "user", content: lastUserPromptRef.current },
+            { role: "assistant", content: rawAssistantRef.current },
+            { role: "user", content: contPrompt },
+          ];
+        } else {
+          const content = buildMessageContent(trimmed);
+          setAttachments([]);
+          messages = [{ role: "user", content }];
+        }
 
         const res = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({
-            messages: [{ role: "user", content }],
-            mode: "computer",
-          }),
+          body: JSON.stringify({ messages, mode: "computer" }),
           signal: ctrl.signal,
         });
 
@@ -549,6 +589,11 @@ export default function LuminaComputer() {
         const decoder = new TextDecoder();
         let sseBuf = "";
         const seenFiles = new Set<string>();
+        // re-mark files we already know so we don't re-log them
+        for (const f of parserRef.current!.state.files) {
+          seenFiles.add(f.path);
+          if (f.done) seenFiles.add(`done:${f.path}`);
+        }
 
         const applyState = () => {
           const st = parserRef.current!.state;
@@ -569,7 +614,6 @@ export default function LuminaComputer() {
               log("file", `Finished ${f.path} · ${kb} KB`);
             }
           }
-          // Surface new agentic actions
           for (const a of st.actions) {
             if (seenActionsRef.current.has(a.id)) continue;
             seenActionsRef.current.add(a.id);
@@ -603,6 +647,7 @@ export default function LuminaComputer() {
               }
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
+                rawAssistantRef.current += delta;
                 parserRef.current!.push(delta);
                 applyState();
               }
@@ -613,12 +658,27 @@ export default function LuminaComputer() {
           }
         }
 
-        parserRef.current!.finish();
         applyState();
-        log("done", `Done · ${parserRef.current!.state.files.length} file(s)`);
+        // Detect truncation: any open file, no <lumina:final>, or raw stream
+        // didn't end with a closing lumina tag.
+        const st = parserRef.current!.state;
+        const openFile = st.files.some((f) => !f.done);
+        const missingFinal = !st.final.trim();
+        const tail = rawAssistantRef.current.trimEnd().slice(-40);
+        const cleanEnd = /<\/lumina:(final|file|plan)>\s*$/.test(tail);
+        const looksTruncated = openFile || missingFinal || !cleanEnd;
+        if (looksTruncated) {
+          setCanContinue(true);
+          log("warn", "Output was cut off — press Continue to resume.");
+        } else {
+          parserRef.current!.finish();
+          applyState();
+          log("done", `Done · ${st.files.length} file(s)`);
+        }
       } catch (e: any) {
         if (e?.name === "AbortError") {
           log("warn", "Stopped");
+          if (rawAssistantRef.current.length > 200) setCanContinue(true);
         } else {
           log("warn", e?.message ?? "Request failed");
           toast.error(e?.message ?? "Request failed");
@@ -632,6 +692,7 @@ export default function LuminaComputer() {
   );
 
   const onSubmit = () => send(prompt);
+  const onContinue = () => send("", { continuation: true });
 
   const copyActive = () => {
     if (!activeFile) return;
@@ -832,6 +893,15 @@ export default function LuminaComputer() {
           <div className="border-t border-white/[0.06] bg-[#0b0b0f] flex-shrink-0">
             <div className="px-5 h-9 flex items-center gap-2 border-b border-white/[0.04]">
               <span className="text-[11px] font-medium text-white/50">Activity</span>
+              {canContinue && !busy && (
+                <button
+                  onClick={onContinue}
+                  className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
+                  title="Resume from the last line"
+                >
+                  <ArrowUp className="w-3 h-3" /> Continue
+                </button>
+              )}
               {busy && <Loader2 className="w-3 h-3 text-white/60 animate-spin ml-auto" />}
             </div>
             <div className="max-h-[160px] overflow-auto px-5 py-2">
