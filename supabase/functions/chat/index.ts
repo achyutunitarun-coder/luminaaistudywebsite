@@ -53,7 +53,7 @@ Markdown summary for the user: what was built, how to use it, what to try next.
 
 ## CONTINUATION PROTOCOL
 
-If a previous turn was cut off, the user may send a message starting with `CONTINUE_LUMINA`. When you see that token:
+If a previous turn was cut off, the user may send a message starting with the token CONTINUE_LUMINA. When you see that token:
 - Do NOT restart, do NOT repeat any previously emitted content, do NOT re-open <lumina:plan>.
 - Resume EXACTLY where you stopped (the tail of your previous output is shown). If you were inside a <lumina:file> when cut, keep emitting the file body and close it with </lumina:file>. Then continue with any remaining files and end with <lumina:final>...</lumina:final>.
 
