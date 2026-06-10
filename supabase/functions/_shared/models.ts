@@ -332,6 +332,12 @@ async function callModel(
     // Already proven 404 — don't waste budget.
     return null;
   }
+  // Prefer Moonshot direct API when the caller asked for a kimi model.
+  if (KIMI_API_KEY && /^moonshotai\//.test(model)) {
+    const direct = await callKimiDirect(model, body, timeoutMs, tag);
+    if (direct) return direct;
+    // fall through to OpenRouter on failure
+  }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
