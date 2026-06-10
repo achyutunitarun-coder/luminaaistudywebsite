@@ -214,15 +214,18 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
-    const hasKimiKey = !!Deno.env.get("KIMI_API_KEY");
+    // Lumina Computer: Kimi K2.6 first (direct Moonshot key when present),
+    // then OpenRouter free long-context models as fallback so the build never
+    // dies on a single provider hiccup.
+    const computerChain = Array.from(new Set([
+      "moonshotai/kimi-k2.6:free",
+      ...(hasImages ? MODELS_VISION : []),
+      ...MODELS_LONG_CTX,
+      ...MODELS_QUALITY,
+      "openrouter/owl-alpha",
+    ]));
     const models = isComputerMode
-      ? (hasKimiKey
-          // Kimi K2.6 ONLY for Lumina Computer (user's primary). No fallbacks
-          // so the user actually gets Kimi's long-context multi-file output.
-          ? ["moonshotai/kimi-k2.6:free"]
-          : Array.from(new Set(hasImages
-              ? ["moonshotai/kimi-k2.6:free", ...MODELS_VISION, ...MODELS_LONG_CTX]
-              : ["moonshotai/kimi-k2.6:free", "openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY])))
+      ? computerChain
       : artifactFeature
         ? MODELS_LONG_CTX
         : hasImages
