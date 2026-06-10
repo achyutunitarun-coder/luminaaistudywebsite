@@ -464,9 +464,11 @@ export async function callWithFallback(
     ...extraOpts,
   };
   const isStreaming = extraOpts.stream === true;
+  const isComputer = /computer|mun|lumina/i.test(tag);
+  const streamBudget = isComputer ? 420_000 : STREAM_TOTAL_BUDGET_MS;
   const totalBudget = Math.min(
     timeoutMs,
-    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? STREAM_TOTAL_BUDGET_MS : TEXT_TOTAL_BUDGET_MS,
+    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? streamBudget : TEXT_TOTAL_BUDGET_MS,
   );
   const deadline = Date.now() + totalBudget;
   const remainingBudget = () => deadline - Date.now();
@@ -474,9 +476,9 @@ export async function callWithFallback(
 
   // Artifact / long-form generation needs minutes, not seconds, per attempt.
   // Detect via tag so we don't have to thread a flag through every caller.
-  const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag);
+  const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
   const isJsonTool = /guided-|quick-study|note-to-quiz|flashcards|generate-test|plan|lecture-tools/i.test(tag) && !isArtifact;
-  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
+  const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
   const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 0 : PRIMARY_RACE_TIMEOUT_MS);
