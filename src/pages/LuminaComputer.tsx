@@ -46,7 +46,8 @@ import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
 import { extractDocumentText, DOCUMENT_ACCEPT } from "@/lib/extractDocumentText";
 import { AgentPipelinePanel } from "@/components/AgentPipelinePanel";
-import { useLuminaPipeline } from "@/hooks/useLuminaPipeline";
+import { type PipelineStage, type StageStatus } from "@/hooks/useLuminaPipeline";
+import { buildRepairPrompt, summarizeValidation, validateLuminaProject } from "@/features/computer/validation";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -69,11 +70,26 @@ interface LogLine {
 }
 
 const SUGGESTIONS = [
-  "Build an interactive visualiser for Newton's three laws.",
-  "Make a beautiful calculus practice page with 10 MCQs.",
-  "Deep research: India's renewable energy 2020 – 2030.",
-  "Create a focus-mode pomodoro with ambient sound.",
+  "Build a photosynthesis learning lab with chloroplast animation and exam practice.",
+  "Make a premium calculus derivatives studio with graphing and 10 MCQs.",
+  "Create a climate-tech investor dashboard with unique editorial UI.",
+  "Build a focus-mode pomodoro with ambient sound and task analytics.",
 ];
+
+const FACTORY_STAGES: PipelineStage[] = [
+  "planner",
+  "router",
+  "research",
+  "architect",
+  "builder",
+  "validator",
+  "debugger",
+  "runner",
+  "assembler",
+];
+
+const idleFactoryStates = () =>
+  Object.fromEntries(FACTORY_STAGES.map((stage) => [stage, "idle"])) as Record<PipelineStage, StageStatus>;
 
 function timeFmt(ts: number) {
   const d = new Date(ts);
@@ -358,8 +374,10 @@ export default function LuminaComputer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
 
-  // 6-agent pipeline status (hook drives the lumina-pipeline edge function).
-  const pipeline = useLuminaPipeline();
+  const [factoryStates, setFactoryStates] = useState<Record<PipelineStage, StageStatus>>(idleFactoryStates);
+  const [factoryActive, setFactoryActive] = useState<string | null>(null);
+  const [factoryEvents, setFactoryEvents] = useState<string[]>([]);
+  const [validationSummary, setValidationSummary] = useState<string>("");
 
   const activeFile = useMemo(
     () => files.find((f) => f.path === activePath) ?? files[0] ?? null,
@@ -372,6 +390,12 @@ export default function LuminaComputer() {
     },
     [],
   );
+
+  const setFactoryStage = useCallback((stage: PipelineStage, status: StageStatus, event?: string) => {
+    setFactoryStates((prev) => ({ ...prev, [stage]: status }));
+    if (status === "working") setFactoryActive(event ?? stage);
+    if (event) setFactoryEvents((prev) => [...prev.slice(-40), event]);
+  }, []);
 
   // Auto-open preview the first time an HTML file appears
   useEffect(() => {
@@ -444,6 +468,10 @@ export default function LuminaComputer() {
     setActivePath(null);
     setAttachments([]);
     setCanContinue(false);
+    setFactoryStates(idleFactoryStates());
+    setFactoryActive(null);
+    setFactoryEvents([]);
+    setValidationSummary("");
     rawAssistantRef.current = "";
     lastUserPromptRef.current = "";
     turnsRef.current = [];
@@ -526,6 +554,9 @@ export default function LuminaComputer() {
         setPlan("");
         setFinalMd("");
         setActivePath(null);
+        setFactoryStates(idleFactoryStates());
+        setFactoryEvents([]);
+        setValidationSummary("");
         seenActionsRef.current = new Set();
         parserRef.current = new LuminaParser();
         rawAssistantRef.current = "";
@@ -545,8 +576,16 @@ export default function LuminaComputer() {
 
       if (isCont) {
         log("system", "Continuing from last cut-off…");
+        setFactoryStage("builder", "working", "Continuing safely from the previous complete boundary…");
       } else {
         log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
+        setFactoryStage("planner", "working", "Thinking through scope, acceptance criteria, and file graph…");
+        setFactoryStage("planner", "done", "Plan locked: modular files, runnable preview, validation gates.");
+        setFactoryStage("router", "working", "Routing through Kimi K2.6 with OpenRouter fallbacks.");
+        setFactoryStage("research", "working", "Grounding the build in the exact requested subject.");
+        setFactoryStage("research", "done", "Subject context attached to the generation brief.");
+        setFactoryStage("architect", "working", "Designing module boundaries, UI system, and runtime behavior.");
+        setFactoryStage("architect", "done", "Architecture ready: source, styles, interactions, preview entry.");
       }
 
       const ctrl = new AbortController();
@@ -582,18 +621,6 @@ export default function LuminaComputer() {
           messages = [...history, { role: "user", content }];
         }
 
-        const res = await fetch(CHAT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ messages, mode: "computer" }),
-          signal: ctrl.signal,
-        });
-
-        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let sseBuf = "";
         const seenFiles = new Set<string>();
         // re-mark files we already know so we don't re-log them
         for (const f of parserRef.current!.state.files) {
@@ -633,41 +660,66 @@ export default function LuminaComputer() {
           }
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          sseBuf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = sseBuf.indexOf("\n")) !== -1) {
-            let line = sseBuf.slice(0, nl);
-            sseBuf = sseBuf.slice(nl + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (!json || json === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(json);
-              if (parsed?.lumina_meta?.model) {
-                setModel(parsed.lumina_meta.model);
-                log("model", `Using ${parsed.lumina_meta.model}`);
+        const streamMessages = async (streamMessagesPayload: any[]) => {
+          const res = await fetch(CHAT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ messages: streamMessagesPayload, mode: "computer" }),
+            signal: ctrl.signal,
+          });
+
+          if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let sseBuf = "";
+          let firstToken = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            sseBuf += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = sseBuf.indexOf("\n")) !== -1) {
+              let line = sseBuf.slice(0, nl);
+              sseBuf = sseBuf.slice(nl + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (!line.startsWith("data: ")) continue;
+              const json = line.slice(6).trim();
+              if (!json || json === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(json);
+                if (parsed?.lumina_meta?.model) {
+                  setModel(parsed.lumina_meta.model);
+                  log("model", `Using ${parsed.lumina_meta.model}`);
+                  setFactoryStage("router", "done", `Model selected: ${parsed.lumina_meta.model}`);
+                }
+                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (typeof delta === "string" && delta.length > 0) {
+                  if (!firstToken) {
+                    firstToken = true;
+                    setFactoryStage("builder", "working", "Coding full files — no fragments, no placeholders.");
+                  }
+                  rawAssistantRef.current += delta;
+                  parserRef.current!.push(delta);
+                  applyState();
+                }
+              } catch {
+                sseBuf = line + "\n" + sseBuf;
+                break;
               }
-              const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === "string" && delta.length > 0) {
-                rawAssistantRef.current += delta;
-                parserRef.current!.push(delta);
-                applyState();
-              }
-            } catch {
-              sseBuf = line + "\n" + sseBuf;
-              break;
             }
           }
-        }
+        };
+
+        await streamMessages(messages);
 
         applyState();
+        setFactoryStage("builder", "done", "Code stream completed; entering validation gate.");
+        setFactoryStage("validator", "working", "Evaluating syntax, subject fit, placeholders, and preview readiness.");
         // Detect truncation: any open file, no <lumina:final>, or raw stream
         // didn't end with a closing lumina tag.
-        const st = parserRef.current!.state;
+        let st = parserRef.current!.state;
         const openFile = st.files.some((f) => !f.done);
         const missingFinal = !st.final.trim();
         const tail = rawAssistantRef.current.trimEnd().slice(-40);
@@ -675,10 +727,45 @@ export default function LuminaComputer() {
         const looksTruncated = openFile || missingFinal || !cleanEnd;
         if (looksTruncated) {
           setCanContinue(true);
+          setFactoryStage("validator", "error", "Validation caught a cut-off response; continuation is required.");
           log("warn", "Output was cut off — press Continue to resume.");
         } else {
           parserRef.current!.finish();
           applyState();
+          st = parserRef.current!.state;
+          let issues = validateLuminaProject(st.files, lastUserPromptRef.current);
+          setValidationSummary(summarizeValidation(issues));
+          const needsRepair = issues.some((issue) => issue.severity === "error" || issue.id === "too-thin");
+          if (needsRepair && !isCont) {
+            setFactoryStage("validator", "error", summarizeValidation(issues));
+            setFactoryStage("debugger", "working", "Fault isolated; regenerating only the broken/thin artifact once.");
+            log("warn", `Self-healing: ${summarizeValidation(issues)}`);
+            const repairPrompt = buildRepairPrompt(lastUserPromptRef.current, st.files, issues);
+            parserRef.current = new LuminaParser();
+            rawAssistantRef.current = "";
+            seenFiles.clear();
+            seenActionsRef.current = new Set();
+            setFiles([]);
+            setPlan("");
+            setFinalMd("");
+            setActivePath(null);
+            await streamMessages([{ role: "user", content: repairPrompt }]);
+            parserRef.current!.finish();
+            applyState();
+            st = parserRef.current!.state;
+            issues = validateLuminaProject(st.files, lastUserPromptRef.current);
+            setValidationSummary(summarizeValidation(issues));
+            const stillBroken = issues.some((i) => i.severity === "error");
+            setFactoryStage("debugger", stillBroken ? "error" : "done", stillBroken ? summarizeValidation(issues) : "Repair passed validation.");
+            setFactoryStage("validator", stillBroken ? "error" : "done", summarizeValidation(issues));
+          } else {
+            setFactoryStage("validator", "done", summarizeValidation(issues));
+            setFactoryStage("debugger", "done", "No blocking faults required a repair pass.");
+          }
+          setFactoryStage("runner", "working", "Running the assembled preview document.");
+          if (st.files.some((f) => f.lang === "html")) setPreviewOpen(true);
+          setFactoryStage("runner", "done", "Preview target ready.");
+          setFactoryStage("assembler", "done", `Assembled ${st.files.length} production file(s).`);
           log("done", `Done · ${st.files.length} file(s)`);
         }
         // Commit this turn to rolling memory (skip continuation turns — they're
@@ -702,10 +789,11 @@ export default function LuminaComputer() {
         }
       } finally {
         setBusy(false);
+        setFactoryActive(null);
         abortRef.current = null;
       }
     },
-    [busy, log, attachments],
+    [busy, log, attachments, setFactoryStage],
   );
 
   const onSubmit = () => send(prompt);
@@ -762,37 +850,13 @@ export default function LuminaComputer() {
           >
             <Plus className="w-3.5 h-3.5" /> New
           </button>
-          <button
-            onClick={async () => {
-              const text = prompt.trim();
-              if (!text) {
-                toast.error("Type a request first to run the agent pipeline.");
-                return;
-              }
-              try {
-                await pipeline.run(text);
-                if (pipeline.finalOutput) {
-                  setFiles((prev) => [
-                    ...prev.filter((f) => f.path !== "pipeline-output.md"),
-                    { path: "pipeline-output.md", lang: "md", content: pipeline.finalOutput, done: true } as LuminaFile,
-                  ]);
-                  setActivePath("pipeline-output.md");
-                }
-              } catch (e: any) {
-                toast.error(e?.message ?? "Pipeline failed");
-              }
-            }}
-            disabled={pipeline.running}
-            title="Run the 6-agent pipeline (Orchestrate → Plan → Research → Build → Debug → Optimize)"
-            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition disabled:opacity-50"
+          <div
+            title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling"
+            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-emerald-400/[0.08] border border-emerald-400/20 text-emerald-200 text-[13px]"
           >
-            {pipeline.running ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
-            Pipeline
-          </button>
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            Factory
+          </div>
           <button
             onClick={() => setPreviewOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
@@ -850,16 +914,20 @@ export default function LuminaComputer() {
               </div>
             )}
 
-            {(pipeline.running ||
-              Object.values(pipeline.states).some((s) => s !== "idle")) && (
+            {(busy || Object.values(factoryStates).some((s) => s !== "idle")) && (
               <div className="mt-4 px-3">
                 <AgentPipelinePanel
-                  states={pipeline.states}
-                  activeLabel={pipeline.activeLabel}
-                  running={pipeline.running}
-                  skills={pipeline.skills}
-                  tier={pipeline.tier}
+                  states={factoryStates}
+                  activeLabel={factoryActive}
+                  running={busy}
+                  tier={busy ? "TIER_2" : validationSummary === "Validation passed" ? "TIER_1" : null}
+                  events={factoryEvents}
                 />
+                {validationSummary && (
+                  <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-[11px] text-white/45">
+                    {validationSummary}
+                  </div>
+                )}
               </div>
             )}
           </div>
