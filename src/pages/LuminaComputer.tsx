@@ -576,7 +576,9 @@ export default function LuminaComputer() {
         } else {
           const content = buildMessageContent(trimmed);
           setAttachments([]);
-          messages = [{ role: "user", content }];
+          // Send rolling window of prior turns + new user message.
+          const history = turnsRef.current.slice(-12);
+          messages = [...history, { role: "user", content }];
         }
 
         const res = await fetch(CHAT_URL, {
