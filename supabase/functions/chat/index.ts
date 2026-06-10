@@ -215,23 +215,27 @@ serve(async (req) => {
     }
 
     const models = isComputerMode
-      ? Array.from(new Set(hasImages ? [...MODELS_VISION, ...MODELS_LONG_CTX] : ["openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
+      ? Array.from(new Set(hasImages
+          ? ["moonshotai/kimi-k2.6:free", ...MODELS_VISION, ...MODELS_LONG_CTX]
+          : ["moonshotai/kimi-k2.6:free", "openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
       : artifactFeature
         ? MODELS_LONG_CTX
         : hasImages
           ? MODELS_VISION
           : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
 
-    // Free OpenRouter models cap output around 32k. Stay well under to avoid 400s.
+    // Computer mode: use Kimi's higher per-request output budget when the
+    // direct Moonshot key is configured; fall back to the OpenRouter cap.
+    const hasKimi = !!Deno.env.get("KIMI_API_KEY");
     const maxTokens = isComputerMode
-      ? 32000
+      ? (hasKimi ? 128000 : 32000)
       : intent === "greeting" || intent === "conversational"
         ? 1200
         : intent === "coding" || intent === "deep"
           ? 16000
           : 6000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
-    const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
+    const timeoutMs = isComputerMode ? (hasKimi ? 480_000 : 240_000) : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
 
     // ── Centralised conversation summarisation ───────────────────────
     // Every chat surface (chat/hub/squad/computer) goes through here, so
