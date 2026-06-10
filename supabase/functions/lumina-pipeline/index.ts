@@ -58,7 +58,7 @@ const STAGES: StageDef[] = [
   {
     stage: "build",
     label: "Builder",
-    models: ["moonshotai/kimi-k2.6:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
+    models: ["moonshotai/kimi-k2.6", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
     maxTokens: 32000, temperature: 0.55,
     systemPrompt: () =>
       `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,

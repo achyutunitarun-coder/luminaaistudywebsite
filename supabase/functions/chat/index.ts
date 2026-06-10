@@ -218,7 +218,7 @@ serve(async (req) => {
     // then OpenRouter free long-context models as fallback so the build never
     // dies on a single provider hiccup.
     const computerChain = Array.from(new Set([
-      "moonshotai/kimi-k2.6:free",
+      "moonshotai/kimi-k2.6",
       ...(hasImages ? MODELS_VISION : []),
       ...MODELS_LONG_CTX,
       ...MODELS_QUALITY,
