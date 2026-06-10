@@ -352,6 +352,8 @@ export default function LuminaComputer() {
   const parserRef = useRef<LuminaParser | null>(null);
   const rawAssistantRef = useRef<string>("");
   const lastUserPromptRef = useRef<string>("");
+  // Rolling conversation memory — last N turns kept so Lumina remembers prior asks.
+  const turnsRef = useRef<{ role: "user" | "assistant"; content: any }[]>([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
