@@ -88,11 +88,18 @@ const LecturePodcast = ({ notes, onScriptChange, onBeforeGenerate }: Props) => {
     setCurrentLineIdx(-1);
 
     try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Please sign in to generate a podcast.');
+        setGeneratingScript(false);
+        return;
+      }
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-podcast-script`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ notes }),
       });

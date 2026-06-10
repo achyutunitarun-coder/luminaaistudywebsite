@@ -214,10 +214,15 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
+    const hasKimiKey = !!Deno.env.get("KIMI_API_KEY");
     const models = isComputerMode
-      ? Array.from(new Set(hasImages
-          ? ["moonshotai/kimi-k2.6:free", ...MODELS_VISION, ...MODELS_LONG_CTX]
-          : ["moonshotai/kimi-k2.6:free", "openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
+      ? (hasKimiKey
+          // Kimi K2.6 ONLY for Lumina Computer (user's primary). No fallbacks
+          // so the user actually gets Kimi's long-context multi-file output.
+          ? ["moonshotai/kimi-k2.6:free"]
+          : Array.from(new Set(hasImages
+              ? ["moonshotai/kimi-k2.6:free", ...MODELS_VISION, ...MODELS_LONG_CTX]
+              : ["moonshotai/kimi-k2.6:free", "openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY])))
       : artifactFeature
         ? MODELS_LONG_CTX
         : hasImages
