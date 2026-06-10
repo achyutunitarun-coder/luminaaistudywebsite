@@ -205,6 +205,56 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
+// ── Moonshot (Kimi) direct API ─────────────────────────────────────
+// When KIMI_API_KEY is configured we call Moonshot directly for any
+// `moonshotai/kimi*` model id — bypassing OpenRouter's :free rate caps and
+// unlocking K2.6's full output budget (multi-file, 40k+ LOC generations).
+const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
+const KIMI_URL = Deno.env.get("KIMI_API_URL") ?? "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_MODEL_DEFAULT = Deno.env.get("KIMI_MODEL_ID") ?? "kimi-k2-thinking";
+function mapToMoonshotModel(orId: string): string {
+  // Strip provider prefix + ":free" suffix; map "kimi-k2.6" → "kimi-k2-thinking"
+  const tail = orId.replace(/^moonshotai\//, "").replace(/:free$/, "").toLowerCase();
+  if (/k2\.?6|k2-?thinking/.test(tail)) return KIMI_MODEL_DEFAULT;
+  if (/k2\.?5/.test(tail))              return "kimi-k2-0905-preview";
+  if (/k2\b|k2-base/.test(tail))        return "kimi-k2-0711-preview";
+  return KIMI_MODEL_DEFAULT;
+}
+async function callKimiDirect(
+  orModel: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+  tag: string,
+): Promise<Response | null> {
+  if (!KIMI_API_KEY) return null;
+  const moonshotModel = mapToMoonshotModel(orModel);
+  try {
+    const res = await fetchWithTimeout(
+      KIMI_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${KIMI_API_KEY}`,
+        },
+        body: JSON.stringify({ ...body, model: moonshotModel }),
+      },
+      timeoutMs,
+    );
+    if (res.ok) {
+      console.log(`[${tag}] ✓ kimi-direct ${moonshotModel}`);
+      return res;
+    }
+    const err = await readErrorText(res);
+    console.warn(`[${tag}] kimi-direct ${moonshotModel} -> ${res.status} ${err}`);
+    try { await res.body?.cancel(); } catch { /* ignore */ }
+    return null;
+  } catch (e) {
+    console.warn(`[${tag}] kimi-direct ${moonshotModel} network/timeout`, e);
+    return null;
+  }
+}
+
 const PARALLEL_RACE_COUNT = 2;          // race 2 models; too many parallel calls were burning key limits
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
