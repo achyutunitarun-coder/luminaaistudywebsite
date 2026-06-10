@@ -40,6 +40,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { FileTree, downloadFilesAsZip } from "@/features/computer/FileTree";
 import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
@@ -798,7 +799,16 @@ export default function LuminaComputer() {
             <FolderOpen className="w-3.5 h-3.5 text-white/40" />
             <span className="text-[12px] font-medium text-white/70">Files</span>
             {files.length > 0 && (
-              <span className="ml-auto text-[11px] text-white/30">{files.length}</span>
+              <span className="ml-1 text-[11px] text-white/30">{files.length}</span>
+            )}
+            {files.length > 0 && (
+              <button
+                onClick={() => downloadFilesAsZip(files, `lumina-${Date.now()}.zip`)}
+                title="Download all files as ZIP"
+                className="ml-auto p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
 
@@ -808,32 +818,11 @@ export default function LuminaComputer() {
                 Files will appear here as Lumina creates them.
               </div>
             ) : (
-              <div className="space-y-0.5">
-                {files.map((f) => {
-                  const active = f.path === (activeFile?.path ?? "");
-                  return (
-                    <button
-                      key={f.path}
-                      onClick={() => setActivePath(f.path)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
-                        active
-                          ? "bg-white/[0.08] text-white"
-                          : "text-white/65 hover:bg-white/[0.04]"
-                      }`}
-                    >
-                      {f.lang === "md" ? (
-                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
-                      ) : (
-                        <FileCode className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
-                      )}
-                      <span className="text-[13px] truncate flex-1">{f.path}</span>
-                      {!f.done && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <FileTree
+                files={files}
+                activePath={activeFile?.path ?? ""}
+                onPick={(p) => setActivePath(p)}
+              />
             )}
 
             {plan && (
