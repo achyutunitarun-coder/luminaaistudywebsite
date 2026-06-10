@@ -675,12 +675,24 @@ Q3: ... || A: ...
           slides: "Slide deck",
           code: "Interactive build",
         } as const)[type];
+        const noun = ({
+          notes: "a structured study guide",
+          exam: "a full exam-style paper",
+          slides: "an interactive slide deck",
+          code: "a working interactive build",
+        } as const)[type];
+        const tips = ({
+          notes: `ask "add a worked example for ${topic}", "make it shorter", or "turn this into flashcards"`,
+          exam: `ask "make it harder", "add a marking scheme", or "focus on ${topic} weak areas"`,
+          slides: `ask "add a quiz slide", "shorten to 8 slides", or "switch aesthetic"`,
+          code: `ask "add dark mode", "make it mobile-first", or "wire up a reset button"`,
+        } as const)[type];
         const artifactNote = [
           `**${noteLabel} ready — ${topic}**`,
           "",
-          `- **What it is:** a self-contained, fully interactive ${type === "code" ? "build" : noteLabel.toLowerCase()} you can open, study, and share.`,
-          `- **How to use:** click **Open** to view full-screen, or drag the divider to study it alongside chat.`,
-          `- **Tip:** ask follow-ups like "make it harder", "add a worked example", or "swap the aesthetic" and I'll regenerate.`,
+          `- **What's inside:** ${noun} covering ${topic} end-to-end — open it to see every section, example and visual.`,
+          `- **How to use:** click **Open** for full-screen, or drag the divider to study it alongside chat.`,
+          `- **Customize:** ${tips}.`,
         ].join("\n");
         const finalMessage: Message = {
           id: uid(),
