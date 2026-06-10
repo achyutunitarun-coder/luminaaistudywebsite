@@ -893,6 +893,15 @@ export default function LuminaComputer() {
           <div className="border-t border-white/[0.06] bg-[#0b0b0f] flex-shrink-0">
             <div className="px-5 h-9 flex items-center gap-2 border-b border-white/[0.04]">
               <span className="text-[11px] font-medium text-white/50">Activity</span>
+              {canContinue && !busy && (
+                <button
+                  onClick={onContinue}
+                  className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
+                  title="Resume from the last line"
+                >
+                  <ArrowUp className="w-3 h-3" /> Continue
+                </button>
+              )}
               {busy && <Loader2 className="w-3 h-3 text-white/60 animate-spin ml-auto" />}
             </div>
             <div className="max-h-[160px] overflow-auto px-5 py-2">
