@@ -352,6 +352,8 @@ export default function LuminaComputer() {
   const parserRef = useRef<LuminaParser | null>(null);
   const rawAssistantRef = useRef<string>("");
   const lastUserPromptRef = useRef<string>("");
+  // Rolling conversation memory — last N turns kept so Lumina remembers prior asks.
+  const turnsRef = useRef<{ role: "user" | "assistant"; content: any }[]>([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
@@ -444,6 +446,7 @@ export default function LuminaComputer() {
     setCanContinue(false);
     rawAssistantRef.current = "";
     lastUserPromptRef.current = "";
+    turnsRef.current = [];
     parserRef.current = null;
     seenActionsRef.current = new Set();
     setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
@@ -574,7 +577,9 @@ export default function LuminaComputer() {
         } else {
           const content = buildMessageContent(trimmed);
           setAttachments([]);
-          messages = [{ role: "user", content }];
+          // Send rolling window of prior turns + new user message.
+          const history = turnsRef.current.slice(-12);
+          messages = [...history, { role: "user", content }];
         }
 
         const res = await fetch(CHAT_URL, {
@@ -675,6 +680,17 @@ export default function LuminaComputer() {
           parserRef.current!.finish();
           applyState();
           log("done", `Done · ${st.files.length} file(s)`);
+        }
+        // Commit this turn to rolling memory (skip continuation turns — they're
+        // stitched into the previous assistant message instead).
+        if (!isCont && rawAssistantRef.current) {
+          turnsRef.current.push(
+            { role: "user", content: lastUserPromptRef.current },
+            { role: "assistant", content: rawAssistantRef.current.slice(0, 16000) },
+          );
+          if (turnsRef.current.length > 24) {
+            turnsRef.current = turnsRef.current.slice(-24);
+          }
         }
       } catch (e: any) {
         if (e?.name === "AbortError") {
