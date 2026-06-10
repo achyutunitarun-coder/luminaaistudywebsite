@@ -22,7 +22,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import StudyPlanner from "@/pages/StudyPlanner";
 import NoteToQuiz from "@/pages/NoteToQuiz";
 import QuickStudy from "@/pages/QuickStudy";
-import GuidedLesson from "@/pages/GuidedLesson";
+// Guided Lesson removed
 import StudySession from "@/pages/StudySession";
 import Pulse from "@/pages/Pulse";
 import NotesGenerator from "@/pages/NotesGenerator";
@@ -36,11 +36,11 @@ import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import LuminaComputer from "@/pages/LuminaComputer";
 import Documents from "@/pages/Documents";
-import Squad from "@/pages/Squad";
+// Study Squads removed
 import Performance from "@/pages/Performance";
 import PrivacySettings from "@/pages/PrivacySettings";
 import TrainingData from "@/pages/TrainingData";
-import ConnectorHub from "@/pages/ConnectorHub";
+// Connectors disabled
 import OAuthCallback from "@/pages/OAuthCallback";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
@@ -129,7 +129,7 @@ const App = () => (
               <Route path="/study-planner" element={<StudyPlanner />} />
               <Route path="/note-to-quiz" element={<NoteToQuiz />} />
               <Route path="/quick-study" element={<QuickStudy />} />
-              <Route path="/guided-lesson" element={<GuidedLesson />} />
+              <Route path="/guided-lesson" element={<Navigate to="/ai-tools" replace />} />
               <Route path="/study-session" element={<StudySession />} />
               <Route path="/pulse" element={<Pulse />} />
               <Route path="/notes-generator" element={<NotesGenerator />} />
@@ -140,10 +140,10 @@ const App = () => (
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/game-modes" element={<GameModes />} />
               <Route path="/performance" element={<Performance />} />
-              <Route path="/squad" element={<Squad />} />
+              <Route path="/squad" element={<Navigate to="/dashboard" replace />} />
               <Route path="/settings/privacy" element={<PrivacySettings />} />
               <Route path="/training-data" element={<TrainingData />} />
-              <Route path="/connectors" element={<ConnectorHub />} />
+              <Route path="/connectors" element={<Navigate to="/dashboard" replace />} />
               <Route path="/oauth/google/callback" element={<OAuthCallback provider="google" />} />
               <Route path="/oauth/notion/callback" element={<OAuthCallback provider="notion" />} />
               <Route path="/brain-hub" element={<Navigate to="/hub" replace />} />
