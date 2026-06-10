@@ -178,9 +178,14 @@ export const AppSidebarContent = memo(
           <Sparkles className="w-5 h-5 text-primary-foreground" />
         </motion.div>
         {(!collapsed || isMobile) && (
-          <span className="font-display font-bold text-lg text-foreground tracking-tight">
-            Lumina
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-display font-bold text-lg text-foreground tracking-tight">
+              Lumina
+            </span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-primary/15 text-primary border border-primary/20">
+              BETA
+            </span>
+          </div>
         )}
       </div>
 
