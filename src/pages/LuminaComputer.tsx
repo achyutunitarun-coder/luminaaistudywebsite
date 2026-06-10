@@ -511,10 +511,6 @@ export default function LuminaComputer() {
 
   // ── Send ───────────────────────────────────────────────────────────
   const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-  // ── Send ───────────────────────────────────────────────────────────
-  const send = useCallback(
     async (text: string, opts: { continuation?: boolean } = {}) => {
       const trimmed = text.trim();
       if ((!trimmed && !opts.continuation) || busy) return;
