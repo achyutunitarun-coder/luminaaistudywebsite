@@ -211,9 +211,9 @@ const HEADERS_BASE = {
 // unlocking K2.6's full output budget (multi-file, 40k+ LOC generations).
 const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
 const KIMI_URL = Deno.env.get("KIMI_API_URL") ?? "https://api.moonshot.ai/v1/chat/completions";
-const KIMI_MODEL_DEFAULT = Deno.env.get("KIMI_MODEL_ID") ?? "kimi-k2-thinking";
+const KIMI_MODEL_DEFAULT = Deno.env.get("KIMI_MODEL_ID") ?? "kimi-k2.6";
 function mapToMoonshotModel(orId: string): string {
-  // Strip provider prefix + ":free" suffix; map "kimi-k2.6" → "kimi-k2-thinking"
+  // Strip provider prefix + ":free" suffix; keep Kimi K2.6 on the real K2.6 id.
   const tail = orId.replace(/^moonshotai\//, "").replace(/:free$/, "").toLowerCase();
   if (/k2\.?6|k2-?thinking/.test(tail)) return KIMI_MODEL_DEFAULT;
   if (/k2\.?5/.test(tail))              return "kimi-k2-0905-preview";
