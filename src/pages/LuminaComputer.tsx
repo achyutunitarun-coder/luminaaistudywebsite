@@ -346,8 +346,11 @@ export default function LuminaComputer() {
   const [model, setModel] = useState<string>("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const parserRef = useRef<LuminaParser | null>(null);
+  const rawAssistantRef = useRef<string>("");
+  const lastUserPromptRef = useRef<string>("");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
