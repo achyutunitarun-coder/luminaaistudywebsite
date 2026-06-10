@@ -681,6 +681,17 @@ export default function LuminaComputer() {
           applyState();
           log("done", `Done · ${st.files.length} file(s)`);
         }
+        // Commit this turn to rolling memory (skip continuation turns — they're
+        // stitched into the previous assistant message instead).
+        if (!isCont && rawAssistantRef.current) {
+          turnsRef.current.push(
+            { role: "user", content: lastUserPromptRef.current },
+            { role: "assistant", content: rawAssistantRef.current.slice(0, 16000) },
+          );
+          if (turnsRef.current.length > 24) {
+            turnsRef.current = turnsRef.current.slice(-24);
+          }
+        }
       } catch (e: any) {
         if (e?.name === "AbortError") {
           log("warn", "Stopped");
