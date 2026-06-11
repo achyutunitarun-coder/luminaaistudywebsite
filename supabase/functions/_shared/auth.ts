@@ -19,8 +19,30 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: authHeader } } },
   );
-  const { data, error } = await sb.auth.getUser();
-  if (error || !data?.user) {
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+  // Prefer asymmetric JWT verification via getClaims (signing-keys system).
+  // Falls back to getUser() for legacy HS256 tokens.
+  let userId: string | null = null;
+  let email: string | null = null;
+  try {
+    // @ts-ignore - getClaims exists in supabase-js v2.45+
+    const { data: claimsData, error: claimsErr } = await sb.auth.getClaims(token);
+    if (!claimsErr && claimsData?.claims?.sub) {
+      userId = claimsData.claims.sub as string;
+      email = (claimsData.claims.email as string) ?? null;
+    }
+  } catch { /* ignore, fall back */ }
+
+  if (!userId) {
+    const { data, error } = await sb.auth.getUser(token);
+    if (!error && data?.user) {
+      userId = data.user.id;
+      email = data.user.email ?? null;
+    }
+  }
+
+  if (!userId) {
     return {
       error: new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -28,5 +50,5 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
       }),
     } as const;
   }
-  return { user: data.user, sb } as const;
+  return { user: { id: userId, email }, sb } as const;
 }
