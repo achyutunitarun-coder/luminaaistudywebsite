@@ -64,7 +64,7 @@ const sidebarSections = [
       { title: 'Quick Study', url: '/quick-study', icon: Zap },
       { title: 'Lecture AI', url: '/lecture-ai', icon: Mic },
       { title: 'Smart Notebook', url: '/smart-notebook', icon: PenTool },
-      { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
+      
     ],
   },
   {
