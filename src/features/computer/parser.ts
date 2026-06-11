@@ -159,6 +159,7 @@ export class LuminaParser {
         }
         if (this.activeFile) {
           this.activeFile.content += this.buffer.slice(0, close);
+          this.activeFile.content = stripMetaCommentary(this.activeFile.content, this.activeFile.lang);
           this.activeFile.done = true;
           this.activeFile = null;
         }
