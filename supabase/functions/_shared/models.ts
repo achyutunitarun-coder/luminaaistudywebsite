@@ -122,6 +122,8 @@ const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_KEY_3"),
   Deno.env.get("OPENROUTER_KEY_4"),
   Deno.env.get("OPENROUTER_KEY_5"),
+  Deno.env.get("OPENROUTER_KEY_6"),
+  Deno.env.get("OPENROUTER_KEY_7"),
 ].filter(Boolean) as string[];
 
 if (ALL_KEYS.length === 0) {
