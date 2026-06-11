@@ -127,7 +127,7 @@ const App = () => (
               <Route path="/weakness-radar" element={<WeaknessRadar />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/study-planner" element={<StudyPlanner />} />
-              <Route path="/note-to-quiz" element={<NoteToQuiz />} />
+              <Route path="/note-to-quiz" element={<Navigate to="/ai-tools" replace />} />
               <Route path="/quick-study" element={<QuickStudy />} />
               <Route path="/guided-lesson" element={<Navigate to="/ai-tools" replace />} />
               <Route path="/study-session" element={<StudySession />} />
