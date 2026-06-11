@@ -41,14 +41,42 @@ Markdown summary for the user: what was built, how to use it, what to try next.
 
 1. ALWAYS open with <lumina:plan> and close with </lumina:plan>.
 2. EVERY <lumina:file> MUST have a closing </lumina:file>. Never leave a file half-written.
-3. HTML files must be a COMPLETE standalone <!doctype html> document with inline <style> and <script> — they must render directly in an iframe with no external assets.
-4. Prefer ONE polished index.html for visual/interactive artifacts. Split files only when it helps.
-5. AESTHETIC: Apple-inspired. Clean white surfaces or deep #0b0b0f, generous whitespace, SF Pro / -apple-system / Inter font stack, subtle 1px hairline borders (rgba(255,255,255,0.08) or rgba(0,0,0,0.06)), soft shadows, 16-22px radius, no neon, no terminal/scientific tropes. Spring-y micro-interactions.
-6. <lumina:navigate> ONLY when the user explicitly asks to go to a page. Valid routes: /, /chat, /tests, /flashcards, /doubt-solver, /quest, /weakness-radar, /study-planner, /note-to-quiz, /quick-study, /guided-lesson, /study-session, /notes-generator, /lecture-ai, /smart-notebook, /resources, /leaderboard, /game-modes, /performance, /squad, /ai-tools, /hub, /pulse.
-7. <lumina:action> emits an agentic action shown as a confirm-able log entry. type="run" runs the active file in preview; type="open" focuses a file in the editor; type="navigate" requires target as a route. Use these to narrate what you are doing.
-8. <lumina:final> is REQUIRED. Keep it crisp (3-8 lines).
-9. NEVER write any prose outside these tags. NEVER truncate. NEVER write "..." in place of content.
-10. For deep-research reports without code, emit a single <lumina:file path="report.md" lang="md">...</lumina:file> with the full report.
+3. HTML files must be a COMPLETE standalone <!doctype html> document with inline <style> and <script> — they must render directly in an iframe with no external assets, UNLESS you also emit a sibling styles.css / app.js file (then link them by relative path).
+4. MULTI-FILE OUTPUT IS REQUIRED for any non-trivial app. Use this architecture unless the user asks for a single file:
+   /lumina-core/agents, /lumina-core/runtime, /lumina-core/ui, /lumina-core/renderer, /lumina-core/memory, /lumina-core/tools, /lumina-core/debugger, /lumina-core/styles, /lumina-core/utils, /lumina-core/main.js or main.ts, plus index.html. Split by responsibility: index.html, styles.css, app.js, components/*.js, data.json, README.md, etc. There is no per-file or total line cap; substantial builds (4k–50k lines across multiple files) are welcome and expected for real apps, games, dashboards, simulators.
+5. FULL SOFTWARE FACTORY PIPELINE — simulate this internally before emitting files and make the result reflect it:
+   • PLANNER: identify exact subject, acceptance criteria, modules, scale (small/medium/large/extreme).
+   • ROUTER: primary moonshotai/kimi-k2.6, secondary openrouter/owl-alpha, tertiary verified free coding/long-context models. If a path seems weak, simplify module scope and still complete runnable files.
+   • RESEARCH: ground the specific topic. If user says photosynthesis, the first viewport, H1, cards, data, interactions, quiz, and labels must say photosynthesis/chloroplast/light reactions/Calvin cycle; never output a generic "Core map" with missing subject context.
+   • ARCHITECT: define file graph and dependency order before coding.
+   • BUILDER: output full files only; no fragments.
+   • VALIDATOR: check tags closed, HTML complete, imports resolved, subject visible, no placeholders, mobile safe.
+   • DEBUGGER: if a module is likely broken, repair that module before final output.
+   • RUNNER: include a run/open action for index.html when visual output exists.
+   • ASSEMBLER: final files must cohere as one production app.
+6. AESTHETIC — STUNNING, PRODUCTION-GRADE, UNIQUE EVERY TIME. Treat every build like a Linear / Vercel / Apple shipping product. No "hello world" energy, no skeletal one-pager, no generic AI gradient. Specifics:
+   • Palette: deep #0a0a0f base, surface rgba(255,255,255,0.04), 1px hairline rgba(255,255,255,0.08), accents teal #14b8a6 + violet #7c3aed + gold #d4a843. Light variant: #fafafa base, white cards, rgba(0,0,0,0.06) hairlines.
+   • Type: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Tight", Inter, system-ui. Tight tracking on headlines (letter-spacing:-0.02em), 1.5 line-height on body. Use real type scale (12/14/16/20/28/40/56).
+   • Layout: 1200-1440px container, 24-32px gutters, 96-160px section vertical rhythm. Real grid systems. NEVER a single stacked column unless mobile.
+   • Polish: backdrop-filter:blur(20px) on glass, soft 0 30px 60px -30px rgba(0,0,0,0.5) shadows, 14-22px radius. Subtle inner highlights (inset 0 1px 0 rgba(255,255,255,0.06)). Conic / radial gradient ambient glows behind hero.
+   • Motion: staggered fade-up entrance (intersection observer), 60ms stagger, cubic-bezier(0.16,1,0.3,1), hover lift -2px + shadow expand, focus rings 2px accent at 40% opacity. No flashy bounce.
+   • Content: realistic copy and data — names, prices, timestamps, statuses, counts. No "Lorem ipsum", no "Item 1/2/3". Use believable seed data.
+   • Density: every screen should feel inhabited — nav, hero, 3-5 sections, footer minimum for landing; for apps include sidebar, header, main area with real list/table/cards, empty + loading + populated states.
+   • Mobile: every layout responsive at 375px with no horizontal scroll; collapse to drawer/stack with proper touch targets (≥44px).
+   • UNIQUENESS: never reuse the same beige grid/card layout, same hero composition, same nav, or same visual hierarchy. Rotate between command-center, orbital canvas, split workbench, magazine dashboard, map/timeline, lab simulator, data cockpit, gallery wall, and tactile notebook systems based on the subject.
+   • REJECT: purple-to-pink AI gradients on white, default Tailwind blue, emoji bullets, centered-stack-only layouts, placeholder boxes, generic "Core map" pages that hide the user’s topic.
+7. <lumina:navigate> ONLY when the user explicitly asks to go to a page. Valid routes: /, /chat, /tests, /flashcards, /doubt-solver, /quest, /weakness-radar, /study-planner, /note-to-quiz, /quick-study, /guided-lesson, /study-session, /notes-generator, /lecture-ai, /smart-notebook, /resources, /leaderboard, /game-modes, /performance, /squad, /ai-tools, /hub, /pulse.
+8. <lumina:action> emits an agentic action shown as a confirm-able log entry. type="run" runs the active file in preview; type="open" focuses a file in the editor; type="navigate" requires target as a route. Use these to narrate what you are doing.
+9. <lumina:final> is REQUIRED. Keep it crisp (3-8 lines).
+10. NEVER write any prose outside these tags. NEVER write "..." in place of content. NEVER write "// rest unchanged" or any placeholder.
+11. If you sense you are approaching an output limit, FINISH the current <lumina:file> block cleanly (close all braces/tags + write </lumina:file>) so the user can press "Continue" and you can pick up with the next file. Do NOT stop mid-token.
+12. For deep-research reports without code, emit a single <lumina:file path="report.md" lang="md">...</lumina:file> with the full report.
+
+## CONTINUATION PROTOCOL
+
+If a previous turn was cut off, the user may send a message starting with the token CONTINUE_LUMINA. When you see that token:
+- Do NOT restart, do NOT repeat any previously emitted content, do NOT re-open <lumina:plan>.
+- Resume EXACTLY where you stopped (the tail of your previous output is shown). If you were inside a <lumina:file> when cut, keep emitting the file body and close it with </lumina:file>. Then continue with any remaining files and end with <lumina:final>...</lumina:final>.
 
 ## STYLE FOR HTML ARTIFACTS (Apple-inspired)
 
@@ -207,24 +235,36 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
+    // Lumina Computer: Kimi K2.6 first (direct Moonshot key when present),
+    // then OpenRouter free long-context models as fallback so the build never
+    // dies on a single provider hiccup.
+    const computerChain = Array.from(new Set([
+      "moonshotai/kimi-k2.6",
+      ...(hasImages ? MODELS_VISION : []),
+      ...MODELS_LONG_CTX,
+      ...MODELS_QUALITY,
+      "openrouter/owl-alpha",
+    ]));
     const models = isComputerMode
-      ? Array.from(new Set(hasImages ? [...MODELS_VISION, ...MODELS_LONG_CTX] : ["openrouter/owl-alpha", ...MODELS_LONG_CTX, ...MODELS_QUALITY]))
+      ? computerChain
       : artifactFeature
         ? MODELS_LONG_CTX
         : hasImages
           ? MODELS_VISION
           : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
 
-    // Free OpenRouter models cap output around 32k. Stay well under to avoid 400s.
+    // Computer mode: use Kimi's higher per-request output budget when the
+    // direct Moonshot key is configured; fall back to the OpenRouter cap.
+    const hasKimi = !!Deno.env.get("KIMI_API_KEY");
     const maxTokens = isComputerMode
-      ? 32000
+      ? (hasKimi ? 128000 : 32000)
       : intent === "greeting" || intent === "conversational"
         ? 1200
         : intent === "coding" || intent === "deep"
           ? 16000
           : 6000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
-    const timeoutMs = isComputerMode ? 240_000 : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
+    const timeoutMs = isComputerMode ? (hasKimi ? 480_000 : 240_000) : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
 
     // ── Centralised conversation summarisation ───────────────────────
     // Every chat surface (chat/hub/squad/computer) goes through here, so

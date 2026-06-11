@@ -220,6 +220,19 @@ function preprocessLatex(text: string): string {
     })
     .join('\n');
 
+  // 9c. Auto-wrap bare inline exponents / subscripts like x^2, x^{10}, H_2O, a_{i,j}.
+  //     Only on lines with no existing $ delimiters. Skip protected code blocks.
+  const BARE_EXP_RE = /([A-Za-z])(\^|_)(\{[^}]{1,12}\}|[A-Za-z0-9])/g;
+  processed = processed
+    .split('\n')
+    .map((line) => {
+      if (line.includes('$') || line.startsWith('%%CODEBLOCK_')) return line;
+      if (!BARE_EXP_RE.test(line)) return line;
+      BARE_EXP_RE.lastIndex = 0;
+      return line.replace(BARE_EXP_RE, (m) => `$${m}$`);
+    })
+    .join('\n');
+
   // 10. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 

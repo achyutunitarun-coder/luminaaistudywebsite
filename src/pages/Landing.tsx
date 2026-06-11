@@ -61,6 +61,17 @@ const Wordmark = ({ size = 22 }: { size?: number }) => (
     >
       Lumina
     </span>
+    <span
+      className="px-1.5 py-0.5 rounded text-[9px] font-semibold border"
+      style={{
+        background: 'rgba(59,130,246,0.12)',
+        color: C.ink,
+        borderColor: 'rgba(59,130,246,0.25)',
+        fontFamily: "'Inter Tight', sans-serif",
+      }}
+    >
+      BETA
+    </span>
   </div>
 );
 

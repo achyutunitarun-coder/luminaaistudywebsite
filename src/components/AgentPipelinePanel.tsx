@@ -1,4 +1,4 @@
-// Visual cards for the 6-agent Lumina pipeline.
+// Visual cards for the Lumina software-factory pipeline.
 // Backed by useLuminaPipeline. Drop in anywhere — it shows per-stage
 // status (idle / working / done / error) with Apple-clean styling.
 
@@ -6,30 +6,39 @@ import { CheckCircle2, Loader2, AlertCircle, Circle } from "lucide-react";
 import type { PipelineStage, StageStatus } from "@/hooks/useLuminaPipeline";
 
 const ORDER: PipelineStage[] = [
-  "orchestrate",
-  "plan",
+  "planner",
+  "router",
   "research",
-  "build",
-  "debug",
-  "optimize",
+  "architect",
+  "builder",
+  "validator",
+  "debugger",
+  "runner",
+  "assembler",
 ];
 
 const LABEL: Record<PipelineStage, string> = {
-  orchestrate: "Orchestrator",
-  plan: "Planner",
+  planner: "Thinking",
+  router: "Routing",
   research: "Research",
-  build: "Builder",
-  debug: "Debug",
-  optimize: "Optimizer",
+  architect: "Architecture",
+  builder: "Coding",
+  validator: "Evaluating",
+  debugger: "Debugging",
+  runner: "Running",
+  assembler: "Assembling",
 };
 
 const SUBTITLE: Record<PipelineStage, string> = {
-  orchestrate: "Breaking your request into subtasks.",
-  plan: "Sequencing the execution steps.",
-  research: "Gathering facts, formulas, examples.",
-  build: "Producing the artifact.",
-  debug: "Reviewing for correctness.",
-  optimize: "Polishing the final output.",
+  planner: "Breaking the request into acceptance criteria.",
+  router: "Selecting model fallback and recovery strategy.",
+  research: "Grounding the subject with facts and examples.",
+  architect: "Designing files, modules, and UI system.",
+  builder: "Writing complete production files.",
+  validator: "Checking syntax, subject fit, and completeness.",
+  debugger: "Repairing only broken modules.",
+  runner: "Preparing the runnable preview.",
+  assembler: "Final coherence and handoff.",
 };
 
 function StatusIcon({ status }: { status: StageStatus }) {
@@ -46,9 +55,10 @@ interface Props {
   compact?: boolean;
   skills?: Array<{ id: string; label: string; icon: string }>;
   tier?: "TIER_3" | "TIER_2" | "TIER_1" | null;
+  events?: string[];
 }
 
-export function AgentPipelinePanel({ states, activeLabel, running, compact, skills, tier }: Props) {
+export function AgentPipelinePanel({ states, activeLabel, running, compact, skills, tier, events }: Props) {
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="px-3.5 py-2.5 flex items-center gap-2 border-b border-white/[0.05]">
@@ -132,6 +142,15 @@ export function AgentPipelinePanel({ states, activeLabel, running, compact, skil
           );
         })}
       </ol>
+      {events && events.length > 0 && !compact && (
+        <div className="border-t border-white/[0.05] px-3.5 py-2.5 space-y-1 bg-black/[0.12]">
+          {events.slice(-4).map((event, index) => (
+            <div key={`${event}-${index}`} className="text-[10.5px] leading-snug text-white/38 truncate">
+              {event}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
