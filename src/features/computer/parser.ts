@@ -343,18 +343,4 @@ export function stripMetaCommentary(src: string, _lang: string): string {
   });
   return cleaned.join("\n");
 }
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  const map: Record<string, string> = {
-    html: "html", htm: "html",
-    css: "css",
-    js: "js", mjs: "js", cjs: "js",
-    ts: "ts", tsx: "tsx",
-    jsx: "jsx",
-    json: "json",
-    md: "md", markdown: "md",
-    py: "py",
-    sh: "sh",
-    svg: "svg",
-  };
-  return map[ext] ?? "txt";
-}
+
