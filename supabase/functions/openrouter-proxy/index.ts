@@ -96,16 +96,41 @@ serve(async (req) => {
 
     for (let i = 0; i < chain.length; i++) {
       const m = chain[i];
-      let res = await callOR(m, payload, stream);
-      if (!res.ok && (res.status === 429 || res.status >= 500)) {
-        await new Promise((r) => setTimeout(r, 800));
-        res = await callOR(m, payload, stream);
+      // Try up to N keys for this model; rotate on 429/401/403/5xx
+      const maxKeyAttempts = Math.min(ALL_KEYS.length, 3);
+      const triedKeys = new Set<number>();
+      let res: Response | null = null;
+      let keyIdx = -1;
+      for (let k = 0; k < maxKeyAttempts; k++) {
+        keyIdx = nextHealthyKeyIndex(triedKeys);
+        triedKeys.add(keyIdx);
+        res = await callOR(m, payload, stream, keyIdx);
+        if (res.ok) break;
+        if (res.status === 429) {
+          coolKey(keyIdx, KEY_COOLDOWN_MS, `429 on ${m}`);
+          try { await res.body?.cancel(); } catch { /* */ }
+          res = null;
+          continue;
+        }
+        if (res.status === 401 || res.status === 403) {
+          coolKey(keyIdx, KEY_BAD_COOLDOWN_MS, `${res.status} auth`);
+          try { await res.body?.cancel(); } catch { /* */ }
+          res = null;
+          continue;
+        }
+        if (res.status >= 500) {
+          try { await res.body?.cancel(); } catch { /* */ }
+          await new Promise((r) => setTimeout(r, 400));
+          res = null;
+          continue;
+        }
+        // 4xx other — model rejected the request; stop rotating keys, try next model
+        break;
       }
-      if (res.ok && res.body) {
-        usedModel = m;
+
+      if (res && res.ok && res.body) {
         if (stream) {
-          // Inject a meta event so client can show "Switched to backup model" toast.
-          const meta = `data: ${JSON.stringify({ lumina_meta: { model: m, fallback: i > 0 } })}\n\n`;
+          const meta = `data: ${JSON.stringify({ lumina_meta: { model: m, fallback: i > 0, key: keyIdx + 1 } })}\n\n`;
           const reader = res.body.getReader();
           const out = new ReadableStream({
             async start(ctrl) {
@@ -123,11 +148,11 @@ serve(async (req) => {
           });
         }
         const data = await res.json();
-        return new Response(JSON.stringify({ ...data, lumina_meta: { model: m, fallback: i > 0 } }), {
+        return new Response(JSON.stringify({ ...data, lumina_meta: { model: m, fallback: i > 0, key: keyIdx + 1 } }), {
           headers: { ...cors, "Content-Type": "application/json" },
         });
       }
-      lastErr = `${res.status} ${await res.text().catch(() => "")}`.slice(0, 200);
+      if (res) lastErr = `${res.status} ${await res.text().catch(() => "")}`.slice(0, 200);
     }
 
     return new Response(JSON.stringify({ error: "All models failed", detail: lastErr }), {
