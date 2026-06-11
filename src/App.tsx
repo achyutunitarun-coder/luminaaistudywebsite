@@ -20,7 +20,7 @@ import Quest from "@/pages/Quest";
 import WeaknessRadar from "@/pages/WeaknessRadar";
 import SettingsPage from "@/pages/SettingsPage";
 import StudyPlanner from "@/pages/StudyPlanner";
-import NoteToQuiz from "@/pages/NoteToQuiz";
+
 import QuickStudy from "@/pages/QuickStudy";
 // Guided Lesson removed
 import StudySession from "@/pages/StudySession";
