@@ -43,7 +43,7 @@ const mainItems = [
   { title: 'Tests', url: '/tests', icon: FileText },
   { title: 'Flashcards', url: '/flashcards', icon: Layers },
   { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
-  { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
+  
   { title: 'Quick Study', url: '/quick-study', icon: Zap },
   { title: 'Study Planner', url: '/study-planner', icon: Calendar },
   { title: 'Lecture AI', url: '/lecture-ai', icon: FileAudio },
