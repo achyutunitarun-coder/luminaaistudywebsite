@@ -32,7 +32,7 @@ const AI_TOOLS = [
   { name: 'Smart Notebook', icon: PenTool, color: 'from-teal-500 to-cyan-500', desc: 'AI writing', route: '/smart-notebook' },
   { name: 'Flashcards', icon: Layers, color: 'from-rose-500 to-pink-500', desc: 'SRS cards', route: '/flashcards' },
   { name: 'Tests', icon: Target, color: 'from-red-500 to-orange-500', desc: 'Practice tests', route: '/tests' },
-  { name: 'Note to Quiz', icon: ClipboardList, color: 'from-indigo-500 to-blue-500', desc: 'Notes → quizzes', route: '/note-to-quiz' },
+  
   { name: 'Lecture AI', icon: Mic, color: 'from-sky-500 to-blue-500', desc: 'Audio analysis', route: '/lecture-ai' },
 ];
 
