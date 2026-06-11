@@ -40,9 +40,6 @@ verify_jwt = false
 [functions.generate-study-plan]
 verify_jwt = false
 
-[functions.note-to-quiz]
-verify_jwt = false
-
 [functions.quick-study]
 verify_jwt = false
 
