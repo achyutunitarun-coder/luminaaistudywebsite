@@ -14,19 +14,53 @@ const cors = {
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
 const FALLBACK_CHAIN = ["openrouter/free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.2-3b-instruct:free"];
 
-function pickKey(): string {
-  const keys = [
-    Deno.env.get("OPENROUTER_API_KEY"),
-    Deno.env.get("OPENROUTER_KEY_2"),
-    Deno.env.get("OPENROUTER_KEY_3"),
-    Deno.env.get("OPENROUTER_KEY_4"),
-  ].filter(Boolean) as string[];
-  if (keys.length === 0) throw new Error("No OpenRouter key configured");
-  return keys[Math.floor(Math.random() * keys.length)];
+const ALL_KEYS: string[] = [
+  Deno.env.get("OPENROUTER_API_KEY"),
+  Deno.env.get("OPENROUTER_KEY_2"),
+  Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
+  Deno.env.get("OPENROUTER_KEY_5"),
+  Deno.env.get("OPENROUTER_KEY_6"),
+  Deno.env.get("OPENROUTER_KEY_7"),
+].filter(Boolean) as string[];
+
+if (ALL_KEYS.length === 0) console.error("[proxy] No OpenRouter keys configured");
+console.log(`[proxy] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
+
+const KEY_COOLDOWN_MS = 45_000;
+const KEY_BAD_COOLDOWN_MS = 10 * 60_000;
+const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
+let _cursor = 0;
+
+function nextHealthyKeyIndex(skip: Set<number> = new Set()): number {
+  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter key configured");
+  for (let step = 0; step < ALL_KEYS.length; step++) {
+    const i = (_cursor + step) % ALL_KEYS.length;
+    if (skip.has(i)) continue;
+    if (_cooledUntil[i] <= Date.now()) {
+      _cursor = (i + 1) % ALL_KEYS.length;
+      return i;
+    }
+  }
+  // All cooling — pick the one that recovers soonest and isn't skipped
+  let best = -1, bestUntil = Infinity;
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    if (skip.has(i)) continue;
+    if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
+  }
+  if (best === -1) best = _cursor;
+  _cursor = (best + 1) % ALL_KEYS.length;
+  return best;
 }
 
-async function callOR(model: string, body: any, stream: boolean) {
-  const key = pickKey();
+function coolKey(i: number, ms: number, reason: string) {
+  const until = Date.now() + ms;
+  if (until > _cooledUntil[i]) _cooledUntil[i] = until;
+  console.warn(`[proxy] key ${i + 1} cooled ${Math.round(ms / 1000)}s (${reason})`);
+}
+
+async function callOR(model: string, body: any, stream: boolean, keyIdx: number) {
+  const key = ALL_KEYS[keyIdx];
   return fetch(OR_URL, {
     method: "POST",
     headers: {
