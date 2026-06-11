@@ -13,7 +13,7 @@ const tools = [
   { title: 'Doubt Solver', desc: 'Paste any question and get crystal-clear step-by-step solutions with explanations.', icon: HelpCircle, path: '/doubt-solver', gradient: 'from-purple-500 to-pink-400', bgGlow: 'group-hover:shadow-purple-500/20' },
   { title: 'Notes Generator', desc: 'Generate beautifully structured study notes in 8 different styles — exam-ready and comprehensive.', icon: FileText, path: '/notes-generator', gradient: 'from-emerald-500 to-teal-400', bgGlow: 'group-hover:shadow-emerald-500/20', tag: 'Power Tool' },
   { title: 'Quick Study', desc: 'Rapid topic breakdowns with key concepts and practice questions in seconds.', icon: Zap, path: '/quick-study', gradient: 'from-amber-500 to-orange-400', bgGlow: 'group-hover:shadow-amber-500/20' },
-  { title: 'Note to Quiz', desc: 'Convert any notes into MCQ, short answer, and conceptual quizzes instantly.', icon: Brain, path: '/note-to-quiz', gradient: 'from-rose-500 to-red-400', bgGlow: 'group-hover:shadow-rose-500/20' },
+  
   { title: 'Lecture AI', desc: 'Record lectures or upload documents → auto-generate notes, flashcards, quizzes, and podcasts.', icon: Mic, path: '/lecture-ai', gradient: 'from-indigo-500 to-violet-400', bgGlow: 'group-hover:shadow-indigo-500/20', tag: 'Full Suite' },
   { title: 'Smart Notebook', desc: 'AI-powered notebook that generates notes, flowcharts, and overviews from any document.', icon: PenTool, path: '/smart-notebook', gradient: 'from-cyan-500 to-blue-400', bgGlow: 'group-hover:shadow-cyan-500/20' },
   { title: 'Flashcards', desc: 'AI-generated spaced repetition flashcard decks with difficulty tracking.', icon: Layers, path: '/flashcards', gradient: 'from-fuchsia-500 to-pink-400', bgGlow: 'group-hover:shadow-fuchsia-500/20' },

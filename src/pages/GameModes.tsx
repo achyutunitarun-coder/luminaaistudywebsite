@@ -107,28 +107,38 @@ const GameModes = () => {
     setLoading(true);
     try {
       const count = selectedMode === 'velocity_run' ? 20 : selectedMode === 'neural_heist' ? 9 : selectedMode === 'mind_dungeon' ? 15 : 10;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Please sign in to play.');
+        setLoading(false);
+        return;
+      }
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-resources`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           curriculum: 'general',
           subject: topic || 'General Knowledge',
           topic: topic || 'Mixed Topics',
           type: 'game_questions',
-          userId: user!.id,
           count,
         }),
       });
-      if (!resp.ok) throw new Error('Failed to generate');
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate');
+      }
       const data = await resp.json();
-      setQuestions(data.content?.questions || []);
+      const qs = data.content?.questions || [];
+      if (!qs.length) throw new Error('No questions returned');
+      setQuestions(qs);
       setGameState('playing');
       if (selectedMode === 'velocity_run') startTimer();
-    } catch {
-      toast.error('Failed to generate questions');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate questions');
     } finally {
       setLoading(false);
     }

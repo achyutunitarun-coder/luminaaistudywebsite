@@ -40,9 +40,6 @@ verify_jwt = false
 [functions.generate-study-plan]
 verify_jwt = false
 
-[functions.note-to-quiz]
-verify_jwt = false
-
 [functions.quick-study]
 verify_jwt = false
 
@@ -53,4 +50,37 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-boss]
+verify_jwt = false
+
+[functions.generate-resources]
+verify_jwt = false
+
+[functions.lumina-pipeline]
+verify_jwt = false
+
+[functions.lumina-features]
+verify_jwt = false
+
+[functions.guided-lesson]
+verify_jwt = false
+
+[functions.generate-html-artifact]
+verify_jwt = false
+
+[functions.agent-plan]
+verify_jwt = false
+
+[functions.extract-memory]
+verify_jwt = false
+
+[functions.ingest-learning-data]
+verify_jwt = false
+
+[functions.learning-pipeline]
+verify_jwt = false
+
+[functions.ocr-pdf]
+verify_jwt = false
+
+[functions.openrouter-proxy]
 verify_jwt = false

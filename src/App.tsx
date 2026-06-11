@@ -20,7 +20,7 @@ import Quest from "@/pages/Quest";
 import WeaknessRadar from "@/pages/WeaknessRadar";
 import SettingsPage from "@/pages/SettingsPage";
 import StudyPlanner from "@/pages/StudyPlanner";
-import NoteToQuiz from "@/pages/NoteToQuiz";
+
 import QuickStudy from "@/pages/QuickStudy";
 // Guided Lesson removed
 import StudySession from "@/pages/StudySession";
@@ -127,7 +127,7 @@ const App = () => (
               <Route path="/weakness-radar" element={<WeaknessRadar />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/study-planner" element={<StudyPlanner />} />
-              <Route path="/note-to-quiz" element={<NoteToQuiz />} />
+              <Route path="/note-to-quiz" element={<Navigate to="/ai-tools" replace />} />
               <Route path="/quick-study" element={<QuickStudy />} />
               <Route path="/guided-lesson" element={<Navigate to="/ai-tools" replace />} />
               <Route path="/study-session" element={<StudySession />} />
