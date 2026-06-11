@@ -31,7 +31,7 @@ export const MODELS_BALANCED = [
   "openai/gpt-oss-20b:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "z-ai/glm-4.5-air:free",
-  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.6:free",
 ];
 
 export const MODELS_QUALITY = [
@@ -72,12 +72,12 @@ export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.6:free",
   "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
 export const MODELS_VISION = [
-  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.6:free",
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -100,7 +100,7 @@ export const MODELS_EXTRA = [
   "openai/gpt-oss-20b:free",
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
-  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.6:free",
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
@@ -205,56 +205,6 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-// ── Moonshot (Kimi) direct API ─────────────────────────────────────
-// When KIMI_API_KEY is configured we call Moonshot directly for any
-// `moonshotai/kimi*` model id — bypassing OpenRouter's :free rate caps and
-// unlocking K2.6's full output budget (multi-file, 40k+ LOC generations).
-const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
-const KIMI_URL = Deno.env.get("KIMI_API_URL") ?? "https://api.moonshot.ai/v1/chat/completions";
-const KIMI_MODEL_DEFAULT = Deno.env.get("KIMI_MODEL_ID") ?? "kimi-k2.6";
-function mapToMoonshotModel(orId: string): string {
-  // Strip provider prefix + ":free" suffix; keep Kimi K2.6 on the real K2.6 id.
-  const tail = orId.replace(/^moonshotai\//, "").replace(/:free$/, "").toLowerCase();
-  if (/k2\.?6|k2-?thinking/.test(tail)) return KIMI_MODEL_DEFAULT;
-  if (/k2\.?5/.test(tail))              return "kimi-k2-0905-preview";
-  if (/k2\b|k2-base/.test(tail))        return "kimi-k2-0711-preview";
-  return KIMI_MODEL_DEFAULT;
-}
-async function callKimiDirect(
-  orModel: string,
-  body: Record<string, unknown>,
-  timeoutMs: number,
-  tag: string,
-): Promise<Response | null> {
-  if (!KIMI_API_KEY) return null;
-  const moonshotModel = mapToMoonshotModel(orModel);
-  try {
-    const res = await fetchWithTimeout(
-      KIMI_URL,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${KIMI_API_KEY}`,
-        },
-        body: JSON.stringify({ ...body, model: moonshotModel }),
-      },
-      timeoutMs,
-    );
-    if (res.ok) {
-      console.log(`[${tag}] ✓ kimi-direct ${moonshotModel}`);
-      return res;
-    }
-    const err = await readErrorText(res);
-    console.warn(`[${tag}] kimi-direct ${moonshotModel} -> ${res.status} ${err}`);
-    try { await res.body?.cancel(); } catch { /* ignore */ }
-    return null;
-  } catch (e) {
-    console.warn(`[${tag}] kimi-direct ${moonshotModel} network/timeout`, e);
-    return null;
-  }
-}
-
 const PARALLEL_RACE_COUNT = 2;          // race 2 models; too many parallel calls were burning key limits
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
@@ -331,12 +281,6 @@ async function callModel(
   if (_deadModels.has(model)) {
     // Already proven 404 — don't waste budget.
     return null;
-  }
-  // Prefer Moonshot direct API when the caller asked for a kimi model.
-  if (KIMI_API_KEY && /^moonshotai\//.test(model)) {
-    const direct = await callKimiDirect(model, body, timeoutMs, tag);
-    if (direct) return direct;
-    // fall through to OpenRouter on failure
   }
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -464,11 +408,9 @@ export async function callWithFallback(
     ...extraOpts,
   };
   const isStreaming = extraOpts.stream === true;
-  const isComputer = /computer|mun|lumina/i.test(tag);
-  const streamBudget = isComputer ? 420_000 : STREAM_TOTAL_BUDGET_MS;
   const totalBudget = Math.min(
     timeoutMs,
-    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? streamBudget : TEXT_TOTAL_BUDGET_MS,
+    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? STREAM_TOTAL_BUDGET_MS : TEXT_TOTAL_BUDGET_MS,
   );
   const deadline = Date.now() + totalBudget;
   const remainingBudget = () => deadline - Date.now();
@@ -476,9 +418,9 @@ export async function callWithFallback(
 
   // Artifact / long-form generation needs minutes, not seconds, per attempt.
   // Detect via tag so we don't have to thread a flag through every caller.
-  const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
+  const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag);
   const isJsonTool = /guided-|quick-study|note-to-quiz|flashcards|generate-test|plan|lecture-tools/i.test(tag) && !isArtifact;
-  const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
+  const seqAttemptCap = isArtifact ? 95_000 : (isStreaming ? 10_000 : 9_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
   const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 0 : PRIMARY_RACE_TIMEOUT_MS);

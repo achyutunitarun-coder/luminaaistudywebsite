@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAIText, MODELS_FAST } from "../_shared/models.ts";
+import { callAIText, MODELS_QUALITY } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +61,7 @@ serve(async (req) => {
         { role: "system", content: `Generate ${num} MCQs that test understanding. Return ONLY JSON: {"questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Use LaTeX for math ($x^2$). Do NOT include any thinking or reasoning tags.` },
         { role: "user", content: `Subject: ${String(subject||'General').slice(0,200)}\nTopic:\n${String(syllabus||'').slice(0,120000)}` },
       ],
-      MODELS_FAST, Math.min(6500, Math.max(2500, num * 700)), 0.4, 45_000, "test"
+      MODELS_QUALITY, Math.min(8192, Math.max(3500, num * 900)), 0.4, 60_000, "test"
     );
 
     const valid = sanitize(cleanJSON(text));

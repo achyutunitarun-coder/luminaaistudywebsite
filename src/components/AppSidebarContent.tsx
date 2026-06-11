@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
+import { GraduationCap, Users } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -62,6 +63,7 @@ const sidebarSections = [
       { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
       { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
       { title: 'Quick Study', url: '/quick-study', icon: Zap },
+      { title: 'Guided Lesson', url: '/guided-lesson', icon: GraduationCap },
       { title: 'Lecture AI', url: '/lecture-ai', icon: Mic },
       { title: 'Smart Notebook', url: '/smart-notebook', icon: PenTool },
       { title: 'Note to Quiz', url: '/note-to-quiz', icon: ClipboardList },
@@ -74,6 +76,7 @@ const sidebarSections = [
       { title: 'Flashcards', url: '/flashcards', icon: Layers },
       { title: 'Game Modes', url: '/game-modes', icon: Swords },
       { title: 'Quest', url: '/quest', icon: Gamepad2 },
+      { title: 'Study Squads', url: '/squad', icon: Users },
     ],
   },
   {
@@ -178,14 +181,9 @@ export const AppSidebarContent = memo(
           <Sparkles className="w-5 h-5 text-primary-foreground" />
         </motion.div>
         {(!collapsed || isMobile) && (
-          <div className="flex items-center gap-1.5">
-            <span className="font-display font-bold text-lg text-foreground tracking-tight">
-              Lumina
-            </span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-primary/15 text-primary border border-primary/20">
-              BETA
-            </span>
-          </div>
+          <span className="font-display font-bold text-lg text-foreground tracking-tight">
+            Lumina
+          </span>
         )}
       </div>
 

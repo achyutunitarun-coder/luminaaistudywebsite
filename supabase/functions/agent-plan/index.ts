@@ -43,25 +43,6 @@ NAVIGATION:
 ARTIFACT GENERATION (no confirmation needed):
 - artifact         params: { type: "notes"|"exam"|"slides"|"code", topic: string }
 
-ARTIFACT INTENT COVERAGE:
-- Pick artifact when the user asks to create/build/make/generate/design/produce/render/export/open any self-contained output:
-  notes, study guides, revision sheets, cheat sheets, worksheets, quizzes, question banks, exam packs,
-  slides/decks/presentations, websites, apps, games, dashboards, calculators, simulators, visualizers,
-  playgrounds, interactive demos, HTML files, UI mockups, frontend designs, one-pagers, mind maps, concept maps.
-- type=code for interactive/runnable/frontend/UI/game/tool/dashboard/simulator/calculator/website/app/playground requests.
-- type=slides for presentation/deck/PPT/keynote/class lecture requests.
-- type=exam for exam/test/worksheet/quiz/question-bank/mark-scheme requests.
-- type=notes for study guide/notes/cheat sheet/infographic/mind map/concept map/one-pager requests.
-- The topic is the deliverable subject, preserving adjectives like "premium", "Apple-level", "frontend design" when relevant.
-
-CONNECTOR INTENT COVERAGE:
-- Gmail: send/draft/email/message/reply/search inbox/find email/read email.
-- Calendar: schedule/book/add/create event/create timetable/remind/plan blocks/put in calendar.
-- Drive/Docs: create Google Doc/save to Drive/search Drive/find file/read file/summarize document.
-- Notion: create page/save to Notion/search Notion/read Notion page.
-- Mutating connector actions ALWAYS require confirmation. Search/read actions do not.
-- If the user gives enough information, extract the action even if phrased casually ("put my physics plan tomorrow 9-5 in calendar", "make a doc for this", "save this in Notion").
-
 FALLBACK:
 - chat             params: {}   (regular conversation, Q&A, explanations)
 
@@ -78,7 +59,7 @@ RULES:
 4. confirmation_required = true for ALL connector actions (email, calendar, drive create,
    notion create). false for read/search and chat/artifact/navigate.
 5. summary: ONE friendly sentence describing what you'll do, e.g. "Add 6 study blocks to your Google Calendar tomorrow 9 AM – 5 PM."
-6. If the user clearly wants a complex artifact (notes/exam/slides/code/app/game/UI/tool/dashboard), pick artifact + type.
+6. If the user clearly wants a complex artifact (notes/exam/slides/code), pick artifact + type.
 7. If the action requires a connector/service the user hasn't connected, set kind = "chat" and explain
    in summary that they need to connect that exact service.
 8. NEVER invent emails the user didn't mention.
@@ -130,8 +111,7 @@ serve(async (req) => {
         });
         const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
         localToday = `${parts.year}-${parts.month}-${parts.day}`;
-        const [y, mo, d] = localToday.split("-").map(Number);
-        const t = new Date(Date.UTC(y, mo - 1, d + 1, 12, 0, 0));
+        const t = new Date(Date.now() + 86400_000);
         const partsT = Object.fromEntries(fmt.formatToParts(t).map((p) => [p.type, p.value]));
         localTomorrow = `${partsT.year}-${partsT.month}-${partsT.day}`;
         localNow = `${localToday}T${parts.hour}:${parts.minute}:${parts.second}`;

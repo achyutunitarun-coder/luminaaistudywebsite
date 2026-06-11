@@ -131,7 +131,7 @@ serve(async (req) => {
     const upstream = await fetch(parsed.toString(), init);
     const txt = await upstream.text();
     let payload: unknown;
-    try { payload = JSON.parse(txt); } catch { payload = { error: txt.slice(0, 500) }; }
+    try { payload = JSON.parse(txt); } catch { payload = txt; }
 
     return new Response(JSON.stringify({ ok: upstream.ok, status: upstream.status, data: payload }), {
       status: 200, // wrap so the client can read errors without exception

@@ -39,20 +39,6 @@ export interface ParsedState {
 
 type Section = "none" | "plan" | "file" | "final";
 
-function readAttr(attrsRaw: string, name: string): string | undefined {
-  const pattern = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i");
-  const match = pattern.exec(attrsRaw);
-  return match?.[1] ?? match?.[2];
-}
-
-function readAnyAttr(attrsRaw: string, names: string[]): string | undefined {
-  for (const name of names) {
-    const value = readAttr(attrsRaw, name);
-    if (value) return value;
-  }
-  return undefined;
-}
-
 export class LuminaParser {
   private buffer = "";
   private section: Section = "none";
@@ -211,23 +197,14 @@ export class LuminaParser {
    */
   private tryConsumeOpenTag(): boolean {
     const m = this.buffer.match(/^<lumina:(plan|file|final|navigate|action|run|open)\b([^>]*)(\/?)>/);
-    if (!m) {
-      const unknown = this.buffer.match(/^<lumina:[^>]*>/);
-      if (unknown) {
-        this.state.hasTags = true;
-        this.buffer = this.buffer.slice(unknown[0].length);
-        this.section = "none";
-        return true;
-      }
-      return false;
-    }
+    if (!m) return false;
     const [full, kind, attrsRaw, selfClose] = m;
     this.state.hasTags = true;
     this.buffer = this.buffer.slice(full.length);
 
     if (kind === "navigate") {
-      const to = readAttr(attrsRaw, "to");
-      const reason = readAttr(attrsRaw, "reason");
+      const to = /\bto\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
+      const reason = /\breason\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
       if (to) {
         this.state.navigate = { to, reason };
         this.state.actions.push({
@@ -246,13 +223,13 @@ export class LuminaParser {
       const type =
         kind === "run" || kind === "open"
           ? (kind as "run" | "open")
-          : ((readAttr(attrsRaw, "type") ?? "open") as
+          : ((/\btype\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? "open") as
               | "run"
               | "open"
               | "navigate");
       const target =
-        readAnyAttr(attrsRaw, ["path", "target", "file", "to"]) ?? "";
-      const reason = readAttr(attrsRaw, "reason");
+        /\b(?:path|target|file|to)\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? "";
+      const reason = /\breason\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1];
       if (target) {
         this.state.actions.push({
           id: `act-${this.state.actions.length}`,
@@ -278,9 +255,9 @@ export class LuminaParser {
 
     if (kind === "file") {
       const path =
-        readAttr(attrsRaw, "path") ?? `file-${this.state.files.length + 1}.txt`;
+        /\bpath\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? `file-${this.state.files.length + 1}.txt`;
       const lang =
-        readAttr(attrsRaw, "lang") ?? guessLang(path);
+        /\blang\s*=\s*"([^"]+)"/.exec(attrsRaw)?.[1] ?? guessLang(path);
       // Self-closing file is invalid; ignore
       if (selfClose) return true;
       const file: LuminaFile = { path, lang, content: "", done: false };

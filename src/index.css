@@ -259,37 +259,6 @@
     z-index: 1;
   }
 
-  @keyframes artifact-enter {
-    from { opacity: 0; transform: scale(0.95) translateY(18px); filter: blur(8px); }
-    to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-  }
-
-  @keyframes artifact-shimmer {
-    0% { transform: translateX(-120%); }
-    100% { transform: translateX(120%); }
-  }
-
-  .artifact-icon-btn {
-    @apply grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-all hover:scale-105 hover:bg-white/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60;
-  }
-
-  .artifact-tool-btn {
-    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-medium text-muted-foreground transition-all hover:scale-105 hover:bg-white/[0.08] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60;
-  }
-
-  .token.tag,
-  .token.keyword,
-  .token.selector { color: #a78bfa; }
-  .token.attr-name,
-  .token.function,
-  .token.property { color: #7dd3fc; }
-  .token.attr-value,
-  .token.string { color: #86efac; }
-  .token.comment { color: #64748b; font-style: italic; }
-  .token.punctuation { color: #94a3b8; }
-  .token.number,
-  .token.boolean { color: #fca5a5; }
-
   /* Legacy compat */
   .glass {
     @apply liquid-glass;

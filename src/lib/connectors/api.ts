@@ -142,11 +142,6 @@ export const gmailApi = {
 };
 
 export const calendarApi = {
-  calendar: (calendarId = "primary") =>
-    proxy<any>({
-      provider: "google",
-      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
-    }),
   list: () => {
     const now = new Date(); now.setHours(0, 0, 0, 0);
     const end = new Date(now); end.setDate(end.getDate() + 2);
@@ -167,24 +162,11 @@ export const calendarApi = {
       provider: "google",
       url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     }),
-  listAround: (timeMin: string, timeMax: string, calendarId = "primary") => {
-    const p = new URLSearchParams({
-      timeMin,
-      timeMax,
-      singleEvents: "true",
-      orderBy: "startTime",
-      maxResults: "20",
-    });
-    return proxy<{ items?: any[] }>({
-      provider: "google",
-      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${p}`,
-    });
-  },
   create: (event: Record<string, unknown>, calendarId = "primary") =>
     proxy<any>({
       provider: "google",
       method: "POST",
-      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=0&sendUpdates=none`,
+      url: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
       body: event,
     }),
 };

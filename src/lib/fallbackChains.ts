@@ -27,16 +27,16 @@ export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
   ],
   coding: [
     "qwen/qwen3-coder:free",
-    "moonshotai/kimi-k2.6",
+    "moonshotai/kimi-k2.6:free",
     "openai/gpt-oss-120b:free",
   ],
   long_ctx: [
-    "moonshotai/kimi-k2.6",
+    "moonshotai/kimi-k2.6:free",
     "openai/gpt-oss-120b:free",
     "z-ai/glm-4.5-air:free",
   ],
   vision: [
-    "moonshotai/kimi-k2.6",
+    "moonshotai/kimi-k2.6:free",
     "openai/gpt-oss-120b:free",
   ],
 };

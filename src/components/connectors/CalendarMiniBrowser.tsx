@@ -84,11 +84,7 @@ export function CalendarMiniBrowser({ open, onClose, onInsert }: Props) {
       });
       const eventId = (r.data as any)?.id;
       if (!eventId) throw new Error(JSON.stringify(r.data));
-      const verified = await calendarApi.get(eventId);
-      const verifiedData = verified.data as any;
-      if (!verifiedData?.id || verifiedData.status === "cancelled") {
-        throw new Error(`Event created but could not be verified (${eventId}).`);
-      }
+      await calendarApi.get(eventId);
       toast.success("Study block added to your calendar");
       setCreating(false);
       setForm({ topic: "", date: "", time: "09:00", minutes: 50 });

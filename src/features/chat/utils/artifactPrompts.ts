@@ -37,15 +37,6 @@ export type TemplateKey =
 const GLOBAL_WRAPPER = `
 You are LUMINA ARTIFACT ENGINE — the greatest single-file HTML artifact generator ever built. Every output must feel like a $100M premium product shipped by a senior designer at Linear, Vercel, Raycast or Apple. Never a template. Never generic. Never incomplete.
 
-FRONTEND DESIGN & AESTHETICS SKILL — silently apply before writing code:
-- PURPOSE: identify the exact user and job-to-be-done for this artifact.
-- TONE: pick one bold visual anchor and commit completely (brutally minimal, refined luxury, editorial, industrial, organic, playful, retro-futurist, neo-brutalist, art-deco, etc.). Never reuse the same vibe by default.
-- CONSTRAINTS: production HTML only, performant CSS/JS, keyboard/touch accessible, WCAG contrast, no horizontal scroll, responsive 375px→1440px.
-- DIFFERENTIATION: implement one unforgettable visual element that makes the artifact feel custom, not generated.
-- Typography must be distinctive and characterful. Do NOT use Inter, Roboto, Arial, Space Grotesk, or default system fonts as the primary visual identity.
-- Avoid clichéd purple/blue gradients on flat white or pitch-black backgrounds. Avoid card-soup layouts. Avoid weak decorative animation.
-- Use one orchestrated page-load reveal, intentional micro-interactions, strong hierarchy, and a cohesive tokenized theme.
-
 ═══════════════════════════════════════
 HARD OUTPUT CONTRACT
 ═══════════════════════════════════════
@@ -90,7 +81,7 @@ FONTS (load in <head>):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-- Body / UI: use the loaded display/body pair unless a more distinctive Google Font pair better fits the artifact's chosen tone.
+- Body / UI: 'Instrument Sans' 400/500/600.
 - Display / hero / pull-quote: 'Instrument Serif' (italic for emphasis).
 - Code / numbers / data: 'JetBrains Mono' 400/500. Use tabular-nums for stats.
 
@@ -256,9 +247,9 @@ export function detectTemplate(type: ArtifactType, topic: string): TemplateKey {
     if (k === "notes_pack" || k === "exam_paper" || k === "slides" || k === "code_tutorial" || k === "code_project") continue;
     if (TEMPLATE_KEYWORDS[k].some((w) => t.includes(w))) return k;
   }
-  // Heuristic: short/specific topic → notes_pack. Full packs are only for explicit broad requests,
-  // otherwise the generator overbuilds and risks timing out on ordinary prompts like "photosynthesis".
-  return "notes_pack";
+  // Heuristic: short/specific topic → notes_pack; broad → full_pack
+  const wc = t.split(/\s+/).filter(Boolean).length;
+  return wc <= 4 ? "full_pack" : "notes_pack";
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -713,13 +704,10 @@ const BUILDERS: Record<TemplateKey, (topic: string) => string> = {
 /* ──────────────────────────────────────────────────────────────────────────
  * PUBLIC API
  * ────────────────────────────────────────────────────────────────────────── */
-import { styleDirectiveBlock } from "./aestheticStyles";
-
 export function buildPromptForType(type: ArtifactType, topic: string): string {
   const key = detectTemplate(type, topic);
   const body = BUILDERS[key](topic);
-  const styleBlock = styleDirectiveBlock(`${type}::${topic}`);
-  return `${GLOBAL_WRAPPER}\n\n${styleBlock}\n\n${body}`;
+  return `${GLOBAL_WRAPPER}\n\n${body}`;
 }
 
 // Legacy named exports kept in case anything else imports them.

@@ -24,7 +24,7 @@ const ROUTING: Record<string, string> = {
   "reason": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "research": "nvidia/nemotron-3-super-120b-a12b:free",
   "plan": "openai/gpt-oss-120b:free",
-  "creative": "moonshotai/kimi-k2.6",
+  "creative": "moonshotai/kimi-k2.6:free",
   "vision": "nvidia/nemotron-nano-12b-v2-vl:free",
   "data": "qwen/qwen3-next-80b-a3b-instruct:free",
   "agent": "openrouter/owl-alpha",
@@ -36,7 +36,7 @@ const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   coding: "qwen/qwen3-coder:free",
   reasoning: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   deepDive: "nvidia/nemotron-3-super-120b-a12b:free",
-  creative: "moonshotai/kimi-k2.6",
+  creative: "moonshotai/kimi-k2.6:free",
   fast: "openai/gpt-oss-20b:free",
   general: "meta-llama/llama-3.3-70b-instruct:free",
 };

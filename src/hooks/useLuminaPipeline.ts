@@ -1,8 +1,8 @@
-// Lumina v2 — Client hook to drive the Computer Mode software-factory pipeline.
+// Lumina v2 — Client hook to drive the 6-agent Computer Mode pipeline.
 //
 // Streams stage events from the `lumina-pipeline` edge function and exposes:
 //   - states: per-stage status (idle | working | done | error)
-//   - finalOutput: the assembler's final artifact text
+//   - finalOutput: the optimizer's final artifact text
 //   - run(request): kicks off a pipeline run
 //   - reset()
 
@@ -10,22 +10,19 @@ import { useCallback, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type PipelineStage =
-  | "planner" | "router" | "research" | "architect" | "builder" | "validator" | "debugger" | "runner" | "assembler";
+  | "orchestrate" | "plan" | "research" | "build" | "debug" | "optimize";
 export type StageStatus = "idle" | "working" | "done" | "error";
 
 const STAGE_LABELS: Record<PipelineStage, string> = {
-  planner: "Thinking",
-  router: "Routing",
+  orchestrate: "Orchestrator",
+  plan: "Planner",
   research: "Research",
-  architect: "Architect",
-  builder: "Coding",
-  validator: "Evaluating",
-  debugger: "Debugging",
-  runner: "Running",
-  assembler: "Assembling",
+  build: "Builder",
+  debug: "Debug",
+  optimize: "Optimizer",
 };
 
-const STAGES: PipelineStage[] = ["planner", "router", "research", "architect", "builder", "validator", "debugger", "runner", "assembler"];
+const STAGES: PipelineStage[] = ["orchestrate", "plan", "research", "build", "debug", "optimize"];
 
 export interface ActiveSkill { id: string; label: string; icon: string; }
 
@@ -41,7 +38,6 @@ export function useLuminaPipeline() {
   const [intercepted, setIntercepted] = useState(false);
   const [skills, setSkills] = useState<ActiveSkill[]>([]);
   const [tier, setTier] = useState<"TIER_3" | "TIER_2" | "TIER_1" | null>(null);
-  const [events, setEvents] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -52,7 +48,6 @@ export function useLuminaPipeline() {
     setIntercepted(false);
     setSkills([]);
     setTier(null);
-    setEvents([]);
   }, []);
 
   const cancel = useCallback(() => {
@@ -60,7 +55,7 @@ export function useLuminaPipeline() {
     setRunning(false);
   }, []);
 
-  const run = useCallback(async (request: string): Promise<string> => {
+  const run = useCallback(async (request: string) => {
     reset();
     setRunning(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -88,7 +83,6 @@ export function useLuminaPipeline() {
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
-    let output = "";
 
     try {
       // eslint-disable-next-line no-constant-condition
@@ -109,8 +103,6 @@ export function useLuminaPipeline() {
               stage: PipelineStage | "final" | "meta";
               status: StageStatus;
               label?: string;
-              summary?: string;
-              model?: string;
               output?: string;
               intercepted?: boolean;
               error?: string;
@@ -124,17 +116,10 @@ export function useLuminaPipeline() {
               if (evt.tier_achieved === "TIER_1") setTier("TIER_1");
             } else if (evt.stage === "final") {
               if (evt.intercepted) setIntercepted(true);
-              if (evt.output) {
-                output = evt.output;
-                setFinalOutput(evt.output);
-              }
+              if (evt.output) setFinalOutput(evt.output);
             } else {
               setStates((s) => ({ ...s, [evt.stage as PipelineStage]: evt.status }));
               if (evt.status === "working") setActiveLabel(evt.label ?? STAGE_LABELS[evt.stage as PipelineStage]);
-              const label = evt.label ?? STAGE_LABELS[evt.stage as PipelineStage];
-              if (evt.status === "working") setEvents((e) => [...e.slice(-40), `${label}…`]);
-              if (evt.status === "done" && evt.summary) setEvents((e) => [...e.slice(-40), `${label}: ${evt.summary}`]);
-              if (evt.status === "error") setEvents((e) => [...e.slice(-40), `${label} failed${evt.error ? ` — ${evt.error}` : ""}`]);
             }
           } catch { /* ignore malformed line */ }
         }
@@ -143,8 +128,7 @@ export function useLuminaPipeline() {
       setRunning(false);
       setActiveLabel(null);
     }
-    return output;
   }, [reset]);
 
-  return { states, activeLabel, finalOutput, running, intercepted, skills, tier, events, run, cancel, reset, STAGE_LABELS };
+  return { states, activeLabel, finalOutput, running, intercepted, skills, tier, run, cancel, reset, STAGE_LABELS };
 }

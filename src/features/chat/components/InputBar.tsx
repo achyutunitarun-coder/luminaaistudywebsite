@@ -229,7 +229,7 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         >
           <Paperclip className="w-4 h-4" />
         </button>
-        {/* Connectors disabled */}
+        <ConnectorPlusMenu onPickService={(id) => setActiveBrowser(id)} />
         <button
           type="button"
           onClick={() => setPickerOpen((o) => !o)}

@@ -40,14 +40,12 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { FileTree, downloadFilesAsZip } from "@/features/computer/FileTree";
 import { supabase } from "@/integrations/supabase/client";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { LuminaParser, type LuminaFile, type LuminaAction } from "@/features/computer/parser";
 import { extractDocumentText, DOCUMENT_ACCEPT } from "@/lib/extractDocumentText";
 import { AgentPipelinePanel } from "@/components/AgentPipelinePanel";
-import { type PipelineStage, type StageStatus } from "@/hooks/useLuminaPipeline";
-import { buildRepairPrompt, summarizeValidation, validateLuminaProject } from "@/features/computer/validation";
+import { useLuminaPipeline } from "@/hooks/useLuminaPipeline";
 import { toast } from "sonner";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -70,26 +68,11 @@ interface LogLine {
 }
 
 const SUGGESTIONS = [
-  "Build a photosynthesis learning lab with chloroplast animation and exam practice.",
-  "Make a premium calculus derivatives studio with graphing and 10 MCQs.",
-  "Create a climate-tech investor dashboard with unique editorial UI.",
-  "Build a focus-mode pomodoro with ambient sound and task analytics.",
+  "Build an interactive visualiser for Newton's three laws.",
+  "Make a beautiful calculus practice page with 10 MCQs.",
+  "Deep research: India's renewable energy 2020 – 2030.",
+  "Create a focus-mode pomodoro with ambient sound.",
 ];
-
-const FACTORY_STAGES: PipelineStage[] = [
-  "planner",
-  "router",
-  "research",
-  "architect",
-  "builder",
-  "validator",
-  "debugger",
-  "runner",
-  "assembler",
-];
-
-const idleFactoryStates = () =>
-  Object.fromEntries(FACTORY_STAGES.map((stage) => [stage, "idle"])) as Record<PipelineStage, StageStatus>;
 
 function timeFmt(ts: number) {
   const d = new Date(ts);
@@ -363,21 +346,14 @@ export default function LuminaComputer() {
   const [model, setModel] = useState<string>("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [canContinue, setCanContinue] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const parserRef = useRef<LuminaParser | null>(null);
-  const rawAssistantRef = useRef<string>("");
-  const lastUserPromptRef = useRef<string>("");
-  // Rolling conversation memory — last N turns kept so Lumina remembers prior asks.
-  const turnsRef = useRef<{ role: "user" | "assistant"; content: any }[]>([]);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
 
-  const [factoryStates, setFactoryStates] = useState<Record<PipelineStage, StageStatus>>(idleFactoryStates);
-  const [factoryActive, setFactoryActive] = useState<string | null>(null);
-  const [factoryEvents, setFactoryEvents] = useState<string[]>([]);
-  const [validationSummary, setValidationSummary] = useState<string>("");
+  // 6-agent pipeline status (hook drives the lumina-pipeline edge function).
+  const pipeline = useLuminaPipeline();
 
   const activeFile = useMemo(
     () => files.find((f) => f.path === activePath) ?? files[0] ?? null,
@@ -390,12 +366,6 @@ export default function LuminaComputer() {
     },
     [],
   );
-
-  const setFactoryStage = useCallback((stage: PipelineStage, status: StageStatus, event?: string) => {
-    setFactoryStates((prev) => ({ ...prev, [stage]: status }));
-    if (status === "working") setFactoryActive(event ?? stage);
-    if (event) setFactoryEvents((prev) => [...prev.slice(-40), event]);
-  }, []);
 
   // Auto-open preview the first time an HTML file appears
   useEffect(() => {
@@ -467,15 +437,6 @@ export default function LuminaComputer() {
     setFinalMd("");
     setActivePath(null);
     setAttachments([]);
-    setCanContinue(false);
-    setFactoryStates(idleFactoryStates());
-    setFactoryActive(null);
-    setFactoryEvents([]);
-    setValidationSummary("");
-    rawAssistantRef.current = "";
-    lastUserPromptRef.current = "";
-    turnsRef.current = [];
-    parserRef.current = null;
     seenActionsRef.current = new Set();
     setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
   }, [busy]);
@@ -543,51 +504,23 @@ export default function LuminaComputer() {
 
   // ── Send ───────────────────────────────────────────────────────────
   const send = useCallback(
-    async (text: string, opts: { continuation?: boolean } = {}) => {
+    async (text: string) => {
       const trimmed = text.trim();
-      if ((!trimmed && !opts.continuation) || busy) return;
+      if (!trimmed || busy) return;
 
-      const isCont = !!opts.continuation;
-
-      if (!isCont) {
-        setFiles([]);
-        setPlan("");
-        setFinalMd("");
-        setActivePath(null);
-        setFactoryStates(idleFactoryStates());
-        setFactoryEvents([]);
-        setValidationSummary("");
-        seenActionsRef.current = new Set();
-        parserRef.current = new LuminaParser();
-        rawAssistantRef.current = "";
-        lastUserPromptRef.current = trimmed;
-      } else if (!parserRef.current) {
-        // nothing to continue from
-        return;
-      }
-
+      setFiles([]);
+      setPlan("");
+      setFinalMd("");
+      setActivePath(null);
       setPrompt("");
-      setCanContinue(false);
+      seenActionsRef.current = new Set();
       if (taRef.current) taRef.current.style.height = "auto";
       setBusy(true);
-
       const previewAttach =
         attachments.length > 0 ? ` (+${attachments.length} file${attachments.length > 1 ? "s" : ""})` : "";
+      log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
 
-      if (isCont) {
-        log("system", "Continuing from last cut-off…");
-        setFactoryStage("builder", "working", "Continuing safely from the previous complete boundary…");
-      } else {
-        log("system", `You: ${trimmed.slice(0, 140)}${trimmed.length > 140 ? "…" : ""}${previewAttach}`);
-        setFactoryStage("planner", "working", "Thinking through scope, acceptance criteria, and file graph…");
-        setFactoryStage("planner", "done", "Plan locked: modular files, runnable preview, validation gates.");
-        setFactoryStage("router", "working", "Routing through Kimi K2.6 with OpenRouter fallbacks.");
-        setFactoryStage("research", "working", "Grounding the build in the exact requested subject.");
-        setFactoryStage("research", "done", "Subject context attached to the generation brief.");
-        setFactoryStage("architect", "working", "Designing module boundaries, UI system, and runtime behavior.");
-        setFactoryStage("architect", "done", "Architecture ready: source, styles, interactions, preview entry.");
-      }
-
+      parserRef.current = new LuminaParser();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
@@ -597,36 +530,25 @@ export default function LuminaComputer() {
         } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error("Please sign in to use Lumina Computer.");
 
-        let messages: any[];
-        if (isCont) {
-          const tail = rawAssistantRef.current.slice(-2500);
-          const contPrompt =
-            `CONTINUE_LUMINA\n\nORIGINAL_REQUEST:\n${lastUserPromptRef.current}\n\n` +
-            `Your previous reply was cut off at the model output limit. ` +
-            `Resume EXACTLY where you stopped. Do NOT repeat anything already written. ` +
-            `Do NOT restart the plan. Do NOT add commentary. If you were inside a <lumina:file>, ` +
-            `finish its body and close </lumina:file>, then continue with any remaining files, ` +
-            `then close with <lumina:final>...</lumina:final>.\n\n` +
-            `LAST_${tail.length}_CHARS_OF_YOUR_PREVIOUS_REPLY:\n${tail}`;
-          messages = [
-            { role: "user", content: lastUserPromptRef.current },
-            { role: "assistant", content: rawAssistantRef.current },
-            { role: "user", content: contPrompt },
-          ];
-        } else {
-          const content = buildMessageContent(trimmed);
-          setAttachments([]);
-          // Send rolling window of prior turns + new user message.
-          const history = turnsRef.current.slice(-12);
-          messages = [...history, { role: "user", content }];
-        }
+        const content = buildMessageContent(trimmed);
+        setAttachments([]);
 
+        const res = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            messages: [{ role: "user", content }],
+            mode: "computer",
+          }),
+          signal: ctrl.signal,
+        });
+
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let sseBuf = "";
         const seenFiles = new Set<string>();
-        // re-mark files we already know so we don't re-log them
-        for (const f of parserRef.current!.state.files) {
-          seenFiles.add(f.path);
-          if (f.done) seenFiles.add(`done:${f.path}`);
-        }
 
         const applyState = () => {
           const st = parserRef.current!.state;
@@ -647,6 +569,7 @@ export default function LuminaComputer() {
               log("file", `Finished ${f.path} · ${kb} KB`);
             }
           }
+          // Surface new agentic actions
           for (const a of st.actions) {
             if (seenActionsRef.current.has(a.id)) continue;
             seenActionsRef.current.add(a.id);
@@ -660,144 +583,55 @@ export default function LuminaComputer() {
           }
         };
 
-        const streamMessages = async (streamMessagesPayload: any[]) => {
-          const res = await fetch(CHAT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-            body: JSON.stringify({ messages: streamMessagesPayload, mode: "computer" }),
-            signal: ctrl.signal,
-          });
-
-          if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let sseBuf = "";
-          let firstToken = false;
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            sseBuf += decoder.decode(value, { stream: true });
-            let nl: number;
-            while ((nl = sseBuf.indexOf("\n")) !== -1) {
-              let line = sseBuf.slice(0, nl);
-              sseBuf = sseBuf.slice(nl + 1);
-              if (line.endsWith("\r")) line = line.slice(0, -1);
-              if (!line.startsWith("data: ")) continue;
-              const json = line.slice(6).trim();
-              if (!json || json === "[DONE]") continue;
-              try {
-                const parsed = JSON.parse(json);
-                if (parsed?.lumina_meta?.model) {
-                  setModel(parsed.lumina_meta.model);
-                  log("model", `Using ${parsed.lumina_meta.model}`);
-                  setFactoryStage("router", "done", `Model selected: ${parsed.lumina_meta.model}`);
-                }
-                const delta = parsed?.choices?.[0]?.delta?.content;
-                if (typeof delta === "string" && delta.length > 0) {
-                  if (!firstToken) {
-                    firstToken = true;
-                    setFactoryStage("builder", "working", "Coding full files — no fragments, no placeholders.");
-                  }
-                  rawAssistantRef.current += delta;
-                  parserRef.current!.push(delta);
-                  applyState();
-                }
-              } catch {
-                sseBuf = line + "\n" + sseBuf;
-                break;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = sseBuf.indexOf("\n")) !== -1) {
+            let line = sseBuf.slice(0, nl);
+            sseBuf = sseBuf.slice(nl + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              if (parsed?.lumina_meta?.model) {
+                setModel(parsed.lumina_meta.model);
+                log("model", `Using ${parsed.lumina_meta.model}`);
               }
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === "string" && delta.length > 0) {
+                parserRef.current!.push(delta);
+                applyState();
+              }
+            } catch {
+              sseBuf = line + "\n" + sseBuf;
+              break;
             }
           }
-        };
+        }
 
-        await streamMessages(messages);
-
+        parserRef.current!.finish();
         applyState();
-        setFactoryStage("builder", "done", "Code stream completed; entering validation gate.");
-        setFactoryStage("validator", "working", "Evaluating syntax, subject fit, placeholders, and preview readiness.");
-        // Detect truncation: any open file, no <lumina:final>, or raw stream
-        // didn't end with a closing lumina tag.
-        let st = parserRef.current!.state;
-        const openFile = st.files.some((f) => !f.done);
-        const missingFinal = !st.final.trim();
-        const tail = rawAssistantRef.current.trimEnd().slice(-40);
-        const cleanEnd = /<\/lumina:(final|file|plan)>\s*$/.test(tail);
-        const looksTruncated = openFile || missingFinal || !cleanEnd;
-        if (looksTruncated) {
-          setCanContinue(true);
-          setFactoryStage("validator", "error", "Validation caught a cut-off response; continuation is required.");
-          log("warn", "Output was cut off — press Continue to resume.");
-        } else {
-          parserRef.current!.finish();
-          applyState();
-          st = parserRef.current!.state;
-          let issues = validateLuminaProject(st.files, lastUserPromptRef.current);
-          setValidationSummary(summarizeValidation(issues));
-          const needsRepair = issues.some((issue) => issue.severity === "error" || issue.id === "too-thin");
-          if (needsRepair && !isCont) {
-            setFactoryStage("validator", "error", summarizeValidation(issues));
-            setFactoryStage("debugger", "working", "Fault isolated; regenerating only the broken/thin artifact once.");
-            log("warn", `Self-healing: ${summarizeValidation(issues)}`);
-            const repairPrompt = buildRepairPrompt(lastUserPromptRef.current, st.files, issues);
-            parserRef.current = new LuminaParser();
-            rawAssistantRef.current = "";
-            seenFiles.clear();
-            seenActionsRef.current = new Set();
-            setFiles([]);
-            setPlan("");
-            setFinalMd("");
-            setActivePath(null);
-            await streamMessages([{ role: "user", content: repairPrompt }]);
-            parserRef.current!.finish();
-            applyState();
-            st = parserRef.current!.state;
-            issues = validateLuminaProject(st.files, lastUserPromptRef.current);
-            setValidationSummary(summarizeValidation(issues));
-            const stillBroken = issues.some((i) => i.severity === "error");
-            setFactoryStage("debugger", stillBroken ? "error" : "done", stillBroken ? summarizeValidation(issues) : "Repair passed validation.");
-            setFactoryStage("validator", stillBroken ? "error" : "done", summarizeValidation(issues));
-          } else {
-            setFactoryStage("validator", "done", summarizeValidation(issues));
-            setFactoryStage("debugger", "done", "No blocking faults required a repair pass.");
-          }
-          setFactoryStage("runner", "working", "Running the assembled preview document.");
-          if (st.files.some((f) => f.lang === "html")) setPreviewOpen(true);
-          setFactoryStage("runner", "done", "Preview target ready.");
-          setFactoryStage("assembler", "done", `Assembled ${st.files.length} production file(s).`);
-          log("done", `Done · ${st.files.length} file(s)`);
-        }
-        // Commit this turn to rolling memory (skip continuation turns — they're
-        // stitched into the previous assistant message instead).
-        if (!isCont && rawAssistantRef.current) {
-          turnsRef.current.push(
-            { role: "user", content: lastUserPromptRef.current },
-            { role: "assistant", content: rawAssistantRef.current.slice(0, 16000) },
-          );
-          if (turnsRef.current.length > 24) {
-            turnsRef.current = turnsRef.current.slice(-24);
-          }
-        }
+        log("done", `Done · ${parserRef.current!.state.files.length} file(s)`);
       } catch (e: any) {
         if (e?.name === "AbortError") {
           log("warn", "Stopped");
-          if (rawAssistantRef.current.length > 200) setCanContinue(true);
         } else {
           log("warn", e?.message ?? "Request failed");
           toast.error(e?.message ?? "Request failed");
         }
       } finally {
         setBusy(false);
-        setFactoryActive(null);
         abortRef.current = null;
       }
     },
-    [busy, log, attachments, setFactoryStage],
+    [busy, log, attachments],
   );
 
   const onSubmit = () => send(prompt);
-  const onContinue = () => send("", { continuation: true });
 
   const copyActive = () => {
     if (!activeFile) return;
@@ -850,13 +684,37 @@ export default function LuminaComputer() {
           >
             <Plus className="w-3.5 h-3.5" /> New
           </button>
-          <div
-            title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling"
-            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-emerald-400/[0.08] border border-emerald-400/20 text-emerald-200 text-[13px]"
+          <button
+            onClick={async () => {
+              const text = prompt.trim();
+              if (!text) {
+                toast.error("Type a request first to run the agent pipeline.");
+                return;
+              }
+              try {
+                await pipeline.run(text);
+                if (pipeline.finalOutput) {
+                  setFiles((prev) => [
+                    ...prev.filter((f) => f.path !== "pipeline-output.md"),
+                    { path: "pipeline-output.md", lang: "md", content: pipeline.finalOutput, done: true } as LuminaFile,
+                  ]);
+                  setActivePath("pipeline-output.md");
+                }
+              } catch (e: any) {
+                toast.error(e?.message ?? "Pipeline failed");
+              }
+            }}
+            disabled={pipeline.running}
+            title="Run the 6-agent pipeline (Orchestrate → Plan → Research → Build → Debug → Optimize)"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition disabled:opacity-50"
           >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            Factory
-          </div>
+            {pipeline.running ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            Pipeline
+          </button>
           <button
             onClick={() => setPreviewOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
@@ -879,16 +737,7 @@ export default function LuminaComputer() {
             <FolderOpen className="w-3.5 h-3.5 text-white/40" />
             <span className="text-[12px] font-medium text-white/70">Files</span>
             {files.length > 0 && (
-              <span className="ml-1 text-[11px] text-white/30">{files.length}</span>
-            )}
-            {files.length > 0 && (
-              <button
-                onClick={() => downloadFilesAsZip(files, `lumina-${Date.now()}.zip`)}
-                title="Download all files as ZIP"
-                className="ml-auto p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition"
-              >
-                <Download className="w-3.5 h-3.5" />
-              </button>
+              <span className="ml-auto text-[11px] text-white/30">{files.length}</span>
             )}
           </div>
 
@@ -898,11 +747,32 @@ export default function LuminaComputer() {
                 Files will appear here as Lumina creates them.
               </div>
             ) : (
-              <FileTree
-                files={files}
-                activePath={activeFile?.path ?? ""}
-                onPick={(p) => setActivePath(p)}
-              />
+              <div className="space-y-0.5">
+                {files.map((f) => {
+                  const active = f.path === (activeFile?.path ?? "");
+                  return (
+                    <button
+                      key={f.path}
+                      onClick={() => setActivePath(f.path)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition ${
+                        active
+                          ? "bg-white/[0.08] text-white"
+                          : "text-white/65 hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      {f.lang === "md" ? (
+                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
+                      ) : (
+                        <FileCode className="w-3.5 h-3.5 flex-shrink-0 text-white/50" />
+                      )}
+                      <span className="text-[13px] truncate flex-1">{f.path}</span>
+                      {!f.done && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
             {plan && (
@@ -914,20 +784,16 @@ export default function LuminaComputer() {
               </div>
             )}
 
-            {(busy || Object.values(factoryStates).some((s) => s !== "idle")) && (
+            {(pipeline.running ||
+              Object.values(pipeline.states).some((s) => s !== "idle")) && (
               <div className="mt-4 px-3">
                 <AgentPipelinePanel
-                  states={factoryStates}
-                  activeLabel={factoryActive}
-                  running={busy}
-                  tier={busy ? "TIER_2" : validationSummary === "Validation passed" ? "TIER_1" : null}
-                  events={factoryEvents}
+                  states={pipeline.states}
+                  activeLabel={pipeline.activeLabel}
+                  running={pipeline.running}
+                  skills={pipeline.skills}
+                  tier={pipeline.tier}
                 />
-                {validationSummary && (
-                  <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-[11px] text-white/45">
-                    {validationSummary}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -966,15 +832,6 @@ export default function LuminaComputer() {
           <div className="border-t border-white/[0.06] bg-[#0b0b0f] flex-shrink-0">
             <div className="px-5 h-9 flex items-center gap-2 border-b border-white/[0.04]">
               <span className="text-[11px] font-medium text-white/50">Activity</span>
-              {canContinue && !busy && (
-                <button
-                  onClick={onContinue}
-                  className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
-                  title="Resume from the last line"
-                >
-                  <ArrowUp className="w-3 h-3" /> Continue
-                </button>
-              )}
               {busy && <Loader2 className="w-3 h-3 text-white/60 animate-spin ml-auto" />}
             </div>
             <div className="max-h-[160px] overflow-auto px-5 py-2">
