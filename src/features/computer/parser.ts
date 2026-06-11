@@ -313,3 +313,48 @@ export function guessLang(path: string): string {
   };
   return map[ext] ?? "txt";
 }
+
+/**
+ * Strip conversational meta-commentary that models sometimes leak into code
+ * file bodies (e.g. "Let me continue from where I left off"). Removes whole
+ * lines that match these phrases, including when wrapped in single-line
+ * comment markers (//, #, --, /* ... *\/, <!-- ... -->).
+ */
+const META_PATTERNS = [
+  /let me (continue|complete|finish|pick up|resume)/i,
+  /continuing (from )?where (i|we) (left off|stopped)/i,
+  /picking up where (i|we) (left off|stopped)/i,
+  /as i was saying/i,
+  /i('| wi)ll (now |just )?continue/i,
+  /resuming (from |where )/i,
+  /^continue from previous/i,
+];
+
+export function stripMetaCommentary(src: string, _lang: string): string {
+  if (!src) return src;
+  const lines = src.split("\n");
+  const cleaned = lines.filter((raw) => {
+    const line = raw.trim()
+      .replace(/^(\/\/|#|--)\s*/, "")
+      .replace(/^\/\*+\s*|\s*\*+\/$/g, "")
+      .replace(/^<!--\s*|\s*-->$/g, "");
+    if (!line) return true;
+    return !META_PATTERNS.some((rx) => rx.test(line));
+  });
+  return cleaned.join("\n");
+}
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    html: "html", htm: "html",
+    css: "css",
+    js: "js", mjs: "js", cjs: "js",
+    ts: "ts", tsx: "tsx",
+    jsx: "jsx",
+    json: "json",
+    md: "md", markdown: "md",
+    py: "py",
+    sh: "sh",
+    svg: "svg",
+  };
+  return map[ext] ?? "txt";
+}
