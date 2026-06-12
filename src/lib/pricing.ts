@@ -1,10 +1,10 @@
 /**
  * Single source of truth for pricing redirects.
- * Per product decision: ALL pricing/upgrade entry points redirect to the
- * external Kimi pricing page.
+ * All in-app pricing entry points route to the in-app /upgrade page.
  */
-export const PRICING_URL = 'https://s32tb42f7cmko.kimi.page/#pricing';
+export const PRICING_URL = '/upgrade';
 
 export const openPricing = () => {
-  window.open(PRICING_URL, '_blank', 'noopener');
+  // Same-tab navigation to keep auth + state intact.
+  window.location.assign(PRICING_URL);
 };
