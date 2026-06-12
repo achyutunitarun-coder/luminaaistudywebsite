@@ -32,6 +32,26 @@ export const SUBSCRIPTION_PLANS = {
     checkoutMonthly: checkoutUrl('pdt_0Nbybrhl2M0GdzScdoAwb', '&plan=pro_plus'),
     checkoutAnnual: checkoutUrl('pdt_0Nbybrhl2M0GdzScdoAwb', '&billing_cycle=annual&plan=pro_plus'),
   },
+  mega: {
+    productId: 'pdt_0NgrUZL3QLR2Xmw2PQgRR',
+    name: 'MEGA',
+    priceMonthly: 899,
+    priceAnnual: 599,
+    credits: 300,
+    rolloverCap: 600,
+    checkoutMonthly: checkoutUrl('pdt_0NgrUZL3QLR2Xmw2PQgRR', '&plan=mega'),
+    checkoutAnnual: checkoutUrl('pdt_0NgrUZL3QLR2Xmw2PQgRR', '&billing_cycle=annual&plan=mega'),
+  },
+  power_plus: {
+    productId: 'pdt_0NgrZWBT2Irz439pIp6Xn',
+    name: 'POWER+',
+    priceMonthly: 1299,
+    priceAnnual: 866,
+    credits: 500,
+    rolloverCap: 1000,
+    checkoutMonthly: checkoutUrl('pdt_0NgrZWBT2Irz439pIp6Xn', '&plan=power_plus'),
+    checkoutAnnual: checkoutUrl('pdt_0NgrZWBT2Irz439pIp6Xn', '&billing_cycle=annual&plan=power_plus'),
+  },
 } as const;
 
 export interface CreditPack {
