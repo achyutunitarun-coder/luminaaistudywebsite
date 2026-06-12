@@ -68,9 +68,13 @@ serve(async (req) => {
     const productId = data?.product_id || data?.product?.id || data?.items?.[0]?.product_id || data?.items?.[0]?.product?.id || data?.product_cart?.[0]?.product_id || "";
 
     // Determine plan tier from product ID
-    const PRO_PLUS_PRODUCT_ID = 'pdt_0Nbybrhl2M0GdzScdoAwb';
-    let planTier = 'ultimate'; // default paid subscription tier
-    if (productId === PRO_PLUS_PRODUCT_ID) planTier = 'pro_plus';
+    const PRO_PLUS_PRODUCT_IDS = new Set([
+      'pdt_0Nbybrhl2M0GdzScdoAwb', // PRO+
+      'pdt_0NgrUZL3QLR2Xmw2PQgRR', // MEGA
+      'pdt_0NgrZWBT2Irz439pIp6Xn', // POWER+
+    ]);
+    let planTier = 'ultimate';
+    if (PRO_PLUS_PRODUCT_IDS.has(productId)) planTier = 'pro_plus';
     const CREDIT_PRODUCTS: Record<string, number> = {
       pdt_0NdcF1gd6Z5PBeFx8gbiE: 30,
       pdt_0NdcF1o3DQYEdtVQBA8MG: 100,
@@ -78,6 +82,8 @@ serve(async (req) => {
       pdt_0NdcF1ua83g4FRUO1LhKt: 800,
       pdt_0NbKNHJ5nK556qajM5MKa: 40,
       pdt_0Nbybrhl2M0GdzScdoAwb: 150,
+      pdt_0NgrUZL3QLR2Xmw2PQgRR: 300,
+      pdt_0NgrZWBT2Irz439pIp6Xn: 500,
     };
 
     if (!customerEmail) {
