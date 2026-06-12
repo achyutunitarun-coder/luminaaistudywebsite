@@ -61,6 +61,9 @@ function handleReturnUrl() {
       ultimate:  { productId: 'pdt_0NbKNHJ5nK556qajM5MKa', credits: 40,  name: 'Ultimate', tier: 'ultimate' },
       pro_plus:  { productId: 'pdt_0Nbybrhl2M0GdzScdoAwb', credits: 150, name: 'PRO+',     tier: 'pro_plus' },
       'pro+':    { productId: 'pdt_0Nbybrhl2M0GdzScdoAwb', credits: 150, name: 'PRO+',     tier: 'pro_plus' },
+      mega:      { productId: 'pdt_0NgrUZL3QLR2Xmw2PQgRR', credits: 300, name: 'MEGA',     tier: 'pro_plus' },
+      power_plus:{ productId: 'pdt_0NgrZWBT2Irz439pIp6Xn', credits: 500, name: 'POWER+',   tier: 'pro_plus' },
+      'power+':  { productId: 'pdt_0NgrZWBT2Irz439pIp6Xn', credits: 500, name: 'POWER+',   tier: 'pro_plus' },
     };
     const data = planMap[planParam.toLowerCase()];
     if (data) {
