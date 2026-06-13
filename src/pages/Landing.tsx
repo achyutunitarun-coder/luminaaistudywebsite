@@ -1152,14 +1152,14 @@ const FinalCTA = () => {
                 fontWeight: 400,
               }}
             >
-              Learn like you mean it.
+              Know exactly what to study next.
             </h2>
-            <p className="mt-6 text-[16px] max-w-[440px] mx-auto" style={{ color: C.inkMute }}>
-              Open Lumina. Bring one thing you're stuck on. Watch what happens.
+            <p className="mt-6 text-[16px] max-w-[480px] mx-auto" style={{ color: C.inkMute }}>
+              Upload one topic you're stuck on. Lumina will find the gap, build the plan, and guide every session from there.
             </p>
             <div className="mt-9 flex items-center justify-center gap-2.5 flex-wrap">
               <PrimaryBtn onClick={() => navigate('/auth')}>
-                Start learning free <ArrowRight className="w-3.5 h-3.5" />
+                Build your study system <ArrowRight className="w-3.5 h-3.5" />
               </PrimaryBtn>
               <GhostBtn onClick={openPricing}>See pricing</GhostBtn>
             </div>
