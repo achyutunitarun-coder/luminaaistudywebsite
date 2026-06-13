@@ -458,7 +458,7 @@ const LogoStrip = () => (
   <section className="py-12 border-y" style={{ borderColor: C.hairline }}>
     <div className="max-w-[1180px] mx-auto px-6">
       <div className="text-center text-[11px] uppercase tracking-[0.2em] mb-6" style={{ color: C.inkFaint }}>
-        Trusted by students preparing for
+        Built for students preparing for
       </div>
       <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-4 text-[14px]" style={{ color: C.inkMute, fontFamily: "'Instrument Serif', serif", fontStyle: 'italic' }}>
         {['JEE', 'NEET', 'SAT', 'IB', 'A-Levels', 'AP', 'GCSE', 'CBSE'].map((t) => (
