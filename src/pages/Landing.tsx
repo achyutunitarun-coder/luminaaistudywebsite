@@ -903,7 +903,7 @@ const TestimonialGrid = () => {
   return (
     <section className="py-32">
       <div className="max-w-[1180px] mx-auto px-6">
-        <SectionHeader eyebrow="Loved" title="Students don't usually love study tools." subtitle="They love this one." />
+        <SectionHeader eyebrow="Real students. Real gains." title="Specific wins, not vague praise." subtitle="Marks moved. Gaps closed. Time saved." />
         <div className="mt-16 grid md:grid-cols-3 gap-4">
           {items.map((t, i) => (
             <motion.div
