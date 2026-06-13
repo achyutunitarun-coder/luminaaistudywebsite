@@ -186,9 +186,9 @@ const Nav = () => {
             className="md:hidden border-t px-6 py-4 flex flex-col gap-3"
             style={{ borderColor: C.hairline, background: 'rgba(7,8,13,0.96)' }}
           >
-            {['features', 'how', 'pricing', 'faq'].map((id) => (
+            {['vs', 'features', 'how', 'pricing', 'faq'].map((id) => (
               <a key={id} href={`#${id}`} onClick={() => setOpen(false)} className="text-[14px]" style={{ color: C.inkMute }}>
-                {id[0].toUpperCase() + id.slice(1)}
+                {id === 'vs' ? 'vs ChatGPT' : id === 'how' ? 'How it works' : id[0].toUpperCase() + id.slice(1)}
               </a>
             ))}
             <div className="flex gap-2 pt-2">
