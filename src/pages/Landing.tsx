@@ -477,9 +477,9 @@ const Features = () => {
     <section id="features" className="py-32">
       <div className="max-w-[1180px] mx-auto px-6">
         <SectionHeader
-          eyebrow="Features"
-          title="A thinking partner, not a search bar."
-          subtitle="Every feature in Lumina is designed around how you actually learn — slowly, then suddenly."
+          eyebrow="What you actually get"
+          title="Outcomes, not features."
+          subtitle="Every part of Lumina exists to answer one question: what should I study next, and why?"
         />
 
         <div className="mt-16 grid grid-cols-12 gap-4">
@@ -487,8 +487,8 @@ const Features = () => {
             span="md:col-span-7"
             icon={Brain}
             color={C.teal}
-            title="Adaptive intelligence"
-            desc="Lumina watches what you struggle with and quietly rewires every quiz, explanation, and lesson around your blind spots."
+            title="Every mistake changes what happens next."
+            desc="Lumina watches what you struggle with and quietly rewires every quiz, explanation, and lesson around your blind spots. You stop drilling what you already know."
             visual={<AdaptiveVisual />}
             tall
           />
@@ -496,8 +496,8 @@ const Features = () => {
             span="md:col-span-5"
             icon={Wand2}
             color={C.violet}
-            title="From any source"
-            desc="Drop a PDF, paste a YouTube link, record a lecture — Lumina turns it into notes, flashcards, and tests in seconds."
+            title="Turn any syllabus into a study system."
+            desc="Drop a PDF, paste a YouTube link, record a lecture. Lumina ingests it, structures it, and remembers it forever — so future sessions build on it."
             visual={<SourcesVisual />}
             tall
           />
@@ -505,22 +505,22 @@ const Features = () => {
             span="md:col-span-4"
             icon={Target}
             color={C.amber}
-            title="Weakness radar"
-            desc="A live map of every concept you've touched, color-coded by mastery."
+            title="See where your marks are leaking."
+            desc="A live map of every concept you've touched, color-coded by mastery. The red ones are tomorrow's plan."
           />
           <FeatureCard
             span="md:col-span-4"
             icon={Layers}
             color={C.sky}
-            title="Smart notebook"
-            desc="A canvas that thinks with you — math, diagrams, code, all rendered live."
+            title="A notebook that thinks with you."
+            desc="Math, diagrams, code, and explanations render live as you work. No more re-copying notes the night before a test."
           />
           <FeatureCard
             span="md:col-span-4"
             icon={LineChart}
             color={C.teal}
-            title="Honest analytics"
-            desc="No vanity metrics. Just the signal that tells you what to study tomorrow."
+            title="Know tomorrow's priority in seconds."
+            desc="No vanity dashboards. One screen tells you exactly what to revise next and why it matters for your exam."
           />
         </div>
       </div>
