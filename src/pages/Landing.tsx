@@ -155,6 +155,7 @@ const Nav = () => {
       <div className="max-w-[1180px] mx-auto px-6 h-[64px] flex items-center justify-between">
         <Wordmark />
         <nav className="hidden md:flex items-center gap-7 text-[13px]" style={{ color: C.inkMute }}>
+          <a href="#vs" className="hover:text-white transition-colors">vs ChatGPT</a>
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#how" className="hover:text-white transition-colors">How it works</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
