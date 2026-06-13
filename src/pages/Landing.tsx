@@ -1057,16 +1057,20 @@ const Pricing = () => {
 const FAQSection = () => {
   const faqs = [
     {
-      q: 'How is Lumina different from ChatGPT?',
-      a: 'ChatGPT answers questions. Lumina builds you a curriculum, tracks what you actually know, and teaches what you don\'t — in the order that compounds. It\'s a tutor, not a search bar.',
+      q: 'Isn\'t this just ChatGPT with study features?',
+      a: 'No. ChatGPT is a stateless chatbot — it answers, then forgets. Lumina keeps a persistent model of what you know, scores every concept by mastery, generates adaptive tests from your own material, and rewrites tomorrow\'s study plan based on what slipped today. It\'s a learning system. The chat is just one surface.',
     },
     {
-      q: 'Will it work for my subject?',
-      a: 'Yes — Physics, Chemistry, Biology, Math, Computer Science, History, Economics, Languages, and most board / competitive exam syllabi from school through undergrad.',
+      q: 'How does Lumina know what I should study next?',
+      a: 'Every test, quiz, and explanation feeds a per-concept mastery score. The weakness radar surfaces the concepts where your marks are leaking. Study plans, mocks, and revision drills are then generated to attack those specific gaps — not generic syllabus dumps.',
+    },
+    {
+      q: 'Will it work for my exam?',
+      a: 'Yes — JEE, NEET, SAT, AP, IB, A-Levels, CBSE, ICSE and most undergrad coursework. You bring the syllabus or upload your material, and Lumina structures the rest.',
     },
     {
       q: 'Can I use my own notes and lectures?',
-      a: 'That\'s the point. Upload PDFs, paste links, record lectures live. Lumina ingests everything and uses it as context for explanations, quizzes, and reviews.',
+      a: 'That\'s the point. Upload PDFs, paste YouTube links, record lectures live. Lumina ingests everything and uses it as context for explanations, mock papers, and revisions — so the system is grounded in your actual syllabus, not generic answers.',
     },
     {
       q: 'Is my data private?',
@@ -1074,7 +1078,7 @@ const FAQSection = () => {
     },
     {
       q: 'Do you have a free plan?',
-      a: 'Always. Most core features work on the free tier, with daily limits. Upgrade only when Lumina has clearly earned a spot in your routine.',
+      a: 'Always. Core features work on the free tier with daily limits. Upgrade only when Lumina has clearly earned a spot in your routine.',
     },
   ];
   const [open, setOpen] = useState<number | null>(0);
