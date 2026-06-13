@@ -868,9 +868,9 @@ const QuoteSection = () => (
           fontWeight: 400,
         }}
       >
-        "It's the first time studying has felt like a{' '}
-        <em style={{ color: C.teal }}>conversation</em> instead of a chore. I genuinely{' '}
-        <em style={{ color: C.violet }}>look forward</em> to it."
+        "I stopped opening ChatGPT for studying. Lumina actually{' '}
+        <em style={{ color: C.teal }}>remembered</em> what I was weak at and quietly{' '}
+        <em style={{ color: C.violet }}>built next week around it</em>."
       </motion.blockquote>
       <div className="mt-8 flex items-center justify-center gap-3">
         <div
