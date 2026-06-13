@@ -1216,8 +1216,10 @@ const Landing = () => {
       <main>
         <Hero />
         <LogoStrip />
+        <VsChatGPT />
         <Features />
         <HowItWorks />
+        <WhoFor />
         <QuoteSection />
         <TestimonialGrid />
         <Pricing />
