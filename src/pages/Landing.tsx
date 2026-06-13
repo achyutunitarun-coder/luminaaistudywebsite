@@ -893,12 +893,12 @@ const QuoteSection = () => (
 /* ------------------------------------------------------------------ */
 const TestimonialGrid = () => {
   const items = [
-    { name: 'Aarav S.', role: 'NEET 2025', text: 'Lumina caught a gap in cell respiration I didn\'t know I had. Two weeks later, perfect score on the chapter test.', color: C.teal },
-    { name: 'Sarah J.', role: 'Med student', text: 'I\'ve tried every study tool. This is the only one that feels like it actually understands what I\'m struggling with.', color: C.violet },
-    { name: 'David C.', role: 'CS undergrad', text: 'I uploaded a 90-page lecture PDF and had perfect flashcards in 40 seconds. It just works.', color: C.amber },
-    { name: 'Emily R.', role: 'AP Physics', text: 'The streaks and XP sound silly but I actually study every day now. First time ever.', color: C.sky },
-    { name: 'Rohan M.', role: 'IB diploma', text: 'It explains things in three different ways until one clicks. My old tutor never did that.', color: C.teal },
-    { name: 'Priya K.', role: 'A-Levels', text: 'Replaced three apps with Lumina. Notes, flashcards, mock tests — all in one place.', color: C.violet },
+    { name: 'Aarav S.', role: 'NEET 2025', text: 'Lumina flagged that I was consistently missing cell respiration questions. Two weeks of targeted drills and I moved from 64% to 91% on that chapter.', color: C.teal },
+    { name: 'Sarah J.', role: 'Med student', text: 'My weakness map showed pharmacology was 38%. I didn\'t even realise. Three weeks of guided sessions later it was 82% — and the gain held into finals.', color: C.violet },
+    { name: 'David C.', role: 'CS undergrad', text: 'Uploaded a 90-page systems lecture PDF. Lumina had structured flashcards and a mock test ready before I finished my coffee.', color: C.amber },
+    { name: 'Emily R.', role: 'AP Physics', text: 'I stopped wasting time on topics I already knew. Lumina told me rotational mechanics was leaking marks — I fixed it and gained 11 marks on the next mock.', color: C.sky },
+    { name: 'Rohan M.', role: 'IB diploma', text: 'It re-explains a concept three different ways until one clicks. My old tutor never did that. It feels like the system actually knows what I don\'t know.', color: C.teal },
+    { name: 'Priya K.', role: 'A-Levels', text: 'Replaced ChatGPT, Quizlet and my notes app with one tool. The fact that it remembers what I studied last week is the part nothing else does.', color: C.violet },
   ];
   return (
     <section className="py-32">
