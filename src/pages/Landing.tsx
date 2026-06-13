@@ -240,7 +240,7 @@ const Hero = () => {
         >
           <Pill>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.teal, boxShadow: `0 0 8px ${C.teal}` }} />
-            Introducing Lumina 2.0 — Your AI study companion
+            Not a chatbot. A learning system.
           </Pill>
         </motion.div>
 
@@ -256,7 +256,7 @@ const Hero = () => {
             fontWeight: 400,
           }}
         >
-          The quiet intelligence
+          Know exactly
           <br />
           <span
             style={{
@@ -267,7 +267,7 @@ const Hero = () => {
               fontStyle: 'italic',
             }}
           >
-            behind better learning.
+            what to study next.
           </span>
         </motion.h1>
 
@@ -275,11 +275,12 @@ const Hero = () => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease, delay: 0.15 }}
-          className="mx-auto mt-7 max-w-[620px] text-[16px] md:text-[17px] leading-[1.55]"
+          className="mx-auto mt-7 max-w-[640px] text-[16px] md:text-[17px] leading-[1.55]"
           style={{ color: C.inkMute }}
         >
-          Lumina turns your notes, lectures, and curiosity into a personal tutor that knows exactly what you
-          know — and exactly what to teach you next.
+          ChatGPT answers your questions and forgets you the next day. Lumina remembers every topic
+          you've touched, finds your weak spots before the exam does, and guides the next session
+          automatically.
         </motion.p>
 
         <motion.div
@@ -289,10 +290,10 @@ const Hero = () => {
           className="mt-9 flex items-center justify-center gap-2.5 flex-wrap"
         >
           <PrimaryBtn onClick={() => navigate('/auth')}>
-            Start learning free <ArrowRight className="w-3.5 h-3.5" />
+            Find your weak spots <ArrowRight className="w-3.5 h-3.5" />
           </PrimaryBtn>
-          <GhostBtn onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}>
-            See how it works
+          <GhostBtn onClick={() => document.getElementById('vs')?.scrollIntoView({ behavior: 'smooth' })}>
+            Why not ChatGPT?
           </GhostBtn>
         </motion.div>
 
@@ -303,7 +304,7 @@ const Hero = () => {
           className="mt-5 text-[12px]"
           style={{ color: C.inkFaint }}
         >
-          Free forever plan · No credit card · Trusted by 12,000+ students
+          Free forever plan · No credit card · Built for JEE, NEET, IB, SAT, AP, A-Levels
         </motion.div>
 
         {/* Product preview */}
