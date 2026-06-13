@@ -686,60 +686,161 @@ const SourcesVisual = () => (
 /* ------------------------------------------------------------------ */
 const HowItWorks = () => {
   const steps = [
-    {
-      n: '01',
-      title: 'Bring your world in',
-      desc: 'PDFs, lectures, links, photos of a whiteboard — Lumina reads it all and remembers it.',
-      color: C.teal,
-    },
-    {
-      n: '02',
-      title: 'Learn out loud',
-      desc: 'Ask anything. Lumina explains, draws, derives, and quizzes — calibrated to where you are.',
-      color: C.violet,
-    },
-    {
-      n: '03',
-      title: 'Master, measurably',
-      desc: 'Every session sharpens your weakness map. You can feel the gaps closing.',
-      color: C.amber,
-    },
+    { n: '01', title: 'Upload', desc: 'PDFs, lectures, videos, notes — anything from your syllabus. Lumina reads it all.', color: C.teal },
+    { n: '02', title: 'Learn', desc: 'Ask, explore, practice. Every explanation is calibrated to where you are right now.', color: C.violet },
+    { n: '03', title: 'Measure', desc: 'Tests and quizzes detect exactly which concepts haven\'t clicked yet.', color: C.amber },
+    { n: '04', title: 'Adapt', desc: 'Tomorrow\'s session is rewritten automatically around your weak spots.', color: C.sky },
+    { n: '05', title: 'Master', desc: 'Knowledge gaps shrink week over week. You can watch the map turn green.', color: C.teal },
   ];
 
   return (
     <section id="how" className="py-32 relative">
       <div className="max-w-[1180px] mx-auto px-6">
         <SectionHeader
-          eyebrow="How it works"
-          title="Three moves. Compound returns."
-          subtitle="No setup. No 12-step onboarding. Open Lumina, drop something in, and start learning."
+          eyebrow="The learning loop"
+          title="A flywheel, not a chat log."
+          subtitle="Most AI tools start from zero every conversation. Lumina compounds. Every session feeds the next."
         />
-        <div className="mt-16 grid md:grid-cols-3 gap-5">
+        <div className="mt-16 grid md:grid-cols-5 gap-4 relative">
           {steps.map((s, i) => (
             <motion.div
               key={s.n}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, ease, delay: i * 0.1 }}
-              className="relative rounded-[18px] p-7"
+              transition={{ duration: 0.5, ease, delay: i * 0.08 }}
+              className="relative rounded-[18px] p-6"
               style={{
                 background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
                 border: `0.5px solid ${C.hairline}`,
               }}
             >
               <div
-                className="text-[14px] font-medium mb-6"
+                className="text-[12px] font-medium mb-4"
                 style={{ color: s.color, fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {s.n}
               </div>
-              <h3 className="text-[22px] tracking-tight mb-3" style={{ color: C.ink, fontFamily: "'Instrument Serif', serif" }}>
+              <h3 className="text-[20px] tracking-tight mb-2" style={{ color: C.ink, fontFamily: "'Instrument Serif', serif" }}>
                 {s.title}
               </h3>
-              <p className="text-[13.5px] leading-[1.6]" style={{ color: C.inkMute }}>
+              <p className="text-[13px] leading-[1.6]" style={{ color: C.inkMute }}>
                 {s.desc}
               </p>
+            </motion.div>
+          ))}
+        </div>
+        <div className="mt-8 text-center text-[12px]" style={{ color: C.inkFaint, fontFamily: "'JetBrains Mono', monospace" }}>
+          upload → learn → measure → adapt → master → repeat
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Why not ChatGPT comparison                                          */
+/* ------------------------------------------------------------------ */
+const VsChatGPT = () => {
+  const rows = [
+    { feature: 'Memory of what you\'ve learned', chatgpt: 'Forgets across chats', lumina: 'Persistent knowledge graph' },
+    { feature: 'Tracks mastery per concept', chatgpt: 'No', lumina: 'Live weakness radar' },
+    { feature: 'Guides what to study next', chatgpt: 'You decide', lumina: 'Automatic, based on gaps' },
+    { feature: 'Adaptive tests from your syllabus', chatgpt: 'Generic answers', lumina: 'Targeted at your weak spots' },
+    { feature: 'Structured study plan', chatgpt: 'No', lumina: 'Built around your exam date' },
+    { feature: 'Designed for', chatgpt: 'General Q&A', lumina: 'Exam preparation' },
+  ];
+  return (
+    <section id="vs" className="py-32">
+      <div className="max-w-[1080px] mx-auto px-6">
+        <SectionHeader
+          eyebrow="Lumina vs ChatGPT"
+          title="One answers. One teaches."
+          subtitle="ChatGPT is brilliant at answering questions. It just isn't built to help you master a syllabus."
+        />
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6, ease }}
+          className="mt-14 rounded-[18px] overflow-hidden"
+          style={{ border: `0.5px solid ${C.hairline}`, background: 'rgba(255,255,255,0.015)' }}
+        >
+          <div className="grid grid-cols-[1.4fr_1fr_1fr] text-[12px] uppercase tracking-[0.14em] px-6 py-4 border-b" style={{ borderColor: C.hairline, color: C.inkFaint }}>
+            <div>What you actually need</div>
+            <div>ChatGPT</div>
+            <div style={{ color: C.teal }}>Lumina</div>
+          </div>
+          {rows.map((r, i) => (
+            <div
+              key={r.feature}
+              className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-6 py-5 text-[13.5px]"
+              style={{
+                borderTop: i === 0 ? 'none' : `0.5px solid ${C.hairline}`,
+                background: i % 2 === 1 ? 'rgba(255,255,255,0.012)' : 'transparent',
+              }}
+            >
+              <div style={{ color: C.ink }}>{r.feature}</div>
+              <div className="flex items-center gap-2" style={{ color: C.inkMute }}>
+                <X className="w-3.5 h-3.5" style={{ color: C.inkFaint }} />
+                {r.chatgpt}
+              </div>
+              <div className="flex items-center gap-2" style={{ color: C.ink }}>
+                <Check className="w-3.5 h-3.5" style={{ color: C.teal }} />
+                {r.lumina}
+              </div>
+            </div>
+          ))}
+        </motion.div>
+        <p className="mt-6 text-center text-[12.5px]" style={{ color: C.inkFaint }}>
+          We love ChatGPT. We just don't think a search bar is what gets you through an exam.
+        </p>
+      </div>
+    </section>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Who is this for                                                     */
+/* ------------------------------------------------------------------ */
+const WhoFor = () => {
+  const cohorts = [
+    { tag: 'JEE / NEET', line: 'Daily concept loops, full-length mocks, and a weakness map tuned to PCM/PCB.' },
+    { tag: 'IB / A-Levels', line: 'Paper-style questions, IA support, and structured revision by syllabus point.' },
+    { tag: 'SAT / AP', line: 'Adaptive sections, error-pattern detection, and targeted drills before test day.' },
+    { tag: 'University', line: 'Lecture ingestion, exam-paper generation, and long-running notebooks per course.' },
+  ];
+  return (
+    <section className="py-24">
+      <div className="max-w-[1180px] mx-auto px-6">
+        <SectionHeader eyebrow="Who it's for" title="One system. Every syllabus." />
+        <div className="mt-14 grid md:grid-cols-2 gap-4">
+          {cohorts.map((c, i) => (
+            <motion.div
+              key={c.tag}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, ease, delay: i * 0.06 }}
+              className="rounded-[16px] p-6 flex items-start gap-5"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
+                border: `0.5px solid ${C.hairline}`,
+              }}
+            >
+              <div
+                className="px-2.5 py-1 rounded-[8px] text-[11px] font-semibold tracking-wider"
+                style={{
+                  background: 'rgba(45,212,191,0.10)',
+                  color: C.teal,
+                  border: `0.5px solid rgba(45,212,191,0.25)`,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {c.tag}
+              </div>
+              <div className="text-[13.5px] leading-[1.6]" style={{ color: C.inkMute }}>{c.line}</div>
             </motion.div>
           ))}
         </div>
