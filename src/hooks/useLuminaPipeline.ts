@@ -66,7 +66,7 @@ export function useLuminaPipeline() {
     setRunning(false);
   }, []);
 
-  const run = useCallback(async (request: string): Promise<string> => {
+  const run = useCallback(async (request: string, opts?: { sessionId?: string | null }): Promise<{ output: string; sessionId: string | null; files: Record<string, { content: string; lang: string }> }> => {
     reset();
     setRunning(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -78,11 +78,8 @@ export function useLuminaPipeline() {
 
     const resp = await fetch(PIPELINE_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ request }),
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ request, sessionId: opts?.sessionId ?? null }),
       signal: ctrl.signal,
     });
 
@@ -95,9 +92,10 @@ export function useLuminaPipeline() {
     const dec = new TextDecoder();
     let buf = "";
     let output = "";
+    let finalSessionId: string | null = opts?.sessionId ?? null;
+    const accumulatedFiles: Record<string, { content: string; lang: string }> = {};
 
     try {
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -111,29 +109,37 @@ export function useLuminaPipeline() {
           const payload = chunk.slice(5).trim();
           if (!payload || payload === "[DONE]") continue;
           try {
-            const evt = JSON.parse(payload) as {
-              stage: PipelineStage | "final" | "meta";
-              status: StageStatus;
-              label?: string;
-              summary?: string;
-              model?: string;
-              output?: string;
-              intercepted?: boolean;
-              error?: string;
-              skills?: ActiveSkill[];
-              tier_target?: string;
-              tier_achieved?: string;
-            };
+            const evt = JSON.parse(payload) as any;
+            // Channel B (code) — file events from server
+            if (evt.stage === "file" && evt.channel === "code" && evt.path) {
+              accumulatedFiles[evt.path] = { content: evt.content ?? "", lang: evt.lang ?? "txt" };
+              setFiles((f) => ({ ...f, [evt.path]: { content: evt.content ?? "", lang: evt.lang ?? "txt" } }));
+              continue;
+            }
+            // Debugger gate events
+            if (evt.stage === "debugger_gate") {
+              setGateStatus({
+                iteration: evt.iteration ?? 0,
+                issues: [...(evt.localIssues ?? []), ...(evt.modelIssues ?? []).map((i: any) => typeof i === "string" ? i : JSON.stringify(i))],
+              });
+              setEvents((e) => [...e.slice(-40), `Gate: ${evt.label}`]);
+              continue;
+            }
             if (evt.stage === "meta") {
+              if (evt.sessionId) { finalSessionId = evt.sessionId; setSessionId(evt.sessionId); }
               if (evt.skills) setSkills(evt.skills);
               if (evt.tier_target === "TIER_1") setTier("TIER_2");
               if (evt.tier_achieved === "TIER_1") setTier("TIER_1");
             } else if (evt.stage === "final") {
               if (evt.intercepted) setIntercepted(true);
-              if (evt.output) {
-                output = evt.output;
-                setFinalOutput(evt.output);
+              if (evt.sessionId) { finalSessionId = evt.sessionId; setSessionId(evt.sessionId); }
+              if (evt.files) {
+                for (const [p, f] of Object.entries(evt.files as Record<string, any>)) {
+                  accumulatedFiles[p] = { content: f.content ?? "", lang: f.lang ?? "txt" };
+                }
+                setFiles((prev) => ({ ...prev, ...accumulatedFiles }));
               }
+              if (evt.output) { output = evt.output; setFinalOutput(evt.output); }
             } else {
               setStates((s) => ({ ...s, [evt.stage as PipelineStage]: evt.status }));
               if (evt.status === "working") setActiveLabel(evt.label ?? STAGE_LABELS[evt.stage as PipelineStage]);
@@ -142,15 +148,16 @@ export function useLuminaPipeline() {
               if (evt.status === "done" && evt.summary) setEvents((e) => [...e.slice(-40), `${label}: ${evt.summary}`]);
               if (evt.status === "error") setEvents((e) => [...e.slice(-40), `${label} failed${evt.error ? ` — ${evt.error}` : ""}`]);
             }
-          } catch { /* ignore malformed line */ }
+          } catch { /* ignore malformed */ }
         }
       }
     } finally {
       setRunning(false);
       setActiveLabel(null);
     }
-    return output;
+    return { output, sessionId: finalSessionId, files: accumulatedFiles };
   }, [reset]);
 
-  return { states, activeLabel, finalOutput, running, intercepted, skills, tier, events, run, cancel, reset, STAGE_LABELS };
+  return { states, activeLabel, finalOutput, running, intercepted, skills, tier, events, files, sessionId, gateStatus, run, cancel, reset, STAGE_LABELS };
 }
+
