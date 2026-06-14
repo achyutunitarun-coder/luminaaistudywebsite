@@ -100,38 +100,34 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-/** Build a runnable HTML doc from a file. */
-function buildPreviewDoc(file: LuminaFile, allFiles: LuminaFile[]): string {
+/** Build a runnable HTML doc from a file. Uses the multi-file preview engine
+ * so sibling CSS/JS/asset files resolve correctly via blob URLs. */
+import { buildMultiFilePreview } from "@/features/computer/buildVirtualHtml";
+
+function buildPreviewDoc(file: LuminaFile, allFiles: LuminaFile[]): { doc: string; blobUrls: string[] } {
   if (file.lang === "html") {
-    let html = file.content;
-    if (!/<!doctype html/i.test(html) && !/<html[\s>]/i.test(html)) {
-      html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`;
-    }
-    const css = allFiles.find((f) => f.lang === "css");
-    const js = allFiles.find((f) => f.lang === "js");
-    if (css && !html.includes(css.path)) {
-      html = html.replace(/<\/head>/i, `<style>\n${css.content}\n</style></head>`);
-    }
-    if (js && !html.includes(js.path)) {
-      html = html.replace(/<\/body>/i, `<script>\n${js.content}\n<\/script></body>`);
-    }
-    return html;
+    return buildMultiFilePreview(file, allFiles);
   }
   if (file.lang === "md") {
     const escaped = file.content
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    return `<!doctype html><html><head><meta charset="utf-8"><style>
-      body{margin:0;padding:40px;font:15px/1.7 -apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;background:#fafafa;color:#1d1d1f;max-width:780px;margin:auto}
-      pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit}
-    </style></head><body><pre>${escaped}</pre></body></html>`;
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return {
+      doc: `<!doctype html><html><head><meta charset="utf-8"><style>
+        body{margin:0;padding:40px;font:15px/1.7 -apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;background:#fafafa;color:#1d1d1f;max-width:780px;margin:auto}
+        pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit}
+      </style></head><body><pre>${escaped}</pre></body></html>`,
+      blobUrls: [],
+    };
   }
   const safe = file.content.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  return `<!doctype html><html><head><meta charset="utf-8"><style>
-    body{margin:0;padding:24px;font:13px/1.6 ui-monospace,SF Mono,Menlo,monospace;background:#0b0b0f;color:#e8e6ff;white-space:pre}
-  </style></head><body>${safe}</body></html>`;
+  return {
+    doc: `<!doctype html><html><head><meta charset="utf-8"><style>
+      body{margin:0;padding:24px;font:13px/1.6 ui-monospace,SF Mono,Menlo,monospace;background:#0b0b0f;color:#e8e6ff;white-space:pre}
+    </style></head><body>${safe}</body></html>`,
+    blobUrls: [],
+  };
 }
+
 
 // ─────────────────────────────────────────────────────────────────────
 // Code editor — Apple-clean, line-numbered, streams smoothly
