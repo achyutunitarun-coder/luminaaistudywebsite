@@ -1,75 +1,105 @@
-## Scope (grouped)
+# Lumina Computer v2 — Core Architecture Refactor
 
-### 1. Lumina Computer — agentic, multi-file, Kimi K2.6 primary
-- Force `moonshotai/kimi-k2-thinking` (K2.6) as the ONLY model for `/computer` route. Route via `KIMI_API_KEY` direct call in `_shared/models.ts`. Other features keep current routing.
-- Add an **agent loop status strip**: "Planning → Coding → Evaluating → Re-evaluating → Optimizing → Done" streamed live above the chat, driven by stage tags emitted by `lumina-pipeline`.
-- **Conversation memory**: persist full thread in `chats` + `chat_messages` (already exist). Load last N=40 messages on mount, send rolling window (truncated by tokens) so AI doesn't "forget".
-- **File tree sidebar** (left panel in `LuminaComputer.tsx`): hierarchical from `useComputerFiles` paths (`src/components/Foo.tsx`), expand/collapse folders, click → opens in editor/preview, active highlight.
-- **Download as ZIP**: button in files panel uses `jszip` to bundle all `ComputerFile`s preserving paths.
-- **Code check stage**: after build, AI runs a self-review pass (syntax balance, imports resolved, entry file exists) and surfaces issues inline before "Done".
-- Continue button stays; verify stitching across files.
+A focused refactor of the Lumina Computer pipeline to fix the four critical failures: unreliable orchestration, reasoning leaking into code, single-file preview, and missing memory.
 
-### 2. Artifacts — proper topic-aware notes
-- `ChatPage.tsx` `artifactNote` currently generic. Pass the user's request topic to a small note-generator that returns: **What it is** (1 line about the topic), **How to use**, **Customize** — all referencing the actual subject (e.g., "Photosynthesis flashcards"), not boilerplate.
-- Introduce **Lumina font system**: add `@fontsource` packs (Geist, Geist Mono, Instrument Serif, Space Grotesk) to `index.css`, expose CSS vars `--font-display`, `--font-body`, `--font-mono`, `--font-editorial`. Aesthetic styles in `aestheticStyles.ts` reference these vars instead of generic stacks.
-- **Math/exponents rendering fix**: ensure KaTeX runs on artifact + chat. In `MarkdownRenderer.tsx` confirm `remarkMath` before `remarkGfm` and `rehypeKatex` mounted; add KaTeX CSS import; handle `x^2`, `H_2O` inline auto-wrapping with a small preprocessor.
+## P0 — Persistent Session Memory
 
-### 3. Performance + Weakness Radar — topic-level, not test-level
-- `Performance.tsx` + `WeaknessRadar.tsx`: aggregate `mistakes` and `question_responses` by `topic` (not by `test_id`). Add SQL view-style query grouping: `SELECT topic, COUNT(*) wrong, AVG(score)` per user. Update charts and `InsightBox` copy.
+**Storage**: New `lumina_sessions` table (sessionId, user_id, conversation_history jsonb, project_files jsonb, agent_logs jsonb, architecture_decisions jsonb, updated_at).
 
-### 4. Tests — generation speed
-- `generate-test/index.ts`: switch to `MODELS_FAST` racing 2 providers in parallel, lower `maxTokens` to question budget, stream questions one-by-one so UI renders progressively (skeleton → live).
+**Client**: `useLuminaSession` hook — loads/saves session by ID (URL param `/computer/:sessionId`), keeps `sessionState` in zustand, debounced 1s persist to Supabase.
 
-### 5. Doubt Solver — speed
-- `doubt-solver/index.ts`: race FAST models, stream SSE, drop unused context blocks. Frontend already streams; add immediate skeleton.
+**Server (`lumina-pipeline`)**: Accept `sessionId` + `request`. Load full session from DB before any agent call. Every agent prompt receives:
+- Current request
+- Existing file tree (paths + truncated contents)
+- Last N conversation turns
+- Architecture decisions
+- Recent agent logs
 
-### 6. Lecture AI — podcast 401
-- `generate-podcast-script/index.ts` returns 401: caller in `LecturePodcast.tsx` likely missing `Authorization` header from session. Fix client to always pass `(await supabase.auth.getSession()).data.session.access_token`. Verify `verify_jwt` flow in `requireUser`.
+After run completes, append turn + write updated files back to DB.
 
-### 7. Game Modes
-- Audit `GameModes.tsx` + `generate-boss` function: surface errors, fix broken handlers/routes. Likely auth or model timeout. Add retry + fast model.
+**File-aware editing**: Builder receives a `mode: "edit" | "create"` flag. If existing project files exist, default to `edit` and instruct the model to output ONLY changed/new files (full content of those files), preserving the rest. Server merges patch into the project tree rather than replacing it.
 
-### 8. Removals
-- Delete `Squad.tsx`, squad components, `squads/squad_*` UI references, route, sidebar entry. Keep DB tables (non-destructive).
-- Delete `GuidedLesson.tsx` page, `guided-lesson` function call sites, sidebar entry, route.
-- **Disable connectors**: remove `ConnectorHub` route + sidebar entry, hide `ConnectorPlusMenu` in chat input. Keep edge functions dormant.
+## P0 — Debugger Gate (Mandatory)
 
-### 9. Dodo Payments — entitlements sync
-- `dodo-webhook/index.ts` already handles `payment.succeeded` / `subscription.*`. Additions:
-  - On every active event, after sync, call Dodo API `GET /customers/{id}/entitlements` + `/credit_entitlements` using `DODO_API_KEY`.
-  - Upsert into new `user_entitlements` table: `(user_id, entitlement_key, product_id, credits_remaining, status, current_period_end)`.
-  - Set `profiles.subscription_status = 'active' | 'canceled'`, store `customer_id`, `subscription_id`, `payment_id` on `subscriptions` row (already partly there).
-  - Handle `subscription.canceled` → status `canceled`, entitlements `revoked`.
-  - **Do NOT manually add credits** — remove the `sync_dodo_entitlement_for_user` credit-adding path for webhook events (Dodo grants credits itself); only mirror.
-- App access checks: update `useSubscription` + `useUsageLimits` to read `subscription_status` + `user_entitlements`.
+Strict state machine in `lumina-pipeline/index.ts`:
 
-## Technical Notes
+```text
+Orchestrator → Planner → Researcher → Builder → Debugger → Optimiser → Output
+                                          ↑          ↓
+                                          └── fail ──┘ (max 3 loops)
+```
 
-**New files**
-- `src/features/computer/FileTree.tsx` — recursive tree from flat file list
-- `src/features/computer/downloadZip.ts` — JSZip bundler
-- `src/features/computer/AgentStatusStrip.tsx`
-- `src/lib/fonts.ts` + font imports in `index.css`
-- `supabase/functions/dodo-sync-entitlements/index.ts` (or inline in webhook)
-- Migration: `user_entitlements` table + RLS + GRANTs
+Each agent returns:
+```ts
+{ status: "success" | "failure", output: string, nextAgent: string, logs?: string[] }
+```
 
-**Edited**
-- `supabase/functions/_shared/models.ts` — Kimi-only routing for `featureName === "computer"`
-- `supabase/functions/chat/index.ts` + `lumina-pipeline/index.ts` — emit stage events `<lumina:stage>planning</lumina:stage>` etc.
-- `src/pages/LuminaComputer.tsx` — sidebar layout, persistence, stage strip, ZIP button
-- `src/features/chat/ChatPage.tsx` — topic-aware artifactNote
-- `src/components/MarkdownRenderer.tsx` — math fix
-- `src/pages/Performance.tsx`, `src/pages/WeaknessRadar.tsx` — topic aggregation
-- `supabase/functions/generate-test`, `doubt-solver`, `generate-boss` — speed
-- `src/components/lecture/LecturePodcast.tsx` — auth header
-- `src/App.tsx` + `AppSidebarContent.tsx` — remove squads/guided/connectors routes
-- `supabase/functions/dodo-webhook/index.ts` — entitlements fetch + mirror, no manual credits
+- Driver function `runAgent(stage)` enforces sequence; no stage may be skipped.
+- Debugger runs syntax checks (parse JS/TS/HTML/CSS via lightweight validators), missing-import detection, and a model-based code review pass. Returns `{ status, errors[] }`.
+- On `failure`: feedback string fed back into Builder with the broken files, regenerate, revalidate. Max 3 iterations, then surface error to user — **never render unvalidated code**.
+- All debugger runs streamed as stage events and stored in `agent_logs`.
 
-**Deletions**
-- `src/pages/Squad.tsx`, `src/pages/GuidedLesson.tsx`, `src/pages/ConnectorHub.tsx` (route only), related sidebar items
+## P1 — Output Separation (Reasoning vs Code)
 
-## Open Questions
-1. Should the **Lumina font system** be a fixed Apple-ish pairing (Instrument Serif + Geist + Geist Mono) or expose a user picker in Settings?
-2. For **Dodo entitlements**, do you want a brand-new `user_entitlements` table, or extend existing `subscriptions` + `user_credit_balances`?
-3. **Squads & Guided Lesson** — confirm full removal (UI + routes), keep DB tables untouched, OK?
-4. **Kimi K2.6** — restrict to `/computer` only, or also use for Lumina Computer-style code generation inside chat artifacts?
+**Two channels in SSE stream**:
+- `channel: "activity"` → planning, research, debug notes, optimisation rationale → rendered in `AgentPipelinePanel` / new `AgentActivityLog`.
+- `channel: "code"` → only file writes (path + content) → rendered in `FilesPanel` / preview.
+
+**System prompt addition** (prepended to every agent in `_shared/lumina-persona.ts`):
+> "You are forbidden from placing planning notes, reasoning, debugging logs, explanations, or meta-commentary into generated source files. Source files must contain only production-ready code. Reasoning belongs in your `output` field, never in file contents."
+
+**Parser hardening** (`features/computer/parser.ts`): strip leading/trailing prose, reject files that are pure markdown/explanation, drop `<thinking>`-style blocks.
+
+## P1 — Multi-File Preview Engine
+
+Refactor `LuminaComputer` preview to mount the **entire file tree**, not just `index.html`.
+
+**HTML projects**:
+- Build a virtual filesystem from `sessionState.projectFiles`.
+- Use a service-worker / blob-URL strategy: rewrite `<link href="styles.css">`, `<script src="script.js">`, `<img src="assets/x.png">` to blob URLs created from the in-memory tree.
+- Implementation: parse `index.html`, walk all relative `href`/`src`, replace with `URL.createObjectURL(new Blob([fileContent], { type: mime }))`.
+
+**React/Vite projects**:
+- Use Sandpack (`@codesandbox/sandpack-react`) with `files` prop fed from `projectFiles`. Supports multi-file, JSX, Tailwind, React Router out of the box.
+- Auto-detect React by presence of `package.json` with `react` dep or `.jsx/.tsx` entry.
+
+**Preview component**: new `MultiFilePreview.tsx` that picks HTML strategy vs Sandpack based on detected project kind.
+
+## File-Level Changes
+
+**New**:
+- `supabase/migrations/<ts>_lumina_sessions.sql` — table + RLS + grants.
+- `src/features/computer/useLuminaSession.ts` — session load/save hook.
+- `src/features/computer/MultiFilePreview.tsx` — blob-URL HTML + Sandpack React.
+- `src/features/computer/buildVirtualHtml.ts` — rewrite asset URLs.
+- `src/features/computer/AgentActivityLog.tsx` — Channel A renderer.
+- `supabase/functions/_shared/agentStateMachine.ts` — typed agent runner.
+- `supabase/functions/_shared/codeValidators.ts` — syntax/import checks.
+
+**Edited**:
+- `supabase/functions/lumina-pipeline/index.ts` — state machine, debugger loop, session load/save, two-channel SSE.
+- `supabase/functions/_shared/lumina-persona.ts` — anti-reasoning-in-code clause.
+- `src/hooks/useLuminaPipeline.ts` — accept sessionId, split `activity` vs `code` events, expose `files` map.
+- `src/pages/LuminaComputer.tsx` — route `/computer/:sessionId?`, integrate session hook, swap preview.
+- `src/features/computer/parser.ts` — strip prose / meta blocks.
+- `src/features/computer/filesStore.ts` — merge-patch semantics for edits.
+
+## Dependencies
+- Add `@codesandbox/sandpack-react` for React preview.
+
+## Acceptance Verification (manual after build)
+1. Create HTML project with `index.html` + `styles.css` + `script.js` + `assets/`. Preview renders styled and interactive.
+2. Create React project. Preview renders compiled app.
+3. Send 20 unrelated messages, then "fix the navbar" — server logs show existing navbar file loaded and only that file edited.
+4. Force a Builder syntax error (mock) → Debugger blocks, retries, never renders broken code.
+5. Inspect generated files — zero prose/planning text inside.
+
+## Out of Scope (P2, deferred)
+- Optimiser improvements beyond current behaviour.
+- New agent capabilities or tools.
+- UI redesign of the Computer page beyond the activity panel and preview swap.
+
+## Risks
+- Sandpack bundle size (~500KB) — lazy-loaded only on React projects.
+- Blob URL lifecycle — revoke on file change to avoid leaks.
+- Debugger loop cost — capped at 3 iterations with per-iteration model = fast tier.
