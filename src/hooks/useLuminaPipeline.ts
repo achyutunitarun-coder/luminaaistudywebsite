@@ -42,6 +42,9 @@ export function useLuminaPipeline() {
   const [skills, setSkills] = useState<ActiveSkill[]>([]);
   const [tier, setTier] = useState<"TIER_3" | "TIER_2" | "TIER_1" | null>(null);
   const [events, setEvents] = useState<string[]>([]);
+  const [files, setFiles] = useState<Record<string, { content: string; lang: string }>>({});
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [gateStatus, setGateStatus] = useState<{ iteration: number; issues: string[] } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const reset = useCallback(() => {
@@ -53,7 +56,10 @@ export function useLuminaPipeline() {
     setSkills([]);
     setTier(null);
     setEvents([]);
+    setFiles({});
+    setGateStatus(null);
   }, []);
+
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
