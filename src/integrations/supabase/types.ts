@@ -1007,45 +1007,6 @@ export type Database = {
         }
         Relationships: []
       }
-      lumina_sessions: {
-        Row: {
-          agent_logs: Json
-          architecture_decisions: Json
-          conversation_history: Json
-          created_at: string
-          id: string
-          project_files: Json
-          task_history: Json
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          agent_logs?: Json
-          architecture_decisions?: Json
-          conversation_history?: Json
-          created_at?: string
-          id?: string
-          project_files?: Json
-          task_history?: Json
-          title?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          agent_logs?: Json
-          architecture_decisions?: Json
-          conversation_history?: Json
-          created_at?: string
-          id?: string
-          project_files?: Json
-          task_history?: Json
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       mistake_tags: {
         Row: {
           ai_explanation: string | null
