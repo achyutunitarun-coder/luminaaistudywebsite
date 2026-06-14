@@ -201,10 +201,16 @@ function PreviewPanel({
     return files.find((f) => f.lang === "html") ?? activeFile;
   }, [files, activeFile]);
 
-  const doc = useMemo(
-    () => (previewTarget ? buildPreviewDoc(previewTarget, files) : ""),
+  const built = useMemo(
+    () => (previewTarget ? buildPreviewDoc(previewTarget, files) : { doc: "", blobUrls: [] }),
     [previewTarget, files],
   );
+  const doc = built.doc;
+
+  // Revoke blob URLs when the built doc changes / unmounts
+  useEffect(() => {
+    return () => { built.blobUrls.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [built]);
 
   const download = () => {
     if (!previewTarget) return;
@@ -212,14 +218,13 @@ function PreviewPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = previewTarget.path.endsWith(".html")
-      ? previewTarget.path
-      : `${previewTarget.path}.html`;
+    a.download = previewTarget.path.endsWith(".html") ? previewTarget.path : `${previewTarget.path}.html`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   };
+
 
   if (!open) return null;
 
