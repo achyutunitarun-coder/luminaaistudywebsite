@@ -321,26 +321,18 @@ export function guessLang(path: string): string {
  * comment markers (//, #, --, /* ... *\/, <!-- ... -->).
  */
 const META_PATTERNS = [
-  /let me (continue|complete|finish|pick up|resume|now|just)/i,
+  /let me (continue|complete|finish|pick up|resume)/i,
   /continuing (from )?where (i|we) (left off|stopped)/i,
   /picking up where (i|we) (left off|stopped)/i,
   /as i was saying/i,
-  /i('| wi)ll (now |just )?(continue|finish|complete)/i,
+  /i('| wi)ll (now |just )?continue/i,
   /resuming (from |where )/i,
   /^continue from previous/i,
-  /^here (is|are) (the|your)\b/i,
-  /^(sure|okay|alright|got it|certainly)[,!.]/i,
-  /^(thinking|reasoning|plan):/i,
-  /^\s*<\s*thinking\s*>/i,
 ];
 
 export function stripMetaCommentary(src: string, _lang: string): string {
   if (!src) return src;
-  // Drop any <thinking>...</thinking> blocks wholesale
-  let body = src.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
-  // Drop fenced "reasoning" / "plan" blocks
-  body = body.replace(/```(?:reasoning|thinking|plan)[\s\S]*?```/gi, "");
-  const lines = body.split("\n");
+  const lines = src.split("\n");
   const cleaned = lines.filter((raw) => {
     const line = raw.trim()
       .replace(/^(\/\/|#|--)\s*/, "")
@@ -351,5 +343,4 @@ export function stripMetaCommentary(src: string, _lang: string): string {
   });
   return cleaned.join("\n");
 }
-
 
