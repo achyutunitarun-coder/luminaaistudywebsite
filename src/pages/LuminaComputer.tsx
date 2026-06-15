@@ -569,6 +569,7 @@ export default function LuminaComputer() {
     rawAssistantRef.current = "";
     lastUserPromptRef.current = "";
     turnsRef.current = [];
+    sessionIdRef.current = null;
     parserRef.current = null;
     seenActionsRef.current = new Set();
     setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
