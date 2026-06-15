@@ -32,8 +32,25 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const toggleCollapsed = useCallback(() => setCollapsed((current) => !current), []);
   const navigateStudySession = useCallback(() => navigate('/study-session'), [navigate]);
 
+  // Expose the live sidebar width as a CSS variable so any descendant page
+  // (e.g. fixed/full-bleed workspaces) can offset itself precisely instead of
+  // hard-coding 72/240 and ending up underneath the sidebar.
+  const sidebarWidth = collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W_EXPANDED;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--app-sidebar-w', `${sidebarWidth}px`);
+    return () => {
+      root.style.removeProperty('--app-sidebar-w');
+    };
+  }, [sidebarWidth]);
+
+  const isFullBleed = FULL_BLEED_ROUTES.some(
+    (r) => location.pathname === r || location.pathname.startsWith(`${r}/`),
+  );
+
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden">
+
       {/* Ambient Background — Living Cosmos */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.03] blur-[120px] bg-primary -top-40 -left-40 animate-pulse-glow" />
