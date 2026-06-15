@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
@@ -6,6 +6,13 @@ import { ChevronLeft, ChevronRight, Flame, Menu, Sparkles, X, Brain } from 'luci
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppSidebarContent } from '@/components/AppSidebarContent';
+
+// Routes that need the full main area (no max-width cap, no padding) so the
+// in-page workspace (Computer, Chat, etc.) can render edge-to-edge without
+// the sidebar appearing to crowd or cover its content.
+const FULL_BLEED_ROUTES = ['/computer', '/chat', '/lecture-ai', '/smart-notebook'];
+const SIDEBAR_W_EXPANDED = 240;
+const SIDEBAR_W_COLLAPSED = 72;
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { profile } = useProfile();
@@ -25,8 +32,25 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const toggleCollapsed = useCallback(() => setCollapsed((current) => !current), []);
   const navigateStudySession = useCallback(() => navigate('/study-session'), [navigate]);
 
+  // Expose the live sidebar width as a CSS variable so any descendant page
+  // (e.g. fixed/full-bleed workspaces) can offset itself precisely instead of
+  // hard-coding 72/240 and ending up underneath the sidebar.
+  const sidebarWidth = collapsed ? SIDEBAR_W_COLLAPSED : SIDEBAR_W_EXPANDED;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--app-sidebar-w', `${sidebarWidth}px`);
+    return () => {
+      root.style.removeProperty('--app-sidebar-w');
+    };
+  }, [sidebarWidth]);
+
+  const isFullBleed = FULL_BLEED_ROUTES.some(
+    (r) => location.pathname === r || location.pathname.startsWith(`${r}/`),
+  );
+
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden">
+
       {/* Ambient Background — Living Cosmos */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute w-[600px] h-[600px] rounded-full opacity-[0.03] blur-[120px] bg-primary -top-40 -left-40 animate-pulse-glow" />
@@ -134,11 +158,20 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </AnimatePresence>
 
       {/* Main Content — Primary Intelligence Zone */}
-      <main className={`flex-1 overflow-auto transition-all duration-500 ease-out relative z-10 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'} mt-14 md:mt-0`}>
-        <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8">
-          {children}
-        </div>
+      <main
+        className="flex-1 min-w-0 overflow-auto transition-[margin] duration-500 ease-out relative z-10 mt-14 md:mt-0 ml-0 md:[margin-left:var(--app-sidebar-w,0px)]"
+      >
+        {isFullBleed ? (
+          // Workspace routes render edge-to-edge: no max-width cap, no padding.
+          children
+        ) : (
+          <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8">
+            {children}
+          </div>
+        )}
       </main>
+
+
     </div>
   );
 };
