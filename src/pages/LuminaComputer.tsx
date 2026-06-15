@@ -373,6 +373,10 @@ export default function LuminaComputer() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const seenActionsRef = useRef<Set<string>>(new Set());
+  // Persistent workspace session id (row in lumina_sessions). Cleared by reset()
+  // so the next turn starts a fresh session row.
+  const sessionIdRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
 
   const [factoryStates, setFactoryStates] = useState<Record<PipelineStage, StageStatus>>(idleFactoryStates);
   const [factoryActive, setFactoryActive] = useState<string | null>(null);
