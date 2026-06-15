@@ -158,11 +158,24 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </AnimatePresence>
 
       {/* Main Content — Primary Intelligence Zone */}
-      <main className={`flex-1 overflow-auto transition-all duration-500 ease-out relative z-10 ${collapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'} mt-14 md:mt-0`}>
-        <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8">
-          {children}
-        </div>
+      <main
+        className="flex-1 min-w-0 overflow-auto transition-[margin] duration-500 ease-out relative z-10 mt-14 md:mt-0"
+        style={{
+          // Use the live CSS var so the offset always matches the actual
+          // sidebar width and never leaves text hidden behind the rail.
+          marginLeft: 'var(--app-sidebar-w, 0px)',
+        }}
+      >
+        {isFullBleed ? (
+          // Workspace routes render edge-to-edge: no max-width cap, no padding.
+          children
+        ) : (
+          <div className="max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-8">
+            {children}
+          </div>
+        )}
       </main>
+
     </div>
   );
 };
