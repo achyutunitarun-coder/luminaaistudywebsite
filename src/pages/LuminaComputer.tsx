@@ -464,6 +464,96 @@ export default function LuminaComputer() {
     );
   }, []);
 
+  // ── Persistent workspace memory (lumina_sessions) ─────────────────
+  // Load most recent session on mount so the user never loses prior
+  // conversation, generated files, or plan when navigating away.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data, error } = await supabase
+        .from("lumina_sessions")
+        .select("id,title,conversation_history,project_files,agent_logs")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      sessionIdRef.current = data.id;
+      const turns = Array.isArray(data.conversation_history) ? (data.conversation_history as any[]) : [];
+      turnsRef.current = turns.slice(-24).map((t) => ({ role: t.role, content: t.content }));
+      const filesObj = (data.project_files ?? {}) as Record<string, { content: string; lang: string }>;
+      const restored: LuminaFile[] = Object.entries(filesObj).map(([path, v]) => ({
+        path,
+        lang: v.lang as LuminaFile["lang"],
+        content: v.content,
+        done: true,
+      }));
+      if (restored.length > 0) {
+        setFiles(restored);
+        setActivePath(restored[0].path);
+        // Recreate parser state so continuations work after a reload.
+        const p = new LuminaParser();
+        for (const f of restored) p.state.files.push(f);
+        parserRef.current = p;
+      }
+      const last = turns[turns.length - 1];
+      if (last?.role === "user") lastUserPromptRef.current = String(last.content ?? "");
+      if (restored.length > 0 || turns.length > 0) {
+        setLogs([{ id: uid(), level: "system", text: `Resumed session · ${restored.length} file(s), ${turns.length} turn(s).`, ts: Date.now() }]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveSession = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Snapshot from the parser when available (most accurate), else from state.
+    const currentFiles = parserRef.current?.state.files ?? files;
+    const projectFiles: Record<string, { content: string; lang: string }> = {};
+    for (const f of currentFiles) {
+      projectFiles[f.path] = { content: f.content, lang: f.lang };
+    }
+    const title =
+      (lastUserPromptRef.current || "Untitled session").slice(0, 80) || "Untitled session";
+    const payload = {
+      user_id: user.id,
+      title,
+      conversation_history: turnsRef.current,
+      project_files: projectFiles,
+      agent_logs: logs.slice(-50).map((l) => ({ level: l.level, text: l.text, ts: l.ts })),
+      updated_at: new Date().toISOString(),
+    };
+    if (sessionIdRef.current) {
+      await supabase.from("lumina_sessions").update(payload).eq("id", sessionIdRef.current);
+    } else {
+      const { data, error } = await supabase
+        .from("lumina_sessions")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (!error && data) sessionIdRef.current = data.id;
+    }
+  }, [files, logs]);
+
+  // Debounced auto-save: any file/plan/turn change persists within 1.5s.
+  useEffect(() => {
+    if (files.length === 0 && turnsRef.current.length === 0) return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      void saveSession();
+    }, 1500);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [files, plan, finalMd, saveSession]);
+
+
+
   const reset = useCallback(() => {
     if (busy) abortRef.current?.abort();
     setFiles([]);
