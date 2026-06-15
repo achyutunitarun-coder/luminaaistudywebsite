@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
@@ -6,6 +6,13 @@ import { ChevronLeft, ChevronRight, Flame, Menu, Sparkles, X, Brain } from 'luci
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppSidebarContent } from '@/components/AppSidebarContent';
+
+// Routes that need the full main area (no max-width cap, no padding) so the
+// in-page workspace (Computer, Chat, etc.) can render edge-to-edge without
+// the sidebar appearing to crowd or cover its content.
+const FULL_BLEED_ROUTES = ['/computer', '/chat', '/lecture-ai', '/smart-notebook'];
+const SIDEBAR_W_EXPANDED = 240;
+const SIDEBAR_W_COLLAPSED = 72;
 
 export const AppLayout = ({ children }: { children: ReactNode }) => {
   const { profile } = useProfile();
