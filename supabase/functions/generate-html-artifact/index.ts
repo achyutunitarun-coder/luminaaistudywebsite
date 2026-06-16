@@ -154,6 +154,11 @@ serve(async (req) => {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // Enforce plan-tier usage limit (production-grade — bypasses client tampering)
+    const { enforceUsage } = await import("../_shared/usage-gate.ts");
+    const gate = await enforceUsage(user.id, "artifact_generation", corsHeaders);
+    if (!gate.ok) return gate.response;
+
     const body = await req.json();
     const {
       topic = "Study Material",
