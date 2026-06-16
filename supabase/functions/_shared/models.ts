@@ -277,13 +277,14 @@ async function callKimiDirect(
   }
 }
 
-const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token (was 2)
+const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token
+const OWL_KEY_FANOUT = 3;               // fire OWL on this many keys in parallel — first responder wins
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
 const TEXT_TOTAL_BUDGET_MS = 90_000;    // keep JSON tools responsive
 const OCR_TOTAL_BUDGET_MS = 120_000;
-const PRIMARY_RACE_TIMEOUT_MS = 3_500;  // tight first-token race for snappy UX (was 6s)
+const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // give owl-alpha real TTFB headroom; tiny models still win earlier
 
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
@@ -418,6 +419,71 @@ async function callModel(
   return null;
 }
 
+// Fire the SAME model on N different keys in parallel — first responder wins.
+// This is critical for owl-alpha where per-key TTFB is high but variable; racing
+// keys cuts effective latency dramatically.
+async function callModelKeyFanout(
+  model: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+  tag: string,
+  fanout: number,
+): Promise<Response | null> {
+  if (_deadModels.has(model)) return null;
+  if (KIMI_API_KEY && /^moonshotai\//.test(model)) {
+    return callModel(model, body, timeoutMs, tag);
+  }
+  const healthyKeys: number[] = [];
+  for (let i = 0; i < ALL_KEYS.length; i++) {
+    if (_isHealthy(i, model)) healthyKeys.push(i);
+  }
+  const picks = (healthyKeys.length > 0 ? healthyKeys : ALL_KEYS.map((_, i) => i)).slice(0, Math.max(1, Math.min(fanout, ALL_KEYS.length)));
+  if (picks.length <= 1) return callModel(model, body, timeoutMs, tag);
+
+  const controllers: AbortController[] = [];
+  const attempts = picks.map((keyIdx) => {
+    const ctrl = new AbortController();
+    controllers.push(ctrl);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    return (async () => {
+      try {
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: { ...HEADERS_BASE, Authorization: `Bearer ${ALL_KEYS[keyIdx]}` },
+          body: JSON.stringify({ ...body, model }),
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          console.log(`[${tag}] ✓ ${model} (key ${keyIdx + 1}) [fanout]`);
+          return { res, keyIdx };
+        }
+        if (res.status === 429) markKeyModelCooled(keyIdx, model, KEY_MODEL_COOLDOWN_MS, "429");
+        else if (res.status === 401 || res.status === 403) markKeyCooled(keyIdx, KEY_BAD_COOLDOWN_MS, `${res.status}`);
+        else if (res.status === 404) { _deadModels.add(model); }
+        try { await res.body?.cancel(); } catch { /* ignore */ }
+        throw new Error(`${model} key ${keyIdx + 1} -> ${res.status}`);
+      } catch (e) {
+        clearTimeout(timer);
+        throw e;
+      }
+    })();
+  });
+
+  try {
+    const { res, keyIdx } = await Promise.any(attempts);
+    // Abort losing in-flight requests to free server/network resources.
+    for (let i = 0; i < controllers.length; i++) {
+      if (picks[i] !== keyIdx) {
+        try { controllers[i].abort(); } catch { /* ignore */ }
+      }
+    }
+    return res;
+  } catch {
+    return null;
+  }
+}
+
 async function raceModels(
   models: string[],
   body: Record<string, unknown>,
@@ -427,7 +493,9 @@ async function raceModels(
   const live = models.filter((m) => !_deadModels.has(m));
   const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
-    const res = await callModel(model, body, timeoutMs, tag);
+    const res = model === OWL
+      ? await callModelKeyFanout(model, body, timeoutMs, tag, OWL_KEY_FANOUT)
+      : await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
     return { response: res, model };
   });
@@ -503,7 +571,7 @@ export async function callWithFallback(
   const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 4_500 : PRIMARY_RACE_TIMEOUT_MS);
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 8_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
