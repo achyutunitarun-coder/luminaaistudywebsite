@@ -36,7 +36,7 @@ const NOTES_THEMES: Record<string, string> = {
   "comic-book": "Comic Book — bg #fffbeb, halftone dot pattern, red #dc2626 + yellow #facc15 + black borders 3px. Fonts: Bangers + Comic Neue. STRUCTURE: comic panels with thick black borders, speech-bubble explanations, BIG SPLASH HEADERS, KAPOW-style starbursts highlighting key formulas.",
   "terminal-code": "Terminal Code — bg #0d0d0d, green #22c55e text, amber #fbbf24 accents. Fonts: JetBrains Mono everywhere. STRUCTURE: looks like a terminal/IDE. Sections start with `$ topic --explain`. Formulas in code-block style with line numbers. Comments in gray // style. Cursor blink on title.",
   "magazine-editorial": "Magazine Editorial — cream #fdf6e3, deep red #b91c1c pull-quotes. Fonts: Playfair Display + Source Serif. STRUCTURE: editorial magazine with HUGE display headlines, multi-column body text, oversized pull-quotes, full-width banner image placeholders, image captions.",
-  "kawaii-pastel": "Kawaii Pastel — bg #fff5f7 pink, mint cards #ecfdf5, rounded everything. Fonts: Quicksand + Nunito. STRUCTURE: rounded-3xl pastel cards with cute emoji bullets (✨🌸🎀), dotted borders, soft pink/mint/lavender alternating section backgrounds, friendly tone.",
+  "kawaii-pastel": "Kawaii Pastel — bg #fff5f7 pink, mint cards #ecfdf5, rounded everything. Fonts: Quicksand + Nunito. STRUCTURE: rounded-3xl pastel cards with small SVG floral/star icons (NO emoji), dotted borders, soft pink/mint/lavender alternating section backgrounds, friendly tone.",
 };
 
 const EXAM_THEMES: Record<string, string> = {
