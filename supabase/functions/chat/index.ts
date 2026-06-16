@@ -124,6 +124,14 @@ serve(async (req) => {
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
 
+    // Server-side plan/usage enforcement (cannot be bypassed by tampering with client)
+    {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(user.id, "chat_messages", corsHeaders);
+      if (!gate.ok) return gate.response;
+    }
+
+
     // ── Pre-flight: crisis detection + stress addon ───────────────────
     const flight = await preFlight({
       userId: user.id, userMessage: queryText, feature: `chat/${requestedMode}`, authHeader,
