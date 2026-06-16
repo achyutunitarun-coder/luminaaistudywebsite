@@ -8,13 +8,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Preferred models for HTML generation (long-context, structured output)
+// Preferred models for HTML artifact generation.
+// Owl-alpha first per user direction (1M+ ctx, fast streaming, can hold an
+// entire notes/exam/slides document without truncating). Free heavy hitters
+// stay behind it as fallback if the primary is rate-limited.
 const HTML_MODELS = [
+  "openrouter/owl-alpha",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-4-31b-it:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
   "openai/gpt-oss-20b:free",
   "moonshotai/kimi-k2.6",
 ];
