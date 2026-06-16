@@ -124,34 +124,36 @@ async function generateHtml(
   const started = Date.now();
   let lastErr = "";
 
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (lovableKey) {
+  const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
+  if (orKey) {
     try {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableKey}`,
+          Authorization: `Bearer ${orKey}`,
+          "HTTP-Referer": "https://luminaai.co.in",
+          "X-Title": "Lumina AI",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "openrouter/owl-alpha",
           messages: [
             { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
             { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
           ],
           temperature: 0.35,
-          max_tokens: type === "code" ? 10000 : 8500,
+          max_tokens: type === "code" ? 16000 : 12000,
         }),
-        signal: AbortSignal.timeout(38_000),
+        signal: AbortSignal.timeout(45_000),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `lovable_gateway_${res.status}`);
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `openrouter_${res.status}`);
       const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
-      if (validHtml(cleaned)) return { html: cleaned, model: "google/gemini-3-flash-preview" };
-      lastErr = cleaned ? "invalid_html_from_gateway" : "empty_from_gateway";
+      if (validHtml(cleaned)) return { html: cleaned, model: "openrouter/owl-alpha" };
+      lastErr = cleaned ? "invalid_html_from_owl" : "empty_from_owl";
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
-      console.warn("[artifact-job] Lovable AI gateway failed:", lastErr);
+      console.warn("[artifact-job] owl-alpha primary failed:", lastErr);
     }
   }
 
