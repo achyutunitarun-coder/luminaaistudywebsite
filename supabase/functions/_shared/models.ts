@@ -273,13 +273,13 @@ async function callKimiDirect(
   }
 }
 
-const PARALLEL_RACE_COUNT = 2;          // race 2 models; too many parallel calls were burning key limits
+const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token (was 2)
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
 const TEXT_TOTAL_BUDGET_MS = 90_000;    // keep JSON tools responsive
 const OCR_TOTAL_BUDGET_MS = 120_000;
-const PRIMARY_RACE_TIMEOUT_MS = 6_000;  // tight first-token race for snappy UX
+const PRIMARY_RACE_TIMEOUT_MS = 3_500;  // tight first-token race for snappy UX (was 6s)
 
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
