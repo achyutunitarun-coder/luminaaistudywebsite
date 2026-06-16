@@ -237,15 +237,15 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
-    // Lumina Computer: Kimi K2.6 first (direct Moonshot key when present),
-    // then OpenRouter free long-context models as fallback so the build never
-    // dies on a single provider hiccup.
+    // Lumina Computer: openrouter/owl-alpha is the PRIMARY (per user direction)
+    // — 1M+ context, fast streaming, won't truncate mid-plan. Other long-context
+    // models stay behind it so a single provider hiccup never kills a build.
     const computerChain = Array.from(new Set([
-      "moonshotai/kimi-k2.6",
+      "openrouter/owl-alpha",
       ...(hasImages ? MODELS_VISION : []),
       ...MODELS_LONG_CTX,
+      "moonshotai/kimi-k2.6",
       ...MODELS_QUALITY,
-      "openrouter/owl-alpha",
     ]));
     const models = isComputerMode
       ? computerChain
