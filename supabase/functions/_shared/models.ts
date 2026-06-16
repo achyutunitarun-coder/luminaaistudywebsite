@@ -19,18 +19,14 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const OWL = "openrouter/owl-alpha";
 
-// FAST chain — tiny ultra-low-latency models race in front of owl-alpha so
-// short replies (chat, JSON tools, classifications) come back in <2s. Owl
-// stays in the chain as a quality safety net for anything the small models
-// fumble.
+// FAST chain — OWL first. No racing. Tiny models are sequential fallbacks
+// only if owl-alpha actually errors out.
 export const MODELS_FAST = [
+  OWL,
   "liquid/lfm-2.5-1.2b-instruct:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "nvidia/nemotron-nano-9b-v2:free",
-  OWL,
   "openai/gpt-oss-20b:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
-  "poolside/laguna-xs.2:free",
 ];
 
 export const MODELS_BALANCED = [
