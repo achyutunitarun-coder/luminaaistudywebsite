@@ -812,17 +812,31 @@ export default function LuminaComputer() {
         applyState();
         setFactoryStage("builder", "done", "Code stream completed; entering validation gate.");
         setFactoryStage("validator", "working", "Evaluating syntax, subject fit, placeholders, and preview readiness.");
-        // Detect truncation: any open file, no <lumina:final>, or raw stream
-        // didn't end with a closing lumina tag.
+        // Detect truncation — including the worst case the user kept hitting:
+        // model truncated INSIDE <lumina:plan> with zero files shipped.
+        // Anything that left us mid-plan, mid-file, or without a clean closing
+        // tag is fair game for the Continue button.
         let st = parserRef.current!.state;
         const openFile = st.files.some((f) => !f.done);
         const missingFinal = !st.final.trim();
         const tail = rawAssistantRef.current.trimEnd().slice(-40);
         const cleanEnd = /<\/lumina:(final|file|plan)>\s*$/.test(tail);
-        const looksTruncated = openFile || missingFinal || !cleanEnd;
+        const noFilesShipped = st.files.length === 0;
+        const planUnclosed =
+          rawAssistantRef.current.includes("<lumina:plan>") &&
+          !rawAssistantRef.current.includes("</lumina:plan>");
+        const enoughOutputToContinue = rawAssistantRef.current.length > 40;
+        const looksTruncated =
+          enoughOutputToContinue &&
+          (openFile || missingFinal || !cleanEnd || noFilesShipped || planUnclosed);
         if (looksTruncated) {
           setCanContinue(true);
-          setFactoryStage("validator", "error", "Validation caught a cut-off response; continuation is required.");
+          const reason = planUnclosed
+            ? "Model truncated inside the planning section — Continue to close the plan and ship files."
+            : noFilesShipped
+              ? "Stream ended before any file was emitted — Continue to resume."
+              : "Validation caught a cut-off response; continuation is required.";
+          setFactoryStage("validator", "error", reason);
           log("warn", "Output was cut off — press Continue to resume.");
         } else {
           parserRef.current!.finish();
