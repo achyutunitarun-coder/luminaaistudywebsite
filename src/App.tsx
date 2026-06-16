@@ -79,6 +79,9 @@ const ProtectedLayout = () => {
         {needsOnboarding && (
           <Onboarding onComplete={() => setNeedsOnboarding(false)} />
         )}
+        {/* Tutorial only renders once after onboarding is complete (gated
+            internally by localStorage + onboarded flag). */}
+        {!needsOnboarding && <TutorialOverlay />}
         <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
