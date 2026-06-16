@@ -190,23 +190,38 @@ serve(async (req) => {
             let userPrompt = "";
             let label = "";
 
+            // Hard reinforcement appended to EVERY artifact request: the prior
+            // bug was the model shipping a skeleton that said "here is how to
+            // view the notes" with no actual content. The reinforcement forbids
+            // that and demands real subject-matter substance.
+            const contentReinforcement = `
+
+CRITICAL OUTPUT REQUIREMENTS — DO NOT VIOLATE:
+1. The HTML you return MUST contain the ACTUAL educational content on the topic "${topic}" (${subject}, ${grade}).
+   - Real definitions, real formulas, real worked examples with numbers, real practice questions with answers.
+   - NEVER write "click here to view the notes", "instructions on how to use", "your notes will appear", "open the file to see content", or any placeholder/meta text. The HTML IS the deliverable.
+2. Treat this like writing a real textbook chapter or exam paper that a student will actually study from. Depth, accuracy, specificity.
+3. ZERO EMOJI in the HTML. No rockets, sparkles, party poppers, lightbulbs, check marks, fire, hearts, targets — nothing in the Unicode emoji block. Use SVG icons or plain text labels (Tip:, Warning:, Example:) instead. Emoji make the output look unprofessional.
+4. Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. No commentary. No "here is your" preamble.
+5. Aim for completeness over brevity. A truncated 200-line skeleton is worse than a complete 600-line document.`;
+
             if (type === "notes") {
               themeKey = notesTheme;
               themeDesc = NOTES_THEMES[themeKey] || NOTES_THEMES["academic-dark"];
-              sysPrompt = buildNotesPrompt(themeDesc, themeKey, topic);
-              userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.`;
+              sysPrompt = buildNotesPrompt(themeDesc, themeKey, topic) + contentReinforcement;
+              userPrompt = `Generate complete HTML study notes for topic: "${topic}". Subject: ${subject}. Grade: ${grade}.\n\nProduce the full document with ALL actual educational content embedded — definitions, worked examples, formulas, practice questions with answers. Do NOT write meta-instructions.`;
               label = "study notes";
             } else if (type === "exam") {
               themeKey = examTheme;
               themeDesc = EXAM_THEMES[themeKey] || EXAM_THEMES["classic-paper"];
-              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin, topic);
-              userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.`;
+              sysPrompt = buildExamPrompt(themeDesc, themeKey, totalMarks, durationMin, topic) + contentReinforcement;
+              userPrompt = `Generate complete HTML exam paper for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Total marks: ${totalMarks}. Duration: ${durationMin} min.\n\nProduce a real exam paper: real questions on the topic with the right marks each, sub-parts (a)(b)(c), answer textareas, and a hidden mark scheme with actual model answers.`;
               label = "exam paper";
             } else if (type === "slides") {
               themeKey = slidesTheme;
               themeDesc = SLIDES_THEMES[themeKey] || SLIDES_THEMES["lumina-dark"];
-              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount, topic);
-              userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.`;
+              sysPrompt = buildSlidesPrompt(themeDesc, themeKey, slideCount, topic) + contentReinforcement;
+              userPrompt = `Generate a complete HTML presentation deck for topic: "${topic}". Subject: ${subject}. Grade: ${grade}. Target slide count: ${slideCount}.\n\nEvery slide must contain real subject content for "${topic}" — not "lesson plan" placeholders.`;
               label = "presentation deck";
             } else {
               send("log", { type: "warning", text: `Unknown artifact type: ${type} — skipping` });
@@ -231,7 +246,10 @@ serve(async (req) => {
                     { role: "system", content: sysPrompt },
                     { role: "user", content: userPrompt },
                   ],
-                  [model], 12000, 0.5, 90_000, `html-artifact-${type}`
+                  // Bumped from 12k -> 24k so notes/exams/slides have headroom to
+                  // emit the full document; owl-alpha supports it natively. Timeout
+                  // bumped from 90s -> 180s for the same reason.
+                  [model], 24000, 0.5, 180_000, `html-artifact-${type}`
                 );
                 const cleaned = cleanHtml(text);
                 if (cleaned.toLowerCase().includes("<!doctype html") || cleaned.toLowerCase().includes("<html")) {
