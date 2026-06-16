@@ -64,35 +64,101 @@ function esc(value: string) {
   return String(value || "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-function fallbackHtml(
-  type: string,
-  topic: string,
-) {
+interface TopicContent {
+  definition: string;
+  process: string;
+  examiners: string;
+  inputs: string[];
+  question: string;
+  options: { text: string; correct: boolean }[];
+  checklist: string[];
+  keyFacts: string[];
+}
+
+async function fetchTopicContent(topic: string, type: string): Promise<TopicContent | null> {
+  const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
+  if (!orKey) return null;
+  try {
+    const sys = `You are an expert tutor. Return ONLY raw JSON (no fences, no prose) with ACTUAL subject-specific content. Never write meta-instructions like "explain it aloud" — write the real subject facts a student must learn.`;
+    const user = `Topic: "${topic}". Type: ${type}.
+Return JSON exactly:
+{
+ "definition": "2-3 sentence rigorous definition with real terms",
+ "process": "3-4 sentence mechanistic explanation of how it works",
+ "examiners": "2-3 sentence list of specific things examiners test on this topic",
+ "inputs": ["4","short","real-stage","labels (e.g. for photosynthesis: Light reactions, ATP/NADPH, Calvin cycle, Glucose)"],
+ "question": "one good factual multiple-choice question on the topic",
+ "options": [{"text":"...","correct":true},{"text":"...","correct":false},{"text":"...","correct":false}],
+ "checklist": ["5","topic-specific","mastery","items"],
+ "keyFacts": ["4 real factual bullet points about the topic"]
+}`;
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://luminaai.co.in", "X-Title": "Lumina AI" },
+      body: JSON.stringify({
+        model: "openrouter/owl-alpha",
+        messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+        temperature: 0.3, max_tokens: 1500, response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+    const data = await res.json().catch(() => ({}));
+    const raw = data?.choices?.[0]?.message?.content ?? "";
+    const cleaned = String(raw).replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed?.definition || !Array.isArray(parsed?.options)) return null;
+    return parsed as TopicContent;
+  } catch (e) {
+    console.warn("fetchTopicContent failed:", (e as Error).message);
+    return null;
+  }
+}
+
+async function fallbackHtml(type: string, topic: string): Promise<string> {
   const safeTopic = esc(topic || "Study artifact");
   const kind = esc(type || "artifact");
+  const content = await fetchTopicContent(topic, type);
+
+  const definition = esc(content?.definition || `Detailed notes for ${topic} could not be generated automatically. Please regenerate the artifact for full content.`);
+  const process = esc(content?.process || "Regenerate this artifact to receive the full mechanistic explanation.");
+  const examiners = esc(content?.examiners || "Regenerate to view the examiner-focus breakdown.");
+  const inputs = (content?.inputs && content.inputs.length >= 2 ? content.inputs : ["Stage 1","Stage 2","Stage 3","Outcome"]).slice(0,4).map(esc);
+  const question = esc(content?.question || `Regenerate to load a real ${topic} question.`);
+  const opts = (content?.options && content.options.length >= 2
+    ? content.options
+    : [{text:"Regenerate the artifact",correct:true},{text:"Placeholder",correct:false},{text:"Placeholder",correct:false}]
+  ).slice(0,4);
+  const checklist = (content?.checklist && content.checklist.length >= 3 ? content.checklist : [
+    `State the definition of ${topic} from memory.`,
+    `Draw the mechanism of ${topic} with labels.`,
+    `List three common mistakes specific to ${topic}.`,
+    `Solve one easy and one hard ${topic} question.`,
+    `Teach ${topic} in sixty seconds.`,
+  ]).slice(0,6).map(esc);
+  const keyFacts = (content?.keyFacts && content.keyFacts.length >= 2 ? content.keyFacts : []).slice(0,6).map(esc);
+
+  const nodesHtml = inputs.map((n,i)=>`<span class="node">${n}</span>${i<inputs.length-1?'<span class="arrow">→</span>':''}`).join("");
+  const optsHtml = opts.map(o=>`<button data-correct="${o.correct?'true':'false'}">${esc(o.text)}</button>`).join("");
+  const checklistHtml = checklist.map(c=>`<li>${c}</li>`).join("");
+  const keyFactsHtml = keyFacts.length
+    ? `<section id="facts" class="section"><h2>Key facts</h2><ul>${keyFacts.map(f=>`<li>${f}</li>`).join("")}</ul></section>`
+    : "";
+
   return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>${safeTopic} — Lumina ${kind}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,50,1&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<style>
-:root{--paper:#f5ead4;--ink:#15120d;--charcoal:#23201a;--oxide:#b9482b;--moss:#496f5d;--aqua:#0e8077;--line:rgba(21,18,13,.18);--glow:rgba(185,72,43,.22);--shadow:0 24px 80px rgba(21,18,13,.22);font-family:Manrope,sans-serif}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:linear-gradient(135deg,#f5ead4,#e7d3aa 45%,#d8bea0);color:var(--ink);line-height:1.65;overflow-x:hidden}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(circle at 50% 20%,black,transparent 78%);opacity:.45}.wrap{width:min(1160px,calc(100% - 32px));margin:auto;padding:48px 0 72px}.mast{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,72px);align-items:end;border-bottom:2px solid var(--ink);padding-bottom:32px}.kicker{font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--oxide)}h1{font-family:Fraunces,serif;font-size:clamp(48px,10vw,132px);line-height:.82;margin:18px 0;font-weight:850;letter-spacing:0}.lede{font-size:clamp(18px,2vw,24px);max-width:620px}.seal{aspect-ratio:1;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;position:relative;background:radial-gradient(circle,#fff3d5,transparent 62%);box-shadow:var(--shadow)}.seal:after{content:"${kind}";font:800 11px/1 JetBrains Mono,monospace;letter-spacing:.22em;text-transform:uppercase;transform:rotate(-14deg);border:2px solid var(--oxide);color:var(--oxide);padding:12px 16px}.rail{display:grid;grid-template-columns:280px 1fr;gap:28px;margin-top:36px}.toc{position:sticky;top:24px;align-self:start;border:2px solid var(--ink);background:rgba(255,248,226,.72);padding:18px}.toc a{display:block;color:var(--ink);text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);font-weight:800}.section{padding:28px 0;border-bottom:1px solid var(--line)}h2{font-family:Fraunces,serif;font-size:clamp(32px,5vw,64px);line-height:.95;margin:0 0 18px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.panel{border:2px solid var(--ink);background:rgba(255,249,232,.66);padding:20px;box-shadow:8px 8px 0 rgba(21,18,13,.12)}.panel b{color:var(--oxide)}.diagram{min-height:220px;border:2px solid var(--ink);background:repeating-linear-gradient(45deg,rgba(73,111,93,.12) 0 12px,transparent 12px 24px);display:grid;place-items:center;margin:20px 0}.nodes{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center}.node{border:2px solid var(--ink);background:var(--paper);padding:14px 18px;border-radius:999px;font-weight:900}.arrow{font-size:28px;color:var(--oxide)}button{min-height:44px;border:2px solid var(--ink);background:var(--oxide);color:#fff7df;font-weight:900;padding:12px 18px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}button:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink)}button:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}button:focus-visible,a:focus-visible{outline:3px solid var(--aqua);outline-offset:3px}.quiz button{display:block;margin:8px 0;background:var(--moss)}.meter{height:12px;border:2px solid var(--ink);background:#fff7df}.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--oxide),var(--aqua));transition:width .4s ease}@media(max-width:820px){.mast,.rail{grid-template-columns:1fr}.seal{max-width:240px}.toc{position:relative;top:auto}.grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:no-preference){.reveal{opacity:0;transform:translateY(18px);animation:up .7s cubic-bezier(.16,1,.3,1) forwards}.reveal:nth-child(2){animation-delay:.08s}.reveal:nth-child(3){animation-delay:.16s}@keyframes up{to{opacity:1;transform:none}}}@media print{body{background:#fff}.toc,button{display:none}.panel,.diagram{box-shadow:none}}</style>
-</head>
-<body>
-<main class="wrap">
-  <section class="mast reveal"><div><span class="kicker">Lumina Artifact · ${kind}</span><h1>${safeTopic}</h1><p class="lede">A crafted learning object built as a tactile editorial system: clear enough to study from, distinctive enough to remember, and interactive enough to use immediately.</p></div><div class="seal" aria-hidden="true"></div></section>
-  <div class="rail"><nav class="toc reveal" aria-label="Artifact sections"><a href="#overview">Core map</a><a href="#diagram">Visual model</a><a href="#practice">Practice lab</a><a href="#finish">Mastery checklist</a></nav><article>
-    <section id="overview" class="section reveal"><h2>Core map</h2><div class="grid"><div class="panel"><b>Definition</b><p>${safeTopic} is treated as a system: terms, causes, mechanisms, outputs, edge cases, and exam language are separated so revision is not just memorisation.</p></div><div class="panel"><b>How to learn it</b><p>Explain the concept aloud, sketch the structure from memory, solve one applied example, then correct the missing links in a second pass.</p></div><div class="panel"><b>What examiners test</b><p>They look for precise vocabulary, cause-effect chains, labelled diagrams, units or evidence, and the ability to transfer the idea into unfamiliar contexts.</p></div></div></section>
-    <section id="diagram" class="section reveal"><h2>Visual model</h2><div class="diagram"><div class="nodes"><span class="node">Inputs</span><span class="arrow">→</span><span class="node">Process</span><span class="arrow">→</span><span class="node">Evidence</span><span class="arrow">→</span><span class="node">Answer</span></div></div><p>Use this chain whenever the topic feels broad: identify the starting conditions, describe the mechanism, attach proof or calculation, then write the final answer in command-word language.</p></section>
-    <section id="practice" class="section reveal quiz"><h2>Practice lab</h2><p><strong>Question:</strong> Which revision action creates the strongest memory trace?</p><button data-correct="false">Rereading the same paragraph three times</button><button data-correct="true">Retrieving the idea, checking it, then improving the explanation</button><button data-correct="false">Highlighting every important sentence</button><p id="feedback" aria-live="polite"></p><div class="meter" aria-label="Mastery meter"><span id="bar"></span></div></section>
-    <section id="finish" class="section reveal"><h2>Mastery checklist</h2><ol><li>Write the topic definition without looking.</li><li>Draw a labelled diagram or flow from memory.</li><li>List three common mistakes and their fixes.</li><li>Answer one easy, one medium, and one hard question.</li><li>Teach the concept in sixty seconds.</li></ol><button onclick="window.print()">Print / Save</button></section>
-  </article></div>
-</main>
-<script>document.addEventListener('DOMContentLoaded',function(){var fb=document.getElementById('feedback'),bar=document.getElementById('bar');document.querySelectorAll('.quiz button').forEach(function(btn){btn.addEventListener('click',function(){var ok=btn.dataset.correct==='true';fb.textContent=ok?'Correct — retrieval plus correction beats passive review.':'Not quite — passive familiarity feels good but fades quickly.';bar.style.width=ok?'100%':'38%';try{window.__lumina=window.__lumina||{};window.__lumina.lastArtifactScore=ok?1:0}catch(e){}})});});</script>
-</body>
-</html>`;
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${safeTopic} — Lumina ${kind}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300..900&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>:root{--paper:#f5ead4;--ink:#15120d;--oxide:#b9482b;--moss:#496f5d;--aqua:#0e8077;--line:rgba(21,18,13,.18);font-family:Manrope,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(135deg,#f5ead4,#e7d3aa 45%,#d8bea0);color:var(--ink);line-height:1.65}.wrap{width:min(1160px,calc(100% - 32px));margin:auto;padding:48px 0 72px}.mast{border-bottom:2px solid var(--ink);padding-bottom:32px}.kicker{font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--oxide)}h1{font-family:Fraunces,serif;font-size:clamp(48px,9vw,120px);line-height:.85;margin:18px 0;font-weight:850}.lede{font-size:clamp(17px,1.8vw,22px);max-width:760px}.rail{display:grid;grid-template-columns:260px 1fr;gap:28px;margin-top:36px}.toc{position:sticky;top:24px;align-self:start;border:2px solid var(--ink);background:rgba(255,248,226,.8);padding:18px}.toc a{display:block;color:var(--ink);text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);font-weight:800}.section{padding:28px 0;border-bottom:1px solid var(--line)}h2{font-family:Fraunces,serif;font-size:clamp(30px,4.5vw,56px);margin:0 0 18px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.panel{border:2px solid var(--ink);background:rgba(255,249,232,.7);padding:20px;box-shadow:8px 8px 0 rgba(21,18,13,.12)}.panel b{color:var(--oxide);display:block;margin-bottom:8px}.diagram{min-height:180px;border:2px solid var(--ink);background:repeating-linear-gradient(45deg,rgba(73,111,93,.12) 0 12px,transparent 12px 24px);display:grid;place-items:center;margin:20px 0;padding:24px}.nodes{display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center}.node{border:2px solid var(--ink);background:var(--paper);padding:12px 18px;border-radius:999px;font-weight:900}.arrow{font-size:26px;color:var(--oxide)}ul,ol{padding-left:22px}li{margin:6px 0}button{min-height:44px;border:2px solid var(--ink);background:var(--oxide);color:#fff7df;font-weight:900;padding:12px 18px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;font-family:inherit}.quiz button{display:block;margin:8px 0;background:var(--moss)}.meter{height:12px;border:2px solid var(--ink);background:#fff7df;margin-top:12px}.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--oxide),var(--aqua));transition:width .4s ease}@media(max-width:820px){.rail{grid-template-columns:1fr}.toc{position:relative}.grid{grid-template-columns:1fr}}</style></head>
+<body><main class="wrap">
+<section class="mast"><span class="kicker">Lumina Artifact · ${kind}</span><h1>${safeTopic}</h1><p class="lede">${definition}</p></section>
+<div class="rail"><nav class="toc"><a href="#overview">Core map</a><a href="#diagram">Visual model</a>${keyFacts.length?'<a href="#facts">Key facts</a>':''}<a href="#practice">Practice</a><a href="#finish">Mastery checklist</a></nav><article>
+<section id="overview" class="section"><h2>Core map</h2><div class="grid"><div class="panel"><b>Definition</b><p>${definition}</p></div><div class="panel"><b>How it works</b><p>${process}</p></div><div class="panel"><b>What examiners test</b><p>${examiners}</p></div></div></section>
+<section id="diagram" class="section"><h2>Visual model</h2><div class="diagram"><div class="nodes">${nodesHtml}</div></div></section>
+${keyFactsHtml}
+<section id="practice" class="section quiz"><h2>Practice</h2><p><strong>Question:</strong> ${question}</p>${optsHtml}<p id="feedback" aria-live="polite"></p><div class="meter"><span id="bar"></span></div></section>
+<section id="finish" class="section"><h2>Mastery checklist</h2><ol>${checklistHtml}</ol><button onclick="window.print()">Print / Save</button></section>
+</article></div></main>
+<script>document.addEventListener('DOMContentLoaded',function(){var fb=document.getElementById('feedback'),bar=document.getElementById('bar');document.querySelectorAll('.quiz button').forEach(function(btn){btn.addEventListener('click',function(){var ok=btn.dataset.correct==='true';fb.textContent=ok?'Correct.':'Not quite — review the definition above and try again.';bar.style.width=ok?'100%':'40%';})});});</script>
+</body></html>`;
 }
 
 function makeSystemPrompt(type: string, topic: string, provided: string) {
@@ -104,14 +170,17 @@ function makeSystemPrompt(type: string, topic: string, provided: string) {
 
 ${base}
 
-CRITICAL OUTPUT CONTRACT:
-- Return ONLY raw HTML. No markdown fences, no commentary, no <think> tags.
-- Start with <!DOCTYPE html> and include <html>, <head>, <style>, and <body>.
-- Keep it complete and interactive, but finish within one response.
-- Target 18KB–45KB of HTML. Dense and polished, not huge and unfinished.
-- Use distinctive Google Fonts; do not use Inter, Roboto, Arial, Space Grotesk, or default system fonts as the primary identity.
-- No visible recovery/error/debug notes inside the artifact.
-- Prefer concise depth over huge unfinished output.`;
+CRITICAL CONTENT CONTRACT — DO NOT VIOLATE:
+- The artifact MUST contain real, accurate, subject-specific content about "${topic}". Real definitions, real mechanisms, real worked examples with numbers, real practice questions with answers.
+- NEVER write meta-instructions ("explain the concept aloud", "sketch the structure from memory", "look for precise vocabulary", "treated as a system: terms, causes, mechanisms..."). Those describe HOW to study — you must write WHAT to study.
+- NEVER use generic placeholder labels like "Inputs → Process → Evidence → Answer". Use the REAL named stages of "${topic}" (e.g. for photosynthesis: "Light reactions → ATP/NADPH → Calvin cycle → Glucose").
+- NEVER write "your notes will appear", "click to view", or any prompt-style placeholder text.
+- ZERO emoji anywhere. Use SVG icons or text labels (Tip:, Warning:, Example:).
+
+OUTPUT CONTRACT:
+- Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences, no commentary, no <think>.
+- Complete and interactive. Target 18KB–60KB. Dense and finished.
+- Distinctive Google Fonts; never Inter/Roboto/Arial/Space Grotesk as primary identity.`;
 }
 
 async function generateHtml(
@@ -235,12 +304,13 @@ async function processJob(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
-    // Never leave the UI spinning or dead-ended: complete with a polished safe artifact.
+    // Never leave the UI spinning or dead-ended: complete with a topic-aware safe artifact.
+    const safeHtml = await fallbackHtml(payload.type, payload.topic);
     await admin
       .from("artifact_jobs")
       .update({
         status: "completed",
-        html: fallbackHtml(payload.type, payload.topic),
+        html: safeHtml,
         model_used: "lumina-local-artifact",
         error_message: null,
         completed_at: new Date().toISOString(),
