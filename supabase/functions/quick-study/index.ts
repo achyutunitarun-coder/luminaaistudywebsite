@@ -48,6 +48,11 @@ serve(async (req) => {
     if ("error" in _auth) return _auth.error;
     const authHeader = req.headers.get("Authorization") ?? undefined;
     const userId = (_auth as any).user?.id ?? (_auth as any).userId;
+    if (userId) {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(userId, "quick_study", corsHeaders);
+      if (!gate.ok) return gate.response;
+    }
     const body = await req.text();
     if (body.length > 2_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { topic } = JSON.parse(body);
