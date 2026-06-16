@@ -18,7 +18,7 @@ You are operating inside the Lumina Computer workspace. The user sees a live cod
 Emit ONLY these tags. Anything outside them is ignored.
 
 <lumina:plan>
-Short markdown plan: what you are building and the file list. 2-6 lines max.
+ULTRA-SHORT plan: ONE sentence on intent + a 2-5 bullet file list. **Hard cap: 6 lines, 80 tokens total.** Never explain reasoning, design philosophy, or rationale here — that belongs in <lumina:final>. The planner section must NEVER consume more than ~2% of your output budget; the rest is files.
 </lumina:plan>
 
 <lumina:file path="index.html" lang="html">
