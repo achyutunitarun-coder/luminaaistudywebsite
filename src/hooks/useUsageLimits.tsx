@@ -55,6 +55,28 @@ const LIMITS: Record<string, FeatureLimits> = {
   guided_lesson:      { basic: { limit: 5,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
 };
 
+// Features whose limits are enforced authoritatively in the corresponding
+// edge function via _shared/usage-gate.ts. For these we still PRE-CHECK on
+// the client (to show the upgrade modal early) but we never increment —
+// the server owns the counter so we don't double-count.
+const SERVER_ENFORCED = new Set<string>([
+  "chat_messages",
+  "doubt_messages",
+  "notes_generations",
+  "test_generations",
+  "flashcard_sets",
+  "quick_study",
+  "study_planners",
+  "smart_notebook",
+  "lecture_notes",
+  "lecture_flashcards",
+  "lecture_quiz",
+  "podcast_generation",
+  "guided_lesson",
+  "lumina_computer",
+  "artifact_generation",
+]);
+
 export const useUsageLimits = () => {
   const { user } = useAuth();
   const { plan, isProPlus } = useSubscription();
@@ -94,11 +116,15 @@ export const useUsageLimits = () => {
         return false;
       }
 
-      await supabase.rpc('increment_usage', {
-        p_user_id: user.id,
-        p_feature: feature,
-        p_period_type: config.period,
-      });
+      // Skip client increment when the server-side gate owns the counter,
+      // otherwise the user would be double-charged per request.
+      if (!SERVER_ENFORCED.has(feature)) {
+        await supabase.rpc('increment_usage', {
+          p_user_id: user.id,
+          p_feature: feature,
+          p_period_type: config.period,
+        });
+      }
 
       const newCount = (currentCount ?? 0) + 1;
       if (newCount >= Math.floor(config.limit * 0.8) && newCount < config.limit) {
@@ -112,6 +138,7 @@ export const useUsageLimits = () => {
       return true;
     }
   }, [user, isProPlus, plan, limitFor]);
+
 
   const getUsage = useCallback(async (feature: string): Promise<{ used: number; limit: number } | null> => {
     if (!user || isProPlus) return null;

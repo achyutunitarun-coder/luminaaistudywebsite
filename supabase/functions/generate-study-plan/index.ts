@@ -29,6 +29,11 @@ serve(async (req) => {
   try {
     const _auth = await requireUser(req, corsHeaders);
     if ("error" in _auth) return _auth.error;
+    {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(_auth.user.id, "study_planners", corsHeaders);
+      if (!gate.ok) return gate.response;
+    }
     const body = await req.text();
     if (body.length > 5_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { subjects, examDate, dailyHours, mode, syllabus, wakeUpTime, sleepTime } = JSON.parse(body);

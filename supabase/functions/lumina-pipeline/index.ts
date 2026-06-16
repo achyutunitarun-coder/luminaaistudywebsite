@@ -34,7 +34,7 @@ const STAGES: StageDef[] = [
   {
     stage: "planner",
     label: "Thinking",
-    models: ["openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free", "openai/gpt-oss-20b:free"],
+    models: ["openrouter/owl-alpha", "openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free", "openai/gpt-oss-20b:free"],
     maxTokens: 1500, temperature: 0.4,
     systemPrompt: () =>
       `You are the ORCHESTRATOR for Lumina Computer. Break the user's request into a structured task list. Return ONLY JSON: {"subtasks":[...], "agent_assignments":{...}, "parallel_opportunities":[...], "success_criteria":[...]}. Be concise.`,
@@ -42,15 +42,15 @@ const STAGES: StageDef[] = [
   {
     stage: "router",
     label: "Routing",
-    models: ["z-ai/glm-4.5-air:free", "openai/gpt-oss-120b:free"],
+    models: ["openrouter/owl-alpha", "z-ai/glm-4.5-air:free", "openai/gpt-oss-120b:free"],
     maxTokens: 2000, temperature: 0.4,
     systemPrompt: () =>
-      `You are the ROUTER. Produce the model strategy: Primary moonshotai/kimi-k2.6, Secondary openrouter/owl-alpha, Tertiary verified free OpenRouter coding/long-context models. Include fallback triggers: timeout, invalid id, malformed tags, validation errors. Return concise Markdown.`,
+      `You are the ROUTER. Produce the model strategy: Primary openrouter/owl-alpha, Secondary moonshotai/kimi-k2.6, Tertiary verified free OpenRouter coding/long-context models. Include fallback triggers: timeout, invalid id, malformed tags, validation errors. Return concise Markdown.`,
   },
   {
     stage: "research",
     label: "Research",
-    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free"],
+    models: ["openrouter/owl-alpha", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free"],
     maxTokens: 3000, temperature: 0.4,
     systemPrompt: () =>
       `You are the RESEARCH agent. Gather all context, facts, formulas, definitions, and edge cases the BUILDER will need. Return a structured Markdown context packet under headings: Facts, Formulas, Examples, Edge Cases, Citations.`,
@@ -66,7 +66,7 @@ const STAGES: StageDef[] = [
   {
     stage: "builder",
     label: "Coding",
-    models: ["moonshotai/kimi-k2.6", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
+    models: ["openrouter/owl-alpha", "moonshotai/kimi-k2.6", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
     maxTokens: 32000, temperature: 0.55,
     systemPrompt: () =>
       `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,
@@ -74,7 +74,7 @@ const STAGES: StageDef[] = [
   {
     stage: "validator",
     label: "Evaluating",
-    models: ["poolside/laguna-m.1:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
+    models: ["openrouter/owl-alpha", "poolside/laguna-m.1:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
     maxTokens: 1200, temperature: 0.3,
     systemPrompt: () =>
       `You are the VALIDATOR. Inspect the builder's output for syntax, import resolution, preview readiness, subject fidelity, placeholders, and completeness. Return ONLY JSON: {"status":"approved"|"revision_needed","issues":[...],"approved_sections":[...]}.`,
@@ -82,7 +82,7 @@ const STAGES: StageDef[] = [
   {
     stage: "debugger",
     label: "Debugging",
-    models: ["nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free"],
+    models: ["openrouter/owl-alpha", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "openai/gpt-oss-120b:free", "z-ai/glm-4.5-air:free"],
     maxTokens: 24000, temperature: 0.45,
     systemPrompt: () =>
       `You are the DEBUGGER. Apply minimal fixes for validator issues only. Keep the same FORMAT (HTML stays HTML, code stays code, Markdown stays Markdown). Output ONLY the repaired artifact — no commentary.`,
@@ -90,7 +90,7 @@ const STAGES: StageDef[] = [
   {
     stage: "runner",
     label: "Running",
-    models: ["openai/gpt-oss-20b:free"],
+    models: ["openrouter/owl-alpha", "openai/gpt-oss-20b:free"],
     maxTokens: 800, temperature: 0.2,
     systemPrompt: () =>
       `You are the RUNNER. Check the artifact can be executed in a browser iframe. Return concise Markdown with runtime pass/fail and exact minimal run notes.`,
@@ -168,6 +168,14 @@ serve(async (req) => {
         status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
+
+    // Plan-tier enforcement (server authoritative)
+    {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(user.id, "lumina_computer", cors);
+      if (!gate.ok) return gate.response;
+    }
+
 
     const body = await req.text();
     if (body.length > 200_000) {
