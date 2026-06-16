@@ -31,7 +31,7 @@ import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-jsx";
 import "prismjs/components/prism-tsx";
-import MarkdownRenderer from "@/components/MarkdownRenderer";
+import SharedMarkdownRenderer from "@/components/MarkdownRenderer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/features/chat/ChatPage";
