@@ -1101,6 +1101,23 @@ export default function LuminaComputer() {
           {/* Prompt bar — bottom */}
           <div className="border-t border-white/[0.08] bg-[#0b0b0f] px-5 py-4 flex-shrink-0">
             <div className="max-w-3xl mx-auto">
+              {/* Prominent Continue banner — surfaces when the model truncates
+                  mid-plan or mid-file so the user can recover with one click. */}
+              {canContinue && !busy && (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.08] px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-[12.5px] text-amber-100/95">
+                    <Loader2 className="w-3.5 h-3.5" />
+                    <span>Output was cut off. Continue from the exact stop point.</span>
+                  </div>
+                  <button
+                    onClick={onContinue}
+                    className="flex items-center gap-1.5 px-3.5 h-8 rounded-full bg-amber-300 text-black text-[12px] font-semibold hover:bg-amber-200 transition shadow"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" /> Continue
+                  </button>
+                </div>
+              )}
+
               {/* Attachment chips */}
               {attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
