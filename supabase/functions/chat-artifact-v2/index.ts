@@ -304,12 +304,13 @@ async function processJob(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
-    // Never leave the UI spinning or dead-ended: complete with a polished safe artifact.
+    // Never leave the UI spinning or dead-ended: complete with a topic-aware safe artifact.
+    const safeHtml = await fallbackHtml(payload.type, payload.topic);
     await admin
       .from("artifact_jobs")
       .update({
         status: "completed",
-        html: fallbackHtml(payload.type, payload.topic),
+        html: safeHtml,
         model_used: "lumina-local-artifact",
         error_message: null,
         completed_at: new Date().toISOString(),
