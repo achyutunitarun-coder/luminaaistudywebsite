@@ -19,12 +19,16 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const OWL = "openrouter/owl-alpha";
 
+// FAST chain — tiny ultra-low-latency models race in front of owl-alpha so
+// short replies (chat, JSON tools, classifications) come back in <2s. Owl
+// stays in the chain as a quality safety net for anything the small models
+// fumble.
 export const MODELS_FAST = [
-  OWL,
-  "nvidia/nemotron-nano-9b-v2:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "openai/gpt-oss-20b:free",
   "liquid/lfm-2.5-1.2b-instruct:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  OWL,
+  "openai/gpt-oss-20b:free",
   "liquid/lfm-2.5-1.2b-thinking:free",
   "poolside/laguna-xs.2:free",
 ];
@@ -273,13 +277,13 @@ async function callKimiDirect(
   }
 }
 
-const PARALLEL_RACE_COUNT = 2;          // race 2 models; too many parallel calls were burning key limits
+const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token (was 2)
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
 const TEXT_TOTAL_BUDGET_MS = 90_000;    // keep JSON tools responsive
 const OCR_TOTAL_BUDGET_MS = 120_000;
-const PRIMARY_RACE_TIMEOUT_MS = 6_000;  // tight first-token race for snappy UX
+const PRIMARY_RACE_TIMEOUT_MS = 3_500;  // tight first-token race for snappy UX (was 6s)
 
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
@@ -499,7 +503,7 @@ export async function callWithFallback(
   const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 0 : PRIMARY_RACE_TIMEOUT_MS);
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 4_500 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
