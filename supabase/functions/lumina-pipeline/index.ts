@@ -169,6 +169,14 @@ serve(async (req) => {
       });
     }
 
+    // Plan-tier enforcement (server authoritative)
+    {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(user.id, "lumina_computer", cors);
+      if (!gate.ok) return gate.response;
+    }
+
+
     const body = await req.text();
     if (body.length > 200_000) {
       return new Response(JSON.stringify({ error: "Payload too large" }), {
