@@ -33,6 +33,13 @@ serve(async (req) => {
     const { data: { user }, error } = await sb.auth.getUser();
     if (error || !user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    {
+      const { enforceUsage } = await import("../_shared/usage-gate.ts");
+      const gate = await enforceUsage(user.id, "flashcard_sets", corsHeaders);
+      if (!gate.ok) return gate.response;
+    }
+
+
     const body = await req.text();
     if (body.length > 4_000_000) return new Response(JSON.stringify({ error: 'Payload too large' }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { content, title, cardCount = 20 } = JSON.parse(body);
