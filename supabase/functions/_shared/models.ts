@@ -12,8 +12,15 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // were removed because every call to them returns 404 and burns the wall-clock
 // budget — that was the root cause of artifact timeouts.
 // ═══════════════════════════════════════════════════════════════════
+// Per user direction: openrouter/owl-alpha is the PRIMARY model for
+// every surface (chat, computer, artifacts, vision, writing). It has a
+// 1M+ context window and fast streaming. Existing free fallbacks stay
+// behind it so a single provider hiccup never kills a request.
+
+const OWL = "openrouter/owl-alpha";
 
 export const MODELS_FAST = [
+  OWL,
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "openai/gpt-oss-20b:free",
@@ -23,6 +30,7 @@ export const MODELS_FAST = [
 ];
 
 export const MODELS_BALANCED = [
+  OWL,
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -35,9 +43,9 @@ export const MODELS_BALANCED = [
 ];
 
 export const MODELS_QUALITY = [
+  OWL,
   "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
-  "openrouter/owl-alpha",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -47,14 +55,16 @@ export const MODELS_QUALITY = [
 ];
 
 // ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Order = priority. We race the top 4, fall back through the rest.
+// Order = priority. Owl-alpha first per user direction; specialist
+// coders stay behind it so we don't lose the safety net.
 export const MODELS_CODE = [
-  "qwen/qwen3-coder:free",                                // #1 free coder globally
-  "poolside/laguna-m.1:free",                             // specialist coding agent
-  "openai/gpt-oss-120b:free",                             // strongest generalist coder
-  "nvidia/nemotron-3-super-120b-a12b:free",               // big-brain reasoning
-  "qwen/qwen3-next-80b-a3b-instruct:free",                // fast + accurate
-  "poolside/laguna-xs.2:free",                            // compact coding agent
+  OWL,
+  "qwen/qwen3-coder:free",
+  "poolside/laguna-m.1:free",
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "poolside/laguna-xs.2:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -64,7 +74,7 @@ export const MODELS_CODE = [
 ];
 
 export const MODELS_LONG_CTX = [
-  "openrouter/owl-alpha",                                 // 1M+ ctx
+  OWL,                                                    // 1M+ ctx
   "qwen/qwen3-coder:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
@@ -77,7 +87,10 @@ export const MODELS_LONG_CTX = [
 ];
 
 export const MODELS_VISION = [
+  // Owl-alpha is text-first. For image inputs we keep vision-capable
+  // models in front so multimodal requests don't degrade.
   "moonshotai/kimi-k2.6",
+  OWL,
   "google/gemma-4-31b-it:free",
   "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -87,6 +100,7 @@ export const MODELS_VISION = [
 
 // ── WRITING / NOTES (long-form prose) ──────────────────────────────
 export const MODELS_WRITING = [
+  OWL,
   "meta-llama/llama-3.3-70b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
   "openai/gpt-oss-120b:free",
@@ -97,6 +111,7 @@ export const MODELS_WRITING = [
 ];
 
 export const MODELS_EXTRA = [
+  OWL,
   "openai/gpt-oss-20b:free",
   "z-ai/glm-4.5-air:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
@@ -105,6 +120,7 @@ export const MODELS_EXTRA = [
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
 ];
+
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
 
