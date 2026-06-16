@@ -148,14 +148,17 @@ serve(async (req) => {
       `Reminder: datetimes for calendar actions MUST be naive local ISO like "${localTomorrow}T09:00:00" — no Z, no offset.\n` +
       `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
+    const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
+        Authorization: `Bearer ${orKey || key}`,
+        "HTTP-Referer": "https://luminaai.co.in",
+        "X-Title": "Lumina AI",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openrouter/owl-alpha",
         messages: [
           { role: "system", content: SYSTEM },
           ...ctxHistory,
