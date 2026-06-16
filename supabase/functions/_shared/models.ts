@@ -571,7 +571,7 @@ export async function callWithFallback(
   const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
 
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 4_500 : PRIMARY_RACE_TIMEOUT_MS);
+  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 8_000 : PRIMARY_RACE_TIMEOUT_MS);
   if (primaryRaceTimeout > 0 && models.length > 1) {
     try {
       return await raceModels(models, baseBody, primaryRaceTimeout, tag);
