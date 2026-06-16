@@ -19,18 +19,14 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const OWL = "openrouter/owl-alpha";
 
-// FAST chain — tiny ultra-low-latency models race in front of owl-alpha so
-// short replies (chat, JSON tools, classifications) come back in <2s. Owl
-// stays in the chain as a quality safety net for anything the small models
-// fumble.
+// FAST chain — OWL first. No racing. Tiny models are sequential fallbacks
+// only if owl-alpha actually errors out.
 export const MODELS_FAST = [
+  OWL,
   "liquid/lfm-2.5-1.2b-instruct:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "nvidia/nemotron-nano-9b-v2:free",
-  OWL,
   "openai/gpt-oss-20b:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
-  "poolside/laguna-xs.2:free",
 ];
 
 export const MODELS_BALANCED = [
@@ -565,21 +561,13 @@ export async function callWithFallback(
   const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
 
   // Artifact / long-form generation needs minutes, not seconds, per attempt.
-  // Detect via tag so we don't have to thread a flag through every caller.
   const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
-  const isJsonTool = /guided-|quick-study|note-to-quiz|flashcards|generate-test|plan|lecture-tools/i.test(tag) && !isArtifact;
-  const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 10_000 : 9_000);
-  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 8_000 : 6_000);
+  const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 30_000 : 20_000);
+  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 12_000 : 9_000);
 
-  const primaryRaceTimeout = phaseTimeout(isArtifact ? 25_000 : isJsonTool ? 8_000 : PRIMARY_RACE_TIMEOUT_MS);
-  if (primaryRaceTimeout > 0 && models.length > 1) {
-    try {
-      return await raceModels(models, baseBody, primaryRaceTimeout, tag);
-    } catch {
-      console.warn(`[${tag}] race failed, moving to sequential`);
-    }
-  }
-
+  // NO RACE. Owl-alpha is fast — call it directly. Fan out across keys only
+  // if the first key fails, so we don't waste tokens on parallel duplicates.
+  // Other models in `models[]` are sequential fallbacks for real failures.
   for (const model of models) {
     const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
@@ -594,7 +582,7 @@ export async function callWithFallback(
     if (response) return { response, model };
   }
 
-  const freeRouterTimeout = phaseTimeout(isStreaming ? 8_000 : 7_000);
+  const freeRouterTimeout = phaseTimeout(isStreaming ? 12_000 : 9_000);
   if (freeRouterTimeout > 0) {
     const response = await callModel(MODEL_FREE_ROUTER, baseBody, freeRouterTimeout, `${tag}/free-router`);
     if (response) return { response, model: MODEL_FREE_ROUTER };
