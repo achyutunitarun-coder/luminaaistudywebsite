@@ -136,7 +136,7 @@ COMPONENT LIBRARY — USE ALL THAT APPLY
 ════════════════════════════════════════════
 - DEFINITION BOX: left-border accent, term in accent color
 - WORKED EXAMPLE: numbered steps, final answer boxed in green
-- CALLOUTS: 💡 tip (blue) · ⚠️ warning (yellow) · ✗ mistake (red) · ⚡ key fact (purple) · 🎯 exam tip (green)
+- CALLOUTS: Tip (blue, "TIP" label) · Warning (yellow, "WARNING" label) · Mistake (red, "COMMON MISTAKE") · Key fact (purple, "KEY") · Exam tip (green, "EXAM TIP"). Use SVG icons or text labels — NO emoji of any kind.
 - CODE BLOCK with language label + Copy button
 - FORMULA BOX with name, formula, variable legend
 - COMPARISON TABLE with dark header, zebra rows, hover highlight

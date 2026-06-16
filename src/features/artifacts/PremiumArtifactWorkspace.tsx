@@ -31,8 +31,7 @@ import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-jsx";
 import "prismjs/components/prism-tsx";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import SharedMarkdownRenderer from "@/components/MarkdownRenderer";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/features/chat/ChatPage";
@@ -440,7 +439,7 @@ function LineNumbers({ code }: { code: string }) {
 function MarkdownRenderer({ html, artifact }: { html: string; artifact: ArtifactRecord }) {
   const md = useMemo(() => extractMarkdown(html) || buildFallbackDoc(artifact), [html, artifact]);
   const headings = useMemo(() => md.split("\n").filter((l) => /^#{2,3}\s/.test(l)).slice(0, 12).map((l) => l.replace(/^#{2,3}\s/, "")), [md]);
-  return <div className="flex h-full min-h-[520px] overflow-hidden"><aside className="hidden w-56 shrink-0 border-r border-white/10 p-4 lg:block"><div className="text-xs font-semibold text-muted-foreground">Contents</div><div className="mt-3 space-y-2">{headings.map((h) => <a key={h} href={`#${h}`} className="block truncate text-xs text-muted-foreground hover:text-foreground">{h}</a>)}</div></aside><article className="min-w-0 flex-1 overflow-auto p-6 text-sm leading-7"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h1: (p) => <h1 className="mb-4 text-3xl font-semibold" {...p} />, h2: (p) => <h2 id={String(p.children)} className="mt-8 mb-3 text-xl font-semibold text-foreground" {...p} />, h3: (p) => <h3 id={String(p.children)} className="mt-6 mb-2 text-base font-semibold" {...p} /> }}>{md}</ReactMarkdown></article></div>;
+  return <div className="flex h-full min-h-[520px] overflow-hidden"><aside className="hidden w-56 shrink-0 border-r border-white/10 p-4 lg:block"><div className="text-xs font-semibold text-muted-foreground">Contents</div><div className="mt-3 space-y-2">{headings.map((h) => <a key={h} href={`#${h}`} className="block truncate text-xs text-muted-foreground hover:text-foreground">{h}</a>)}</div></aside><article className="min-w-0 flex-1 overflow-auto p-6 text-sm leading-7"><SharedMarkdownRenderer>{md}</SharedMarkdownRenderer></article></div>;
 }
 
 function ContextPanel({ messages, onQuote }: { messages: Message[]; onQuote?: (text: string) => void }) {

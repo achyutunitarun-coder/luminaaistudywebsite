@@ -1,77 +1,55 @@
 import { motion } from 'framer-motion';
-import { Star } from 'lucide-react';
+import { Star, Quote } from 'lucide-react';
 
-const testimonials = [
-  {
-    name: 'Sarah Johnson',
-    major: 'Medical Student',
-    initials: 'SJ',
-    color: '#2dd4bf',
-    text: 'Lumina has completely changed how I study for my boards. The AI-generated tests are incredibly accurate and help me focus on my weak areas.',
-  },
-  {
-    name: 'David Chen',
-    major: 'Computer Science Major',
-    initials: 'DC',
-    color: '#a855f7',
-    text: 'The smart flashcards feature is a lifesaver. I can just upload my lecture slides and have a full deck ready in seconds. Highly recommended!',
-  },
-  {
-    name: 'Emily Rodriguez',
-    major: 'High School Senior',
-    initials: 'ER',
-    color: '#fbbf24',
-    text: "I used to struggle with staying motivated, but the gamified progress in Lumina makes studying feel like a game. My grades have never been better.",
-  },
-];
-
+/**
+ * Honest early-stage marketing.
+ * We don't have thousands of testimonials yet — so we don't fake them.
+ * One real piece of feedback, sourced from a teacher-student review (9/10).
+ */
 export const Testimonials = () => (
-  <section className="py-12">
-    <motion.h2
-      initial={{ opacity: 0, y: 12 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="text-2xl font-bold text-center mb-8"
-      style={{ color: '#f1f5f9' }}
-    >
-      Trusted by students worldwide
-    </motion.h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {testimonials.map((t, i) => (
-        <motion.div
-          key={t.name}
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: i * 0.1 }}
-          className="rounded-[14px] p-6 hover:translate-y-[-2px] transition-transform"
+  <section className="py-16">
+    <div className="max-w-3xl mx-auto px-6 text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="text-[11px] tracking-[0.18em] uppercase text-muted-foreground mb-3">
+          What early users say
+        </div>
+        <h2 className="text-2xl md:text-3xl font-semibold mb-8" style={{ color: '#f1f5f9' }}>
+          Built for real classrooms, not a launch headline.
+        </h2>
+
+        <div
+          className="rounded-2xl p-8 md:p-10 text-left"
           style={{
-            background: '#111827',
-            border: '0.5px solid rgba(255,255,255,0.07)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
+            border: '0.5px solid rgba(255,255,255,0.08)',
           }}
         >
-          <div className="flex gap-0.5 mb-4">
-            {[...Array(5)].map((_, j) => (
-              <Star key={j} className="w-4 h-4 fill-current" style={{ color: '#fbbf24' }} />
-            ))}
-          </div>
-          <p className="text-[15px] leading-relaxed mb-6 italic" style={{ color: '#cbd5e1' }}>
-            "{t.text}"
+          <Quote className="w-7 h-7 mb-4 opacity-40" style={{ color: '#a78bfa' }} />
+          <p className="text-[17px] md:text-[19px] leading-[1.65] mb-6" style={{ color: '#e2e8f0' }}>
+            "Good, valuable options. Helpful for any student and teacher.
+            Truly a gem that's needed by many."
           </p>
-          <div className="flex items-center gap-3 mt-auto">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-[12px] font-bold"
-              style={{ background: `${t.color}20`, color: t.color }}
-            >
-              {t.initials}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-1">
+              {[...Array(9)].map((_, j) => (
+                <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: '#fbbf24' }} />
+              ))}
+              <Star className="w-3.5 h-3.5 opacity-30" style={{ color: '#fbbf24' }} />
+              <span className="ml-2 text-[12px] text-muted-foreground">9 / 10 reviewer score</span>
             </div>
-            <div>
-              <p className="text-[13px] font-bold" style={{ color: '#f1f5f9' }}>{t.name}</p>
-              <p className="text-[11px]" style={{ color: '#64748b' }}>{t.major}</p>
-            </div>
+            <div className="text-[12px] text-muted-foreground">— Beta reviewer feedback</div>
           </div>
-        </motion.div>
-      ))}
+        </div>
+
+        <p className="text-[12px] text-muted-foreground mt-4">
+          We're a new platform. You'll see more voices here as they come in — never invented ones.
+        </p>
+      </motion.div>
     </div>
   </section>
 );

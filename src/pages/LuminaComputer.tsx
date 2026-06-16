@@ -812,17 +812,31 @@ export default function LuminaComputer() {
         applyState();
         setFactoryStage("builder", "done", "Code stream completed; entering validation gate.");
         setFactoryStage("validator", "working", "Evaluating syntax, subject fit, placeholders, and preview readiness.");
-        // Detect truncation: any open file, no <lumina:final>, or raw stream
-        // didn't end with a closing lumina tag.
+        // Detect truncation — including the worst case the user kept hitting:
+        // model truncated INSIDE <lumina:plan> with zero files shipped.
+        // Anything that left us mid-plan, mid-file, or without a clean closing
+        // tag is fair game for the Continue button.
         let st = parserRef.current!.state;
         const openFile = st.files.some((f) => !f.done);
         const missingFinal = !st.final.trim();
         const tail = rawAssistantRef.current.trimEnd().slice(-40);
         const cleanEnd = /<\/lumina:(final|file|plan)>\s*$/.test(tail);
-        const looksTruncated = openFile || missingFinal || !cleanEnd;
+        const noFilesShipped = st.files.length === 0;
+        const planUnclosed =
+          rawAssistantRef.current.includes("<lumina:plan>") &&
+          !rawAssistantRef.current.includes("</lumina:plan>");
+        const enoughOutputToContinue = rawAssistantRef.current.length > 40;
+        const looksTruncated =
+          enoughOutputToContinue &&
+          (openFile || missingFinal || !cleanEnd || noFilesShipped || planUnclosed);
         if (looksTruncated) {
           setCanContinue(true);
-          setFactoryStage("validator", "error", "Validation caught a cut-off response; continuation is required.");
+          const reason = planUnclosed
+            ? "Model truncated inside the planning section — Continue to close the plan and ship files."
+            : noFilesShipped
+              ? "Stream ended before any file was emitted — Continue to resume."
+              : "Validation caught a cut-off response; continuation is required.";
+          setFactoryStage("validator", "error", reason);
           log("warn", "Output was cut off — press Continue to resume.");
         } else {
           parserRef.current!.finish();
@@ -1087,6 +1101,23 @@ export default function LuminaComputer() {
           {/* Prompt bar — bottom */}
           <div className="border-t border-white/[0.08] bg-[#0b0b0f] px-5 py-4 flex-shrink-0">
             <div className="max-w-3xl mx-auto">
+              {/* Prominent Continue banner — surfaces when the model truncates
+                  mid-plan or mid-file so the user can recover with one click. */}
+              {canContinue && !busy && (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.08] px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-[12.5px] text-amber-100/95">
+                    <Loader2 className="w-3.5 h-3.5" />
+                    <span>Output was cut off. Continue from the exact stop point.</span>
+                  </div>
+                  <button
+                    onClick={onContinue}
+                    className="flex items-center gap-1.5 px-3.5 h-8 rounded-full bg-amber-300 text-black text-[12px] font-semibold hover:bg-amber-200 transition shadow"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" /> Continue
+                  </button>
+                </div>
+              )}
+
               {/* Attachment chips */}
               {attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">

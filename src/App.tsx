@@ -10,6 +10,7 @@ import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/features/chat/ChatPage";
@@ -79,6 +80,9 @@ const ProtectedLayout = () => {
         {needsOnboarding && (
           <Onboarding onComplete={() => setNeedsOnboarding(false)} />
         )}
+        {/* Tutorial only renders once after onboarding is complete (gated
+            internally by localStorage + onboarded flag). */}
+        {!needsOnboarding && <TutorialOverlay />}
         <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>

@@ -893,59 +893,47 @@ const QuoteSection = () => (
 /* Testimonials                                                        */
 /* ------------------------------------------------------------------ */
 const TestimonialGrid = () => {
-  const items = [
-    { name: 'Aarav S.', role: 'NEET 2025', text: 'Lumina flagged that I was consistently missing cell respiration questions. Two weeks of targeted drills and I moved from 64% to 91% on that chapter.', color: C.teal },
-    { name: 'Sarah J.', role: 'Med student', text: 'My weakness map showed pharmacology was 38%. I didn\'t even realise. Three weeks of guided sessions later it was 82% — and the gain held into finals.', color: C.violet },
-    { name: 'David C.', role: 'CS undergrad', text: 'Uploaded a 90-page systems lecture PDF. Lumina had structured flashcards and a mock test ready before I finished my coffee.', color: C.amber },
-    { name: 'Emily R.', role: 'AP Physics', text: 'I stopped wasting time on topics I already knew. Lumina told me rotational mechanics was leaking marks — I fixed it and gained 11 marks on the next mock.', color: C.sky },
-    { name: 'Rohan M.', role: 'IB diploma', text: 'It re-explains a concept three different ways until one clicks. My old tutor never did that. It feels like the system actually knows what I don\'t know.', color: C.teal },
-    { name: 'Priya K.', role: 'A-Levels', text: 'Replaced ChatGPT, Quizlet and my notes app with one tool. The fact that it remembers what I studied last week is the part nothing else does.', color: C.violet },
-  ];
+  // Honest early-stage section: one real piece of feedback (9/10),
+  // no invented students, no fake numbers. We refuse to fake social proof.
   return (
     <section className="py-32">
-      <div className="max-w-[1180px] mx-auto px-6">
-        <SectionHeader eyebrow="Real students. Real gains." title="Specific wins, not vague praise." subtitle="Marks moved. Gaps closed. Time saved." />
-        <div className="mt-16 grid md:grid-cols-3 gap-4">
-          {items.map((t, i) => (
-            <motion.div
-              key={t.name}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.5, ease, delay: (i % 3) * 0.08 }}
-              className="rounded-[16px] p-6"
-              style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
-                border: `0.5px solid ${C.hairline}`,
-              }}
-            >
-              <div className="flex gap-0.5 mb-4">
-                {[...Array(5)].map((_, j) => (
-                  <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: C.amber }} />
-                ))}
-              </div>
-              <p className="text-[14px] leading-[1.6] mb-5" style={{ color: C.ink }}>
-                "{t.text}"
-              </p>
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold"
-                  style={{ background: `${t.color}20`, color: t.color }}
-                >
-                  {t.name.split(' ').map((n) => n[0]).join('')}
-                </div>
-                <div>
-                  <div className="text-[12.5px] font-medium" style={{ color: C.ink }}>{t.name}</div>
-                  <div className="text-[11px]" style={{ color: C.inkFaint }}>{t.role}</div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+      <div className="max-w-[820px] mx-auto px-6">
+        <SectionHeader
+          eyebrow="Early feedback"
+          title="We're new. So we don't fake the reviews."
+          subtitle="One real quote from a beta reviewer. More will appear here as real users share theirs."
+        />
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.5, ease }}
+          className="mt-12 rounded-[20px] p-8 md:p-10"
+          style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01))',
+            border: `0.5px solid ${C.hairline}`,
+          }}
+        >
+          <div className="flex gap-0.5 mb-5">
+            {[...Array(9)].map((_, j) => (
+              <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: C.amber }} />
+            ))}
+            <Star className="w-3.5 h-3.5 opacity-30" style={{ color: C.amber }} />
+            <span className="ml-2 text-[11px]" style={{ color: C.inkFaint }}>9 / 10</span>
+          </div>
+          <p className="text-[17px] md:text-[20px] leading-[1.6] mb-6" style={{ color: C.ink }}>
+            "Good, valuable options. Helpful for any student and teacher.
+            Truly a gem that's needed by many."
+          </p>
+          <div className="text-[12px]" style={{ color: C.inkFaint }}>
+            — Beta reviewer · independent feedback
+          </div>
+        </motion.div>
       </div>
     </section>
   );
 };
+
 
 /* ------------------------------------------------------------------ */
 /* Pricing                                                             */
