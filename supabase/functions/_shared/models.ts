@@ -1052,34 +1052,36 @@ export type ArtifactType = "notes" | "exam" | "slides" | "code" | "html" | "reac
 
 export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
   if (hasImage) return MODELS_VISION;
-  // Spec-pinned chains: primary → fallback1 → fallback2 (then global fallback fills the rest).
+  // OWL is the primary model for every artifact type (per user direction).
+  // Each chain is ordered: OWL first → quality fallbacks → global fallback fills rest.
+  const OWL = "openrouter/owl-alpha";
   switch (type) {
     case "html":
-      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
+      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
     case "react":
-      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
+      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
     case "python":
-      return ["qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
+      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
     case "javascript":
-      return ["poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
+      return [OWL, "poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
     case "code":
-      return ["openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
+      return [OWL, "openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
     case "svg":
-      return ["qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
+      return [OWL, "qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
     case "mermaid":
-      return ["openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+      return [OWL, "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
     case "slides":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
     case "notes":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
     case "flashcards":
-      return ["openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
+      return [OWL, "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
     case "math":
-      return ["qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
+      return [OWL, "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
     case "exam":
-      return ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
     case "general":
     default:
-      return [MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
+      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
   }
 }

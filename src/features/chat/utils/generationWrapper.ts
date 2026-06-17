@@ -35,7 +35,7 @@ function validateOutput(
 ): { ok: boolean; reason?: string } {
   if (!html || typeof html !== "string") return { ok: false, reason: "empty" };
   const trimmed = html.trim();
-  if (trimmed.length < 500) return { ok: false, reason: "too_short" };
+  if (trimmed.length < 300) return { ok: false, reason: "too_short" };
   const lower = trimmed.toLowerCase();
   if (!lower.includes("<!doctype html") && !lower.includes("<html")) {
     return { ok: false, reason: "not_html" };
@@ -102,9 +102,10 @@ async function pollJob(
   onStage?: (stage: string) => void,
 ): Promise<{ html: string; error?: string }> {
   const started = Date.now();
-  let pollDelay = 1800;
+  let pollDelay = 800; // Start fast
   let lastStatus = "queued";
   let offeredRecovery = false;
+  let failureCount = 0;
 
   while (Date.now() - started < timeoutMs) {
     const { data, error } = await (supabase as any)
@@ -112,6 +113,13 @@ async function pollJob(
       .select("status,html,error_message,updated_at")
       .eq("id", jobId)
       .maybeSingle();
+
+    if (error || !data) {
+      failureCount++;
+      if (failureCount > 10) return { html: "", error: "poll_failed_repeatedly" };
+    } else {
+      failureCount = 0;
+    }
 
     if (error) return { html: "", error: error.message ?? "poll_failed" };
     if (!data) return { html: "", error: "job_not_found" };
@@ -140,7 +148,8 @@ async function pollJob(
     else if (elapsed > 20_000) onStage?.("Generating in background…");
 
     await sleep(pollDelay);
-    pollDelay = Math.min(5000, pollDelay + 250);
+    // Exponential backoff: 800ms → 1.2s → 1.8s → 2.7s → ... capped at 8s
+    pollDelay = Math.min(8000, Math.round(pollDelay * 1.5));
   }
 
   return { html: "", error: "job_timeout" };

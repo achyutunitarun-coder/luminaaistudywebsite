@@ -53,7 +53,7 @@ function cleanHtml(raw: string): string {
 function validHtml(html: string): boolean {
   const lower = html.toLowerCase();
   return (
-    html.length > 900 &&
+    html.length > 300 &&
     (lower.includes("<!doctype") || lower.includes("<html")) &&
     lower.includes("</html>") &&
     !/todo|lorem ipsum|coming soon|rest of (the )?content/i.test(html)
@@ -193,72 +193,61 @@ async function generateHtml(
   const started = Date.now();
   let lastErr = "";
 
-  const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
-  if (orKey) {
-    try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${orKey}`,
-          "HTTP-Referer": "https://luminaai.co.in",
-          "X-Title": "Lumina AI",
-        },
-        body: JSON.stringify({
-          model: "openrouter/owl-alpha",
-          messages: [
+  // Primary attempt: use callAIText with OWL-first model chain + key fanout.
+  // This replaces the old sequential owl-alpha fetch that wasted 45s before
+  // falling back. callWithFallback handles key rotation, cooldowns, and
+  // sequential fallback internally.
+  {
+    const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
+    if (remaining >= 8_000) {
+      try {
+        const text = await callAIText(
+          [
             { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
             { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
           ],
-          temperature: 0.35,
-          max_tokens: type === "code" ? 16000 : 12000,
-        }),
-        signal: AbortSignal.timeout(45_000),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? `openrouter_${res.status}`);
-      const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
-      if (validHtml(cleaned)) return { html: cleaned, model: "openrouter/owl-alpha" };
-      lastErr = cleaned ? "invalid_html_from_owl" : "empty_from_owl";
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      console.warn("[artifact-job] owl-alpha primary failed:", lastErr);
+          models,
+          type === "code" ? 16000 : 12000,
+          0.35,
+          Math.min(remaining, 88_000),
+          `chat-artifact-v2/${type}`,
+        );
+        const cleaned = cleanHtml(text);
+        if (validHtml(cleaned)) return { html: cleaned, model: models[0] };
+        lastErr = cleaned ? "invalid_html_from_primary" : "empty_from_primary";
+        console.warn(`[artifact-job] primary chain returned invalid: ${lastErr}`);
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
+        console.warn("[artifact-job] primary chain failed:", lastErr);
+      }
     }
   }
 
-  // Keep the background task well below edge runtime limits; otherwise rows stay
-  // stuck as "running" and the client times out forever.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Secondary attempt: retry with a stricter prompt to force completion.
+  // Only runs if the primary chain returned junk or timed out.
+  {
     const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
-    if (remaining < 8_000) break;
-    try {
-      const modelList = attempt === 0 ? models : models.slice(1).concat(models[0]).slice(0, 4);
-      const text = await callAIText(
-        [
-          {
-            role: "system",
-            content: makeSystemPrompt(type, topic, systemPrompt),
-          },
-          {
-            role: "user",
-            content:
-              attempt === 0
-                ? userPrompt
-                : `Create a focused, complete ${type} artifact about ${topic}. Keep it tight and finish in one response.`,
-          },
-        ],
-        modelList,
-        type === "code" ? 10000 : 8500,
-        0.45,
-        Math.min(remaining, 88_000),
-        `chat-artifact-v2/${type}`,
-      );
-      const cleaned = cleanHtml(text);
-      if (validHtml(cleaned)) return { html: cleaned, model: modelList[0] };
-      lastErr = cleaned ? "invalid_html_from_model" : "empty_from_model";
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      console.warn(`[artifact-job] attempt ${attempt + 1} failed:`, lastErr);
+    if (remaining >= 8_000) {
+      try {
+        const text = await callAIText(
+          [
+            { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
+            { role: "user", content: `Create a focused, complete ${type} artifact about ${topic}. Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. Finish the entire document — do not truncate.` },
+          ],
+          models,
+          type === "code" ? 12000 : 10000,
+          0.45,
+          Math.min(remaining, 70_000),
+          `chat-artifact-v2/${type}/retry`,
+        );
+        const cleaned = cleanHtml(text);
+        if (validHtml(cleaned)) return { html: cleaned, model: models[0] };
+        lastErr = cleaned ? "invalid_html_from_retry" : "empty_from_retry";
+        console.warn(`[artifact-job] retry chain returned invalid: ${lastErr}`);
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
+        console.warn("[artifact-job] retry chain failed:", lastErr);
+      }
     }
   }
 
