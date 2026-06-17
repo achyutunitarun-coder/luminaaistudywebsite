@@ -17,7 +17,7 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // 1M+ context window and fast streaming. Existing free fallbacks stay
 // behind it so a single provider hiccup never kills a request.
 
-const OWL = "openrouter/owl-alpha";
+export const OWL = "openrouter/owl-alpha";
 
 // FAST chain — OWL first. No racing. Tiny models are sequential fallbacks
 // only if owl-alpha actually errors out.
@@ -1073,7 +1073,6 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
   if (hasImage) return MODELS_VISION;
   // OWL is the primary model for every artifact type (per user direction).
   // Each chain is ordered: OWL first → quality fallbacks → global fallback fills rest.
-  const OWL = "openrouter/owl-alpha";
   switch (type) {
     case "html":
       return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
