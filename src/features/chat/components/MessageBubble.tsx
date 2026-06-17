@@ -71,8 +71,8 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   if (message.type === 'loading') {
     return (
       <div className="flex gap-3 max-w-3xl mx-auto px-4">
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10 text-primary">
-          <Sparkles className="w-3.5 h-3.5" />
+        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.15), rgba(124,58,237,0.15))' }}>
+          <Sparkles className="w-3.5 h-3.5 text-teal-400" />
         </div>
         <div className="flex-1 min-w-0">
           <LoadingStages stage={loadingStage || message.content} active />
@@ -109,23 +109,21 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
     const quickPacks = CREDIT_PACKS.slice(0, 3);
     return (
       <div className="max-w-3xl mx-auto px-4">
-        <div className="rounded-xl border-l-4 border-amber-500 bg-amber-500/5 p-3">
+        <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-start gap-3">
-            <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="currentColor" />
+            <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(251,191,36,0.1)' }}>
+              <Zap className="w-4 h-4 text-amber-400" fill="currentColor" />
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-foreground">
+              <div className="text-sm text-zinc-200 leading-relaxed">
                 {message.content}{' '}
-                <span className="text-muted-foreground">
-                  You have <span className="text-amber-300 font-medium">⚡ {have.toFixed(1)}</span>, need{' '}
-                  <span className="text-amber-300 font-medium">⚡ {need}</span>.
-                </span>
+                <span className="text-zinc-500">You have</span>{' '}
+                <span className="text-amber-400 font-semibold">{have.toFixed(1)} credits</span>,{' '}
+                <span className="text-zinc-500">need</span>{' '}
+                <span className="text-amber-400 font-semibold">{need}</span>
               </div>
               {onTopUp && (
-                <button
-                  type="button"
-                  onClick={onTopUp}
-                  className="mt-2 text-xs px-2.5 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-colors"
-                >
+                <button type="button" onClick={onTopUp} className="mt-3 text-xs font-medium px-3 py-1.5 rounded-lg text-amber-400 border border-amber-500/20 hover:bg-amber-500/10 transition-colors">
                   Top up credits →
                 </button>
               )}
@@ -133,15 +131,10 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {quickPacks.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => openCheckout(p.checkout)}
-                className="text-left rounded-lg border border-border bg-card/40 hover:bg-card/60 hover:border-primary/40 p-2 transition-all"
-              >
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{p.name}</div>
-                <div className="text-sm font-bold text-violet-300">{p.credits} ⚡</div>
-                <div className="text-[11px] text-muted-foreground">₹{p.price}</div>
+              <button key={p.id} type="button" onClick={() => openCheckout(p.checkout)} className="text-left rounded-xl p-2.5 transition-all hover:scale-[1.02]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="text-[10px] uppercase tracking-wider text-zinc-600">{p.name}</div>
+                <div className="text-sm font-bold text-zinc-300 mt-0.5">{p.credits} credits</div>
+                <div className="text-[11px] text-zinc-500">₹{p.price}</div>
               </button>
             ))}
           </div>
@@ -202,7 +195,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-sm whitespace-pre-wrap break-words">
+            <div className="rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words" style={{ background: 'linear-gradient(135deg, #14b8a6, #0d9488)', color: '#fff', borderRadius: '16px 16px 4px 16px', boxShadow: '0 2px 8px rgba(20,184,166,0.15)' }}>
               {message.content}
             </div>
           )}
@@ -227,8 +220,8 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
             </div>
           )}
         </div>
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-card border border-border text-muted-foreground">
-          <User className="w-3.5 h-3.5" />
+        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <User className="w-3.5 h-3.5 text-zinc-400" />
         </div>
       </div>
     );
@@ -242,8 +235,8 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10 text-primary">
-        <Sparkles className="w-3.5 h-3.5" />
+      <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.15), rgba(124,58,237,0.15))' }}>
+        <Sparkles className="w-3.5 h-3.5 text-teal-400" />
       </div>
       <div className="min-w-0 flex-1">
         {message.type === 'artifact' && message.artifactHtml && message.artifactType ? (
@@ -297,17 +290,17 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
         )}
 
         {message.type !== 'artifact' && hovered && !isStreaming && message.content && (
-          <div className="mt-1.5 flex items-center gap-1 opacity-90">
-            <button type="button" onClick={handleCopy} title="Copy" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+          <div className="mt-2 flex items-center gap-1">
+            <button type="button" onClick={handleCopy} title="Copy" className="w-7 h-7 grid place-items-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all">
               <Copy className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={onRegenerate} title="Regenerate" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={onRegenerate} title="Regenerate" className="w-7 h-7 grid place-items-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={() => toast.success('Thanks for the feedback')} title="Good response" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={() => toast.success('Thanks for the feedback')} title="Good response" className="w-7 h-7 grid place-items-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all">
               <ThumbsUp className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={() => toast.success('Thanks — we’ll improve')} title="Bad response" className="w-7 h-7 grid place-items-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <button type="button" onClick={() => toast.success('Thanks — we’ll improve')} title="Bad response" className="w-7 h-7 grid place-items-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-all">
               <ThumbsDown className="w-3.5 h-3.5" />
             </button>
           </div>
