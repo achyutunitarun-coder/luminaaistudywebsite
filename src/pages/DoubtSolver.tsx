@@ -193,7 +193,7 @@ const DoubtSolver = () => {
                     : 'bg-card/60 text-foreground border border-border/10'
                 }`}>
                   {msg.role === 'assistant' ? (
-                    <MarkdownRenderer content={msg.content} />
+                    <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                   ) : (
                     <p className="text-sm leading-relaxed">{msg.content}</p>
                   )}
