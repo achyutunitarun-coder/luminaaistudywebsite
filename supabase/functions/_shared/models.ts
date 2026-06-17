@@ -565,13 +565,15 @@ export async function callWithFallback(
   const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 30_000 : 20_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 12_000 : 9_000);
 
-  // NO RACE. Owl-alpha is fast — call it directly. Fan out across keys only
-  // if the first key fails, so we don't waste tokens on parallel duplicates.
-  // Other models in `models[]` are sequential fallbacks for real failures.
+  // Sequential model attempts with key fanout for OWL.
+  // OWL gets parallel key fanout (callModelKeyFanout) to cut TTFB.
+  // Other models use single-key callModel with rotation on failure.
   for (const model of models) {
     const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
-    const response = await callModel(model, baseBody, timeout, tag);
+    const response = model === OWL
+      ? await callModelKeyFanout(model, baseBody, timeout, tag, OWL_KEY_FANOUT)
+      : await callModel(model, baseBody, timeout, tag);
     if (response) return { response, model };
   }
 
@@ -612,8 +614,7 @@ export async function callAIText(
   const content = data?.choices?.[0]?.message?.content;
   let finish = data?.choices?.[0]?.finish_reason;
   if (!content || typeof content !== "string" || content.trim().length === 0) {
-    console.warn(`[callAIText:${tag}] empty response from model`);
-    return "";
+    throw new Error(`[callAIText:${tag}] empty response from ${model}`);
   }
 
   let full = content;

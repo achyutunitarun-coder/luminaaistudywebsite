@@ -14,34 +14,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Per-artifact model chains live in _shared/models.ts (getModelsForArtifact).
-// This keeps routing centralised and consistent with the rest of the app.
-
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const JOB_BUDGET_MS = 142_000;
+const OWL = "openrouter/owl-alpha";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const FRONTEND_DESIGN_SKILL = `
-SKILL: Frontend Design & Aesthetics
-Before writing HTML/CSS/JS, silently commit to: PURPOSE, TONE, CONSTRAINTS, DIFFERENTIATION.
-- Build a distinctive production-grade interface, never generic AI slop.
-- Choose a bold visual anchor and fully commit: brutal minimalism, refined luxury, editorial, industrial, organic, playful, retro-futurist, etc.
-- Typography must be characterful. Do not use Inter, Roboto, Arial, Space Grotesk, or default system font stacks as the primary visual identity. Pair a high-impact display font with a readable body font from Google Fonts.
-- Avoid clichéd purple/blue gradients over flat white or pitch-black backgrounds. Avoid card soup. Avoid repeated aesthetics.
-- Use one unforgettable visual detail: custom cursor, editorial masthead, kinetic counter, diagrammatic grid, tactile switch, animated data drawing, etc.
-- Include high-contrast focus states, keyboard/touch accessibility, min 44px targets, responsive 375px→1440px, no horizontal overflow.
-- Motion is intentional: one orchestrated page-load reveal, meaningful hover/active states, prefers-reduced-motion respected.
-- Match implementation complexity to the aesthetic. Maximalist means layered, detailed, coherent. Minimalist means geometric precision and flawless spacing.
-`.trim();
+// ── HTML cleanup ────────────────────────────────────────────────────
 
 function cleanHtml(raw: string): string {
   let h = (raw || "").trim();
+  // Strip <think> blocks (some models emit chain-of-thought)
   h = h.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // Strip markdown code fences
   if (h.startsWith("```html")) h = h.slice(7);
   else if (h.startsWith("```")) h = h.slice(3);
   if (h.endsWith("```")) h = h.slice(0, -3);
   h = h.trim();
+  // Trim to first structural tag
   const lower = h.toLowerCase();
   const dt = lower.indexOf("<!doctype");
   const ht = lower.indexOf("<html");
@@ -51,137 +41,160 @@ function cleanHtml(raw: string): string {
 }
 
 function validHtml(html: string): boolean {
+  if (!html || html.length < 200) return false;
   const lower = html.toLowerCase();
-  return (
-    html.length > 300 &&
-    (lower.includes("<!doctype") || lower.includes("<html")) &&
-    lower.includes("</html>") &&
-    !/todo|lorem ipsum|coming soon|rest of (the )?content/i.test(html)
-  );
+  const hasDoctype = lower.includes("<!doctype");
+  const hasHtml = lower.includes("<html");
+  const hasClose = lower.includes("</html>");
+  const hasBody = lower.includes("<body");
+  const hasContent = lower.includes("<h1") || lower.includes("<h2") || lower.includes("<p") || lower.includes("<section") || lower.includes("<div");
+  const hasGarbage = /todo|lorem ipsum|coming soon|rest of (the )?content|your .* will appear/i.test(html);
+  return (hasDoctype || hasHtml) && hasClose && (hasBody || hasContent) && !hasGarbage;
 }
 
 function esc(value: string) {
   return String(value || "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-interface TopicContent {
-  definition: string;
-  process: string;
-  examiners: string;
-  inputs: string[];
-  question: string;
-  options: { text: string; correct: boolean }[];
-  checklist: string[];
-  keyFacts: string[];
-}
+// ── Inline fallback HTML (no external AI call needed) ──────────────
 
-async function fetchTopicContent(topic: string, type: string): Promise<TopicContent | null> {
-  const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
-  if (!orKey) return null;
-  try {
-    const sys = `You are an expert tutor. Return ONLY raw JSON (no fences, no prose) with ACTUAL subject-specific content. Never write meta-instructions like "explain it aloud" — write the real subject facts a student must learn.`;
-    const user = `Topic: "${topic}". Type: ${type}.
-Return JSON exactly:
-{
- "definition": "2-3 sentence rigorous definition with real terms",
- "process": "3-4 sentence mechanistic explanation of how it works",
- "examiners": "2-3 sentence list of specific things examiners test on this topic",
- "inputs": ["4","short","real-stage","labels (e.g. for photosynthesis: Light reactions, ATP/NADPH, Calvin cycle, Glucose)"],
- "question": "one good factual multiple-choice question on the topic",
- "options": [{"text":"...","correct":true},{"text":"...","correct":false},{"text":"...","correct":false}],
- "checklist": ["5","topic-specific","mastery","items"],
- "keyFacts": ["4 real factual bullet points about the topic"]
-}`;
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://luminaai.co.in", "X-Title": "Lumina AI" },
-      body: JSON.stringify({
-        model: "openrouter/owl-alpha",
-        messages: [{ role: "system", content: sys }, { role: "user", content: user }],
-        temperature: 0.3, max_tokens: 1500, response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-    const data = await res.json().catch(() => ({}));
-    const raw = data?.choices?.[0]?.message?.content ?? "";
-    const cleaned = String(raw).replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
-    if (!parsed?.definition || !Array.isArray(parsed?.options)) return null;
-    return parsed as TopicContent;
-  } catch (e) {
-    console.warn("fetchTopicContent failed:", (e as Error).message);
-    return null;
-  }
-}
-
-async function fallbackHtml(type: string, topic: string): Promise<string> {
+function buildFallbackHtml(type: string, topic: string): string {
   const safeTopic = esc(topic || "Study artifact");
   const kind = esc(type || "artifact");
-  const content = await fetchTopicContent(topic, type);
-
-  const definition = esc(content?.definition || `Detailed notes for ${topic} could not be generated automatically. Please regenerate the artifact for full content.`);
-  const process = esc(content?.process || "Regenerate this artifact to receive the full mechanistic explanation.");
-  const examiners = esc(content?.examiners || "Regenerate to view the examiner-focus breakdown.");
-  const inputs = (content?.inputs && content.inputs.length >= 2 ? content.inputs : ["Stage 1","Stage 2","Stage 3","Outcome"]).slice(0,4).map(esc);
-  const question = esc(content?.question || `Regenerate to load a real ${topic} question.`);
-  const opts = (content?.options && content.options.length >= 2
-    ? content.options
-    : [{text:"Regenerate the artifact",correct:true},{text:"Placeholder",correct:false},{text:"Placeholder",correct:false}]
-  ).slice(0,4);
-  const checklist = (content?.checklist && content.checklist.length >= 3 ? content.checklist : [
-    `State the definition of ${topic} from memory.`,
-    `Draw the mechanism of ${topic} with labels.`,
-    `List three common mistakes specific to ${topic}.`,
-    `Solve one easy and one hard ${topic} question.`,
-    `Teach ${topic} in sixty seconds.`,
-  ]).slice(0,6).map(esc);
-  const keyFacts = (content?.keyFacts && content.keyFacts.length >= 2 ? content.keyFacts : []).slice(0,6).map(esc);
-
-  const nodesHtml = inputs.map((n,i)=>`<span class="node">${n}</span>${i<inputs.length-1?'<span class="arrow">→</span>':''}`).join("");
-  const optsHtml = opts.map(o=>`<button data-correct="${o.correct?'true':'false'}">${esc(o.text)}</button>`).join("");
-  const checklistHtml = checklist.map(c=>`<li>${c}</li>`).join("");
-  const keyFactsHtml = keyFacts.length
-    ? `<section id="facts" class="section"><h2>Key facts</h2><ul>${keyFacts.map(f=>`<li>${f}</li>`).join("")}</ul></section>`
-    : "";
+  const topicSlug = encodeURIComponent(topic || "study-guide");
 
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${safeTopic} — Lumina ${kind}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300..900&family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<style>:root{--paper:#f5ead4;--ink:#15120d;--oxide:#b9482b;--moss:#496f5d;--aqua:#0e8077;--line:rgba(21,18,13,.18);font-family:Manrope,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(135deg,#f5ead4,#e7d3aa 45%,#d8bea0);color:var(--ink);line-height:1.65}.wrap{width:min(1160px,calc(100% - 32px));margin:auto;padding:48px 0 72px}.mast{border-bottom:2px solid var(--ink);padding-bottom:32px}.kicker{font:800 12px/1 JetBrains Mono,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--oxide)}h1{font-family:Fraunces,serif;font-size:clamp(48px,9vw,120px);line-height:.85;margin:18px 0;font-weight:850}.lede{font-size:clamp(17px,1.8vw,22px);max-width:760px}.rail{display:grid;grid-template-columns:260px 1fr;gap:28px;margin-top:36px}.toc{position:sticky;top:24px;align-self:start;border:2px solid var(--ink);background:rgba(255,248,226,.8);padding:18px}.toc a{display:block;color:var(--ink);text-decoration:none;padding:10px 0;border-bottom:1px solid var(--line);font-weight:800}.section{padding:28px 0;border-bottom:1px solid var(--line)}h2{font-family:Fraunces,serif;font-size:clamp(30px,4.5vw,56px);margin:0 0 18px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.panel{border:2px solid var(--ink);background:rgba(255,249,232,.7);padding:20px;box-shadow:8px 8px 0 rgba(21,18,13,.12)}.panel b{color:var(--oxide);display:block;margin-bottom:8px}.diagram{min-height:180px;border:2px solid var(--ink);background:repeating-linear-gradient(45deg,rgba(73,111,93,.12) 0 12px,transparent 12px 24px);display:grid;place-items:center;margin:20px 0;padding:24px}.nodes{display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center}.node{border:2px solid var(--ink);background:var(--paper);padding:12px 18px;border-radius:999px;font-weight:900}.arrow{font-size:26px;color:var(--oxide)}ul,ol{padding-left:22px}li{margin:6px 0}button{min-height:44px;border:2px solid var(--ink);background:var(--oxide);color:#fff7df;font-weight:900;padding:12px 18px;box-shadow:5px 5px 0 var(--ink);cursor:pointer;font-family:inherit}.quiz button{display:block;margin:8px 0;background:var(--moss)}.meter{height:12px;border:2px solid var(--ink);background:#fff7df;margin-top:12px}.meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--oxide),var(--aqua));transition:width .4s ease}@media(max-width:820px){.rail{grid-template-columns:1fr}.toc{position:relative}.grid{grid-template-columns:1fr}}</style></head>
-<body><main class="wrap">
-<section class="mast"><span class="kicker">Lumina Artifact · ${kind}</span><h1>${safeTopic}</h1><p class="lede">${definition}</p></section>
-<div class="rail"><nav class="toc"><a href="#overview">Core map</a><a href="#diagram">Visual model</a>${keyFacts.length?'<a href="#facts">Key facts</a>':''}<a href="#practice">Practice</a><a href="#finish">Mastery checklist</a></nav><article>
-<section id="overview" class="section"><h2>Core map</h2><div class="grid"><div class="panel"><b>Definition</b><p>${definition}</p></div><div class="panel"><b>How it works</b><p>${process}</p></div><div class="panel"><b>What examiners test</b><p>${examiners}</p></div></div></section>
-<section id="diagram" class="section"><h2>Visual model</h2><div class="diagram"><div class="nodes">${nodesHtml}</div></div></section>
-${keyFactsHtml}
-<section id="practice" class="section quiz"><h2>Practice</h2><p><strong>Question:</strong> ${question}</p>${optsHtml}<p id="feedback" aria-live="polite"></p><div class="meter"><span id="bar"></span></div></section>
-<section id="finish" class="section"><h2>Mastery checklist</h2><ol>${checklistHtml}</ol><button onclick="window.print()">Print / Save</button></section>
-</article></div></main>
-<script>document.addEventListener('DOMContentLoaded',function(){var fb=document.getElementById('feedback'),bar=document.getElementById('bar');document.querySelectorAll('.quiz button').forEach(function(btn){btn.addEventListener('click',function(){var ok=btn.dataset.correct==='true';fb.textContent=ok?'Correct.':'Not quite — review the definition above and try again.';bar.style.width=ok?'100%':'40%';})});});</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>${safeTopic} — Lumina ${kind}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e4e4e7;--muted:#71717a;--accent:#a78bfa;--accent2:#6ee7b7;--danger:#f87171;--radius:14px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+header{border-bottom:1px solid var(--border);padding-bottom:32px;margin-bottom:40px}
+.kicker{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;display:block}
+h1{font-family:Syne,serif;font-size:clamp(32px,6vw,56px);font-weight:800;line-height:1.1;background:linear-gradient(135deg,#fff 0%,#a78bfa 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px}
+.lede{color:var(--muted);font-size:17px;max-width:600px}
+.section{margin-bottom:48px}
+h2{font-family:Syne,serif;font-size:clamp(22px,3.5vw,36px);font-weight:700;margin-bottom:20px;color:var(--text)}
+p{margin-bottom:12px;color:#d4d4d8}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:16px}
+.card h3{font-size:15px;font-weight:600;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);color:var(--accent);padding:6px 14px;border-radius:99px;font-size:13px;font-weight:500;margin:4px}
+.qa{border-left:3px solid var(--accent);padding-left:20px;margin-bottom:24px}
+.qa .q{font-weight:600;margin-bottom:8px}
+.qa .a{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#0a0a0f;border:none;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:Inter,sans-serif}
+.btn:hover{opacity:0.9;transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px;padding-top:24px;border-top:1px solid var(--border)}
+textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;color:var(--text);font-family:'Space Mono',monospace;font-size:13px;resize:vertical;min-height:120px}
+textarea:focus{outline:none;border-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+@media(max-width:640px){.wrap{padding:24px 16px 60px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<span class="kicker">Lumina ${kind}</span>
+<h1>${safeTopic}</h1>
+<p class="lede">Your AI-generated ${type} is being prepared. This is a structured study template — regenerate for a fully AI-crafted interactive artifact.</p>
+</header>
+
+<section class="section" id="overview">
+<h2>Overview</h2>
+<div class="grid">
+<div class="card"><h3>Definition</h3><p>A comprehensive study resource for <strong>${safeTopic}</strong>. This artifact covers key concepts, mechanisms, and exam-ready content.</p></div>
+<div class="card"><h3>Key Areas</h3><p>Core principles, real-world applications, common misconceptions, and practice questions tailored to ${safeTopic}.</p></div>
+<div class="card"><h3>Study Goals</h3><p>Master the fundamentals, apply concepts to problems, and test your understanding with interactive exercises.</p></div>
+</div>
+</section>
+
+<section class="section" id="tags">
+<h2>Key Terms</h2>
+<div><span class="tag">📖 ${safeTopic}</span><span class="tag">🔬 Core Concepts</span><span class="tag">📝 Exam Prep</span><span class="tag">⚡ Quick Review</span></div>
+</section>
+
+<section class="section" id="practice">
+<h2>Practice Questions</h2>
+<div class="qa">
+<p class="q">Q1: What is the fundamental principle behind ${safeTopic}?</p>
+<p class="a">Review the core definition and mechanism. Try explaining it in your own words before checking the answer.</p>
+</div>
+<div class="qa">
+<p class="q">Q2: How does ${safeTopic} apply in real-world scenarios?</p>
+<p class="a">Think about practical examples and case studies related to this topic.</p>
+</div>
+<div class="qa">
+<p class="q">Q3: What are common mistakes students make when studying ${safeTopic}?</p>
+<p class="a">Identify misconceptions and focus on areas where understanding typically breaks down.</p>
+</div>
+</section>
+
+<section class="section" id="notes">
+<h2>Your Notes</h2>
+<textarea placeholder="Write your notes here... Use this space to summarize ${safeTopic} in your own words."></textarea>
+<p class="hint">💡 Tip: Writing notes by hand (or typing them) helps cement understanding.</p>
+</section>
+
+<div class="actions">
+<button class="btn" onclick="window.print()">⬇ Download / Print</button>
+<button class="btn btn-outline" onclick="document.querySelector('textarea').focus()">✏ Start Writing</button>
+</div>
+</div>
+<script>
+// Simple interaction: highlight tags on click
+document.querySelectorAll('.tag').forEach(t => {
+  t.addEventListener('click', () => {
+    t.style.background = t.style.background ? '' : 'rgba(110,231,183,0.15)';
+    t.style.borderColor = t.style.borderColor ? '' : 'rgba(110,231,183,0.4)';
+  });
+});
+// Save notes to localStorage
+const ta = document.querySelector('textarea');
+const key = 'lumina-notes-${topicSlug}';
+ta.value = localStorage.getItem(key) || '';
+ta.addEventListener('input', () => localStorage.setItem(key, ta.value));
+</script>
 </body></html>`;
 }
 
-function makeSystemPrompt(type: string, topic: string, provided: string) {
-  const base =
-    provided && provided.length > 200
-      ? provided
-      : `Generate a complete, beautiful, self-contained HTML ${type} artifact for ${topic}.`;
-  return `${FRONTEND_DESIGN_SKILL}
+// ── System prompt builder ───────────────────────────────────────────
 
-${base}
+function makeSystemPrompt(type: string, topic: string, _provided: string) {
+  // Always use our own clean prompt. Ignore the frontend's systemPrompt
+  // because it sends a 500+ line design spec that overwhelms models.
+  void _provided;
+  return `You are Lumina — an expert study-artifact generator. Create a COMPLETE, interactive HTML page.
 
-CRITICAL CONTENT CONTRACT — DO NOT VIOLATE:
-- The artifact MUST contain real, accurate, subject-specific content about "${topic}". Real definitions, real mechanisms, real worked examples with numbers, real practice questions with answers.
-- NEVER write meta-instructions ("explain the concept aloud", "sketch the structure from memory", "look for precise vocabulary", "treated as a system: terms, causes, mechanisms..."). Those describe HOW to study — you must write WHAT to study.
-- NEVER use generic placeholder labels like "Inputs → Process → Evidence → Answer". Use the REAL named stages of "${topic}" (e.g. for photosynthesis: "Light reactions → ATP/NADPH → Calvin cycle → Glucose").
-- NEVER write "your notes will appear", "click to view", or any prompt-style placeholder text.
-- ZERO emoji anywhere. Use SVG icons or text labels (Tip:, Warning:, Example:).
+Generate a complete, beautiful, self-contained HTML ${type} artifact for "${topic}".
 
-OUTPUT CONTRACT:
-- Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences, no commentary, no <think>.
-- Complete and interactive. Target 18KB–60KB. Dense and finished.
-- Distinctive Google Fonts; never Inter/Roboto/Arial/Space Grotesk as primary identity.`;
+## CRITICAL RULES:
+- Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. No commentary.
+- The HTML must be a COMPLETE, self-contained page with inline CSS and JS.
+- Include REAL, ACCURATE content about "${topic}" — definitions, examples, diagrams, practice questions.
+- Use semantic HTML: <section>, <h1>-<h3>, <p>, <ul>/<ol>, <div> with classes.
+- Include a <style> block in <head> with modern, clean CSS (dark theme preferred).
+- Include interactive JS elements: tabs, accordions, quiz with feedback, or note-taking.
+- Target 8KB–30KB of HTML. Dense, finished, no placeholders.
+- NEVER write "coming soon", "lorem ipsum", "your content here", or meta-instructions.
+- NEVER write instructions TO the student — write actual content FOR the student.
+- Use Google Fonts (Syne for headings, Inter for body, Space Mono for code).
+- Make it visually distinctive: gradients, cards, proper spacing, hover effects.
+
+## OUTPUT: One complete HTML document. Nothing else.`;
 }
+
+// ── Main generation logic ───────────────────────────────────────────
 
 async function generateHtml(
   type: string,
@@ -189,70 +202,105 @@ async function generateHtml(
   userPrompt: string,
   systemPrompt: string,
 ): Promise<{ html: string; model?: string }> {
-  const models = getModelsForArtifact((["notes","exam","slides","code"].includes(type) ? type : "notes") as ArtifactType);
+  const artifactType = (["notes", "exam", "slides", "code"].includes(type) ? type : "notes") as ArtifactType;
+  const models = getModelsForArtifact(artifactType);
   const started = Date.now();
-  let lastErr = "";
+  const maxTtl = JOB_BUDGET_MS - 10_000; // leave 10s buffer for DB writes
 
-  // Primary attempt: use callAIText with OWL-first model chain + key fanout.
-  // This replaces the old sequential owl-alpha fetch that wasted 45s before
-  // falling back. callWithFallback handles key rotation, cooldowns, and
-  // sequential fallback internally.
+  const sys = makeSystemPrompt(type, topic, systemPrompt);
+  const maxTokens = type === "code" ? 16000 : 12000;
+
+  // ── Attempt 1: Primary (full prompt, generous timeout) ──
   {
-    const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
-    if (remaining >= 8_000) {
+    const elapsed = Date.now() - started;
+    if (elapsed < maxTtl) {
       try {
         const text = await callAIText(
           [
-            { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
-            { role: "user", content: `${userPrompt}\n\nProduce a complete, premium, self-contained HTML artifact. Keep it polished and finish the document.` },
+            { role: "system", content: sys },
+            { role: "user", content: `${userPrompt}\n\nProduce a complete, polished, self-contained HTML artifact. Finish the entire document.` },
           ],
           models,
-          type === "code" ? 16000 : 12000,
-          0.35,
-          Math.min(remaining, 88_000),
-          `chat-artifact-v2/${type}`,
+          maxTokens,
+          0.3,
+          Math.min(maxTtl - elapsed, 95_000),
+          `artifact-v2/${type}`,
         );
         const cleaned = cleanHtml(text);
-        if (validHtml(cleaned)) return { html: cleaned, model: models[0] };
-        lastErr = cleaned ? "invalid_html_from_primary" : "empty_from_primary";
-        console.warn(`[artifact-job] primary chain returned invalid: ${lastErr}`);
+        if (validHtml(cleaned)) {
+          console.log(`[artifact] ✓ primary OK, ${cleaned.length} chars, model chain: ${models[0]}`);
+          return { html: cleaned, model: models[0] };
+        }
+        console.warn(`[artifact] ✗ primary invalid: ${cleaned.length} chars, reason: ${cleaned ? "bad_structure" : "empty"}`);
       } catch (e) {
-        lastErr = e instanceof Error ? e.message : String(e);
-        console.warn("[artifact-job] primary chain failed:", lastErr);
+        console.warn(`[artifact] ✗ primary error:`, e);
       }
     }
   }
 
-  // Secondary attempt: retry with a stricter prompt to force completion.
-  // Only runs if the primary chain returned junk or timed out.
+  // ── Attempt 2: Retry with simpler, more direct prompt ──
   {
-    const remaining = JOB_BUDGET_MS - 15_000 - (Date.now() - started);
-    if (remaining >= 8_000) {
+    const elapsed = Date.now() - started;
+    if (elapsed < maxTtl) {
       try {
+        const simpleSys = `Output ONLY a complete HTML page about "${topic}". Start with <!DOCTYPE html>. Include <style> and <body> with real content. No markdown. No explanations.`;
         const text = await callAIText(
           [
-            { role: "system", content: makeSystemPrompt(type, topic, systemPrompt) },
-            { role: "user", content: `Create a focused, complete ${type} artifact about ${topic}. Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. Finish the entire document — do not truncate.` },
+            { role: "system", content: simpleSys },
+            { role: "user", content: `Create a ${type} artifact for "${topic}". Real content only. Complete HTML.` },
           ],
           models,
-          type === "code" ? 12000 : 10000,
-          0.45,
-          Math.min(remaining, 70_000),
-          `chat-artifact-v2/${type}/retry`,
+          maxTokens,
+          0.2,
+          Math.min(maxTtl - elapsed, 70_000),
+          `artifact-v2/${type}/retry`,
         );
         const cleaned = cleanHtml(text);
-        if (validHtml(cleaned)) return { html: cleaned, model: models[0] };
-        lastErr = cleaned ? "invalid_html_from_retry" : "empty_from_retry";
-        console.warn(`[artifact-job] retry chain returned invalid: ${lastErr}`);
+        if (validHtml(cleaned)) {
+          console.log(`[artifact] ✓ retry OK, ${cleaned.length} chars`);
+          return { html: cleaned, model: models[0] };
+        }
+        console.warn(`[artifact] ✗ retry invalid: ${cleaned.length} chars`);
       } catch (e) {
-        lastErr = e instanceof Error ? e.message : String(e);
-        console.warn("[artifact-job] retry chain failed:", lastErr);
+        console.warn(`[artifact] ✗ retry error:`, e);
       }
     }
   }
 
-  throw new Error(lastErr || "all_models_failed");
+  // ── Attempt 3: Minimal prompt (last resort before fallback) ──
+  {
+    const elapsed = Date.now() - started;
+    if (elapsed < maxTtl) {
+      try {
+        const text = await callAIText(
+          [
+            { role: "system", content: `You write HTML. Output only <!DOCTYPE html>...complete page. No markdown.` },
+            { role: "user", content: `Write a complete HTML page about "${topic}". Include sections: overview, key concepts, examples, practice questions. Use <style> for dark theme. Real content only.` },
+          ],
+          [OWL], // Force OWL only for last attempt
+          8000,
+          0.2,
+          Math.min(maxTtl - elapsed, 50_000),
+          `artifact-v2/${type}/minimal`,
+        );
+        const cleaned = cleanHtml(text);
+        if (validHtml(cleaned)) {
+          console.log(`[artifact] ✓ minimal OK, ${cleaned.length} chars`);
+          return { html: cleaned, model: OWL };
+        }
+        console.warn(`[artifact] ✗ minimal invalid: ${cleaned.length} chars`);
+      } catch (e) {
+        console.warn(`[artifact] ✗ minimal error:`, e);
+      }
+    }
+  }
+
+  // ── All AI attempts failed: return fallback HTML ──
+  console.warn(`[artifact] All AI attempts failed for ${type}/${topic}, returning fallback`);
+  return { html: buildFallbackHtml(type, topic), model: "lumina-fallback" };
 }
+
+// ── Job processor ───────────────────────────────────────────────────
 
 async function processJob(
   jobId: string,
@@ -290,23 +338,26 @@ async function processJob(
         error_message: null,
       })
       .eq("id", jobId);
+    console.log(`[artifact-job:${jobId}] completed, ${html.length} chars, model: ${model}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
-    // Never leave the UI spinning or dead-ended: complete with a topic-aware safe artifact.
-    const safeHtml = await fallbackHtml(payload.type, payload.topic);
+    // Last-resort fallback: always complete the job so the UI doesn't spin forever
+    const safeHtml = buildFallbackHtml(payload.type, payload.topic);
     await admin
       .from("artifact_jobs")
       .update({
         status: "completed",
         html: safeHtml,
-        model_used: "lumina-local-artifact",
+        model_used: "lumina-fallback",
         error_message: null,
         completed_at: new Date().toISOString(),
       })
       .eq("id", jobId);
   }
 }
+
+// ── HTTP handler ────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
