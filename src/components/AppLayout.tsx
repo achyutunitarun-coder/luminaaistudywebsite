@@ -159,7 +159,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
       {/* Main Content — Primary Intelligence Zone */}
       <main
-        className="flex-1 min-w-0 overflow-auto transition-[margin] duration-500 ease-out relative z-10 mt-14 md:mt-0 ml-0 md:[margin-left:var(--app-sidebar-w,0px)]"
+        className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto transition-[margin] duration-500 ease-out relative z-20 mt-14 md:mt-0 md:[margin-left:var(--app-sidebar-w,0px)]"
       >
         {isFullBleed ? (
           // Workspace routes render edge-to-edge: no max-width cap, no padding.

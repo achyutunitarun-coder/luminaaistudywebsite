@@ -11,8 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudyTimer } from '@/hooks/useStudyTimer';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { openPricing } from '@/lib/pricing';
+import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 
 const ease = [0.25, 0.1, 0.25, 1] as const;
 
@@ -22,6 +23,20 @@ const Dashboard = () => {
   const { seconds: liveSeconds } = useStudyTimer();
   const { isPro, isProPlus } = useSubscription();
   const navigate = useNavigate();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    // Show onboarding if user hasn't completed it
+    if (profile && !profile.onboarding_completed && !profile.extra_preferences) {
+      setShowOnboarding(true);
+    }
+  }, [profile]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    // Refresh profile to reflect onboarding completion
+    window.location.reload();
+  };
 
   const userPrefs = useMemo(() => {
     if (!profile?.extra_preferences) return null;
@@ -559,6 +574,9 @@ const Dashboard = () => {
       <Testimonials />
       <FAQ />
     </div>
+
+    {/* Onboarding Tutorial */}
+    {showOnboarding && <OnboardingTutorial onComplete={handleOnboardingComplete} />}
   );
 };
 
