@@ -182,10 +182,10 @@ serve(async (req) => {
     if (flight.systemAddon) systemPrompt += flight.systemAddon;
     if (hasFiles) systemPrompt += `\n\nThe user has attached files (after "--- ATTACHED FILES ---"). Read ALL file content thoroughly and respond based on it.`;
 
-    // ── LIVE WEB RESEARCH for Computer / MUN / Deep modes ─────────────
-    // Free APIs only (DuckDuckGo + Wikipedia + arXiv). No keys, no cost.
+    // ── LIVE WEB RESEARCH for Computer / MUN / Deep modes only ──────────
+    // Skipped for greetings, conversational, quick — no need for web research.
     // Research is fetched in PARALLEL with the AI call — it does NOT block TTFB.
-    const needsResearch = intent === "computer" || intent === "mun" || intent === "deep" || requestedMode === "computer" || requestedMode === "mun";
+    const needsResearch = (intent === "computer" || intent === "mun" || intent === "deep" || requestedMode === "computer" || requestedMode === "mun") && intent !== "greeting" && intent !== "conversational" && intent !== "quick";
     let researchPromise: Promise<string> | null = null;
     if (needsResearch && queryText && !hasFiles) {
       const q = queryText.slice(0, 300);
@@ -264,41 +264,27 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
-    // Lumina Computer: openrouter/owl-alpha is the PRIMARY (per user direction)
-    // — 1M+ context, fast streaming, won't truncate mid-plan. Other long-context
-    // models stay behind it so a single provider hiccup never kills a build.
-    const computerChain = Array.from(new Set([
-      "openrouter/owl-alpha",
-      ...(hasImages ? MODELS_VISION : []),
-      ...MODELS_LONG_CTX,
-      "moonshotai/kimi-k2.6",
-      ...MODELS_QUALITY,
-    ]));
-    const models = isComputerMode
-      ? computerChain
-      : artifactFeature
-        ? MODELS_LONG_CTX
-        : hasImages
-          ? MODELS_VISION
-          : (getModelsForMode(requestedMode) ?? getModelsForIntent(intent));
+    // Model selection: OWL-ALPHA PRIMARY + FREE ROUTER
+    // No more multi-model chains. Just owl-alpha with 3-key fanout, then free router fallback.
+    const models = [OWL, MODEL_FREE_ROUTER];
 
-    // Computer mode: use Kimi's higher per-request output budget when the
-    // direct Moonshot key is configured; fall back to the OpenRouter cap.
     const hasKimi = !!Deno.env.get("KIMI_API_KEY");
     const maxTokens = isComputerMode
       ? (hasKimi ? 128000 : 32000)
       : intent === "greeting" || intent === "conversational"
-        ? 1200
+        ? 800
         : intent === "coding" || intent === "deep"
           ? 16000
-          : 6000;
+          : 4000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
-    const timeoutMs = isComputerMode ? (hasKimi ? 480_000 : 240_000) : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 120_000);
+    // Short timeouts for fast responses. callWithFallback handles the actual model timeouts.
+    const timeoutMs = isComputerMode ? (hasKimi ? 480_000 : 240_000) : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 30_000);
 
     // ── Centralised conversation summarisation ───────────────────────
-    // Every chat surface (chat/hub/squad/computer) goes through here, so
-    // we condense long histories once on the server instead of per-component.
-    const condensed = await condenseHistory(messages as any);
+    // Skip condensation for short conversations (< 4 messages) — saves DB round-trip.
+    const condensed = messages.length > 4
+      ? await condenseHistory(messages as any)
+      : { messages, summarized: false, originalCount: messages.length, summary: "" };
     const aiMessages = [{ role: "system", content: systemPrompt }, ...condensed.messages];
 
     const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${artifactFeature ?? intent}`);

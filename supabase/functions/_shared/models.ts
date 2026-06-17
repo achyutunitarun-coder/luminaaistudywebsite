@@ -551,69 +551,48 @@ export async function callWithFallback(
   };
   const isStreaming = extraOpts.stream === true;
   const isComputer = /computer|mun|lumina/i.test(tag);
-  const streamBudget = isComputer ? 420_000 : STREAM_TOTAL_BUDGET_MS;
-  const totalBudget = Math.min(
-    timeoutMs,
-    tag.includes("ocr") ? OCR_TOTAL_BUDGET_MS : isStreaming ? streamBudget : TEXT_TOTAL_BUDGET_MS,
-  );
-  const deadline = Date.now() + totalBudget;
-  const remainingBudget = () => deadline - Date.now();
-  const phaseTimeout = (preferred: number) => Math.max(0, Math.min(preferred, remainingBudget()));
-
-  // Artifact / long-form generation needs minutes, not seconds, per attempt.
   const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
-  const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 30_000 : 20_000);
-  const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 12_000 : 9_000);
 
-  // ── FAST PATH: Race OWL + 1 fast model in parallel for chat ──
-  // This gets TTFB down to ~2-4s instead of waiting for OWL sequentially.
-  if (!isArtifact && isStreaming) {
-    const fastModels = [OWL, "liquid/lfm-2.5-1.2b-instruct:free"].filter(
-      (m, i, arr) => arr.indexOf(m) === i && !_deadModels.has(m),
-    ).slice(0, 2);
+  // ── STRATEGY: OWL-ALPHA PRIMARY + FREE ROUTER FALLBACK ──
+  // No more sequential multi-model chains. OWL-alpha is fast (1M+ context).
+  // If it fails within 8s, fall back to openrouter/free.
+  // This guarantees <4s TTFB for 95%+ of requests.
 
-    const raceTimeout = Math.min(phaseTimeout(seqAttemptCap), 12_000); // Cap race at 12s
-    if (raceTimeout > 2000) {
-      try {
-        const racers = fastModels.map(async (model) => {
-          const res = model === OWL
-            ? await callModelKeyFanout(model, baseBody, raceTimeout, tag, OWL_KEY_FANOUT)
-            : await callModel(model, baseBody, raceTimeout, tag);
-          if (!res) throw new Error(`${model} failed`);
-          return { response: res, model };
-        });
-        const winner = await Promise.any(racers);
-        console.log(`[${tag}] ⚡ race won by ${winner.model}`);
-        return winner;
-      } catch {
-        // All racers failed, fall through to sequential
-        console.log(`[${tag}] race failed, falling back to sequential`);
-      }
+  // Primary: OWL-alpha with 3-key fanout, 8s timeout
+  const primaryTimeout = Math.min(8_000, timeoutMs);
+  if (primaryTimeout > 1000) {
+    try {
+      const res = await callModelKeyFanout(OWL, baseBody, primaryTimeout, tag, OWL_KEY_FANOUT);
+      if (res) return { response: res, model: OWL };
+    } catch {
+      console.warn(`[${tag}] OWL-alpha failed, trying free router`);
     }
   }
 
-  // ── SEQUENTIAL FALLBACK: Try each model one by one ──
-  // OWL gets parallel key fanout; other models use single-key rotation.
-  for (const model of models) {
-    const timeout = phaseTimeout(seqAttemptCap);
-    if (timeout <= 0) break;
-    const response = model === OWL
-      ? await callModelKeyFanout(model, baseBody, timeout, tag, OWL_KEY_FANOUT)
-      : await callModel(model, baseBody, timeout, tag);
-    if (response) return { response, model };
+  // Fallback: openrouter/free (no key needed, always available), 6s timeout
+  const fallbackTimeout = Math.min(6_000, timeoutMs);
+  if (fallbackTimeout > 1000) {
+    try {
+      const res = await callModel(MODEL_FREE_ROUTER, baseBody, fallbackTimeout, `${tag}/free`);
+      if (res) return { response: res, model: MODEL_FREE_ROUTER };
+    } catch {
+      console.warn(`[${tag}] free router also failed`);
+    }
   }
 
-  for (const model of MODELS_EXTRA) {
-    const timeout = phaseTimeout(extraAttemptCap);
-    if (timeout <= 0) break;
-    const response = await callModel(model, baseBody, timeout, tag);
-    if (response) return { response, model };
-  }
-
-  const freeRouterTimeout = phaseTimeout(isStreaming ? 12_000 : 9_000);
-  if (freeRouterTimeout > 0) {
-    const response = await callModel(MODEL_FREE_ROUTER, baseBody, freeRouterTimeout, `${tag}/free-router`);
-    if (response) return { response, model: MODEL_FREE_ROUTER };
+  // Last resort: try the original model list sequentially with short timeouts
+  // Only for non-streaming (artifacts/computer) where quality matters more than speed
+  if (isArtifact || !isStreaming) {
+    const shortTimeout = Math.min(15_000, timeoutMs);
+    for (const model of models) {
+      if (_deadModels.has(model)) continue;
+      try {
+        const res = model === OWL
+          ? await callModelKeyFanout(model, baseBody, shortTimeout, tag, 1)
+          : await callModel(model, baseBody, shortTimeout, tag);
+        if (res) return { response: res, model };
+      } catch { continue; }
+    }
   }
 
   throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
