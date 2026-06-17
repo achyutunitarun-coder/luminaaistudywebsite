@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireUser } from "../_shared/auth.ts";
-import { callAIText, MODELS_BALANCED, MODELS_LONG_CTX } from "../_shared/models.ts";
+import { callAIText, OWL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,11 +52,13 @@ serve(async (req) => {
       userPrompt = `Subjects: ${JSON.stringify(subjects)}\nTarget date: ${examDate}\nDaily hours: ${dailyHours}\nToday: ${today}`;
     }
 
-    const models = isExamMode ? MODELS_LONG_CTX : MODELS_BALANCED;
+    const models = [OWL, MODEL_FREE_ROUTER];
+    const maxTokens = isExamMode ? 4000 : 2000;
+    const timeoutMs = isExamMode ? 25_000 : 15_000;
 
     const content = await callAIText(
       [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      models, isExamMode ? 5000 : 2500, 0.4, isExamMode ? 45_000 : 25_000, "plan"
+      models, maxTokens, 0.4, timeoutMs, "plan"
     );
 
     if (isExamMode) {
