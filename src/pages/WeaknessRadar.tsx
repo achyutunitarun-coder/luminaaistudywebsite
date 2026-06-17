@@ -78,13 +78,13 @@ const WeaknessRadar = () => {
   const weaknessNodes: FlowNode[] = [
     { id: 'analyze', label: 'Take Tests', type: 'start', status: 'completed', icon: <BookOpen className="w-3 h-3" /> },
     { id: 'detect', label: 'Detect Weaknesses', type: 'process', status: topMistakes.length > 0 ? 'completed' : 'active', icon: <AlertTriangle className="w-3 h-3" /> },
-    ...topMistakes.slice(0, 3).map(([topic], i) => ({
+    ...topMistakes.slice(0, 3).map((m, i) => ({
       id: `weak-${i}`,
-      label: topic,
+      label: m.topic,
       type: 'decision' as const,
       status: 'active' as const,
       icon: <Target className="w-3 h-3" />,
-      description: `${topMistakes[i][1]} mistakes`,
+      description: `${m.count} mistakes`,
     })),
     { id: 'practice', label: 'Targeted Practice', type: 'process', status: 'upcoming', icon: <Zap className="w-3 h-3" /> },
     { id: 'master', label: 'Mastery', type: 'end', status: 'locked', icon: <CheckCircle2 className="w-3 h-3" /> },
