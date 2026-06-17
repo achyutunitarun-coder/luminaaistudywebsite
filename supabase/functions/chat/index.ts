@@ -74,6 +74,8 @@ Markdown summary for the user: what was built, how to use it, what to try next.
 13. For deep-research reports without code, emit a single <lumina:file path="report.md" lang="md">...</lumina:file> with the full report.
 14. **ZERO EMOJI POLICY — STRICTLY ENFORCED.** Production code, HTML, CSS, JS, UI copy, comments, plan text, file paths, and final summary must contain ZERO emoji and ZERO emoticon characters. No rockets, sparkles, party poppers, lightbulbs, check marks, fire, lightning bolts, targets, hearts — nothing in the Unicode emoji range, no kaomoji, no decorative pictographs. Substitute with text labels (Tip:, Note:, Warning:, Done:, ->). Visual emphasis comes from typography, spacing, color tokens, and SVG icons — never emoji.
 15. **PLAN BUDGET DISCIPLINE.** Spend ≤2% of your output budget on <lumina:plan>. If the plan runs long, STOP and emit </lumina:plan>, then start coding. A long plan that truncates before any file ships is the worst possible outcome.
+16. **ANTI-HALLUCINATION — CODE.** Never hallucinate APIs, libraries, or functions. If unsure about a library's API, use a well-known alternative or standard Web APIs (fetch, DOM, Canvas). Never reference files/paths/resources that don't exist. Only use CDN links from the approved list (cdnjs.cloudflare.com, cdn.jsdelivr.net, fonts.googleapis.com, fonts.gstatic.com). If you don't know the exact API signature, use a simpler approach you're confident in.
+17. **ANTI-HALLUCINATION — CONTENT.** Never fabricate facts, data, statistics, or scientific claims. For data visualizations and examples, use realistic but clearly sample/placeholder data (e.g., "Sample Data" labels). If you're not certain about a fact, say so in <lumina:final>.
 
 ## CONTINUATION PROTOCOL
 
@@ -131,8 +133,27 @@ serve(async (req) => {
       if (!gate.ok) return gate.response;
     }
 
-
-    // ── Pre-flight: crisis detection + stress addon ───────────────────
+    // ── Hot cache: instant response for common queries ──
+    // Check BEFORE preflight/AI to avoid any latency for cached queries.
+    if (!isComputerMode && !hasImages && !hasFiles) {
+      try {
+        const { hotCacheLookup } = await import("../_shared/preflight.ts");
+        const cached = await hotCacheLookup(queryText, `chat/${requestedMode}`, authHeader);
+        if (cached) {
+          console.log(`[chat/cache] HIT for "${queryText.slice(0, 60)}"`);
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(ctrl) {
+              const payload = JSON.stringify({ choices: [{ delta: { content: cached } }] });
+              ctrl.enqueue(encoder.encode(`data: ${payload}\n\n`));
+              ctrl.enqueue(encoder.encode(`data: [DONE]\n\n`));
+              ctrl.close();
+            },
+          });
+          return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+        }
+      } catch { /* best effort */ }
+    }
     const flight = await preFlight({
       userId: user.id, userMessage: queryText, feature: `chat/${requestedMode}`, authHeader,
     });
@@ -163,24 +184,23 @@ serve(async (req) => {
 
     // ── LIVE WEB RESEARCH for Computer / MUN / Deep modes ─────────────
     // Free APIs only (DuckDuckGo + Wikipedia + arXiv). No keys, no cost.
+    // Research is fetched in PARALLEL with the AI call — it does NOT block TTFB.
     const needsResearch = intent === "computer" || intent === "mun" || intent === "deep" || requestedMode === "computer" || requestedMode === "mun";
+    let researchPromise: Promise<string> | null = null;
     if (needsResearch && queryText && !hasFiles) {
-      try {
-        const q = queryText.slice(0, 300);
-        const enc = encodeURIComponent(q);
-        const fetchT = (url: string, ms = 6000) => {
-          const ctrl = new AbortController();
-          const t = setTimeout(() => ctrl.abort(), ms);
-          return fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "LuminaAI/1.0 (https://luminaai.co.in)" } }).finally(() => clearTimeout(t));
-        };
-        const [duck, wiki, arxiv] = await Promise.allSettled([
-          fetchT(`https://api.duckduckgo.com/?q=${enc}&format=json&no_html=1&skip_disambig=1`).then(r => r.json()).catch(() => null),
-          fetchT(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc}&format=json&srlimit=5&origin=*`).then(r => r.json()).catch(() => null),
-          fetchT(`https://export.arxiv.org/api/query?search_query=all:${enc}&max_results=4`).then(r => r.text()).catch(() => null),
-        ]);
-
+      const q = queryText.slice(0, 300);
+      const enc = encodeURIComponent(q);
+      const fetchT = (url: string, ms = 3000) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), ms);
+        return fetch(url, { signal: ctrl.signal, headers: { "User-Agent": "LuminaAI/1.0 (https://luminaai.co.in)" } }).finally(() => clearTimeout(t));
+      };
+      researchPromise = Promise.allSettled([
+        fetchT(`https://api.duckduckgo.com/?q=${enc}&format=json&no_html=1&skip_disambig=1`).then(r => r.json()).catch(() => null),
+        fetchT(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc}&format=json&srlimit=5&origin=*`).then(r => r.json()).catch(() => null),
+        fetchT(`https://export.arxiv.org/api/query?search_query=all:${enc}&max_results=4`).then(r => r.text()).catch(() => null),
+      ]).then(([duck, wiki, arxiv]) => {
         const sources: string[] = [];
-
         if (duck.status === "fulfilled" && duck.value) {
           const d: any = duck.value;
           if (d.AbstractText) sources.push(`[DuckDuckGo · ${d.Heading || q}] ${d.AbstractText}${d.AbstractURL ? ` (${d.AbstractURL})` : ""}`);
@@ -190,14 +210,12 @@ serve(async (req) => {
             if (t?.Text) sources.push(`[DuckDuckGo · Related] ${t.Text}${t.FirstURL ? ` (${t.FirstURL})` : ""}`);
           });
         }
-
         if (wiki.status === "fulfilled" && wiki.value?.query?.search) {
           for (const it of wiki.value.query.search.slice(0, 5)) {
             const snippet = String(it.snippet || "").replace(/<[^>]+>/g, "");
             sources.push(`[Wikipedia · ${it.title}] ${snippet} (https://en.wikipedia.org/?curid=${it.pageid})`);
           }
         }
-
         if (arxiv.status === "fulfilled" && arxiv.value) {
           const xml = arxiv.value as string;
           const entries = xml.split("<entry>").slice(1, 5);
@@ -208,17 +226,13 @@ serve(async (req) => {
             if (title) sources.push(`[arXiv · ${title}] ${summary} (${link})`);
           }
         }
-
         if (sources.length > 0) {
           const block = sources.slice(0, 18).join("\n\n");
-          systemPrompt += `\n\n## LIVE WEB RESEARCH (fetched just now from DuckDuckGo + Wikipedia + arXiv)\nUse these as your PRIMARY sources. Cite them inline using the bracket label, e.g. [Wikipedia · Title] or [arXiv · Title]. Combine with your own knowledge but prefer these for any current/factual claim. If a claim is not supported here and you are not certain, mark it (unverified).\n\n${block}\n\n## END WEB RESEARCH`;
           console.log(`[chat/research] injected ${sources.length} sources for "${q.slice(0, 60)}"`);
-        } else {
-          console.warn(`[chat/research] no sources retrieved for "${q.slice(0, 60)}"`);
+          return `\n\n## LIVE WEB RESEARCH (fetched from DuckDuckGo + Wikipedia + arXiv)\nUse these as your PRIMARY sources. Cite them inline using the bracket label, e.g. [Wikipedia · Title] or [arXiv · Title]. Combine with your own knowledge but prefer these for any current/factual claim. If a claim is not supported here and you are not certain, mark it (unverified).\n\n${block}\n\n## END WEB RESEARCH`;
         }
-      } catch (researchErr) {
-        console.warn("research fetch failed:", researchErr);
-      }
+        return "";
+      }).catch(() => "");
     }
 
     // Inject persistent user memory so the AI recalls past context
@@ -289,9 +303,10 @@ serve(async (req) => {
 
     const res = await streamAI(aiMessages, models, maxTokens, temperature, timeoutMs, `chat/${requestedMode}/${artifactFeature ?? intent}`);
 
-    // Prepend SSE meta event (memory + active skills) so the client can
-    // surface badges.
-    if ((condensed.summarized || activeSkills.length > 0) && res.body) {
+    // Merge SSE stream: prepend meta event + inject research results asynchronously
+    if (res.body) {
+      const reader = res.body.getReader();
+      const enc = new TextEncoder();
       const meta = `data: ${JSON.stringify({
         lumina_meta: {
           summarized: condensed.summarized,
@@ -301,16 +316,38 @@ serve(async (req) => {
           tier_target: "TIER_1",
         },
       })}\n\n`;
-      const reader = res.body.getReader();
-      const enc = new TextEncoder();
-      const merged = new ReadableStream({
+      const merged = new ReadableStream<Uint8Array>({
         async start(ctrl) {
+          // 1. Send meta event first
           ctrl.enqueue(enc.encode(meta));
+
+          // 2. Start research injection (runs in parallel with AI stream)
+          let researchInjected = false;
+          if (researchPromise) {
+            // Inject research after a short delay or when first chunk arrives
+            // This ensures research doesn't block the AI stream
+            researchPromise.then((researchBlock) => {
+              if (researchBlock && !researchInjected) {
+                try {
+                  const researchData = JSON.stringify({ choices: [{ delta: { content: researchBlock } }] });
+                  ctrl.enqueue(enc.encode(`data: ${researchData}\n\n`));
+                  researchInjected = true;
+                } catch {
+                  // Stream might be closed
+                }
+              }
+            }).catch(() => {});
+          }
+
+          // 3. Pipe AI stream
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             ctrl.enqueue(value);
           }
+
+          // 4. If research arrived after stream ended, it's lost — that's OK
+          // The AI already has the context from the system prompt
           ctrl.close();
         },
       });

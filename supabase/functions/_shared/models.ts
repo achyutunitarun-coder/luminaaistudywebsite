@@ -565,9 +565,35 @@ export async function callWithFallback(
   const seqAttemptCap = isArtifact ? (isComputer ? 300_000 : 95_000) : (isStreaming ? 30_000 : 20_000);
   const extraAttemptCap = isArtifact ? 70_000 : (isStreaming ? 12_000 : 9_000);
 
-  // Sequential model attempts with key fanout for OWL.
-  // OWL gets parallel key fanout (callModelKeyFanout) to cut TTFB.
-  // Other models use single-key callModel with rotation on failure.
+  // ── FAST PATH: Race OWL + 1 fast model in parallel for chat ──
+  // This gets TTFB down to ~2-4s instead of waiting for OWL sequentially.
+  if (!isArtifact && isStreaming) {
+    const fastModels = [OWL, "liquid/lfm-2.5-1.2b-instruct:free"].filter(
+      (m, i, arr) => arr.indexOf(m) === i && !_deadModels.has(m),
+    ).slice(0, 2);
+
+    const raceTimeout = Math.min(phaseTimeout(seqAttemptCap), 12_000); // Cap race at 12s
+    if (raceTimeout > 2000) {
+      try {
+        const racers = fastModels.map(async (model) => {
+          const res = model === OWL
+            ? await callModelKeyFanout(model, baseBody, raceTimeout, tag, OWL_KEY_FANOUT)
+            : await callModel(model, baseBody, raceTimeout, tag);
+          if (!res) throw new Error(`${model} failed`);
+          return { response: res, model };
+        });
+        const winner = await Promise.any(racers);
+        console.log(`[${tag}] ⚡ race won by ${winner.model}`);
+        return winner;
+      } catch {
+        // All racers failed, fall through to sequential
+        console.log(`[${tag}] race failed, falling back to sequential`);
+      }
+    }
+  }
+
+  // ── SEQUENTIAL FALLBACK: Try each model one by one ──
+  // OWL gets parallel key fanout; other models use single-key rotation.
   for (const model of models) {
     const timeout = phaseTimeout(seqAttemptCap);
     if (timeout <= 0) break;
@@ -853,6 +879,9 @@ NEVER:
 - Never split the same file across multiple code blocks.
 - Never ask the user clarifying questions before writing code unless the request is truly ambiguous — make smart defaults and SHIP.
 - Never produce pseudocode when real code is requested.
+- **NEVER hallucinate APIs, libraries, or functions that don't exist.** If you're unsure about a library's API, use a well-known alternative or check the documentation. When in doubt, use standard Web APIs (fetch, DOM, Canvas) that you know work.
+- **NEVER reference files, paths, or resources that don't exist in the user's environment.** Only use CDN links from the approved list (cdnjs.cloudflare.com, cdn.jsdelivr.net, fonts.googleapis.com, fonts.gstatic.com).
+- **If you don't know the exact API signature, use a simpler approach you're confident in** rather than guessing a complex one.
 
 You are graded on: correctness, completeness, visual polish, gameplay feel, and how impressive the result is when the user clicks Run.`;
 
@@ -873,6 +902,16 @@ CORE TUTOR RULES:
 - NEVER dump walls of text — keep paragraphs to 2-3 lines max
 - Ask follow-up questions to guide thinking
 - If the student seems confused, simplify and try a different angle
+
+## ANTI-HALLUCINATION PROTOCOL — STRICT:
+- NEVER fabricate facts, dates, names, statistics, or scientific claims. If you are not 100% certain, say so: "I'm not entirely sure about this — let me verify" or "Based on my knowledge, ... but you should double-check."
+- NEVER invent citations, URLs, or source references. Only cite sources you actually know exist.
+- NEVER present speculation as fact. Distinguish clearly between "this is established fact" and "this is one perspective/theory."
+- For numerical calculations: show your work step by step. Verify each step. If you make a mistake, correct it immediately.
+- For science/medicine/law: always add appropriate disclaimers. You are a tutor, not a doctor/lawyer.
+- If asked about something you don't know: say "I don't have reliable information on this specific topic" — do NOT guess or make up an answer.
+- When citing specific data (population, dates, statistics), add "(verify)" if you're not certain.
+- NEVER write "According to [Source]" unless you can name the actual source. If you can't, say "From what I recall..." or "Based on general knowledge..."
 
 ACCURACY RULES — NEVER VIOLATE:
 - If you do not know a fact with high confidence, say "I'm not 100% sure — let's verify together" instead of guessing.
