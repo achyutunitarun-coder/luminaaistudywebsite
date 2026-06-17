@@ -1080,104 +1080,179 @@ Q3: ... || A: ...
                   </button>
                   <button
                     type="button"
-                    return (
-                      <div className="flex h-full bg-background">
-                        {/* ═══ SIDEBAR ═══ */}
-                        <AnimatePresence>
-                          {historyOpen && (
-                            <motion.aside
-                              initial={{ width: 0, opacity: 0 }}
-                              animate={{ width: 280, opacity: 1 }}
-                              exit={{ width: 0, opacity: 0 }}
-                              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const }}
-                              className="hidden md:flex flex-col h-full border-r shrink-0 overflow-hidden"
-                              style={{ background: 'hsl(230 22% 8%)', borderColor: 'hsl(0 0% 100% / 0.06)' }}
-                            >
-                              <div className="p-4 space-y-3">
-                                <button onClick={startNewChat} className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium transition-colors" style={{ background: 'hsl(174 72% 56% / 0.12)', color: 'hsl(174 72% 56%)' }}>
-                                  <MessageSquarePlus className="w-4 h-4" /> New Chat
-                                </button>
-                              </div>
-                              <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
-                                {chatSessions.map(chat => (
-                                  <div key={chat.id} className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all ${currentChatId === chat.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} style={currentChatId === chat.id ? { background: 'hsl(174 72% 56% / 0.1)' } : {}} onClick={() => loadChat(chat)}>
-                                    <span className="flex-1 text-sm truncate">{chat.title}</span>
-                                    <span className="text-[10px] text-muted-foreground/50">{new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                                  </div>
-                                ))}
-                                {chatSessions.length === 0 && <div className="text-xs text-muted-foreground/40 p-3 text-center">Your saved chats will appear here.</div>}
-                              </div>
-                              <div className="p-3 border-t" style={{ borderColor: 'hsl(0 0% 100% / 0.06)' }}>
-                                <CreditsDisplay onClick={() => setBuyOpen(true)} />
-                              </div>
-                            </motion.aside>
-                          )}
-                        </AnimatePresence>
+                    onClick={() => deleteChat(chat.id)}
+                    className="w-7 h-7 mr-1 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </aside>
 
-                        {/* ═══ MAIN CHAT ═══ */}
-                        <div className="min-w-0 flex flex-1 flex-col h-full">
-                          {/* Top Bar */}
-                          <div className="h-14 shrink-0 flex items-center justify-between px-4 border-b" style={{ background: 'hsl(230 25% 7% / 0.8)', backdropFilter: 'blur(20px)', borderColor: 'hsl(0 0% 100% / 0.06)' }}>
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => setHistoryOpen(v => !v)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
-                                {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
-                              </button>
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(174 72% 56%), hsl(264 67% 60%))' }}>
-                                  <Sparkles className="w-3.5 h-3.5 text-white" />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">Lumina AI</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={startNewChat} className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors text-muted-foreground">
-                                <MessageSquarePlus className="w-3.5 h-3.5" /> New
-                              </button>
-                              <CreditsDisplay onClick={() => setBuyOpen(true)} />
-                              <ManualRestoreButton className="hidden md:inline-flex" />
-                            </div>
-                          </div>
+      {historyOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <div
+            className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
+              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                <Clock3 className="w-3.5 h-3.5" /> History
+              </div>
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
+                title="New chat"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="h-[calc(100%-57px)] overflow-y-auto p-2 space-y-1">
+              {chatSessions.map((chat) => (
+                <button
+                  key={chat.id}
+                  type="button"
+                  onClick={() => loadChat(chat)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="text-sm truncate text-foreground">
+                    {chat.title}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(chat.updated_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </div>
+                </button>
+              ))}
+              {chatSessions.length === 0 && (
+                <div className="text-xs text-muted-foreground p-3">
+                  Your saved chats will appear here.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-                          {/* Messages */}
-                          <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-2 md:px-4">
-                            {empty ? (
-                              <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-                                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: 'linear-gradient(135deg, hsl(174 72% 56% / 0.15), hsl(264 67% 60% / 0.15))', border: '1px solid hsl(174 72% 56% / 0.1)' }}>
-                                    <Sparkles className="w-8 h-8 text-primary" />
-                                  </div>
-                                  <h1 className="text-3xl font-display font-bold text-foreground mb-2">How can I help you study?</h1>
-                                  <p className="text-muted-foreground text-sm max-w-md">Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
-                                </motion.div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-                                  {SUGGESTIONS.map((s, i) => (
-                                    <motion.button key={s} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
-                                      onClick={() => handleSend(s)}
-                                      className="text-left text-sm px-4 py-3 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-                                      style={{ background: 'hsl(230 20% 11% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.06)', boxShadow: '0 4px 16px hsl(0 0% 0% / 0.2)' }}
-                                    >{s}</motion.button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <MessageList messages={messages} loadingStage={loadingStage} onRegenerate={handleRegenerate} onRetry={handleRetry} onEdit={handleEdit} onTopUp={() => setBuyOpen(true)} onConfirmAction={handleConfirmAction} onCancelAction={handleCancelAction} />
-                            )}
+  return (
+    <div style={{ display: 'flex', height: '100%', background: '#0a0a0f', color: '#e4e4e7', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ═══ SIDEBAR ═══ */}
+      <AnimatePresence>
+        {historyOpen && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 280, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="hidden md:flex"
+            style={{ background: '#0d0d12', borderRight: '1px solid rgba(255,255,255,0.06)', flexDirection: 'column', height: '100%', overflow: 'hidden', flexShrink: 0 }}
+          >
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={startNewChat} style={{ display: 'flex', alignItems: 'center', gap: 10, height: 40, padding: '0 12px', borderRadius: 12, background: 'rgba(20,184,166,0.12)', color: '#14b8a6', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center' }}>
+                <MessageSquarePlus style={{ width: 16, height: 16 }} /> New Chat
+              </button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px' }}>
+              {chatSessions.map(chat => (
+                <div key={chat.id} onClick={() => loadChat(chat)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', marginBottom: 2, background: currentChatId === chat.id ? 'rgba(20,184,166,0.1)' : 'transparent', color: currentChatId === chat.id ? '#14b8a6' : '#71717a' }}>
+                  <span style={{ flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chat.title}</span>
+                  <span style={{ fontSize: 10, color: '#52525b', flexShrink: 0 }}>{new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                </div>
+              ))}
+              {chatSessions.length === 0 && <div style={{ textAlign: 'center', padding: 20, fontSize: 12, color: '#3f3f46' }}>Your saved chats will appear here.</div>}
+            </div>
+            <div style={{ padding: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <CreditsDisplay onClick={() => setBuyOpen(true)} />
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
-                            {/* Input */}
-                            <div className="shrink-0 pb-4 pt-2 space-y-2 sticky bottom-0" style={{ background: 'linear-gradient(to top, hsl(230 25% 7%) 60%, transparent)' }}>
-                              <ModelSelector value={model} onChange={setModel} />
-                              <InputBar value={input} onChange={setInput} onSend={t => handleSend(t)} onStop={handleStop} isLoading={loading} onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }} />
-                              <p className="text-[10px] text-center text-muted-foreground/40">Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
-                            </div>
-                          </div>
+      {/* ═══ MAIN CHAT ═══ */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
+        {/* Top Bar */}
+        <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={() => setHistoryOpen(v => !v)} style={{ padding: 8, borderRadius: 8, background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer' }}>
+              {historyOpen ? <PanelLeftClose style={{ width: 16, height: 16 }} /> : <PanelLeftOpen style={{ width: 16, height: 16 }} />}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg, #14b8a6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(20,184,166,0.3)' }}>
+                <Sparkles style={{ width: 14, height: 14, color: '#fff' }} />
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#e4e4e7' }}>Lumina AI</span>
+              <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: 'rgba(20,184,166,0.15)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>PRO</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={startNewChat} className="hidden sm:inline-flex" style={{ display: 'none', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#71717a', cursor: 'pointer', fontSize: 12 }}>
+              <MessageSquarePlus style={{ width: 14, height: 14 }} /> New
+            </button>
+            <CreditsDisplay onClick={() => setBuyOpen(true)} />
+            <ManualRestoreButton className="hidden md:inline-flex" />
+          </div>
+        </div>
 
-                          <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
-                        </div>
-
-                        {canvasOpen && <div className="hidden md:flex flex-[0_0_54%] min-w-0"><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
-                        {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
+        {/* Messages / Empty State */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxWidth: 900, width: '100%', margin: '0 auto', padding: '0 16px' }}>
+          {empty ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ textAlign: 'center', marginBottom: 40 }}>
+                <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg, rgba(20,184,166,0.15), rgba(124,58,237,0.15))', border: '1px solid rgba(20,184,166,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 8px 32px rgba(20,184,166,0.1)' }}>
+                  <Sparkles style={{ width: 32, height: 32, color: '#14b8a6' }} />
+                </div>
+                <h1 style={{ fontSize: 28, fontWeight: 700, color: '#e4e4e7', marginBottom: 8, letterSpacing: '-0.03em', background: 'linear-gradient(135deg, #fff 0%, #a1a1aa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>How can I help you study?</h1>
+                <p style={{ color: '#71717a', fontSize: 14, maxWidth: 400, lineHeight: 1.6 }}>Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
+              </motion.div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, width: '100%', maxWidth: 640 }}>
+                {SUGGESTIONS.map((s, i) => (
+                  <motion.button key={s} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
+                    onClick={() => handleSend(s)}
+                    style={{ textAlign: 'left', padding: 16, borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', color: '#e4e4e7', fontSize: 13 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(20,184,166,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Zap style={{ width: 16, height: 16, color: '#14b8a6' }} />
                       </div>
-                    );
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{s}</span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <MessageList messages={messages} loadingStage={loadingStage} onRegenerate={handleRegenerate} onRetry={handleRetry} onEdit={handleEdit} onTopUp={() => setBuyOpen(true)} onConfirmAction={handleConfirmAction} onCancelAction={handleCancelAction} />
+          )}
+
+          {/* Input Area */}
+          <div style={{ flexShrink: 0, padding: '8px 0 16px', background: 'linear-gradient(to top, #0a0a0f 70%, transparent)' }}>
+            <ModelSelector value={model} onChange={setModel} />
+            <InputBar value={input} onChange={setInput} onSend={t => handleSend(t)} onStop={handleStop} isLoading={loading} onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }} />
+            <p style={{ fontSize: 10, textAlign: 'center', color: '#3f3f46', marginTop: 8 }}>Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
+          </div>
+        </div>
+
+        <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
+      </div>
+
+      {canvasOpen && <div className="hidden md:flex" style={{ flex: '0 0 54%', minWidth: 0 }}><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
+      {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
+    </div>
+  );
+    </div>
+  );
 };
 
 export default ChatPage;
