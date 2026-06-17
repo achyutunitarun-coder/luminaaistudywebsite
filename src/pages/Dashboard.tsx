@@ -27,7 +27,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Show onboarding if user hasn't completed it
-    if (profile && !profile.onboarding_completed && !profile.extra_preferences) {
+    if (profile && !profile.extra_preferences) {
       setShowOnboarding(true);
     }
   }, [profile]);
