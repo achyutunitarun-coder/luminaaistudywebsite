@@ -34,8 +34,6 @@ const Dashboard = () => {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    // Refresh profile to reflect onboarding completion
-    window.location.reload();
   };
 
   const userPrefs = useMemo(() => {

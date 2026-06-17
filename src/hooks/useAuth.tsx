@@ -21,42 +21,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    let initialized = false;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+      initialized = true;
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      
+      // Skip duplicate initial event
+      if (!initialized && event === 'INITIAL_SESSION') {
+        initialized = true;
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Check onboarding status for new signups
       if (event === 'SIGNED_IN' && session?.user) {
         setTimeout(async () => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('extra_preferences')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-          
-          const prefs = profile?.extra_preferences;
-          let onboarded = false;
-          if (prefs) {
-            try {
-              const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
-              onboarded = !!parsed?.onboarded;
-            } catch {}
-          }
-          if (!onboarded) {
-            setNeedsOnboarding(true);
-          }
+          if (!isMounted) return;
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('extra_preferences')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            const prefs = profile?.extra_preferences;
+            let onboarded = false;
+            if (prefs) {
+              try {
+                const parsed = typeof prefs === 'string' ? JSON.parse(prefs) : prefs;
+                onboarded = !!parsed?.onboarded;
+              } catch {}
+            }
+            if (!onboarded) setNeedsOnboarding(true);
+          } catch {}
         }, 500);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

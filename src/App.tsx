@@ -50,7 +50,15 @@ import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const PaymentReturnHandler = () => {
   usePaymentReturn();
