@@ -107,10 +107,22 @@ function extractTopic(message: string, intent: Intent): string {
 }
 
 export function detectIntent(message: string): IntentResult {
-  const text = (message ?? '').toLowerCase();
+  const text = (message ?? '').toLowerCase().trim();
 
-  if (!text.trim()) {
+  if (!text) {
     return { intent: 'CHAT', confidence: 1, topic: '' };
+  }
+
+  // Short messages (< 5 words) without explicit creation verbs → always CHAT
+  const wordCount = text.split(/\s+/).length;
+  const hasCreationVerb = /\b(create|generate|build|make|design|produce|write|draft|develop|code|compose)\b/i.test(text);
+  if (wordCount < 5 && !hasCreationVerb) {
+    return { intent: 'CHAT', confidence: 1, topic: message.trim() };
+  }
+
+  // Questions → always CHAT
+  if (/^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did|will|have|has|had)\b/i.test(text) || text.includes('?')) {
+    return { intent: 'CHAT', confidence: 1, topic: message.trim() };
   }
 
   const scores: Record<Exclude<Intent, 'CHAT'>, number> = {

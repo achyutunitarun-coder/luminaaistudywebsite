@@ -787,9 +787,23 @@ Q3: ... || A: ...
           }
 
           if (action && action.kind === "artifact") {
-            setLoadingStage(`Queueing your ${action.type}…`);
-            await runArtifact(action.type, action.topic, text, chatId, history.slice(-6).map((m) => m.id));
-            return;
+            // Secondary safety check: only trigger artifact for explicit creation requests.
+            // The LLM planner can misclassify questions/conversations as artifacts.
+            const lowerText = text.toLowerCase().trim();
+            const creationVerbs = /\b(create|generate|build|make|design|produce|write|draft|develop|code|compose)\b/;
+            const deliverableNouns = /\b(notes|study\s*guide|exam|quiz|test|slides?|presentation|deck|worksheet|flashcards?|mind\s*map|concept\s*map|cheat\s*sheet|formula\s*sheet|question\s*bank|app|website|game|dashboard|calculator|simulator|visualization|interactive|playground|demo|prototype|ui|mockup|landing\s*page|one-pager|report|essay|summary|revision\s*sheet|infographic)\b/;
+            const isQuestion = /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did|will|have|has|had)\b/i.test(lowerText) || lowerText.includes("?");
+            const isGreeting = /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what'?s?\s*up|greetings)\b/i.test(lowerText) && lowerText.length < 20;
+            const hasCreationIntent = creationVerbs.test(lowerText) && deliverableNouns.test(lowerText);
+
+            if (!hasCreationIntent || isQuestion || isGreeting) {
+              console.warn("[artifact] blocked: no explicit creation intent in:", lowerText.slice(0, 80));
+              // Fall through to normal chat instead
+            } else {
+              setLoadingStage(`Queueing your ${action.type}…`);
+              await runArtifact(action.type, action.topic, text, chatId, history.slice(-6).map((m) => m.id));
+              return;
+            }
           }
 
           if (action && action.kind === "navigate") {
