@@ -48,6 +48,7 @@ import Landing from "@/pages/Landing";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
+import { ProductionUI } from "@/components/ProductionUI";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -100,6 +101,7 @@ const AuthRoute = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ProductionUI />
     <TooltipProvider>
       <OfflineBanner />
       <Toaster />
