@@ -9,8 +9,6 @@ import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
-import Onboarding from "@/components/Onboarding";
-import { TutorialOverlay } from "@/components/TutorialOverlay";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/features/chat/ChatPage";
@@ -60,7 +58,7 @@ const PaymentReturnHandler = () => {
 };
 
 const ProtectedLayout = () => {
-  const { user, loading, needsOnboarding, setNeedsOnboarding } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -72,17 +70,9 @@ const ProtectedLayout = () => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Note: '/' is the public landing. Authenticated users land on /dashboard.
-
   return (
     <SubscriptionProvider>
       <StudyTimerProvider>
-        {needsOnboarding && (
-          <Onboarding onComplete={() => setNeedsOnboarding(false)} />
-        )}
-        {/* Tutorial only renders once after onboarding is complete (gated
-            internally by localStorage + onboarded flag). */}
-        {!needsOnboarding && <TutorialOverlay />}
         <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
