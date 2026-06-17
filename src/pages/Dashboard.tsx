@@ -577,7 +577,9 @@ const Dashboard = () => {
 
     {/* Onboarding Tutorial */}
     {showOnboarding && <OnboardingTutorial onComplete={handleOnboardingComplete} />}
+    </>
   );
 };
+
 
 export default Dashboard;
