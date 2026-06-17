@@ -22,28 +22,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let isMounted = true;
-    let initialized = false;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      initialized = true;
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
-      
-      // Skip duplicate initial event
-      if (!initialized && event === 'INITIAL_SESSION') {
-        initialized = true;
-        return;
-      }
-      
+
+      // INITIAL_SESSION is already handled by getSession() above — ignore it
+      // to prevent a second render that remounts the entire app tree.
+      if (event === 'INITIAL_SESSION') return;
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
 
       if (event === 'SIGNED_IN' && session?.user) {
         setTimeout(async () => {

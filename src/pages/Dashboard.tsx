@@ -27,7 +27,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Show onboarding if user hasn't completed it
-    if (profile && !profile.onboarding_completed && !profile.extra_preferences) {
+    if (profile && !profile.extra_preferences) {
       setShowOnboarding(true);
     }
   }, [profile]);
@@ -166,7 +166,9 @@ const Dashboard = () => {
     : { text: 'Start a focused study session to build momentum and earn XP.', label: 'Start Session', url: '/study-session' };
 
   return (
+    <>
     <div className="max-w-6xl mx-auto space-y-6">
+
       {/* ═══ HERO: AI Neural Insight Panel ═══ */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
@@ -575,7 +577,9 @@ const Dashboard = () => {
 
     {/* Onboarding Tutorial */}
     {showOnboarding && <OnboardingTutorial onComplete={handleOnboardingComplete} />}
+    </>
   );
 };
+
 
 export default Dashboard;
