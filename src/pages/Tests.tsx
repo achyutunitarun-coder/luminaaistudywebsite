@@ -131,12 +131,15 @@ const Tests = () => {
       console.error('Failed to award XP/coins:', err);
     }
     
-    // Track mistakes for weakness radar
+    // Track mistakes for weakness radar — extract topic from question
     questions.forEach((q, i) => {
       if (answers[i] !== undefined && answers[i] !== q.correct) {
+        // Extract a short topic from the question (first 5-8 words, cleaned)
+        const topicWords = q.question.replace(/[?!.]/g, '').split(/\s+/).slice(0, 6).join(' ');
+        const topic = topicWords.length > 50 ? topicWords.slice(0, 50) + '...' : topicWords;
         supabase.from('mistakes').insert({
           user_id: user.id,
-          topic: q.question.slice(0, 100),
+          topic: topic || 'General Concept',
           subject: subject || 'General',
           mistake_type: 'conceptual',
           question: q.question,

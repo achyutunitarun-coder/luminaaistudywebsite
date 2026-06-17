@@ -48,11 +48,31 @@ const WeaknessRadar = () => {
     : 0;
 
   const mistakesByTopic = mistakes?.reduce((acc, m) => {
-    acc[m.topic] = (acc[m.topic] || 0) + 1;
+    const key = m.topic || 'General Concept';
+    if (!acc[key]) acc[key] = { count: 0, subject: m.subject || 'General', questions: [] };
+    acc[key].count++;
+    if (m.question) acc[key].questions.push(m.question.slice(0, 80));
     return acc;
-  }, {} as Record<string, number>) || {};
+  }, {} as Record<string, { count: number; subject: string; questions: string[] }>) || {};
 
-  const topMistakes = Object.entries(mistakesByTopic).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topMistakes = Object.entries(mistakesByTopic)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 5)
+    .map(([topic, data]) => ({ topic, ...data }));
+
+  // Group by subject for concept analysis
+  const mistakesBySubject = mistakes?.reduce((acc, m) => {
+    const sub = m.subject || 'General';
+    if (!acc[sub]) acc[sub] = { count: 0, topics: new Set<string>() };
+    acc[sub].count++;
+    if (m.topic) acc[sub].topics.add(m.topic);
+    return acc;
+  }, {} as Record<string, { count: number; topics: Set<string> }>) || {};
+
+  const weakSubjects = Object.entries(mistakesBySubject)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 3)
+    .map(([subject, data]) => ({ subject, count: data.count, topics: Array.from(data.topics).slice(0, 3) }));
 
   // Build weakness flowchart
   const weaknessNodes: FlowNode[] = [
@@ -183,18 +203,25 @@ const WeaknessRadar = () => {
               <AlertTriangle className="w-4 h-4 text-warning" /> Mistake Patterns
             </h2>
             <div className="space-y-3">
-              {topMistakes.map(([topic, count], i) => (
-                <div key={topic} className="flex items-center gap-4">
-                  <span className="text-sm text-muted-foreground w-36 truncate">{topic}</span>
-                  <div className="flex-1 h-2.5 rounded-full bg-muted/20 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((count / (topMistakes[0]?.[1] || 1)) * 100, 100)}%` }}
-                      transition={{ delay: i * 0.1, duration: 0.6 }}
-                      className="h-full rounded-full bg-warning"
-                    />
+              {topMistakes.map((m, i) => (
+                <div key={m.topic} className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-foreground truncate">{m.topic}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">{m.subject}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 rounded-full bg-muted/20 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min((m.count / (topMistakes[0]?.count || 1)) * 100, 100)}%` }}
+                          transition={{ delay: i * 0.1, duration: 0.6 }}
+                          className="h-full rounded-full bg-gradient-to-r from-warning to-amber-500"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-foreground w-8 text-right shrink-0">{m.count}</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-bold text-foreground w-8 text-right">{count}</span>
                 </div>
               ))}
             </div>
