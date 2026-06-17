@@ -237,7 +237,7 @@ const DoubtSolver = () => {
           {/* Input Area */}
           <div className="border-t border-border/10 p-4 bg-card/20">
             <div className="flex gap-2">
-              <FileUploadButton onFilesChange={setUploadedFiles} />
+              <FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} />
               <Input
                 value={input}
                 onChange={e => setInput(e.target.value)}
