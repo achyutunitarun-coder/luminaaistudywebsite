@@ -166,7 +166,9 @@ const Dashboard = () => {
     : { text: 'Start a focused study session to build momentum and earn XP.', label: 'Start Session', url: '/study-session' };
 
   return (
+    <>
     <div className="max-w-6xl mx-auto space-y-6">
+
       {/* ═══ HERO: AI Neural Insight Panel ═══ */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
