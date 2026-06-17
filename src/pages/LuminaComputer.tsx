@@ -929,32 +929,53 @@ export default function LuminaComputer() {
       />
 
       {/* Top bar */}
-      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b flex-shrink-0" style={{ background: 'hsl(230 25% 6% / 0.85)', backdropFilter: 'blur(24px)', borderColor: 'hsl(0 0% 100% / 0.06)' }}>
+      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b border-white/[0.08] bg-[#0b0b0f]/80 backdrop-blur-xl flex-shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(174 72% 56%), hsl(264 67% 60%))', boxShadow: '0 2px 8px hsl(174 72% 56% / 0.25)' }}>
-            <Cpu className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm">
+            <Cpu className="w-4 h-4 text-black" />
           </div>
           <div>
-            <div className="text-[14px] font-semibold tracking-tight text-foreground">Lumina Computer</div>
-            <div className="text-[11px] text-muted-foreground/50 -mt-0.5">{busy ? "Working…" : model ? model.split("/").pop() : "Idle"}</div>
+            <div className="text-[14px] font-semibold tracking-tight text-white">
+              Lumina Computer
+            </div>
+            <div className="text-[11px] text-white/40 -mt-0.5">
+              {busy ? "Working…" : model ? model.split("/").pop() : "Idle"}
+            </div>
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
           {busy && (
-            <button onClick={stop} className="flex items-center gap-1.5 px-3 h-9 rounded-full text-[13px] transition" style={{ background: 'hsl(0 0% 100% / 0.06)', color: 'hsl(210 20% 80%)' }}>
+            <button
+              onClick={stop}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
+            >
               <Square className="w-3 h-3 fill-current" /> Stop
             </button>
           )}
-          <button onClick={reset} className="flex items-center gap-1.5 px-3 h-9 rounded-full text-[13px] transition" style={{ background: 'hsl(0 0% 100% / 0.06)', color: 'hsl(210 20% 80%)' }}>
+          <button
+            onClick={reset}
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
+          >
             <Plus className="w-3.5 h-3.5" /> New
           </button>
-          <div title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling" className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full text-[13px]" style={{ background: 'hsl(142 71% 45% / 0.08)', border: '1px solid hsl(142 71% 45% / 0.2)', color: 'hsl(142 71% 60%)' }}>
+          <div
+            title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling"
+            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-emerald-400/[0.08] border border-emerald-400/20 text-emerald-200 text-[13px]"
+          >
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Factory
           </div>
-          <button onClick={() => setPreviewOpen((v) => !v)} className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${previewOpen ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-foreground hover:bg-white/[0.06]'}`} style={!previewOpen ? { background: 'hsl(0 0% 100% / 0.08)' } : {}}>
-            <Eye className="w-3.5 h-3.5" /> Preview
+          <button
+            onClick={() => setPreviewOpen((v) => !v)}
+            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
+              previewOpen
+                ? "bg-white text-black hover:bg-white/90"
+                : "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Preview
           </button>
         </div>
       </header>
@@ -962,10 +983,10 @@ export default function LuminaComputer() {
       {/* Body */}
       <div className="relative z-10 flex-1 grid grid-cols-[260px_1fr] min-h-0">
         {/* File explorer */}
-        <aside className="border-r flex flex-col min-h-0" style={{ background: 'hsl(230 20% 8%)', borderColor: 'hsl(0 0% 100% / 0.06)' }}>
-          <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'hsl(0 0% 100% / 0.06)' }}>
-            <FolderOpen className="w-3.5 h-3.5 text-muted-foreground/40" />
-            <span className="text-[12px] font-medium text-muted-foreground/70">Files</span>
+        <aside className="border-r border-white/[0.06] bg-[#0e0e12] flex flex-col min-h-0">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+            <FolderOpen className="w-3.5 h-3.5 text-white/40" />
+            <span className="text-[12px] font-medium text-white/70">Files</span>
             {files.length > 0 && (
               <span className="ml-1 text-[11px] text-white/30">{files.length}</span>
             )}

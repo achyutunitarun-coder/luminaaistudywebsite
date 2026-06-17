@@ -112,7 +112,7 @@ const SidebarNav = memo(({ collapsed, isMobile, pathname, onCloseMobile }: Sideb
     {sidebarSections.map((section) => (
       <div key={section.label}>
         {(!collapsed || isMobile) && (
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold px-3 mb-1.5">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70 font-semibold px-3 mb-1.5">
             {section.label}
           </p>
         )}
@@ -217,12 +217,12 @@ export const AppSidebarContent = memo(
         <div className="px-4 pb-3 space-y-2 flex-shrink-0">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-1.5 text-xs">
-              <Flame className="w-3.5 h-3.5 text-warning" />
-              <span className="text-warning font-semibold tabular-nums">{profile.streak_days}</span>
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span className="text-orange-300 font-semibold tabular-nums">{profile.streak_days}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs">
-              <Coins className="w-3.5 h-3.5 text-xp" />
-              <span className="text-xp font-semibold tabular-nums">{profile.coins}</span>
+              <Coins className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-amber-300 font-semibold tabular-nums">{profile.coins}</span>
             </div>
           </div>
           <button
