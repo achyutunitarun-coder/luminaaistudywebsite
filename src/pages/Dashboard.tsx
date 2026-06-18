@@ -167,7 +167,7 @@ const Dashboard = () => {
 
   return (
     <>
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-5">
 
       {/* ═══ HERO: AI Neural Insight Panel ═══ */}
       <motion.div
@@ -176,16 +176,16 @@ const Dashboard = () => {
         transition={{ duration: 0.5, ease }}
         className="relative rounded-3xl overflow-hidden surface-glass"
       >
-        <div className="absolute w-[500px] h-[500px] rounded-full bg-primary/[0.06] blur-[100px] -top-32 -right-32" />
-        <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/[0.04] blur-[80px] -bottom-24 -left-24" />
+        <div className="absolute w-[500px] h-[500px] rounded-full bg-teal-400/[0.06] blur-[100px] -top-32 -right-32" />
+        <div className="absolute w-[400px] h-[400px] rounded-full bg-violet-500/[0.04] blur-[80px] -bottom-24 -left-24" />
 
         <div className="relative z-10 p-8 md:p-10">
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
             <div className="flex-1 min-w-0 space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/15 bg-primary/[0.08]">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <Brain className="w-3.5 h-3.5 text-primary" />
-                <span className="text-[11px] font-semibold text-primary uppercase tracking-widest">Neural Insight</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-teal-400/15 bg-teal-400/[0.08]">
+                <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                <Brain className="w-3.5 h-3.5 text-teal-400" />
+                <span className="text-[11px] font-semibold text-teal-400 uppercase tracking-widest">Neural Insight</span>
               </div>
 
               <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
@@ -229,9 +229,9 @@ const Dashboard = () => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border backdrop-blur-sm ${
-                        score >= 70 ? 'bg-success/8 text-success border-success/15' :
-                        score >= 50 ? 'bg-warning/8 text-warning border-warning/15' :
-                        'bg-destructive/8 text-destructive border-destructive/15'
+                        score >= 70 ? 'bg-emerald-500/8 text-emerald-400 border-emerald-500/15' :
+                        score >= 50 ? 'bg-amber-500/8 text-amber-400 border-amber-500/15' :
+                        'bg-red-500/8 text-red-400 border-red-500/15'
                       }`}
                     >
                       <span className="capitalize">{sub}</span>
