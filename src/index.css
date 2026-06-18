@@ -14,66 +14,63 @@
 /* ═══ CSS Variables — Design Token System ═══ */
 @layer base {
   :root {
-    /* Base Palette (Dark Mode Default) */
-    --background: 240 10% 4%;           /* #0A0A0F — deepest background */
-    --foreground: 240 5% 94%;            /* #F0F0F5 — primary text */
+    /* ═══ Core Canvas — The Void System ═══ */
+    --background: 240 15% 2%;            /* #050508 — deepest void */
+    --foreground: 240 5% 95%;             /* #F2F2F7 — primary text (never pure white) */
 
-    --card: 240 8% 8%;                 /* #12121A — cards, panels */
-    --card-foreground: 240 5% 94%;         /* #F0F0F5 */
+    --card: 240 10% 6%;                 /* #0E0E14 — primary panels */
+    --card-foreground: 240 5% 95%;          /* #F2F2F7 */
 
-    --popover: 240 8% 8%;              /* #12121A */
-    --popover-foreground: 240 5% 94%;
+    --popover: 240 10% 6%;              /* #0E0E14 */
+    --popover-foreground: 240 5% 95%;
 
-    /* Primary Accent — Violet Aurora */
-    --primary: 262 83% 58%;             /* #7C3AED — primary actions */
-    --primary-foreground: 240 10% 4%;   /* #0A0A0F — text on accent */
+    /* ═══ The Lumina Aura — Violet-Indigo ═══ */
+    --primary: 270 76% 60%;              /* #8B5CF6 — aura primary */
+    --primary-foreground: 240 15% 2%;    /* #050508 — text on accent */
 
-    /* Secondary — Lighter violet */
-    --secondary: 258 67% 75%;           /* #A78BFA */
-    --secondary-foreground: 240 10% 4%;
+    --secondary: 262 67% 76%;           /* #A78BFA — aura light */
+    --secondary-foreground: 240 15% 2%;
 
-    /* Muted — for less important elements */
-    --muted: 240 6% 10%;               /* #1A1A25 */
-    --muted-foreground: 240 5% 53%;   /* #8A8AA3 */
+    /* ═══ Surface Layers ═══ */
+    --muted: 240 8% 10%;                /* #16161F — elevated cards */
+    --muted-foreground: 240 5% 58%;    /* #9494A8 — secondary text */
 
-    /* Accent (hover states) */
-    --accent: 258 67% 75%;              /* #A78BFA */
-    --accent-foreground: 240 5% 94%;
+    --accent: 262 67% 76%;               /* #A78BFA — hover accents */
+    --accent-foreground: 240 5% 95%;
 
-    /* Destructive */
-    --destructive: 0 72% 51%;          /* #EF4444 */
-    --destructive-foreground: 240 5% 94%;
+    /* ═══ Semantic ═══ */
+    --destructive: 0 72% 51%;           /* #EF4444 */
+    --destructive-foreground: 240 5% 95%;
 
-    /* Success / Warning / Info */
-    --success: 160 84% 39%;             /* #10B981 */
-    --success-foreground: 240 10% 4%;
-    --warning: 38 92% 50%;              /* #F59E0B */
-    --warning-foreground: 240 10% 4%;
-    --xp: 47 100% 62%;                  /* #FBBF24 */
-    --xp-foreground: 240 10% 4%;
+    --success: 160 84% 39%;              /* #10B981 */
+    --success-foreground: 240 15% 2%;
+    --warning: 38 92% 50%;               /* #F59E0B */
+    --warning-foreground: 240 15% 2%;
+    --xp: 45 93% 58%;                   /* #FBBF24 — warm gold */
+    --xp-foreground: 240 15% 2%;
 
-    /* Borders & Inputs */
-    --border: 240 6% 14%;               /* rgba(255,255,255,0.06) approx */
-    --input: 240 6% 10%;               /* #1A1A25 */
-    --ring: 262 83% 58%;               /* #7C3AED */
+    /* ═══ Borders & Inputs ═══ */
+    --border: 240 6% 12%;                /* rgba(255,255,255,0.06) */
+    --input: 240 8% 10%;                /* #16161F */
+    --ring: 270 76% 60%;                /* #8B5CF6 */
 
-    /* Radius */
-    --radius: 0.625rem;                 /* 10px */
+    /* ═══ Radius ═══ */
+    --radius: 0.625rem;                  /* 10px */
 
-    /* Glow Effects */
-    --glow-primary: 0 0 20px rgba(124, 58, 237, 0.15);
+    /* ═══ Glow Effects ═══ */
+    --glow-primary: 0 0 20px rgba(139, 92, 246, 0.20);
     --glow-secondary: 0 0 20px rgba(167, 139, 250, 0.12);
-    --glow-xp: 0 0 20px rgba(251, 191, 36, 0.15);
+    --glow-xp: 0 0 20px rgba(251, 191, 36, 0.12);
 
-    /* Sidebar */
-    --sidebar-background: 240 8% 6%;    /* #0F0F14 */
-    --sidebar-foreground: 240 5% 94%;
-    --sidebar-primary: 262 83% 58%;
-    --sidebar-primary-foreground: 240 10% 4%;
-    --sidebar-accent: 240 6% 10%;
-    --sidebar-accent-foreground: 240 5% 94%;
-    --sidebar-border: 240 6% 12%;
-    --sidebar-ring: 262 83% 58%;
+    /* ═══ Sidebar ═══ */
+    --sidebar-background: 240 10% 5%;    /* #0E0E14 */
+    --sidebar-foreground: 240 5% 95%;
+    --sidebar-primary: 270 76% 60%;
+    --sidebar-primary-foreground: 240 15% 2%;
+    --sidebar-accent: 240 8% 10%;
+    --sidebar-accent-foreground: 240 5% 95%;
+    --sidebar-border: 240 6% 10%;
+    --sidebar-ring: 270 76% 60%;
 
     /* Typography */
     --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
