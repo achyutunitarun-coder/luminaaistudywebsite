@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "sans-serif"],
-        sans: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "sans-serif"],
+        display: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         ui: ["'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
         body: ["'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
