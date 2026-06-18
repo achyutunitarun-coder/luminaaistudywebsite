@@ -174,7 +174,7 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease }}
-        className="relative rounded-3xl overflow-hidden glass"
+        className="relative rounded-3xl overflow-hidden surface-glass"
       >
         <div className="absolute w-[500px] h-[500px] rounded-full bg-primary/[0.06] blur-[100px] -top-32 -right-32" />
         <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/[0.04] blur-[80px] -bottom-24 -left-24" />
@@ -190,7 +190,7 @@ const Dashboard = () => {
 
               <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
                 {avgScore !== null ? (
-                  <span className="flex items-center gap-3">
+                  <span className="flex items-center gap-3 flex-wrap">
                     {avgScore >= 70 ? `Strong progress, ${userName}` : `Building momentum, ${userName}`}
                     {scoreTrend !== null && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${
@@ -253,7 +253,7 @@ const Dashboard = () => {
             {/* Readiness Ring */}
             <div className="flex-shrink-0 flex flex-col items-center gap-3">
               <div className="relative w-32 h-32">
-                <div className="absolute inset-0 rounded-full opacity-20 blur-xl gradient-primary" />
+                <div className="absolute inset-0 rounded-full opacity-20 blur-xl bg-gradient-to-br from-primary to-secondary" />
                 <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted) / 0.3)" strokeWidth="5" />
                   <motion.circle
@@ -266,8 +266,8 @@ const Dashboard = () => {
                   />
                   <defs>
                     <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#8B5CF6" />
-                      <stop offset="50%" stopColor="#6366F1" />
+                      <stop offset="0%" stopColor="hsl(var(--primary))" />
+                      <stop offset="50%" stopColor="hsl(var(--secondary))" />
                       <stop offset="100%" stopColor="#3B82F6" />
                     </linearGradient>
                   </defs>
@@ -285,21 +285,21 @@ const Dashboard = () => {
       {/* ═══ STATS ═══ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/100 XP`, color: 'text-xp', bg: 'from-xp/10 to-xp/5', glow: 'shadow-xp/10' },
-          { icon: Flame, label: 'Streak', value: `${streakDays}d`, sub: streakDays >= 7 ? '🔥 Unstoppable' : streakDays >= 3 ? '🔥 On fire' : 'Build it up', color: 'text-warning', bg: 'from-warning/10 to-warning/5', glow: 'shadow-warning/10' },
-          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, sub: totalToday >= 60 ? 'Deep work' : totalToday > 0 ? 'Getting started' : 'Not yet', color: 'text-primary', bg: 'from-primary/10 to-primary/5', glow: 'shadow-primary/10' },
-          { icon: Target, label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', sub: `${recentTests?.length || 0} tests`, color: 'text-secondary', bg: 'from-secondary/10 to-secondary/5', glow: 'shadow-secondary/10' },
+          { icon: Trophy, label: 'Level', value: profile.level, sub: `${profile.xp % 100}/100 XP`, color: 'text-amber-400', bg: 'from-amber-400/10 to-amber-400/5' },
+          { icon: Flame, label: 'Streak', value: `${streakDays}d`, sub: streakDays >= 7 ? '🔥 Unstoppable' : streakDays >= 3 ? '🔥 On fire' : 'Build it up', color: 'text-orange-400', bg: 'from-orange-400/10 to-orange-400/5' },
+          { icon: Clock, label: 'Today', value: `${hrs}h ${mins}m`, sub: totalToday >= 60 ? 'Deep work' : totalToday > 0 ? 'Getting started' : 'Not yet', color: 'text-primary', bg: 'from-primary/10 to-primary/5' },
+          { icon: Target, label: 'Avg Score', value: avgScore !== null ? `${avgScore}%` : '—', sub: `${recentTests?.length || 0} tests`, color: 'text-secondary', bg: 'from-secondary/10 to-secondary/5' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.06, ease }}
-            className="stat-card card-hover cursor-default overflow-hidden group"
+            className="stat-card surface-interactive cursor-default overflow-hidden group"
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
             <div className="relative z-10 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.bg} flex items-center justify-center shadow-lg ${stat.glow}`}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.bg} flex items-center justify-center`}>
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
               <div>
@@ -318,7 +318,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, ease }}
-          className="rounded-3xl relative overflow-hidden glass"
+          className="rounded-3xl relative overflow-hidden surface-glass"
         >
           <div className="absolute w-[400px] h-[400px] rounded-full bg-violet-500/[0.06] blur-[80px] -top-20 -right-20" />
           <div className="p-6 md:p-8 relative z-10">
@@ -452,7 +452,7 @@ const Dashboard = () => {
           {[
             { name: 'AI Chat', desc: 'Ask anything', icon: MessageSquare, url: '/chat', gradient: 'from-primary/12 to-primary/4', iconColor: 'text-primary' },
             { name: 'Generate Test', desc: userSubjects[0] ? `Try ${userSubjects[0]}` : 'Any topic', icon: Target, url: '/tests', gradient: 'from-secondary/12 to-secondary/4', iconColor: 'text-secondary' },
-            { name: 'Brain Hub', desc: '10 brain engines', icon: Brain, url: '/hub', gradient: 'from-xp/12 to-xp/4', iconColor: 'text-xp' },
+            { name: 'Brain Hub', desc: '10 brain engines', icon: Brain, url: '/hub', gradient: 'from-amber-400/12 to-amber-400/4', iconColor: 'text-amber-400' },
             { name: 'All Tools', desc: '9 AI tools', icon: Sparkles, url: '/ai-tools', gradient: 'from-primary/8 to-secondary/8', iconColor: 'text-primary' },
           ].map((action, i) => (
             <motion.button
@@ -463,7 +463,7 @@ const Dashboard = () => {
               whileHover={{ y: -3, scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate(action.url)}
-              className="rounded-2xl p-5 text-left transition-all duration-300 group overflow-hidden relative bg-card border border-white/[0.04]"
+              className="rounded-2xl p-5 text-left transition-all duration-300 group overflow-hidden relative surface-interactive"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
               <div className="relative z-10">
@@ -483,7 +483,7 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, ease }}
-        className="rounded-3xl p-6 relative overflow-hidden glass"
+        className="rounded-3xl p-6 relative overflow-hidden surface-glass"
       >
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">
@@ -522,7 +522,7 @@ const Dashboard = () => {
                     animate={{ height: `${height}%` }}
                     transition={{ duration: 0.8, delay: 0.15 * i, ease }}
                     className={`w-full max-w-[36px] rounded-lg ${
-                      dayMins > 0 ? 'gradient-primary shadow-lg shadow-primary/10' : 'bg-muted/15'
+                      dayMins > 0 ? 'bg-gradient-to-t from-primary to-secondary shadow-lg shadow-primary/10' : 'bg-muted/15'
                     } ${today ? 'ring-2 ring-primary/25 ring-offset-2 ring-offset-background' : ''}`}
                   />
                   <span className={`text-[10px] font-medium ${today ? 'text-primary font-semibold' : 'text-muted-foreground/50'}`}>{day}</span>

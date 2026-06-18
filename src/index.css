@@ -1,10 +1,9 @@
 /*
  * LUMINA AI — Design System
- * "Cognitive Clarity" — Linear + Notion + Apple DNA
- * Dark-first, violet-aurora accent, glassmorphic surfaces
+ * Matches the landing page's beautiful teal+violet palette
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -12,47 +11,44 @@
 
 @layer base {
   :root {
-    /* Core Canvas */
-    --background: 240 15% 2%;        /* #0A0A0F */
-    --foreground: 240 5% 95%;         /* #F0F0F5 */
+    /* Core Canvas — matches landing page #07080d */
+    --background: 240 15% 2%;
+    --foreground: 240 5% 95%;
 
-    --card: 240 10% 6%;              /* #12121A */
+    --card: 240 10% 6%;
     --card-foreground: 240 5% 95%;
 
     --popover: 240 10% 6%;
     --popover-foreground: 240 5% 95%;
 
-    /* Lumina Aura — Violet */
-    --primary: 270 76% 60%;          /* #7C3AED */
+    /* Violet accent — matches landing page #a855f7 */
+    --primary: 263 70% 50%;          /* #7C3AED violet */
     --primary-foreground: 240 15% 2%;
 
-    --secondary: 262 67% 76%;        /* #A78BFA */
+    --secondary: 174 65% 52%;        /* #14b8a6 */
     --secondary-foreground: 240 15% 2%;
 
     /* Surface Layers */
-    --muted: 240 8% 10%;             /* #1A1A25 */
-    --muted-foreground: 240 5% 58%;  /* #8A8AA3 */
+    --muted: 240 8% 10%;
+    --muted-foreground: 240 5% 58%;
 
-    --accent: 270 76% 60%;
+    --accent: 263 70% 50%;
     --accent-foreground: 240 15% 2%;
 
     --destructive: 0 62% 51%;
     --destructive-foreground: 240 5% 95%;
 
-    --success: 142 71% 45%;          /* #10B981 */
-    --warning: 38 92% 50%;           /* #F59E0B */
-    --info: 217 91% 60%;             /* #3B82F6 */
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --info: 217 91% 60%;
 
     --border: 240 8% 14%;
     --input: 240 8% 14%;
-    --ring: 270 76% 60%;
+    --ring: 263 70% 50%;
 
-    --radius: 0.625rem;
-
-    /* Sidebar */
     --sidebar-background: 240 12% 5%;
     --sidebar-foreground: 240 5% 95%;
-    --sidebar-primary: 270 76% 60%;
+    --sidebar-primary: 263 70% 50%;
     --sidebar-primary-foreground: 240 15% 2%;
     --sidebar-accent: 240 8% 10%;
     --sidebar-accent-foreground: 240 5% 95%;
@@ -61,14 +57,8 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  html, body, #root {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
+  * { @apply border-border; }
+  html, body, #root { height: 100%; margin: 0; padding: 0; }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -93,11 +83,7 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
- * UTILITY CLASSES — Design System Primitives
- * ═══════════════════════════════════════════════════════════════ */
 @layer components {
-  /* Card surface */
   .surface {
     @apply rounded-2xl border border-white/[0.04] bg-card shadow-[0_4px_12px_rgba(0,0,0,0.4)];
   }
@@ -108,7 +94,6 @@
     @apply rounded-2xl border border-white/[0.06] bg-card/80 backdrop-blur-xl backdrop-saturate-[180%] shadow-[0_12px_40px_rgba(0,0,0,0.5)];
   }
 
-  /* Buttons */
   .btn-primary {
     @apply h-9 px-4 rounded-[6px] text-[13px] font-semibold text-primary-foreground bg-primary shadow-[0_0_20px_rgba(124,58,237,0.15)] hover:brightness-110 active:scale-[0.98] transition-all inline-flex items-center justify-center gap-1.5;
   }
@@ -122,7 +107,6 @@
     @apply h-9 px-4 rounded-[6px] text-[13px] font-medium text-destructive bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground transition-all inline-flex items-center justify-center gap-1.5;
   }
 
-  /* Badges */
   .badge {
     @apply inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-medium;
   }
@@ -139,7 +123,6 @@
     @apply badge text-muted-foreground bg-muted border border-white/[0.06];
   }
 
-  /* Section header */
   .section-header {
     @apply flex items-center gap-2.5 mb-4;
   }
@@ -150,7 +133,6 @@
     @apply text-lg font-semibold text-foreground;
   }
 
-  /* Stat card */
   .stat-card {
     @apply rounded-2xl border border-white/[0.04] bg-card p-5 relative overflow-hidden;
   }
@@ -164,7 +146,6 @@
     @apply text-xl font-semibold text-foreground leading-tight;
   }
 
-  /* Empty state */
   .empty-state {
     @apply rounded-2xl border border-white/[0.04] bg-card p-8 text-center;
   }
@@ -172,12 +153,10 @@
     @apply w-14 h-14 rounded-2xl bg-white/[0.03] flex items-center justify-center mx-auto mb-3;
   }
 
-  /* Input */
   .input-field {
     @apply h-10 px-3 rounded-[6px] text-[13px] text-foreground bg-muted border border-transparent placeholder:text-muted-foreground/50 focus:border-primary focus:shadow-[0_0_20px_rgba(124,58,237,0.15)] transition-all outline-none;
   }
 
-  /* Progress bar */
   .progress-track {
     @apply h-1.5 rounded-full overflow-hidden bg-white/[0.06];
   }
@@ -186,9 +165,6 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
- * SCROLLBAR
- * ═══════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
@@ -199,9 +175,6 @@
   color: hsl(var(--foreground));
 }
 
-/* ═══════════════════════════════════════════════════════════════
- * FOCUS STATES
- * ═══════════════════════════════════════════════════════════════ */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -211,9 +184,6 @@ textarea:focus-visible {
   border-radius: 6px !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════
- * ANIMATIONS
- * ═══════════════════════════════════════════════════════════════ */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -237,9 +207,6 @@ textarea:focus-visible {
   border-radius: 8px;
 }
 
-/* ═══════════════════════════════════════════════════════════════
- * REDUCED MOTION
- * ═══════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
