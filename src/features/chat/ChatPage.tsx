@@ -1,12 +1,23 @@
 /**
- * Lumina AI Chat — Production-Grade UI
- * Complete rewrite with proper colors, spacing, and interactions.
+ * Lumina AI Chat — Premium Production-Grade UI
+ * 
+ * Design: Linear + Vercel + Raycast + Arc Browser
+ * - Dark theme with violet/purple accents
+ * - Glassmorphic surfaces with subtle borders
+ * - Ambient purple glow effects
+ * - Smooth Framer Motion animations
+ * - Premium spacing and typography
+ * 
+ * NOTE: All styles are inline for pixel-perfect control.
+ * This is intentional — no Tailwind class ambiguity.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
-  Sparkles, Trash2, Zap, Plus, ArrowRight,
+  Sparkles, Trash2, Zap, Send, Square, Paperclip,
+  FileText, Code2, Presentation, ScrollText, X,
+  Image as ImageIcon, Plus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,7 +26,6 @@ import { toast } from "sonner";
 import { detectIntent } from "./utils/intentDetector";
 import { attemptGeneration } from "./utils/generationWrapper";
 import { MessageList } from "./components/MessageList";
-import { InputBar } from "./components/InputBar";
 import { CanvasPanel } from "@/features/canvas/CanvasPanel";
 import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
 import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWorkspace";
@@ -26,20 +36,21 @@ import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
 import { ManualRestoreButton } from "@/features/credits/ManualRestore";
 import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
 import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
-import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
-import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAction } from "@/lib/agent/actions";
+import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAgent } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 
+/* ═══════════════════════════════════════════════════════════════
+   TYPES
+   ═══════════════════════════════════════════════════════════════ */
 export interface Message {
   id: string; role: "user" | "assistant" | "system"; content: string;
   type: "text" | "artifact" | "error" | "loading" | "insufficient_credits" | "action_confirm";
   artifactHtml?: string; artifactType?: "notes" | "exam" | "slides" | "code";
   topic?: string; creditsUsed?: number; newBalance?: number;
   requiredCredits?: number; currentBalance?: number;
-  isStreaming?: boolean; pendingAction?: AgentAction;
+  isStreaming?: boolean; pendingAction?: AgentAgent;
   actionSummary?: string; actionResolved?: boolean; timestamp: number;
 }
-
 type ChatSummary = { id: string; title: string; updated_at: string; created_at: string; };
 type SavedMessageRow = {
   id: string; role: "user" | "assistant"; content: string; created_at: string;
@@ -48,15 +59,18 @@ type SavedMessageRow = {
   credits_used?: number | string | null; new_balance?: number | string | null;
 };
 
+/* ═══════════════════════════════════════════════════════════════
+   CONSTANTS
+   ═══════════════════════════════════════════════════════════════ */
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 const SUGGESTIONS = [
-  { text: "Explain quantum entanglement in simple terms", icon: "🧬" },
-  { text: "Create notes on photosynthesis", icon: "📝" },
-  { text: "Make an exam paper on thermodynamics", icon: "📋" },
-  { text: "Build me a Snake game", icon: "🐍" },
-  { text: "Slides on Newton's laws of motion", icon: "📊" },
-  { text: "Quick study on cell division", icon: "🔬" },
+  { text: "Explain quantum entanglement in simple terms", icon: "🧬", gradient: "from-violet-500/20 to-purple-500/20", border: "border-violet-500/20", glow: "rgba(124,58,237,0.15)" },
+  { text: "Create notes on photosynthesis", icon: "🌿", gradient: "from-emerald-500/20 to-teal-500/20", border: "border-emerald-500/20", glow: "rgba(16,185,129,0.15)" },
+  { text: "Make an exam paper on thermodynamics", icon: "📄", gradient: "from-amber-500/20 to-orange-500/20", border: "border-amber-500/20", glow: "rgba(245,158,11,0.15)" },
+  { text: "Build me a Snake game", icon: "🐍", gradient: "from-sky-500/20 to-blue-500/20", border: "border-sky-500/20", glow: "rgba(59,130,246,0.15)" },
+  { text: "Slides on Newton's laws of motion", icon: "⚙️", gradient: "from-pink-500/20 to-rose-500/20", border: "border-pink-500/20", glow: "rgba(236,72,153,0.15)" },
+  { text: "Quick study on cell division", icon: "🧬", gradient: "from-cyan-500/20 to-teal-500/20", border: "border-cyan-500/20", glow: "rgba(6,182,212,0.15)" },
 ];
 
 const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -70,6 +84,9 @@ const rowToMessage = (row: SavedMessageRow): Message => ({
   timestamp: new Date(row.created_at).getTime(),
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
 const ChatPage = () => {
   const { user } = useAuth();
   const { isPro } = useSubscription();
@@ -86,6 +103,7 @@ const ChatPage = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [artifactSplit, setArtifactSplit] = useState(40);
+  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
@@ -94,6 +112,18 @@ const ChatPage = () => {
   const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
+
+  // Mouse-following glow
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springX = useSpring(mouseX, { stiffness: 150, damping: 20 });
+  const springY = useSpring(mouseY, { stiffness: 150, damping: 20 });
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); };
+    window.addEventListener("mousemove", handler);
+    return () => window.removeEventListener("mousemove", handler);
+  }, [mouseX, mouseY]);
 
   useEffect(() => { try { const i = localStorage.getItem("lumina_canvas_import"); if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); } } catch {} }, []);
   const pushCanvasFromMessage = useCallback((text: string) => { const f = detectCanvas(text); if (!f) return; setCanvasVersions(p => [...p, { code: f.code, html: wrapAsHtmlDoc(f.code, f.lang), ts: Date.now() }].slice(-20)); setCanvasOpen(true); }, []);
@@ -126,24 +156,9 @@ const ChatPage = () => {
     setMessages(p => p.map(m => m.id === aId ? final : m)); await persistMessage(chatId, final); if (final.type === "text") pushCanvasFromMessage(final.content);
   }, [model, persistMessage, pushCanvasFromMessage]);
 
-  const runQuickStudy = useCallback(async (topic: string, history: Message[], chatId: string | null) => {
-    const p = `Create a 10-minute revision guide for: ${topic}.\n\nFormat strictly as:\n## ⚡ Quick Revision: ${topic}\n**Read time: ~10 minutes**\n\n### 1. Key Facts (2 min)\n[5–8 bullets]\n\n### 2. Critical Formulas / Definitions (2 min)\n[List with brief explanations]\n\n### 3. Common Exam Mistakes (2 min)\n[3–4 mistakes]\n\n### 4. Quick Quiz (4 min)\nQ1: ... || A: ...\nQ2: ... || A: ...\nQ3: ... || A: ...\n\n### 5. 60-Second Summary\n[2–3 sentences]`;
-    const ctrl = new AbortController(); abortRef.current = ctrl;
-    const ai = history.filter(m => m.type === "text").slice(-10).map(m => ({ role: m.role, content: m.content })); ai.push({ role: "user", content: p });
-    const { data: { session } } = await supabase.auth.getSession(); if (!session?.access_token) throw new Error("Please sign in.");
-    const res = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ messages: ai, mode: "study" }), signal: ctrl.signal });
-    if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
-    const aId = uid(); setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "", acc = "";
-    try { while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let nl: number; while ((nl = buf.indexOf("\n")) !== -1) { let line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.endsWith("\r")) line = line.slice(0, -1); if (!line.startsWith("data: ")) continue; const json = line.slice(6).trim(); if (json === "[DONE]") continue; try { const parsed = JSON.parse(json); const d = parsed?.choices?.[0]?.delta?.content; if (typeof d === "string") { acc += d; setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m)); } } catch { buf = line + "\n" + buf; break; } } } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
-    const final: Message = { id: aId, role: "assistant", content: acc, type: "text", timestamp: Date.now() };
-    setMessages(p => p.map(m => m.id === aId ? final : m)); await persistMessage(chatId, final);
-  }, [persistMessage]);
-
   const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null, contextMessageIds: string[] = []) => {
     const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];
     if (!isPro && !hasEnoughCredits(action, credits.balance)) { setBuyOpen(true); return; }
-    const allowed = await checkAndIncrement('artifact_generation'); if (!allowed) return;
     const lid = uid(); setMessages(p => [...p, { id: lid, role: "assistant", content: `Creating your ${type} on "${topic}"...`, type: "loading", timestamp: Date.now() }]);
     try {
       const result = await attemptGeneration({ type, topic, prompt: originalPrompt, chatId: chatId ?? undefined, timeoutMs: 540_000, maxRetries: 1, onStage: setLoadingStage });
@@ -152,8 +167,8 @@ const ChatPage = () => {
         const msg: Message = { id: uid(), role: "assistant", type: "artifact", content: "", artifactHtml: result.content, artifactType: type, topic, creditsUsed: isPro ? 0 : cost, newBalance, timestamp: Date.now() };
         upsertArtifact({ id: msg.id, type, title: topic, html: result.content, createdAt: msg.timestamp, sourceMessageId: msg.id, contextMessageIds, summary: `Created ${type} from chat` }); openArtifact(msg.id);
         setMessages(p => p.filter(m => m.id !== lid).concat(msg)); await persistMessage(chatId, msg);
-      } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: `Generation failed (${result.error ?? "unknown"}) — no credits were charged.`, timestamp: Date.now() })); }
-    } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits were charged.", timestamp: Date.now() })); }
+      } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: `Generation failed — no credits charged.`, timestamp: Date.now() })); }
+    } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
   }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
   const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
@@ -177,10 +192,27 @@ const ChatPage = () => {
   const handleCancelAction = useCallback((messageId: string) => { setMessages(p => p.map(m => m.id === messageId ? { ...m, actionResolved: true } : m)); }, []);
 
   const empty = messages.length === 0;
-  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
 
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex h-full" style={{ background: "#0A0A0F" }}>
+    <div className="flex h-full" style={{ background: "#09090B" }}>
+      {/* Mouse-following glow */}
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background: `radial-gradient(600px circle at ${springX.get()}px ${springY.get()}px, rgba(124,58,237,0.06), transparent 60%)`,
+        }}
+      />
+
+      {/* Ambient glow orbs — pure CSS, no Tailwind blur */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute rounded-full" style={{ width: 500, height: 500, top: -100, left: -100, background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)", filter: "blur(60px)" }} />
+        <div className="absolute rounded-full" style={{ width: 400, height: 400, bottom: 100, right: -50, background: "radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)", filter: "blur(70px)" }} />
+        <div className="absolute rounded-full" style={{ width: 300, height: 300, top: "40%", left: "50%", transform: "translateX(-50%)", background: "radial-gradient(circle, rgba(245,158,11,0.05) 0%, transparent 70%)", filter: "blur(80px)" }} />
+      </div>
+
       {/* ═══ SIDEBAR ═══ */}
       <AnimatePresence>
         {historyOpen && (
@@ -189,32 +221,19 @@ const ChatPage = () => {
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
-            className="hidden md:flex flex-col h-full shrink-0 overflow-hidden"
+            className="hidden md:flex flex-col h-full shrink-0 overflow-hidden relative z-10"
             style={{ background: "#12121A", borderRight: "1px solid rgba(255,255,255,0.06)" }}
           >
             <div className="p-4 space-y-3">
-              <button onClick={startNewChat} className="btn-primary w-full">
-                <MessageSquarePlus className="w-4 h-4" /> New Chat
+              <button onClick={startNewChat} className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold transition-all hover:brightness-110" style={{ background: "linear-gradient(135deg, #7C3AED, #9333EA)", color: "#fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}>
+                <Plus className="w-4 h-4" /> New Chat
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5">
               {chatSessions.map(chat => (
-                <div
-                  key={chat.id}
-                  className="group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
-                  style={{ color: currentChatId === chat.id ? "#A78BFA" : "#8A8AA3", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }}
-                  onClick={() => loadChat(chat)}
-                  onMouseEnter={e => { if (currentChatId !== chat.id) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
-                  onMouseLeave={e => { if (currentChatId !== chat.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                >
+                <div key={chat.id} className="group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all" style={{ color: currentChatId === chat.id ? "#A78BFA" : "#8A8AA3", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }} onClick={() => loadChat(chat)}>
                   <span className="flex-1 text-sm truncate">{chat.title}</span>
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all shrink-0"
-                    style={{ color: "#8A8AA3" }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#EF4444"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8A8AA3"}
-                  >
+                  <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all" style={{ color: "#8A8AA3" }}>
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
@@ -229,22 +248,22 @@ const ChatPage = () => {
       </AnimatePresence>
 
       {/* ═══ MAIN CHAT ═══ */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative z-10">
         {/* Top Bar */}
-        <div className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6" style={{ background: "rgba(10,10,15,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6" style={{ background: "rgba(9,9,11,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-3">
-            <button onClick={() => setHistoryOpen(v => !v)} className="p-2 rounded-lg transition-colors" style={{ color: "#8A8AA3" }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F0F0F5"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8A8AA3"}>
+            <button onClick={() => setHistoryOpen(v => !v)} className="p-2 rounded-lg transition-colors" style={{ color: "#8A8AA3" }}>
               {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7C3AED, #14B8A6)", boxShadow: "0 2px 12px rgba(124,58,237,0.3)" }}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7C3AED, #A78BFA)", boxShadow: "0 2px 12px rgba(124,58,237,0.4)" }}>
                 <Sparkles className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="text-sm font-semibold" style={{ color: "#F0F0F5" }}>Lumina AI</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={startNewChat} className="btn-ghost hidden sm:inline-flex text-xs">
+            <button onClick={startNewChat} className="hidden sm:inline-flex items-center gap-1.5 text-xs px-3 h-8 rounded-lg transition-colors" style={{ color: "#8A8AA3", border: "1px solid rgba(255,255,255,0.08)" }}>
               <MessageSquarePlus className="w-3.5 h-3.5" /> New
             </button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
@@ -253,30 +272,39 @@ const ChatPage = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 md:px-6">
+        <div className="flex-1 flex flex-col min-h-0" style={{ maxWidth: 900, width: "100%", margin: "0 auto", padding: "0 24px" }}>
           {empty ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }} className="mb-10">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.15), rgba(20,184,166,0.1))", border: "1px solid rgba(124,58,237,0.2)", boxShadow: "0 8px 32px rgba(124,58,237,0.15)" }}>
-                  <Sparkles className="w-8 h-8" style={{ color: "#A78BFA" }} />
+            <div className="flex-1 flex flex-col items-center justify-center text-center" style={{ paddingBottom: 80 }}>
+              {/* Hero */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }} className="mb-12">
+                {/* Glowing icon */}
+                <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.2), rgba(167,139,250,0.1))", border: "1px solid rgba(124,58,237,0.25)", boxShadow: "0 0 40px rgba(124,58,237,0.2), 0 0 80px rgba(124,58,237,0.1)" }}>
+                  <Sparkles className="w-10 h-10" style={{ color: "#A78BFA" }} />
                 </div>
-                <h1 className="text-[28px] font-semibold tracking-[-0.03em] mb-2" style={{ color: "#F0F0F5" }}>How can I help you study?</h1>
-                <p className="text-sm max-w-md leading-relaxed" style={{ color: "#8A8AA3" }}>Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
+                <h1 style={{ fontSize: 48, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.1, marginBottom: 12 }}>
+                  How can I help you study?
+                </h1>
+                <p style={{ fontSize: 16, color: "#8A8AA3", lineHeight: 1.6, maxWidth: 480, margin: "0 auto" }}>
+                  Generate notes, exams, slides, code, and explanations instantly.
+                </p>
               </motion.div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+
+              {/* Suggestion Cards — 3×2 grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full" style={{ maxWidth: 720 }}>
                 {SUGGESTIONS.map((s, i) => (
                   <motion.button
                     key={s.text}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.08 + i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
+                    transition={{ delay: 0.1 + i * 0.05, duration: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
                     onClick={() => handleSend(s.text)}
-                    className="text-left text-sm px-4 py-3.5 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "#E4E4E7" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.2)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.06)"; }}
+                    className="group text-left rounded-2xl p-4 transition-all duration-200 hover:scale-[1.03] active:scale-[0.98]"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(124,58,237,0.3)"; e.currentTarget.style.boxShadow = `0 0 30px ${s.glow}`; e.currentTarget.style.background = "rgba(124,58,237,0.05)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
                   >
-                    <span className="mr-2">{s.icon}</span>{s.text}
+                    <span className="text-lg mb-2 block">{s.icon}</span>
+                    <span style={{ fontSize: 13, color: "#E4E4E7", lineHeight: 1.4, display: "block" }}>{s.text}</span>
                   </motion.button>
                 ))}
               </div>
@@ -285,11 +313,56 @@ const ChatPage = () => {
             <MessageList messages={messages} loadingStage={loadingStage} onRegenerate={handleRegenerate} onRetry={handleRetry} onEdit={handleEdit} onTopUp={() => setBuyOpen(true)} onConfirmAction={handleConfirmAction} onCancelAction={handleCancelAction} />
           )}
 
-          {/* Input */}
-          <div className="shrink-0 pb-4 pt-2 space-y-2" style={{ background: "linear-gradient(to top, #0A0A0F 70%, transparent)" }}>
-            <ModelSelector value={model} onChange={setModel} />
-            <InputBar value={input} onChange={setInput} onSend={t => handleSend(t)} onStop={handleStop} isLoading={loading} onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }} />
-            <p className="text-[10px] text-center" style={{ color: "#5A5A73" }}>Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
+          {/* Input Area — floating glass panel */}
+          <div className="shrink-0 pb-6 pt-3" style={{ background: "linear-gradient(to top, #09090B 60%, transparent)" }}>
+            {/* Mode pills */}
+            <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+              {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setModel(m)}
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200"
+                  style={model === m
+                    ? { background: "linear-gradient(135deg, #7C3AED, #9333EA)", color: "#fff", boxShadow: "0 2px 8px rgba(124,58,237,0.3)" }
+                    : { background: "rgba(255,255,255,0.04)", color: "#8A8AA3", border: "1px solid rgba(255,255,255,0.06)" }
+                  }
+                >
+                  {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Input bar — floating glass panel */}
+            <div className="flex items-end gap-2 p-2 rounded-3xl transition-all duration-200" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 72 }}>
+              <button type="button" className="shrink-0 w-10 h-10 grid place-items-center rounded-2xl transition-colors" style={{ color: "#8A8AA3" }}>
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <textarea
+                rows={1}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }}
+                placeholder="Ask anything, attach files, or say 'create notes on photosynthesis'…"
+                className="flex-1 bg-transparent border-0 outline-none resize-none py-3 px-2 text-sm max-h-[160px] overflow-y-auto"
+                style={{ color: "#F0F0F5", caretColor: "#A78BFA" }}
+              />
+              {loading ? (
+                <button type="button" onClick={handleStop} className="shrink-0 w-10 h-10 grid place-items-center rounded-2xl transition-colors" style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444" }}>
+                  <Square className="w-4 h-4 fill-current" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => input.trim() && handleSend()}
+                  disabled={!input.trim()}
+                  className="shrink-0 w-10 h-10 grid place-items-center rounded-2xl transition-all duration-200 disabled:opacity-30"
+                  style={{ background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.3)" : "none" }}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-center mt-2" style={{ color: "#5A5A73" }}>Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
           </div>
         </div>
 

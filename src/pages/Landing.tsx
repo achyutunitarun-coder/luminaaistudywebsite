@@ -174,48 +174,16 @@ const Hero = () => {
 
   return (
     <section ref={ref} className="relative pt-36 pb-20 overflow-hidden">
-      {/* Aurora mesh — large, soft, colorful blobs */}
+      {/* Aurora mesh — large, soft, colorful blobs using CSS filter blur */}
       <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
-        {/* Primary teal orb — top left */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 800, height: 600,
-            top: -200, left: -100,
-            background: `radial-gradient(circle, ${C.teal}50 0%, ${C.teal}00 70%)`,
-            filter: 'blur(80px)',
-          }}
-        />
-        {/* Primary violet orb — top right */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 700, height: 500,
-            top: -150, right: -50,
-            background: `radial-gradient(circle, ${C.violet}45 0%, ${C.violet}00 70%)`,
-            filter: 'blur(90px)',
-          }}
-        />
-        {/* Amber accent — center */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 500, height: 400,
-            top: 100, left: '50%', transform: 'translateX(-50%)',
-            background: `radial-gradient(circle, ${C.amber}25 0%, ${C.amber}00 70%)`,
-            filter: 'blur(100px)',
-          }}
-        />
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
-            backgroundSize: '64px 64px',
-            maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)',
-          }}
-        />
+        {/* Teal orb — top left */}
+        <div className="absolute" style={{ width: 800, height: 600, top: -200, left: -100, borderRadius: "50%", background: "radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%)", filter: "blur(80px)" }} />
+        {/* Violet orb — top right */}
+        <div className="absolute" style={{ width: 700, height: 500, top: -150, right: -50, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)", filter: "blur(90px)" }} />
+        {/* Amber orb — center */}
+        <div className="absolute" style={{ width: 500, height: 400, top: 100, left: "50%", transform: "translateX(-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%)", filter: "blur(100px)" }} />
+        {/* Grid overlay */}
+        <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)", backgroundSize: "64px 64px", maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)" }} />
       </div>
 
       <motion.div style={{ y, opacity }} className="max-w-[1280px] mx-auto px-6 text-center">
