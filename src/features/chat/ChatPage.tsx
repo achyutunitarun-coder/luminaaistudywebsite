@@ -1,10 +1,9 @@
 /**
  * Lumina AI Chat — Premium Production-Grade UI
- * Complete rewrite. Dense, rich, production-level.
- * Every pixel has purpose. No wasted space.
+ * Complete rewrite with proper glow effects, rich colors, and dense layout.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
   Sparkles, Trash2, Send, Square, Paperclip, Plus,
@@ -53,12 +52,12 @@ const toNumber = (v: number | string | null | undefined) => { if (typeof v === "
 const rowToMessage = (row: SavedMessageRow): Message => ({ id: row.id, role: row.role, content: row.content ?? "", type: (row.message_type || "text") as Message["type"], artifactType: row.artifact_type ?? undefined, artifactHtml: row.artifact_html ?? undefined, topic: row.topic ?? undefined, creditsUsed: toNumber(row.credits_used), newBalance: toNumber(row.new_balance), timestamp: new Date(row.created_at).getTime() });
 
 const SUGGESTIONS = [
-  { text: "Explain quantum entanglement", icon: "🧬", glow: "rgba(124,58,237,0.2)" },
-  { text: "Create notes on photosynthesis", icon: "🌿", glow: "rgba(16,185,129,0.2)" },
-  { text: "Make a thermodynamics exam", icon: "📄", glow: "rgba(245,158,11,0.2)" },
-  { text: "Build a Snake game", icon: "🐍", glow: "rgba(59,130,246,0.2)" },
-  { text: "Newton's laws slides", icon: "⚙️", glow: "rgba(236,72,153,0.2)" },
-  { text: "Quick study: cell division", icon: "🔬", glow: "rgba(6,182,212,0.2)" },
+  { text: "Explain quantum entanglement", icon: "🧬" },
+  { text: "Create notes on photosynthesis", icon: "🌿" },
+  { text: "Make a thermodynamics exam", icon: "📄" },
+  { text: "Build a Snake game", icon: "🐍" },
+  { text: "Newton's laws slides", icon: "⚙️" },
+  { text: "Quick study: cell division", icon: "🔬" },
 ];
 
 const ChatPage = () => {
@@ -77,6 +76,7 @@ const ChatPage = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [artifactSplit, setArtifactSplit] = useState(40);
+  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
@@ -85,14 +85,7 @@ const ChatPage = () => {
   const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const springX = useSpring(mouseX, { stiffness: 100, damping: 20 });
-  const springY = useSpring(mouseY, { stiffness: 100, damping: 20 });
-
-  useEffect(() => { const h = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); }; window.addEventListener("mousemove", h); return () => window.removeEventListener("mousemove", h); }, [mouseX, mouseY]);
   useEffect(() => { try { const i = localStorage.getItem("lumina_canvas_import"); if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); } } catch {} }, []);
   const pushCanvasFromMessage = useCallback((text: string) => { const f = detectCanvas(text); if (!f) return; setCanvasVersions(p => [...p, { code: f.code, html: wrapAsHtmlDoc(f.code, f.lang), ts: Date.now() }].slice(-20)); setCanvasOpen(true); }, []);
   useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
@@ -151,15 +144,30 @@ const ChatPage = () => {
   const empty = messages.length === 0;
 
   return (
-    <div style={{ display: "flex", height: "100%", background: "#09090B", position: "relative", overflow: "hidden" }}>
-      {/* Mouse glow */}
-      <motion.div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, background: `radial-gradient(500px circle at ${springX.get()}px ${springY.get()}px, rgba(124,58,237,0.07), transparent 50%)` }} />
-      {/* Ambient orbs */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        <div style={{ position: "absolute", width: 600, height: 600, top: -150, left: -100, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 65%)", filter: "blur(60px)" }} />
-        <div style={{ position: "absolute", width: 500, height: 500, top: "30%", right: -100, borderRadius: "50%", background: "radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 65%)", filter: "blur(70px)" }} />
-        <div style={{ position: "absolute", width: 400, height: 400, bottom: 50, left: "40%", borderRadius: "50%", background: "radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 65%)", filter: "blur(80px)" }} />
-      </div>
+    <div style={{ display: "flex", height: "100%", background: "#09090B", position: "relative", overflow: "hidden", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* SVG-based ambient glow — works in all browsers */}
+      <svg style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, width: "100%", height: "100%" }}>
+        <defs>
+          <radialGradient id="glow-violet" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(124,58,237,0.18)" />
+            <stop offset="60%" stopColor="rgba(124,58,237,0.04)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          <radialGradient id="glow-teal" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(16,185,129,0.12)" />
+            <stop offset="60%" stopColor="rgba(16,185,129,0.03)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+          <radialGradient id="glow-amber" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(245,158,11,0.08)" />
+            <stop offset="60%" stopColor="rgba(245,158,11,0.02)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+        </defs>
+        <ellipse cx="200" cy="100" rx="400" ry="300" fill="url(#glow-violet)" />
+        <ellipse cx="700" cy="500" rx="350" ry="250" fill="url(#glow-teal)" />
+        <ellipse cx="500" cy="350" rx="250" ry="200" fill="url(#glow-amber)" />
+      </svg>
 
       {/* SIDEBAR */}
       <AnimatePresence>
@@ -198,27 +206,28 @@ const ChatPage = () => {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={startNewChat} style={{ display: "none", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "none", cursor: "pointer", color: "#8A8AA3" }} className="sm-flex"><MessageSquarePlus style={{ width: 14, height: 14 }} /> New</button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
             <ManualRestoreButton />
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, maxWidth: 800, width: "100%", margin: "0 auto", padding: "0 20px" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, maxWidth: 780, width: "100%", margin: "0 auto", padding: "0 20px" }}>
           {empty ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingBottom: 40 }}>
-              <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", marginBottom: 40 }}>
-                <div style={{ width: 72, height: 72, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(167,139,250,0.1))", border: "1px solid rgba(124,58,237,0.3)", boxShadow: "0 0 50px rgba(124,58,237,0.25), 0 0 100px rgba(124,58,237,0.1)" }}>
-                  <Sparkles style={{ width: 32, height: 32, color: "#A78BFA" }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", marginBottom: 36 }}>
+                {/* Glowing icon */}
+                <div style={{ width: 64, height: 64, borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.15))", border: "1px solid rgba(124,58,237,0.35)", boxShadow: "0 0 60px rgba(124,58,237,0.3), 0 0 120px rgba(124,58,237,0.15)" }}>
+                  <Sparkles style={{ width: 28, height: 28, color: "#A78BFA" }} />
                 </div>
-                <h1 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.1, marginBottom: 12 }}>How can I help you study?</h1>
-                <p style={{ fontSize: 15, color: "#8A8AA3", lineHeight: 1.6, maxWidth: 440, margin: "0 auto" }}>Generate notes, exams, slides, code, and explanations instantly.</p>
+                <h1 style={{ fontSize: 42, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.1, marginBottom: 10 }}>How can I help you study?</h1>
+                <p style={{ fontSize: 15, color: "#8A8AA3", lineHeight: 1.6, maxWidth: 420, margin: "0 auto" }}>Generate notes, exams, slides, code, and explanations instantly.</p>
               </motion.div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, width: "100%", maxWidth: 680 }}>
+              {/* Suggestion cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, width: "100%", maxWidth: 640 }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <motion.button key={s.text} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }} onClick={() => handleSend(s.text)} style={{ textAlign: "left", padding: "14px 16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", color: "#E4E4E7", fontSize: 13, lineHeight: 1.4 }} className="sugg-card">
-                    <span style={{ fontSize: 16, display: "block", marginBottom: 6 }}>{s.icon}</span>{s.text}
+                  <motion.button key={s.text} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }} onClick={() => handleSend(s.text)} className="sugg-card" style={{ textAlign: "left", padding: "16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", cursor: "pointer", color: "#E4E4E7", fontSize: 13, lineHeight: 1.4, transition: "all 0.25s ease" }}>
+                    <span style={{ fontSize: 18, display: "block", marginBottom: 8 }}>{s.icon}</span>{s.text}
                   </motion.button>
                 ))}
               </div>
@@ -231,18 +240,18 @@ const ChatPage = () => {
           <div style={{ flexShrink: 0, padding: "12px 0 20px", background: "linear-gradient(to top, #09090B 70%, transparent)" }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
               {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
-                <button key={m} onClick={() => setModel(m)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 500, border: model === m ? "none" : "1px solid rgba(255,255,255,0.08)", background: model === m ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.04)", color: model === m ? "#fff" : "#8A8AA3", cursor: "pointer", transition: "all 0.2s", boxShadow: model === m ? "0 2px 10px rgba(124,58,237,0.3)" : "none" }}>
+                <button key={m} onClick={() => setModel(m)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 11, fontWeight: 500, border: model === m ? "none" : "1px solid rgba(255,255,255,0.08)", background: model === m ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.04)", color: model === m ? "#fff" : "#8A8AA3", cursor: "pointer", transition: "all 0.2s", boxShadow: model === m ? "0 2px 10px rgba(124,58,237,0.3)" : "none" }}>
                   {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 8, borderRadius: 20, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 56 }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 8, borderRadius: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", minHeight: 56, transition: "border-color 0.2s" }}>
               <button type="button" style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Paperclip style={{ width: 16, height: 16 }} /></button>
               <textarea rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }} placeholder="Ask anything…" style={{ flex: 1, background: "none", border: "none", outline: "none", resize: "none", padding: "10px 4px", fontSize: 14, color: "#F0F0F5", maxHeight: 120, caretColor: "#A78BFA" }} />
               {loading ? (
                 <button type="button" onClick={handleStop} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: "pointer", background: "rgba(239,68,68,0.15)", color: "#EF4444" }}><Square style={{ width: 14, height: 14, fill: "currentColor" }} /></button>
               ) : (
-                <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: input.trim() ? "pointer" : "not-allowed", background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", opacity: input.trim() ? 1 : 0.3, transition: "all 0.2s", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.35)" : "none" }}><Send style={{ width: 16, height: 16 }} /></button>
+                <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: input.trim() ? "pointer" : "not-allowed", background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", opacity: input.trim() ? 1 : 0.3, transition: "all 0.2s", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.4)" : "none" }}><Send style={{ width: 16, height: 16 }} /></button>
               )}
             </div>
             <p style={{ fontSize: 10, textAlign: "center", marginTop: 8, color: "#5A5A73" }}>Lumina can make mistakes. Verify important info.</p>
