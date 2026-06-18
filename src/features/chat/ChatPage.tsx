@@ -1,13 +1,13 @@
 /**
- * Lumina AI Chat — Premium Production-Grade UI
- * Complete rewrite using CSS classes from the design system.
- * Every pixel has purpose. No wasted space.
+ * Lumina AI Chat — Cinematic Production-Grade UI
+ * Complete visual rewrite. Every pixel has purpose.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
-  Sparkles, Trash2, Send, Square, Paperclip, Plus,
+  Sparkles, Trash2, Send, Square, Paperclip, Plus, X,
+  FileText, Code2, Presentation, BookOpen, Brain, Target,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,12 +53,19 @@ const toNumber = (v: number | string | null | undefined) => { if (typeof v === "
 const rowToMessage = (row: SavedMessageRow): Message => ({ id: row.id, role: row.role, content: row.content ?? "", type: (row.message_type || "text") as Message["type"], artifactType: row.artifact_type ?? undefined, artifactHtml: row.artifact_html ?? undefined, topic: row.topic ?? undefined, creditsUsed: toNumber(row.credits_used), newBalance: toNumber(row.new_balance), timestamp: new Date(row.created_at).getTime() });
 
 const SUGGESTIONS = [
-  { text: "Explain quantum entanglement", icon: "🧬", glow: "rgba(124,58,237,0.2)" },
-  { text: "Create notes on photosynthesis", icon: "🌿", glow: "rgba(16,185,129,0.2)" },
-  { text: "Make a thermodynamics exam", icon: "📄", glow: "rgba(245,158,11,0.2)" },
-  { text: "Build a Snake game", icon: "🐍", glow: "rgba(59,130,246,0.2)" },
-  { text: "Newton's laws slides", icon: "⚙️", glow: "rgba(236,72,153,0.2)" },
-  { text: "Quick study: cell division", icon: "🔬", glow: "rgba(6,182,212,0.2)" },
+  { text: "Explain quantum entanglement", icon: Brain, color: "#a855f7" },
+  { text: "Create notes on photosynthesis", icon: BookOpen, color: "#2dd4bf" },
+  { text: "Make a thermodynamics exam", icon: FileText, color: "#fbbf24" },
+  { text: "Build a Snake game", icon: Code2, color: "#38bdf8" },
+  { text: "Newton's laws slides", icon: Presentation, color: "#f472b6" },
+  { text: "Quick study: cell division", icon: Target, color: "#22d3ee" },
+];
+
+const artifactTypes = [
+  { id: "notes" as const, icon: FileText, label: "Notes" },
+  { id: "exam" as const, icon: Target, label: "Exam" },
+  { id: "slides" as const, icon: Presentation, label: "Slides" },
+  { id: "code" as const, icon: Code2, label: "Code" },
 ];
 
 const ChatPage = () => {
@@ -77,6 +84,7 @@ const ChatPage = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [artifactSplit, setArtifactSplit] = useState(40);
+  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastUserMsgRef = useRef<string>("");
   const currentChatIdRef = useRef<string | null>(null);
@@ -85,7 +93,6 @@ const ChatPage = () => {
   const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
 
   useEffect(() => { try { const i = localStorage.getItem("lumina_canvas_import"); if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); } } catch {} }, []);
   const pushCanvasFromMessage = useCallback((text: string) => { const f = detectCanvas(text); if (!f) return; setCanvasVersions(p => [...p, { code: f.code, html: wrapAsHtmlDoc(f.code, f.lang), ts: Date.now() }].slice(-20)); setCanvasOpen(true); }, []);
@@ -108,16 +115,9 @@ const ChatPage = () => {
     const { data: { session } } = await supabase.auth.getSession(); if (!session?.access_token) throw new Error("Please sign in.");
     const wireMode = model === "deepDive" ? "long_context" : model;
     const res = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal });
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`);
-    }
-    const aId = uid();
-    setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    let acc = "";
+    if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
+    const aId = uid(); setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -127,7 +127,7 @@ const ChatPage = () => {
         while ((nl = buf.indexOf("\n")) !== -1) {
           let line = buf.slice(0, nl);
           buf = buf.slice(nl + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.charCodeAt(line.length - 1) === 13) line = line.slice(0, -1);
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
           if (json === "[DONE]") continue;
@@ -185,7 +185,7 @@ const ChatPage = () => {
 
   return (
     <div className="chat-root">
-      {/* SIDEBAR */}
+      {/* ═══ SIDEBAR ═══ */}
       <AnimatePresence>
         {historyOpen && (
           <motion.aside
@@ -230,7 +230,7 @@ const ChatPage = () => {
         )}
       </AnimatePresence>
 
-      {/* MAIN */}
+      {/* ═══ MAIN ═══ */}
       <div className="chat-main">
         {/* Top bar */}
         <div className="chat-topbar">
@@ -247,6 +247,12 @@ const ChatPage = () => {
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
               <span className="chat-topbar-name">Lumina AI</span>
+              {loading && (
+                <span className="flex items-center gap-1.5 text-[10px] font-medium text-teal-400 ml-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                  Thinking…
+                </span>
+              )}
             </div>
           </div>
           <div className="chat-topbar-right">
@@ -290,11 +296,46 @@ const ChatPage = () => {
                     onClick={() => handleSend(s.text)}
                     className="chat-suggestion-card"
                   >
-                    <span className="chat-suggestion-icon">{s.icon}</span>
-                    {s.text}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ background: `${s.color}15`, border: `1px solid ${s.color}25` }}>
+                      <s.icon className="w-4 h-4" style={{ color: s.color }} />
+                    </div>
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{s.text}</span>
                   </motion.button>
                 ))}
               </div>
+              {/* Artifact type picker */}
+              <div className="flex items-center gap-2 mt-6">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Or generate:</span>
+                {artifactTypes.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => setShowArtifactPicker(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-gray-400 hover:text-white hover:bg-white/[0.04] transition-colors border border-white/[0.06]"
+                  >
+                    <a.icon className="w-3 h-3" /> {a.label}
+                  </button>
+                ))}
+              </div>
+              {showArtifactPicker && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 mt-3 p-3 rounded-xl border border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <span className="text-xs text-gray-400 mr-1">Topic:</span>
+                  <input
+                    autoFocus
+                    placeholder="e.g. Photosynthesis"
+                    className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-gray-500"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                        handleSend((e.target as HTMLInputElement).value, artifactTypes[0].id);
+                        setShowArtifactPicker(false);
+                      }
+                      if (e.key === 'Escape') setShowArtifactPicker(false);
+                    }}
+                  />
+                  <button onClick={() => setShowArtifactPicker(false)} className="p-1 rounded hover:bg-white/[0.04] text-gray-500">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </motion.div>
+              )}
             </div>
           ) : (
             <MessageList
