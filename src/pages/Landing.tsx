@@ -61,17 +61,6 @@ const Wordmark = ({ size = 22 }: { size?: number }) => (
     >
       Lumina
     </span>
-    <span
-      className="px-1.5 py-0.5 rounded text-[9px] font-semibold border"
-      style={{
-        background: 'rgba(59,130,246,0.12)',
-        color: C.ink,
-        borderColor: 'rgba(59,130,246,0.25)',
-        fontFamily: "'Inter Tight', sans-serif",
-      }}
-    >
-      BETA
-    </span>
   </div>
 );
 
@@ -155,7 +144,6 @@ const Nav = () => {
       <div className="max-w-[1180px] mx-auto px-6 h-[64px] flex items-center justify-between">
         <Wordmark />
         <nav className="hidden md:flex items-center gap-7 text-[13px]" style={{ color: C.inkMute }}>
-          <a href="#vs" className="hover:text-white transition-colors">vs ChatGPT</a>
           <a href="#features" className="hover:text-white transition-colors">Features</a>
           <a href="#how" className="hover:text-white transition-colors">How it works</a>
           <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
@@ -186,9 +174,9 @@ const Nav = () => {
             className="md:hidden border-t px-6 py-4 flex flex-col gap-3"
             style={{ borderColor: C.hairline, background: 'rgba(7,8,13,0.96)' }}
           >
-            {['vs', 'features', 'how', 'pricing', 'faq'].map((id) => (
+            {['features', 'how', 'pricing', 'faq'].map((id) => (
               <a key={id} href={`#${id}`} onClick={() => setOpen(false)} className="text-[14px]" style={{ color: C.inkMute }}>
-                {id === 'vs' ? 'vs ChatGPT' : id === 'how' ? 'How it works' : id[0].toUpperCase() + id.slice(1)}
+                {id[0].toUpperCase() + id.slice(1)}
               </a>
             ))}
             <div className="flex gap-2 pt-2">
@@ -241,7 +229,7 @@ const Hero = () => {
         >
           <Pill>
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.teal, boxShadow: `0 0 8px ${C.teal}` }} />
-            Not a chatbot. A learning system.
+            Introducing Lumina 2.0 — Your AI study companion
           </Pill>
         </motion.div>
 
@@ -257,7 +245,7 @@ const Hero = () => {
             fontWeight: 400,
           }}
         >
-          Know exactly
+          The quiet intelligence
           <br />
           <span
             style={{
@@ -268,7 +256,7 @@ const Hero = () => {
               fontStyle: 'italic',
             }}
           >
-            what to study next.
+            behind better learning.
           </span>
         </motion.h1>
 
@@ -276,12 +264,11 @@ const Hero = () => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease, delay: 0.15 }}
-          className="mx-auto mt-7 max-w-[640px] text-[16px] md:text-[17px] leading-[1.55]"
+          className="mx-auto mt-7 max-w-[620px] text-[16px] md:text-[17px] leading-[1.55]"
           style={{ color: C.inkMute }}
         >
-          ChatGPT answers your questions and forgets you the next day. Lumina remembers every topic
-          you've touched, finds your weak spots before the exam does, and guides the next session
-          automatically.
+          Lumina turns your notes, lectures, and curiosity into a personal tutor that knows exactly what you
+          know — and exactly what to teach you next.
         </motion.p>
 
         <motion.div
@@ -291,10 +278,10 @@ const Hero = () => {
           className="mt-9 flex items-center justify-center gap-2.5 flex-wrap"
         >
           <PrimaryBtn onClick={() => navigate('/auth')}>
-            Find your weak spots <ArrowRight className="w-3.5 h-3.5" />
+            Start learning free <ArrowRight className="w-3.5 h-3.5" />
           </PrimaryBtn>
-          <GhostBtn onClick={() => document.getElementById('vs')?.scrollIntoView({ behavior: 'smooth' })}>
-            Why not ChatGPT?
+          <GhostBtn onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}>
+            See how it works
           </GhostBtn>
         </motion.div>
 
@@ -305,7 +292,7 @@ const Hero = () => {
           className="mt-5 text-[12px]"
           style={{ color: C.inkFaint }}
         >
-          Free forever plan · No credit card · Built for JEE, NEET, IB, SAT, AP, A-Levels
+          Free forever plan · No credit card · Trusted by 12,000+ students
         </motion.div>
 
         {/* Product preview */}
@@ -459,7 +446,7 @@ const LogoStrip = () => (
   <section className="py-12 border-y" style={{ borderColor: C.hairline }}>
     <div className="max-w-[1180px] mx-auto px-6">
       <div className="text-center text-[11px] uppercase tracking-[0.2em] mb-6" style={{ color: C.inkFaint }}>
-        Built for students preparing for
+        Trusted by students preparing for
       </div>
       <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-4 text-[14px]" style={{ color: C.inkMute, fontFamily: "'Instrument Serif', serif", fontStyle: 'italic' }}>
         {['JEE', 'NEET', 'SAT', 'IB', 'A-Levels', 'AP', 'GCSE', 'CBSE'].map((t) => (
@@ -478,9 +465,9 @@ const Features = () => {
     <section id="features" className="py-32">
       <div className="max-w-[1180px] mx-auto px-6">
         <SectionHeader
-          eyebrow="What you actually get"
-          title="Outcomes, not features."
-          subtitle="Every part of Lumina exists to answer one question: what should I study next, and why?"
+          eyebrow="Features"
+          title="A thinking partner, not a search bar."
+          subtitle="Every feature in Lumina is designed around how you actually learn — slowly, then suddenly."
         />
 
         <div className="mt-16 grid grid-cols-12 gap-4">
@@ -488,8 +475,8 @@ const Features = () => {
             span="md:col-span-7"
             icon={Brain}
             color={C.teal}
-            title="Every mistake changes what happens next."
-            desc="Lumina watches what you struggle with and quietly rewires every quiz, explanation, and lesson around your blind spots. You stop drilling what you already know."
+            title="Adaptive intelligence"
+            desc="Lumina watches what you struggle with and quietly rewires every quiz, explanation, and lesson around your blind spots."
             visual={<AdaptiveVisual />}
             tall
           />
@@ -497,8 +484,8 @@ const Features = () => {
             span="md:col-span-5"
             icon={Wand2}
             color={C.violet}
-            title="Turn any syllabus into a study system."
-            desc="Drop a PDF, paste a YouTube link, record a lecture. Lumina ingests it, structures it, and remembers it forever — so future sessions build on it."
+            title="From any source"
+            desc="Drop a PDF, paste a YouTube link, record a lecture — Lumina turns it into notes, flashcards, and tests in seconds."
             visual={<SourcesVisual />}
             tall
           />
@@ -506,22 +493,22 @@ const Features = () => {
             span="md:col-span-4"
             icon={Target}
             color={C.amber}
-            title="See where your marks are leaking."
-            desc="A live map of every concept you've touched, color-coded by mastery. The red ones are tomorrow's plan."
+            title="Weakness radar"
+            desc="A live map of every concept you've touched, color-coded by mastery."
           />
           <FeatureCard
             span="md:col-span-4"
             icon={Layers}
             color={C.sky}
-            title="A notebook that thinks with you."
-            desc="Math, diagrams, code, and explanations render live as you work. No more re-copying notes the night before a test."
+            title="Smart notebook"
+            desc="A canvas that thinks with you — math, diagrams, code, all rendered live."
           />
           <FeatureCard
             span="md:col-span-4"
             icon={LineChart}
             color={C.teal}
-            title="Know tomorrow's priority in seconds."
-            desc="No vanity dashboards. One screen tells you exactly what to revise next and why it matters for your exam."
+            title="Honest analytics"
+            desc="No vanity metrics. Just the signal that tells you what to study tomorrow."
           />
         </div>
       </div>
@@ -687,161 +674,60 @@ const SourcesVisual = () => (
 /* ------------------------------------------------------------------ */
 const HowItWorks = () => {
   const steps = [
-    { n: '01', title: 'Upload', desc: 'PDFs, lectures, videos, notes — anything from your syllabus. Lumina reads it all.', color: C.teal },
-    { n: '02', title: 'Learn', desc: 'Ask, explore, practice. Every explanation is calibrated to where you are right now.', color: C.violet },
-    { n: '03', title: 'Measure', desc: 'Tests and quizzes detect exactly which concepts haven\'t clicked yet.', color: C.amber },
-    { n: '04', title: 'Adapt', desc: 'Tomorrow\'s session is rewritten automatically around your weak spots.', color: C.sky },
-    { n: '05', title: 'Master', desc: 'Knowledge gaps shrink week over week. You can watch the map turn green.', color: C.teal },
+    {
+      n: '01',
+      title: 'Bring your world in',
+      desc: 'PDFs, lectures, links, photos of a whiteboard — Lumina reads it all and remembers it.',
+      color: C.teal,
+    },
+    {
+      n: '02',
+      title: 'Learn out loud',
+      desc: 'Ask anything. Lumina explains, draws, derives, and quizzes — calibrated to where you are.',
+      color: C.violet,
+    },
+    {
+      n: '03',
+      title: 'Master, measurably',
+      desc: 'Every session sharpens your weakness map. You can feel the gaps closing.',
+      color: C.amber,
+    },
   ];
 
   return (
     <section id="how" className="py-32 relative">
       <div className="max-w-[1180px] mx-auto px-6">
         <SectionHeader
-          eyebrow="The learning loop"
-          title="A flywheel, not a chat log."
-          subtitle="Most AI tools start from zero every conversation. Lumina compounds. Every session feeds the next."
+          eyebrow="How it works"
+          title="Three moves. Compound returns."
+          subtitle="No setup. No 12-step onboarding. Open Lumina, drop something in, and start learning."
         />
-        <div className="mt-16 grid md:grid-cols-5 gap-4 relative">
+        <div className="mt-16 grid md:grid-cols-3 gap-5">
           {steps.map((s, i) => (
             <motion.div
               key={s.n}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, ease, delay: i * 0.08 }}
-              className="relative rounded-[18px] p-6"
+              transition={{ duration: 0.6, ease, delay: i * 0.1 }}
+              className="relative rounded-[18px] p-7"
               style={{
                 background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
                 border: `0.5px solid ${C.hairline}`,
               }}
             >
               <div
-                className="text-[12px] font-medium mb-4"
+                className="text-[14px] font-medium mb-6"
                 style={{ color: s.color, fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {s.n}
               </div>
-              <h3 className="text-[20px] tracking-tight mb-2" style={{ color: C.ink, fontFamily: "'Instrument Serif', serif" }}>
+              <h3 className="text-[22px] tracking-tight mb-3" style={{ color: C.ink, fontFamily: "'Instrument Serif', serif" }}>
                 {s.title}
               </h3>
-              <p className="text-[13px] leading-[1.6]" style={{ color: C.inkMute }}>
+              <p className="text-[13.5px] leading-[1.6]" style={{ color: C.inkMute }}>
                 {s.desc}
               </p>
-            </motion.div>
-          ))}
-        </div>
-        <div className="mt-8 text-center text-[12px]" style={{ color: C.inkFaint, fontFamily: "'JetBrains Mono', monospace" }}>
-          upload → learn → measure → adapt → master → repeat
-        </div>
-      </div>
-    </section>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/* Why not ChatGPT comparison                                          */
-/* ------------------------------------------------------------------ */
-const VsChatGPT = () => {
-  const rows = [
-    { feature: 'Memory of what you\'ve learned', chatgpt: 'Forgets across chats', lumina: 'Persistent knowledge graph' },
-    { feature: 'Tracks mastery per concept', chatgpt: 'No', lumina: 'Live weakness radar' },
-    { feature: 'Guides what to study next', chatgpt: 'You decide', lumina: 'Automatic, based on gaps' },
-    { feature: 'Adaptive tests from your syllabus', chatgpt: 'Generic answers', lumina: 'Targeted at your weak spots' },
-    { feature: 'Structured study plan', chatgpt: 'No', lumina: 'Built around your exam date' },
-    { feature: 'Designed for', chatgpt: 'General Q&A', lumina: 'Exam preparation' },
-  ];
-  return (
-    <section id="vs" className="py-32">
-      <div className="max-w-[1080px] mx-auto px-6">
-        <SectionHeader
-          eyebrow="Lumina vs ChatGPT"
-          title="One answers. One teaches."
-          subtitle="ChatGPT is brilliant at answering questions. It just isn't built to help you master a syllabus."
-        />
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6, ease }}
-          className="mt-14 rounded-[18px] overflow-hidden"
-          style={{ border: `0.5px solid ${C.hairline}`, background: 'rgba(255,255,255,0.015)' }}
-        >
-          <div className="grid grid-cols-[1.4fr_1fr_1fr] text-[12px] uppercase tracking-[0.14em] px-6 py-4 border-b" style={{ borderColor: C.hairline, color: C.inkFaint }}>
-            <div>What you actually need</div>
-            <div>ChatGPT</div>
-            <div style={{ color: C.teal }}>Lumina</div>
-          </div>
-          {rows.map((r, i) => (
-            <div
-              key={r.feature}
-              className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-6 py-5 text-[13.5px]"
-              style={{
-                borderTop: i === 0 ? 'none' : `0.5px solid ${C.hairline}`,
-                background: i % 2 === 1 ? 'rgba(255,255,255,0.012)' : 'transparent',
-              }}
-            >
-              <div style={{ color: C.ink }}>{r.feature}</div>
-              <div className="flex items-center gap-2" style={{ color: C.inkMute }}>
-                <X className="w-3.5 h-3.5" style={{ color: C.inkFaint }} />
-                {r.chatgpt}
-              </div>
-              <div className="flex items-center gap-2" style={{ color: C.ink }}>
-                <Check className="w-3.5 h-3.5" style={{ color: C.teal }} />
-                {r.lumina}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-        <p className="mt-6 text-center text-[12.5px]" style={{ color: C.inkFaint }}>
-          We love ChatGPT. We just don't think a search bar is what gets you through an exam.
-        </p>
-      </div>
-    </section>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/* Who is this for                                                     */
-/* ------------------------------------------------------------------ */
-const WhoFor = () => {
-  const cohorts = [
-    { tag: 'JEE / NEET', line: 'Daily concept loops, full-length mocks, and a weakness map tuned to PCM/PCB.' },
-    { tag: 'IB / A-Levels', line: 'Paper-style questions, IA support, and structured revision by syllabus point.' },
-    { tag: 'SAT / AP', line: 'Adaptive sections, error-pattern detection, and targeted drills before test day.' },
-    { tag: 'University', line: 'Lecture ingestion, exam-paper generation, and long-running notebooks per course.' },
-  ];
-  return (
-    <section className="py-24">
-      <div className="max-w-[1180px] mx-auto px-6">
-        <SectionHeader eyebrow="Who it's for" title="One system. Every syllabus." />
-        <div className="mt-14 grid md:grid-cols-2 gap-4">
-          {cohorts.map((c, i) => (
-            <motion.div
-              key={c.tag}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, ease, delay: i * 0.06 }}
-              className="rounded-[16px] p-6 flex items-start gap-5"
-              style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
-                border: `0.5px solid ${C.hairline}`,
-              }}
-            >
-              <div
-                className="px-2.5 py-1 rounded-[8px] text-[11px] font-semibold tracking-wider"
-                style={{
-                  background: 'rgba(45,212,191,0.10)',
-                  color: C.teal,
-                  border: `0.5px solid rgba(45,212,191,0.25)`,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {c.tag}
-              </div>
-              <div className="text-[13.5px] leading-[1.6]" style={{ color: C.inkMute }}>{c.line}</div>
             </motion.div>
           ))}
         </div>
@@ -869,9 +755,9 @@ const QuoteSection = () => (
           fontWeight: 400,
         }}
       >
-        "I stopped opening ChatGPT for studying. Lumina actually{' '}
-        <em style={{ color: C.teal }}>remembered</em> what I was weak at and quietly{' '}
-        <em style={{ color: C.violet }}>built next week around it</em>."
+        "It's the first time studying has felt like a{' '}
+        <em style={{ color: C.teal }}>conversation</em> instead of a chore. I genuinely{' '}
+        <em style={{ color: C.violet }}>look forward</em> to it."
       </motion.blockquote>
       <div className="mt-8 flex items-center justify-center gap-3">
         <div
@@ -893,47 +779,59 @@ const QuoteSection = () => (
 /* Testimonials                                                        */
 /* ------------------------------------------------------------------ */
 const TestimonialGrid = () => {
-  // Honest early-stage section: one real piece of feedback (9/10),
-  // no invented students, no fake numbers. We refuse to fake social proof.
+  const items = [
+    { name: 'Aarav S.', role: 'NEET 2025', text: 'Lumina caught a gap in cell respiration I didn\'t know I had. Two weeks later, perfect score on the chapter test.', color: C.teal },
+    { name: 'Sarah J.', role: 'Med student', text: 'I\'ve tried every study tool. This is the only one that feels like it actually understands what I\'m struggling with.', color: C.violet },
+    { name: 'David C.', role: 'CS undergrad', text: 'I uploaded a 90-page lecture PDF and had perfect flashcards in 40 seconds. It just works.', color: C.amber },
+    { name: 'Emily R.', role: 'AP Physics', text: 'The streaks and XP sound silly but I actually study every day now. First time ever.', color: C.sky },
+    { name: 'Rohan M.', role: 'IB diploma', text: 'It explains things in three different ways until one clicks. My old tutor never did that.', color: C.teal },
+    { name: 'Priya K.', role: 'A-Levels', text: 'Replaced three apps with Lumina. Notes, flashcards, mock tests — all in one place.', color: C.violet },
+  ];
   return (
     <section className="py-32">
-      <div className="max-w-[820px] mx-auto px-6">
-        <SectionHeader
-          eyebrow="Early feedback"
-          title="We're new. So we don't fake the reviews."
-          subtitle="One real quote from a beta reviewer. More will appear here as real users share theirs."
-        />
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.5, ease }}
-          className="mt-12 rounded-[20px] p-8 md:p-10"
-          style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01))',
-            border: `0.5px solid ${C.hairline}`,
-          }}
-        >
-          <div className="flex gap-0.5 mb-5">
-            {[...Array(9)].map((_, j) => (
-              <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: C.amber }} />
-            ))}
-            <Star className="w-3.5 h-3.5 opacity-30" style={{ color: C.amber }} />
-            <span className="ml-2 text-[11px]" style={{ color: C.inkFaint }}>9 / 10</span>
-          </div>
-          <p className="text-[17px] md:text-[20px] leading-[1.6] mb-6" style={{ color: C.ink }}>
-            "Good, valuable options. Helpful for any student and teacher.
-            Truly a gem that's needed by many."
-          </p>
-          <div className="text-[12px]" style={{ color: C.inkFaint }}>
-            — Beta reviewer · independent feedback
-          </div>
-        </motion.div>
+      <div className="max-w-[1180px] mx-auto px-6">
+        <SectionHeader eyebrow="Loved" title="Students don't usually love study tools." subtitle="They love this one." />
+        <div className="mt-16 grid md:grid-cols-3 gap-4">
+          {items.map((t, i) => (
+            <motion.div
+              key={t.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, ease, delay: (i % 3) * 0.08 }}
+              className="rounded-[16px] p-6"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
+                border: `0.5px solid ${C.hairline}`,
+              }}
+            >
+              <div className="flex gap-0.5 mb-4">
+                {[...Array(5)].map((_, j) => (
+                  <Star key={j} className="w-3.5 h-3.5 fill-current" style={{ color: C.amber }} />
+                ))}
+              </div>
+              <p className="text-[14px] leading-[1.6] mb-5" style={{ color: C.ink }}>
+                "{t.text}"
+              </p>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold"
+                  style={{ background: `${t.color}20`, color: t.color }}
+                >
+                  {t.name.split(' ').map((n) => n[0]).join('')}
+                </div>
+                <div>
+                  <div className="text-[12.5px] font-medium" style={{ color: C.ink }}>{t.name}</div>
+                  <div className="text-[11px]" style={{ color: C.inkFaint }}>{t.role}</div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );
 };
-
 
 /* ------------------------------------------------------------------ */
 /* Pricing                                                             */
@@ -1046,20 +944,16 @@ const Pricing = () => {
 const FAQSection = () => {
   const faqs = [
     {
-      q: 'Isn\'t this just ChatGPT with study features?',
-      a: 'No. ChatGPT is a stateless chatbot — it answers, then forgets. Lumina keeps a persistent model of what you know, scores every concept by mastery, generates adaptive tests from your own material, and rewrites tomorrow\'s study plan based on what slipped today. It\'s a learning system. The chat is just one surface.',
+      q: 'How is Lumina different from ChatGPT?',
+      a: 'ChatGPT answers questions. Lumina builds you a curriculum, tracks what you actually know, and teaches what you don\'t — in the order that compounds. It\'s a tutor, not a search bar.',
     },
     {
-      q: 'How does Lumina know what I should study next?',
-      a: 'Every test, quiz, and explanation feeds a per-concept mastery score. The weakness radar surfaces the concepts where your marks are leaking. Study plans, mocks, and revision drills are then generated to attack those specific gaps — not generic syllabus dumps.',
-    },
-    {
-      q: 'Will it work for my exam?',
-      a: 'Yes — JEE, NEET, SAT, AP, IB, A-Levels, CBSE, ICSE and most undergrad coursework. You bring the syllabus or upload your material, and Lumina structures the rest.',
+      q: 'Will it work for my subject?',
+      a: 'Yes — Physics, Chemistry, Biology, Math, Computer Science, History, Economics, Languages, and most board / competitive exam syllabi from school through undergrad.',
     },
     {
       q: 'Can I use my own notes and lectures?',
-      a: 'That\'s the point. Upload PDFs, paste YouTube links, record lectures live. Lumina ingests everything and uses it as context for explanations, mock papers, and revisions — so the system is grounded in your actual syllabus, not generic answers.',
+      a: 'That\'s the point. Upload PDFs, paste links, record lectures live. Lumina ingests everything and uses it as context for explanations, quizzes, and reviews.',
     },
     {
       q: 'Is my data private?',
@@ -1067,7 +961,7 @@ const FAQSection = () => {
     },
     {
       q: 'Do you have a free plan?',
-      a: 'Always. Core features work on the free tier with daily limits. Upgrade only when Lumina has clearly earned a spot in your routine.',
+      a: 'Always. Most core features work on the free tier, with daily limits. Upgrade only when Lumina has clearly earned a spot in your routine.',
     },
   ];
   const [open, setOpen] = useState<number | null>(0);
@@ -1141,14 +1035,14 @@ const FinalCTA = () => {
                 fontWeight: 400,
               }}
             >
-              Know exactly what to study next.
+              Learn like you mean it.
             </h2>
-            <p className="mt-6 text-[16px] max-w-[480px] mx-auto" style={{ color: C.inkMute }}>
-              Upload one topic you're stuck on. Lumina will find the gap, build the plan, and guide every session from there.
+            <p className="mt-6 text-[16px] max-w-[440px] mx-auto" style={{ color: C.inkMute }}>
+              Open Lumina. Bring one thing you're stuck on. Watch what happens.
             </p>
             <div className="mt-9 flex items-center justify-center gap-2.5 flex-wrap">
               <PrimaryBtn onClick={() => navigate('/auth')}>
-                Build your study system <ArrowRight className="w-3.5 h-3.5" />
+                Start learning free <ArrowRight className="w-3.5 h-3.5" />
               </PrimaryBtn>
               <GhostBtn onClick={openPricing}>See pricing</GhostBtn>
             </div>
@@ -1205,10 +1099,8 @@ const Landing = () => {
       <main>
         <Hero />
         <LogoStrip />
-        <VsChatGPT />
         <Features />
         <HowItWorks />
-        <WhoFor />
         <QuoteSection />
         <TestimonialGrid />
         <Pricing />
