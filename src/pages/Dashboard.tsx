@@ -173,31 +173,22 @@ const Dashboard = () => {
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease }}
-        className="relative rounded-[2rem] overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, hsl(230 20% 10% / 0.6) 0%, hsl(230 20% 12% / 0.5) 100%)',
-          backdropFilter: 'blur(60px) saturate(2)',
-          border: '1px solid hsl(0 0% 100% / 0.06)',
-          boxShadow: '0 24px 80px -12px hsl(0 0% 0% / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.08)',
-        }}
+        transition={{ duration: 0.5, ease }}
+        className="relative rounded-3xl overflow-hidden glass"
       >
         <div className="absolute w-[500px] h-[500px] rounded-full bg-primary/[0.06] blur-[100px] -top-32 -right-32" />
         <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/[0.04] blur-[80px] -bottom-24 -left-24" />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-secondary/[0.02]" />
 
         <div className="relative z-10 p-8 md:p-10">
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
             <div className="flex-1 min-w-0 space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/15"
-                style={{ background: 'hsl(174 72% 56% / 0.08)' }}
-              >
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/15 bg-primary/[0.08]">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <Brain className="w-3.5 h-3.5 text-primary" />
                 <span className="text-[11px] font-semibold text-primary uppercase tracking-widest">Neural Insight</span>
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
                 {avgScore !== null ? (
                   <span className="flex items-center gap-3">
                     {avgScore >= 70 ? `Strong progress, ${userName}` : `Building momentum, ${userName}`}
@@ -253,7 +244,7 @@ const Dashboard = () => {
               <Button
                 onClick={() => navigate(insightAction.url)}
                 size="sm"
-                className="gradient-primary text-primary-foreground px-6 rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="btn-primary px-6"
               >
                 {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
               </Button>
@@ -264,25 +255,25 @@ const Dashboard = () => {
               <div className="relative w-32 h-32">
                 <div className="absolute inset-0 rounded-full opacity-20 blur-xl gradient-primary" />
                 <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(230 15% 16% / 0.5)" strokeWidth="5" />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted) / 0.3)" strokeWidth="5" />
                   <motion.circle
                     cx="50" cy="50" r="42" fill="none"
                     stroke="url(#readiness-grad)" strokeWidth="5" strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 42}`}
                     initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
                     animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
-                    transition={{ duration: 1.5, delay: 0.3, ease }}
+                    transition={{ duration: 1.2, delay: 0.3, ease }}
                   />
                   <defs>
                     <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="hsl(174 72% 56%)" />
-                      <stop offset="50%" stopColor="hsl(200 80% 50%)" />
-                      <stop offset="100%" stopColor="hsl(264 67% 60%)" />
+                      <stop offset="0%" stopColor="#8B5CF6" />
+                      <stop offset="50%" stopColor="#6366F1" />
+                      <stop offset="100%" stopColor="#3B82F6" />
                     </linearGradient>
                   </defs>
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                  <span className="text-3xl font-display font-bold text-foreground tabular-nums">{avgScore ?? '—'}</span>
+                  <span className="text-3xl font-bold text-foreground tabular-nums">{avgScore ?? '—'}</span>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Readiness</span>
                 </div>
               </div>
@@ -304,13 +295,7 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + i * 0.06, ease }}
-            className="relative rounded-2xl p-4 card-hover cursor-default overflow-hidden group"
-            style={{
-              background: 'hsl(230 20% 11% / 0.5)',
-              backdropFilter: 'blur(24px)',
-              border: '1px solid hsl(0 0% 100% / 0.05)',
-              boxShadow: '0 4px 16px hsl(0 0% 0% / 0.2)',
-            }}
+            className="stat-card card-hover cursor-default overflow-hidden group"
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
             <div className="relative z-10 flex items-center gap-3">
@@ -319,7 +304,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-xl font-display font-bold text-foreground tabular-nums leading-tight">{stat.value}</p>
+                <p className="text-xl font-bold text-foreground tabular-nums leading-tight">{stat.value}</p>
                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">{stat.sub}</p>
               </div>
             </div>
@@ -333,12 +318,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, ease }}
-          className="rounded-[2rem] relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, hsl(264 30% 12% / 0.6) 0%, hsl(264 20% 10% / 0.5) 100%)',
-            border: '1px solid hsl(264 67% 60% / 0.15)',
-            boxShadow: '0 12px 40px -8px hsl(264 67% 60% / 0.1)',
-          }}
+          className="rounded-3xl relative overflow-hidden glass"
         >
           <div className="absolute w-[400px] h-[400px] rounded-full bg-violet-500/[0.06] blur-[80px] -top-20 -right-20" />
           <div className="p-6 md:p-8 relative z-10">
@@ -346,14 +326,14 @@ const Dashboard = () => {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Crown className="w-5 h-5 text-violet-400" />
-                  <h2 className="text-lg font-display font-bold text-foreground">Lumina Hub — PRO+</h2>
+                  <h2 className="text-lg font-bold text-foreground">Lumina Hub — PRO+</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">10 science-backed brain engines for ₹499/mo</p>
               </div>
               <Button
                 onClick={openPricing}
                 size="sm"
-                className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-primary-foreground text-xs font-semibold hover:opacity-90 px-5"
+                className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-xs font-semibold hover:opacity-90 px-5"
               >
                 <Rocket className="w-3.5 h-3.5 mr-1.5" /> Upgrade
               </Button>
@@ -373,8 +353,7 @@ const Dashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.35 + i * 0.06, ease }}
                   onClick={() => navigate('/hub')}
-                  className="rounded-xl p-3 text-center cursor-pointer hover:bg-white/[0.03] transition-colors"
-                  style={{ border: '1px solid hsl(0 0% 100% / 0.05)' }}
+                  className="rounded-xl p-3 text-center cursor-pointer hover:bg-muted/15 transition-colors border border-border/10"
                 >
                   <item.icon className={`w-5 h-5 ${item.color} mx-auto mb-1.5`} />
                   <p className="text-[10px] text-muted-foreground font-medium">{item.label}</p>
@@ -388,7 +367,7 @@ const Dashboard = () => {
       {/* ═══ WEAKNESS RADAR ═══ */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2.5">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center">
               <Activity className="w-4 h-4 text-destructive" />
             </div>
@@ -419,12 +398,7 @@ const Dashboard = () => {
                   whileHover={{ y: -3, scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate('/tests')}
-                  className={`rounded-2xl p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer`}
-                  style={{
-                    background: 'hsl(230 20% 11% / 0.45)',
-                    backdropFilter: 'blur(24px)',
-                    border: '1px solid hsl(0 0% 100% / 0.05)',
-                  }}
+                  className={`rounded-2xl p-5 text-left border-l-[3px] ${c.border} relative overflow-hidden group cursor-pointer border border-white/[0.04] bg-card`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${c.glow} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
                   <div className="relative z-10">
@@ -453,7 +427,7 @@ const Dashboard = () => {
             })}
           </div>
         ) : (
-          <div className="rounded-2xl p-8 text-center" style={{ background: 'hsl(230 20% 11% / 0.4)', border: '1px solid hsl(0 0% 100% / 0.05)' }}>
+          <div className="rounded-2xl p-8 text-center bg-card border border-white/[0.04]">
             <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 className="w-7 h-7 text-success" />
             </div>
@@ -468,7 +442,7 @@ const Dashboard = () => {
 
       {/* ═══ INTELLIGENCE GRID ═══ */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, ease }}>
-        <h2 className="text-base font-display font-semibold text-foreground mb-4 flex items-center gap-2.5">
+        <h2 className="text-base font-bold text-foreground mb-4 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
             <Zap className="w-4 h-4 text-primary" />
           </div>
@@ -489,12 +463,7 @@ const Dashboard = () => {
               whileHover={{ y: -3, scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate(action.url)}
-              className="rounded-2xl p-5 text-left transition-all duration-300 group overflow-hidden relative"
-              style={{
-                background: 'hsl(230 20% 11% / 0.45)',
-                backdropFilter: 'blur(24px)',
-                border: '1px solid hsl(0 0% 100% / 0.05)',
-              }}
+              className="rounded-2xl p-5 text-left transition-all duration-300 group overflow-hidden relative bg-card border border-white/[0.04]"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
               <div className="relative z-10">
@@ -514,17 +483,12 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, ease }}
-        className="rounded-[1.75rem] p-6 relative overflow-hidden"
-        style={{
-          background: 'hsl(230 20% 11% / 0.45)',
-          backdropFilter: 'blur(24px)',
-          border: '1px solid hsl(0 0% 100% / 0.05)',
-        }}
+        className="rounded-3xl p-6 relative overflow-hidden glass"
       >
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-base font-display font-semibold text-foreground flex items-center gap-2.5">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                   <BarChart3 className="w-4 h-4 text-primary" />
                 </div>
