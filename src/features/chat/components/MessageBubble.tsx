@@ -301,10 +301,6 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
             </button>
           </div>
         )}
-              <ThumbsDown className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
