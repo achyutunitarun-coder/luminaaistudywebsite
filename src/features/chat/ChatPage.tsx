@@ -269,7 +269,7 @@ const ChatPage = () => {
         </div>
 
         {/* Content */}
-        <div className="chat-content">
+        <div className="chat-content chat-content-top">
           {empty ? (
             <div className="chat-empty">
               <motion.div
