@@ -163,7 +163,20 @@
   .progress-fill {
     @apply h-full rounded-full bg-gradient-to-r from-primary via-primary to-secondary transition-all duration-700 ease-out;
   }
-}
+
+  /* Glow effects */
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.25);
+  }
+  .shadow-glow-sm {
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.15);
+  }
+  .shadow-glow-teal {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.25);
+  }
+  .shadow-glow-amber {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+  }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -1,24 +1,18 @@
 /**
- * Lumina AI Chat — persisted conversations + queued artifact generation.
- * Chat feature stays isolated inside /src/features/chat/ plus credits UI.
+ * Lumina AI Chat — Production-Grade UI
+ * Complete rewrite with proper colors, spacing, and interactions.
  */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Clock3,
-  MessageSquarePlus,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Sparkles,
-  Trash2,
-  Zap,
+  MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
+  Sparkles, Trash2, Zap, Plus, ArrowRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
-import { detectIntent, type Intent } from "./utils/intentDetector";
+import { detectIntent } from "./utils/intentDetector";
 import { attemptGeneration } from "./utils/generationWrapper";
 import { MessageList } from "./components/MessageList";
 import { InputBar } from "./components/InputBar";
@@ -30,100 +24,49 @@ import { ModelSelector, type ModelMode } from "./components/ModelSelector";
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
 import { ManualRestoreButton } from "@/features/credits/ManualRestore";
-import {
-  useCreditsStore,
-  creditsActions,
-} from "@/features/credits/useCreditsStore";
-import {
-  CREDIT_COSTS,
-  hasEnoughCredits,
-  type CreditAction,
-} from "@/features/credits/creditsSystem";
+import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
+import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
 import { isGmailRequest, loadRecentGmailContext } from "@/lib/connectors/gmailContext";
 import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 
 export interface Message {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
+  id: string; role: "user" | "assistant" | "system"; content: string;
   type: "text" | "artifact" | "error" | "loading" | "insufficient_credits" | "action_confirm";
-  artifactHtml?: string;
-  artifactType?: "notes" | "exam" | "slides" | "code";
-  topic?: string;
-  creditsUsed?: number;
-  newBalance?: number;
-  requiredCredits?: number;
-  currentBalance?: number;
-  isStreaming?: boolean;
-  pendingAction?: AgentAction;
-  actionSummary?: string;
-  actionResolved?: boolean;
-  timestamp: number;
+  artifactHtml?: string; artifactType?: "notes" | "exam" | "slides" | "code";
+  topic?: string; creditsUsed?: number; newBalance?: number;
+  requiredCredits?: number; currentBalance?: number;
+  isStreaming?: boolean; pendingAction?: AgentAction;
+  actionSummary?: string; actionResolved?: boolean; timestamp: number;
 }
 
-type ChatSummary = {
-  id: string;
-  title: string;
-  updated_at: string;
-  created_at: string;
-};
-
+type ChatSummary = { id: string; title: string; updated_at: string; created_at: string; };
 type SavedMessageRow = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
-  message_type?: Message["type"];
-  artifact_type?: Message["artifactType"] | null;
-  artifact_html?: string | null;
-  topic?: string | null;
-  credits_used?: number | string | null;
-  new_balance?: number | string | null;
+  id: string; role: "user" | "assistant"; content: string; created_at: string;
+  message_type?: Message["type"]; artifact_type?: Message["artifactType"] | null;
+  artifact_html?: string | null; topic?: string | null;
+  credits_used?: number | string | null; new_balance?: number | string | null;
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 const SUGGESTIONS = [
-  "Explain quantum entanglement in simple terms",
-  "Create notes on photosynthesis",
-  "Make an exam paper on thermodynamics",
-  "Build me a Snake game",
-  "Slides on Newton's laws of motion",
-  "Quick study on cell division",
+  { text: "Explain quantum entanglement in simple terms", icon: "🧬" },
+  { text: "Create notes on photosynthesis", icon: "📝" },
+  { text: "Make an exam paper on thermodynamics", icon: "📋" },
+  { text: "Build me a Snake game", icon: "🐍" },
+  { text: "Slides on Newton's laws of motion", icon: "📊" },
+  { text: "Quick study on cell division", icon: "🔬" },
 ];
 
-const uid = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
-
-const titleFrom = (text: string) => {
-  const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length > 48
-    ? `${clean.slice(0, 48).trim()}…`
-    : clean || "New chat";
-};
-
-const toNumber = (value: number | string | null | undefined) => {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  return undefined;
-};
-
+const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+const titleFrom = (text: string) => { const c = text.replace(/\s+/g, " ").trim(); return c.length > 48 ? `${c.slice(0, 48).trim()}…` : c || "New chat"; };
+const toNumber = (v: number | string | null | undefined) => { if (typeof v === "number") return v; if (typeof v === "string") { const n = Number(v); return Number.isFinite(n) ? n : undefined; } return undefined; };
 const rowToMessage = (row: SavedMessageRow): Message => ({
-  id: row.id,
-  role: row.role,
-  content: row.content ?? "",
+  id: row.id, role: row.role, content: row.content ?? "",
   type: (row.message_type || "text") as Message["type"],
-  artifactType: row.artifact_type ?? undefined,
-  artifactHtml: row.artifact_html ?? undefined,
-  topic: row.topic ?? undefined,
-  creditsUsed: toNumber(row.credits_used),
-  newBalance: toNumber(row.new_balance),
+  artifactType: row.artifact_type ?? undefined, artifactHtml: row.artifact_html ?? undefined,
+  topic: row.topic ?? undefined, creditsUsed: toNumber(row.credits_used), newBalance: toNumber(row.new_balance),
   timestamp: new Date(row.created_at).getTime(),
 });
 
@@ -138,9 +81,7 @@ const ChatPage = () => {
   const [loadingStage, setLoadingStage] = useState("");
   const [model, setModel] = useState<ModelMode>("auto");
   const [buyOpen, setBuyOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(() =>
-    typeof window === "undefined" ? true : window.innerWidth >= 768,
-  );
+  const [historyOpen, setHistoryOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth >= 768);
   const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -151,884 +92,96 @@ const ChatPage = () => {
   const upsertArtifact = useArtifactStore((s) => s.upsertArtifact);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
   const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
-
-  // ── Canvas Mode ──────────────────────────────────────────────────
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
 
-  useEffect(() => {
+  useEffect(() => { try { const i = localStorage.getItem("lumina_canvas_import"); if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); } } catch {} }, []);
+  const pushCanvasFromMessage = useCallback((text: string) => { const f = detectCanvas(text); if (!f) return; setCanvasVersions(p => [...p, { code: f.code, html: wrapAsHtmlDoc(f.code, f.lang), ts: Date.now() }].slice(-20)); setCanvasOpen(true); }, []);
+  useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
+  useEffect(() => { const h = (e: Event) => { const d = (e as CustomEvent<number>).detail; if (typeof d === "number") setArtifactSplit(d); }; window.addEventListener("lumina-artifact-split", h); return () => window.removeEventListener("lumina-artifact-split", h); }, []);
+  useEffect(() => { messages.forEach((m, i) => { if (m.type !== "artifact" || !m.artifactHtml || !m.artifactType) return; upsertArtifact({ id: m.id, type: m.artifactType, title: m.topic || "Untitled", html: m.artifactHtml, createdAt: m.timestamp, sourceMessageId: m.id, contextMessageIds: messages.slice(Math.max(0, i - 6), i + 1).map(x => x.id), summary: "Restored from chat" }); }); }, [messages, upsertArtifact]);
+
+  const refreshChats = useCallback(async () => { if (!user) { setChatSessions([]); setCurrentChatId(null); currentChatIdRef.current = null; return; } const { data, error } = await supabase.from("chats").select("id,title,created_at,updated_at").eq("user_id", user.id).eq("chat_type", "general").order("updated_at", { ascending: false }).limit(40); if (error) return; setChatSessions((data ?? []) as ChatSummary[]); }, [user]);
+  useEffect(() => { refreshChats(); }, [refreshChats]);
+
+  const ensureChat = useCallback(async (t: string): Promise<string | null> => { if (!user) return null; if (currentChatIdRef.current) return currentChatIdRef.current; const { data, error } = await supabase.from("chats").insert({ user_id: user.id, title: titleFrom(t), chat_type: "general" }).select("id,title,created_at,updated_at").single(); if (error || !data) return null; const c = data as ChatSummary; setCurrentChatId(c.id); currentChatIdRef.current = c.id; setChatSessions(p => [c, ...p.filter(x => x.id !== c.id)]); return c.id; }, [user]);
+  const touchChat = useCallback(async (id: string) => { setChatSessions(p => p.map(c => c.id === id ? { ...c, updated_at: new Date().toISOString() } : c)); await supabase.from("chats").update({ updated_at: new Date().toISOString() }).eq("id", id); }, []);
+  const persistMessage = useCallback(async (chatId: string | null, msg: Message) => { if (!chatId || !user || msg.type === "loading" || msg.role === "system" || (msg.role !== "user" && msg.role !== "assistant")) return; try { await (supabase as any).from("chat_messages").upsert({ id: msg.id, chat_id: chatId, role: msg.role, content: msg.content || "", message_type: msg.type, artifact_type: msg.artifactType ?? null, artifact_html: msg.artifactHtml ?? null, topic: msg.topic ?? null, credits_used: msg.creditsUsed ?? null, new_balance: msg.newBalance ?? null }, { onConflict: "id" }); await touchChat(chatId); } catch {} }, [touchChat, user]);
+
+  const loadChat = useCallback(async (chat: ChatSummary) => { setHistoryLoading(true); try { const { data, error } = await (supabase as any).from("chat_messages").select("id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance").eq("chat_id", chat.id).order("created_at", { ascending: true }); if (error) throw error; setCurrentChatId(chat.id); currentChatIdRef.current = chat.id; setMessages(((data ?? []) as SavedMessageRow[]).map(rowToMessage)); setHistoryOpen(false); } catch (e: any) { toast.error(e?.message ?? "Could not open chat."); } finally { setHistoryLoading(false); } }, []);
+  const startNewChat = useCallback(() => { abortRef.current?.abort(); setCurrentChatId(null); currentChatIdRef.current = null; setMessages([]); setInput(""); setLoading(false); setLoadingStage(""); }, []);
+  const deleteChat = useCallback(async (id: string) => { if (!user) return; const { error } = await supabase.from("chats").delete().eq("id", id).eq("user_id", user.id); if (error) { toast.error("Could not delete."); return; } setChatSessions(p => p.filter(c => c.id !== id)); if (currentChatIdRef.current === id) startNewChat(); }, [startNewChat, user]);
+
+  const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
+    const ctrl = new AbortController(); abortRef.current = ctrl;
+    const aiMessages = history.filter(m => m.type === "text").slice(-20).map(m => ({ role: m.role, content: m.content }));
+    const { data: { session } } = await supabase.auth.getSession(); if (!session?.access_token) throw new Error("Please sign in.");
+    const wireMode = model === "deepDive" ? "long_context" : model;
+    const res = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal });
+    if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
+    const aId = uid(); setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
+    try { while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let nl: number; while ((nl = buf.indexOf("\n")) !== -1) { let line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.endsWith("\r")) line = line.slice(0, -1); if (!line.startsWith("data: ")) continue; const json = line.slice(6).trim(); if (json === "[DONE]") continue; try { const parsed = JSON.parse(json); const delta = parsed?.choices?.[0]?.delta?.content; if (typeof delta === "string" && delta.length > 0) { acc += delta; setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m)); } } catch { buf = line + "\n" + buf; break; } } } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
+    const final: Message = acc.trim().length === 0 ? { id: aId, role: "assistant", type: "error", content: "No response received. Please try again.", timestamp: Date.now() } : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
+    setMessages(p => p.map(m => m.id === aId ? final : m)); await persistMessage(chatId, final); if (final.type === "text") pushCanvasFromMessage(final.content);
+  }, [model, persistMessage, pushCanvasFromMessage]);
+
+  const runQuickStudy = useCallback(async (topic: string, history: Message[], chatId: string | null) => {
+    const p = `Create a 10-minute revision guide for: ${topic}.\n\nFormat strictly as:\n## ⚡ Quick Revision: ${topic}\n**Read time: ~10 minutes**\n\n### 1. Key Facts (2 min)\n[5–8 bullets]\n\n### 2. Critical Formulas / Definitions (2 min)\n[List with brief explanations]\n\n### 3. Common Exam Mistakes (2 min)\n[3–4 mistakes]\n\n### 4. Quick Quiz (4 min)\nQ1: ... || A: ...\nQ2: ... || A: ...\nQ3: ... || A: ...\n\n### 5. 60-Second Summary\n[2–3 sentences]`;
+    const ctrl = new AbortController(); abortRef.current = ctrl;
+    const ai = history.filter(m => m.type === "text").slice(-10).map(m => ({ role: m.role, content: m.content })); ai.push({ role: "user", content: p });
+    const { data: { session } } = await supabase.auth.getSession(); if (!session?.access_token) throw new Error("Please sign in.");
+    const res = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ messages: ai, mode: "study" }), signal: ctrl.signal });
+    if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
+    const aId = uid(); setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "", acc = "";
+    try { while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let nl: number; while ((nl = buf.indexOf("\n")) !== -1) { let line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.endsWith("\r")) line = line.slice(0, -1); if (!line.startsWith("data: ")) continue; const json = line.slice(6).trim(); if (json === "[DONE]") continue; try { const parsed = JSON.parse(json); const d = parsed?.choices?.[0]?.delta?.content; if (typeof d === "string") { acc += d; setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m)); } } catch { buf = line + "\n" + buf; break; } } } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
+    const final: Message = { id: aId, role: "assistant", content: acc, type: "text", timestamp: Date.now() };
+    setMessages(p => p.map(m => m.id === aId ? final : m)); await persistMessage(chatId, final);
+  }, [persistMessage]);
+
+  const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null, contextMessageIds: string[] = []) => {
+    const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];
+    if (!isPro && !hasEnoughCredits(action, credits.balance)) { setBuyOpen(true); return; }
+    const allowed = await checkAndIncrement('artifact_generation'); if (!allowed) return;
+    const lid = uid(); setMessages(p => [...p, { id: lid, role: "assistant", content: `Creating your ${type} on "${topic}"...`, type: "loading", timestamp: Date.now() }]);
     try {
-      const imported = localStorage.getItem("lumina_canvas_import");
-      if (imported) {
-        const html = wrapAsHtmlDoc(imported, /<!doctype html|<html/i.test(imported) ? "html" : "html");
-        setCanvasVersions([{ code: imported, html, ts: Date.now() }]);
-        setCanvasOpen(true);
-        localStorage.removeItem("lumina_canvas_import");
-      }
-    } catch {}
-  }, []);
-
-  const pushCanvasFromMessage = useCallback((text: string) => {
-    const found = detectCanvas(text);
-    if (!found) return;
-    const html = wrapAsHtmlDoc(found.code, found.lang);
-    setCanvasVersions((prev) => [...prev, { code: found.code, html, ts: Date.now() }].slice(-20));
-    setCanvasOpen(true);
-  }, []);
-
-  useEffect(() => {
-    currentChatIdRef.current = currentChatId;
-  }, [currentChatId]);
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<number>).detail;
-      if (typeof detail === "number") setArtifactSplit(detail);
-    };
-    window.addEventListener("lumina-artifact-split", handler);
-    return () => window.removeEventListener("lumina-artifact-split", handler);
-  }, []);
-
-  useEffect(() => {
-    messages.forEach((m, index) => {
-      if (m.type !== "artifact" || !m.artifactHtml || !m.artifactType) return;
-      upsertArtifact({
-        id: m.id,
-        type: m.artifactType,
-        title: m.topic || "Untitled artifact",
-        html: m.artifactHtml,
-        createdAt: m.timestamp,
-        sourceMessageId: m.id,
-        contextMessageIds: messages.slice(Math.max(0, index - 6), index + 1).map((msg) => msg.id),
-        summary: "Restored from chat history",
-      });
-    });
-  }, [messages, upsertArtifact]);
-
-  const refreshChats = useCallback(async () => {
-    if (!user) {
-      setChatSessions([]);
-      setCurrentChatId(null);
-      currentChatIdRef.current = null;
-      return;
-    }
-    const { data, error } = await supabase
-      .from("chats")
-      .select("id,title,created_at,updated_at")
-      .eq("user_id", user.id)
-      .eq("chat_type", "general")
-      .order("updated_at", { ascending: false })
-      .limit(40);
-    if (error) {
-      console.warn("Failed to load chat history:", error);
-      return;
-    }
-    setChatSessions((data ?? []) as ChatSummary[]);
-  }, [user]);
-
-  useEffect(() => {
-    refreshChats();
-  }, [refreshChats]);
-
-  const ensureChat = useCallback(
-    async (firstText: string): Promise<string | null> => {
-      if (!user) return null;
-      if (currentChatIdRef.current) return currentChatIdRef.current;
-
-      const title = titleFrom(firstText);
-      const { data, error } = await supabase
-        .from("chats")
-        .insert({ user_id: user.id, title, chat_type: "general" })
-        .select("id,title,created_at,updated_at")
-        .single();
-
-      if (error || !data) {
-        console.warn("Failed to create chat:", error);
-        return null;
-      }
-
-      const chat = data as ChatSummary;
-      setCurrentChatId(chat.id);
-      currentChatIdRef.current = chat.id;
-      setChatSessions((prev) => [
-        chat,
-        ...prev.filter((c) => c.id !== chat.id),
-      ]);
-      return chat.id;
-    },
-    [user],
-  );
-
-  const touchChat = useCallback(async (chatId: string) => {
-    const updated_at = new Date().toISOString();
-    setChatSessions((prev) =>
-      prev.map((c) => (c.id === chatId ? { ...c, updated_at } : c)),
-    );
-    await supabase.from("chats").update({ updated_at }).eq("id", chatId);
-  }, []);
-
-  const persistMessage = useCallback(
-    async (chatId: string | null, message: Message) => {
-      if (!chatId || !user) return;
-      if (message.type === "loading" || message.role === "system") return;
-      if (message.role !== "user" && message.role !== "assistant") return;
-
-      try {
-        await (supabase as any).from("chat_messages").upsert(
-          {
-            id: message.id,
-            chat_id: chatId,
-            role: message.role,
-            content: message.content || "",
-            message_type: message.type,
-            artifact_type: message.artifactType ?? null,
-            artifact_html: message.artifactHtml ?? null,
-            topic: message.topic ?? null,
-            credits_used: message.creditsUsed ?? null,
-            new_balance: message.newBalance ?? null,
-          },
-          { onConflict: "id" },
-        );
-        await touchChat(chatId);
-      } catch (error) {
-        console.warn("Message persistence failed:", error);
-      }
-    },
-    [touchChat, user],
-  );
-
-  const removePersistedFrom = useCallback(
-    async (startIndex: number) => {
-      const chatId = currentChatIdRef.current;
-      if (!chatId || startIndex < 0) return;
-      const ids = messages
-        .slice(startIndex)
-        .filter((m) => m.type !== "loading" && m.role !== "system")
-        .map((m) => m.id);
-      if (ids.length === 0) return;
-      try {
-        await (supabase as any)
-          .from("chat_messages")
-          .delete()
-          .eq("chat_id", chatId)
-          .in("id", ids);
-        await touchChat(chatId);
-      } catch (error) {
-        console.warn("Failed to prune chat branch:", error);
-      }
-    },
-    [messages, touchChat],
-  );
-
-  const loadChat = useCallback(async (chat: ChatSummary) => {
-    setHistoryLoading(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("chat_messages")
-        .select(
-          "id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance",
-        )
-        .eq("chat_id", chat.id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      setCurrentChatId(chat.id);
-      currentChatIdRef.current = chat.id;
-      setMessages(((data ?? []) as SavedMessageRow[]).map(rowToMessage));
-      setHistoryOpen(false);
-    } catch (error: any) {
-      toast.error(error?.message ?? "Could not open chat history.");
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
-
-  const startNewChat = useCallback(() => {
-    abortRef.current?.abort();
-    setCurrentChatId(null);
-    currentChatIdRef.current = null;
-    setMessages([]);
-    setInput("");
-    setLoading(false);
-    setLoadingStage("");
-  }, []);
-
-  const deleteChat = useCallback(
-    async (chatId: string) => {
-      if (!user) return;
-      const { error } = await supabase
-        .from("chats")
-        .delete()
-        .eq("id", chatId)
-        .eq("user_id", user.id);
-      if (error) {
-        toast.error("Could not delete chat.");
-        return;
-      }
-      setChatSessions((prev) => prev.filter((c) => c.id !== chatId));
-      if (currentChatIdRef.current === chatId) startNewChat();
-    },
-    [startNewChat, user],
-  );
-
-  const streamChat = useCallback(
-    async (history: Message[], chatId: string | null) => {
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-
-      const aiMessages = history
-        .filter((m) => m.type === "text")
-        .slice(-20)
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Please sign in to use Lumina Chat.");
-
-      const wireMode = model === "deepDive" ? "long_context" : model;
-      const res = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
-        signal: ctrl.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 120)}`);
-      }
-
-      const aId = uid();
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: aId,
-          role: "assistant",
-          content: "",
-          type: "text",
-          isStreaming: true,
-          timestamp: Date.now(),
-        },
-      ]);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      let acc = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            let line = buf.slice(0, nl);
-            buf = buf.slice(nl + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (json === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(json);
-              const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === "string" && delta.length > 0) {
-                acc += delta;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
-                );
-              }
-            } catch {
-              buf = line + "\n" + buf;
-              break;
-            }
-          }
-        }
-      } finally {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)),
-        );
-      }
-
-      const finalMessage: Message =
-        acc.trim().length === 0
-          ? {
-              id: aId,
-              role: "assistant",
-              type: "error",
-              content: "No response received. Please try again.",
-              timestamp: Date.now(),
-            }
-          : {
-              id: aId,
-              role: "assistant",
-              type: "text",
-              content: acc,
-              timestamp: Date.now(),
-            };
-
-      setMessages((prev) => prev.map((m) => (m.id === aId ? finalMessage : m)));
-      await persistMessage(chatId, finalMessage);
-      if (finalMessage.type === "text") pushCanvasFromMessage(finalMessage.content);
-    },
-    [model, persistMessage, pushCanvasFromMessage],
-  );
-
-  const runQuickStudy = useCallback(
-    async (topic: string, history: Message[], chatId: string | null) => {
-      const synthesizedPrompt = `Create a 10-minute revision guide for: ${topic}.
-
-Format strictly as:
-## ⚡ Quick Revision: ${topic}
-**Read time: ~10 minutes**
-
-### 1. Key Facts (2 min)
-[5–8 bullets]
-
-### 2. Critical Formulas / Definitions (2 min)
-[List with brief explanations]
-
-### 3. Common Exam Mistakes (2 min)
-[3–4 mistakes]
-
-### 4. Quick Quiz (4 min)
-Q1: ... || A: ...
-Q2: ... || A: ...
-Q3: ... || A: ...
-
-### 5. 60-Second Summary
-[2–3 sentences]`;
-
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const aiMessages = history
-        .filter((m) => m.type === "text")
-        .slice(-10)
-        .map((m) => ({ role: m.role, content: m.content }));
-      aiMessages.push({ role: "user", content: synthesizedPrompt });
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Please sign in to use Quick Study.");
-      const res = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ messages: aiMessages, mode: "study" }),
-        signal: ctrl.signal,
-      });
-      if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
-
-      const aId = uid();
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: aId,
-          role: "assistant",
-          content: "",
-          type: "text",
-          isStreaming: true,
-          timestamp: Date.now(),
-        },
-      ]);
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "",
-        acc = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            let line = buf.slice(0, nl);
-            buf = buf.slice(nl + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (json === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(json);
-              const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === "string") {
-                acc += delta;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === aId ? { ...m, content: acc } : m)),
-                );
-              }
-            } catch {
-              buf = line + "\n" + buf;
-              break;
-            }
-          }
-        }
-      } finally {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)),
-        );
-      }
-
-      const finalMessage: Message = {
-        id: aId,
-        role: "assistant",
-        content: acc,
-        type: "text",
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => prev.map((m) => (m.id === aId ? finalMessage : m)));
-      await persistMessage(chatId, finalMessage);
-    },
-    [persistMessage],
-  );
-
-  const runArtifact = useCallback(
-    async (
-      type: "notes" | "exam" | "slides" | "code",
-      topic: string,
-      originalPrompt: string,
-      chatId: string | null,
-      contextMessageIds: string[] = [],
-    ) => {
-      const action = `${type}_artifact` as CreditAction;
-      const cost = CREDIT_COSTS[action];
-
-      if (!isPro && !hasEnoughCredits(action, credits.balance)) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            role: "system",
-            type: "insufficient_credits",
-            content: `You need ⚡ ${cost} credits to generate this ${type}.`,
-            requiredCredits: cost,
-            currentBalance: credits.balance,
-            timestamp: Date.now(),
-          },
-        ]);
-        return;
-      }
-
-      const loadingId = uid();
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: loadingId,
-          role: "assistant",
-          content: `Queued your ${type}…`,
-          type: "loading",
-          timestamp: Date.now(),
-        },
-      ]);
-
-      const result = await attemptGeneration({
-        type,
-        topic,
-        prompt: originalPrompt,
-        chatId: chatId ?? undefined,
-        timeoutMs: 540_000,
-        maxRetries: 1,
-        onStage: (s) => setLoadingStage(s),
-      });
-
+      const result = await attemptGeneration({ type, topic, prompt: originalPrompt, chatId: chatId ?? undefined, timeoutMs: 540_000, maxRetries: 1, onStage: setLoadingStage });
       if (result.success) {
-        let newBalance = credits.balance;
-        if (!isPro) {
-          try {
-            const { data } = await (supabase as any).rpc("spend_user_credits", {
-              _amount: cost,
-              _action: action.replace(/_/g, " "),
-            });
-            const row = Array.isArray(data) ? data[0] : data;
-            if (row?.success && typeof row.balance !== "undefined") {
-              newBalance = Number(row.balance);
-              credits.setBalance(newBalance);
-            } else {
-              creditsActions.deduct(action);
-              newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
-            }
-          } catch (e) {
-            console.warn("Persistent credit spend failed, using local fallback:", e);
-            creditsActions.deduct(action);
-            newBalance = Math.max(0, +(credits.balance - cost).toFixed(2));
-          }
-          if (user) {
-            try {
-              await supabase.rpc("increment_usage", {
-                p_user_id: user.id,
-                p_feature: "chat_messages",
-                p_period_type: "daily",
-              });
-            } catch (e) {
-              console.warn("Usage counter (non-blocking):", e);
-            }
-          }
-        }
-        const noteLabel = ({
-          notes: "Study notes",
-          exam: "Exam paper",
-          slides: "Slide deck",
-          code: "Interactive build",
-        } as const)[type];
-        const noun = ({
-          notes: "a structured study guide",
-          exam: "a full exam-style paper",
-          slides: "an interactive slide deck",
-          code: "a working interactive build",
-        } as const)[type];
-        const tips = ({
-          notes: `ask "add a worked example for ${topic}", "make it shorter", or "turn this into flashcards"`,
-          exam: `ask "make it harder", "add a marking scheme", or "focus on ${topic} weak areas"`,
-          slides: `ask "add a quiz slide", "shorten to 8 slides", or "switch aesthetic"`,
-          code: `ask "add dark mode", "make it mobile-first", or "wire up a reset button"`,
-        } as const)[type];
-        const artifactNote = [
-          `**${noteLabel} ready — ${topic}**`,
-          "",
-          `- **What's inside:** ${noun} covering ${topic} end-to-end — open it to see every section, example and visual.`,
-          `- **How to use:** click **Open** for full-screen, or drag the divider to study it alongside chat.`,
-          `- **Customize:** ${tips}.`,
-        ].join("\n");
-        const finalMessage: Message = {
-          id: uid(),
-          role: "assistant",
-          content: artifactNote,
-          type: "artifact",
-          artifactHtml: result.content,
-          artifactType: type,
-          topic,
-          creditsUsed: isPro ? 0 : cost,
-          newBalance,
-          timestamp: Date.now(),
-        };
-        upsertArtifact({
-          id: finalMessage.id,
-          type,
-          title: topic,
-          html: result.content,
-          createdAt: finalMessage.timestamp,
-          sourceMessageId: finalMessage.id,
-          contextMessageIds,
-          summary: `Created ${type} from chat prompt`,
-        });
-        openArtifact(finalMessage.id);
-        setMessages((prev) =>
-          prev.filter((m) => m.id !== loadingId).concat(finalMessage),
-        );
-        await persistMessage(chatId, finalMessage);
-      } else {
-        const finalMessage: Message = {
-          id: uid(),
-          role: "assistant",
-          content: `Generation failed (${result.error ?? "unknown"}) — no credits were charged. Please try again.`,
-          type: "error",
-          timestamp: Date.now(),
-        };
-        setMessages((prev) =>
-          prev.filter((m) => m.id !== loadingId).concat(finalMessage),
-        );
-        await persistMessage(chatId, finalMessage);
-      }
-    },
-    [credits.balance, isPro, openArtifact, persistMessage, upsertArtifact, user],
-  );
+        let newBalance = credits.balance; if (!isPro) { try { const { data } = await (supabase as any).rpc("spend_user_credits", { _amount: cost, _action: action.replace(/_/g, " ") }); const row = Array.isArray(data) ? data[0] : data; if (row?.success && typeof row.balance !== "undefined") { newBalance = Number(row.balance); credits.setBalance(newBalance); } else { creditsActions.deduct(action); newBalance = Math.max(0, +(credits.balance - cost).toFixed(2)); } } catch { creditsActions.deduct(action); newBalance = Math.max(0, +(credits.balance - cost).toFixed(2)); } }
+        const msg: Message = { id: uid(), role: "assistant", type: "artifact", content: "", artifactHtml: result.content, artifactType: type, topic, creditsUsed: isPro ? 0 : cost, newBalance, timestamp: Date.now() };
+        upsertArtifact({ id: msg.id, type, title: topic, html: result.content, createdAt: msg.timestamp, sourceMessageId: msg.id, contextMessageIds, summary: `Created ${type} from chat` }); openArtifact(msg.id);
+        setMessages(p => p.filter(m => m.id !== lid).concat(msg)); await persistMessage(chatId, msg);
+      } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: `Generation failed (${result.error ?? "unknown"}) — no credits were charged.`, timestamp: Date.now() })); }
+    } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits were charged.", timestamp: Date.now() })); }
+  }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
-  const handleSend = useCallback(
-    async (
-      overrideText?: string,
-      forcedType?: "notes" | "exam" | "slides" | "code",
-    ) => {
-      const text = (overrideText ?? input).trim();
-      if (!text || loading) return;
+  const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
+    const t = (text || input).trim(); if (!t || loading) return;
+    if (artifactType) { setShowArtifactPicker(false); const chatId = await ensureChat(t); if (!chatId) return; await runArtifact(artifactType, t, t, chatId); setInput(""); return; }
+    const isArtifactReq = /\b(create|generate|make|build|write|draft)\b.*\b(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\b/i.test(t) || /\b(notes?|exam|test|quiz|slides?|presentation|deck)\b.*\b(on|for|about)\b/i.test(t);
+    const detectedType = isArtifactReq ? (/\b(exam|test|quiz|question)\b/i.test(t) ? "exam" : /\b(slides?|presentation|deck|ppt)\b/i.test(t) ? "slides" : /\b(code|app|game|website|build)\b/i.test(t) ? "code" : "notes") : undefined;
+    if (detectedType) { const chatId = await ensureChat(t); if (!chatId) return; await runArtifact(detectedType, t, t, chatId); setInput(""); return; }
+    const chatId = await ensureChat(t); if (!chatId) return;
+    const userMsg: Message = { id: uid(), role: "user", content: t, type: "text", timestamp: Date.now() };
+    const newMessages = [...messages, userMsg]; setMessages(newMessages); setInput(""); setLoading(true); setLoadingStage("Thinking…"); lastUserMsgRef.current = t;
+    await persistMessage(chatId, userMsg);
+    try { await streamChat(newMessages, chatId); } catch (e: any) { if (e?.name === "AbortError") return; setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() })); } finally { setLoading(false); setLoadingStage(""); }
+  }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
-      lastUserMsgRef.current = text;
-      const chatId = await ensureChat(text);
-      const userMsg: Message = {
-        id: uid(),
-        role: "user",
-        content: text,
-        type: "text",
-        timestamp: Date.now(),
-      };
-      const history = [...messages, userMsg];
-      setMessages((prev) => [...prev, userMsg]);
-      await persistMessage(chatId, userMsg);
-      setInput("");
-      setLoading(true);
-      setLoadingStage("Detecting intent…");
-
-      try {
-        // ── LLM-powered agent planner: 360° intent detection w/ chat history context ──
-        if (!forcedType) {
-          setLoadingStage("Routing…");
-          const history10 = history
-            .filter((m) => m.type === "text" || m.type === "artifact")
-            .slice(-10)
-            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content || "" }));
-          const plan = await planAction(text, history10);
-          const action = plan.kind === "chat" ? null : planToAction(plan);
-
-          if (plan.kind === "chat" && /connect|permission|reconnect|required/i.test(plan.summary || "")) {
-            const finalMessage: Message = {
-              id: uid(),
-              role: "assistant",
-              content: plan.summary,
-              type: "error",
-              timestamp: Date.now(),
-            };
-            setMessages((prev) => [...prev, finalMessage]);
-            await persistMessage(chatId, finalMessage);
-            return;
-          }
-
-          if (action && action.kind === "artifact") {
-            // Secondary safety check: only trigger artifact for explicit creation requests.
-            // The LLM planner can misclassify questions/conversations as artifacts.
-            const lowerText = text.toLowerCase().trim();
-            const creationVerbs = /\b(create|generate|build|make|design|produce|write|draft|develop|code|compose)\b/;
-            const deliverableNouns = /\b(notes|study\s*guide|exam|quiz|test|slides?|presentation|deck|worksheet|flashcards?|mind\s*map|concept\s*map|cheat\s*sheet|formula\s*sheet|question\s*bank|app|website|game|dashboard|calculator|simulator|visualization|interactive|playground|demo|prototype|ui|mockup|landing\s*page|one-pager|report|essay|summary|revision\s*sheet|infographic)\b/;
-            const isQuestion = /^(what|how|why|when|where|who|which|can|could|would|should|is|are|do|does|did|will|have|has|had)\b/i.test(lowerText) || lowerText.includes("?");
-            const isGreeting = /^(hi|hello|hey|sup|yo|hola|namaste|howdy|what'?s?\s*up|greetings)\b/i.test(lowerText) && lowerText.length < 20;
-            const hasCreationIntent = creationVerbs.test(lowerText) && deliverableNouns.test(lowerText);
-
-            if (!hasCreationIntent || isQuestion || isGreeting) {
-              console.warn("[artifact] blocked: no explicit creation intent in:", lowerText.slice(0, 80));
-              // Fall through to normal chat instead
-            } else {
-              setLoadingStage(`Queueing your ${action.type}…`);
-              await runArtifact(action.type, action.topic, text, chatId, history.slice(-6).map((m) => m.id));
-              return;
-            }
-          }
-
-          if (action && action.kind === "navigate") {
-            const result = await executeAgentAction(action, (p) => navigate(p));
-            const finalMessage: Message = {
-              id: uid(), role: "assistant",
-              content: result.message,
-              type: result.ok ? "text" : "error",
-              timestamp: Date.now(),
-            };
-            setMessages((prev) => [...prev, finalMessage]);
-            await persistMessage(chatId, finalMessage);
-            return;
-          }
-
-          if (action) {
-            // Confirmation-required actions get a card; read-only ones execute immediately.
-            if (actionRequiresConfirmation(action)) {
-              const confirmMsg: Message = {
-                id: uid(),
-                role: "assistant",
-                type: "action_confirm",
-                content: plan.summary || "I'd like to run this — confirm?",
-                pendingAction: action,
-                actionSummary: plan.summary,
-                timestamp: Date.now(),
-              };
-              setMessages((prev) => [...prev, confirmMsg]);
-              await persistMessage(chatId, confirmMsg);
-              return;
-            }
-            // Read-only: execute now.
-            setLoadingStage("Working…");
-            const result = await executeAgentAction(action, (p) => navigate(p));
-            const finalMessage: Message = {
-              id: uid(), role: "assistant",
-              content: result.message,
-              type: result.ok ? "text" : "error",
-              timestamp: Date.now(),
-            };
-            setMessages((prev) => [...prev, finalMessage]);
-            await persistMessage(chatId, finalMessage);
-            return;
-          }
-        }
-
-        let intent: Intent;
-        let topic = text;
-        if (forcedType) {
-          intent = (forcedType.toUpperCase() + "_ARTIFACT") as Intent;
-          topic = text;
-        } else {
-          // Planner returned chat — also fall back to deterministic detector as safety net
-          const r = detectIntent(text);
-          intent = r.confidence < 0.85 ? "CHAT" : r.intent;
-          topic = r.topic || text;
-        }
-
-        let effectiveText = text;
-        let effectiveHistory = history;
-        if (intent === "CHAT" && isGmailRequest(text)) {
-          setLoadingStage("Reading Gmail…");
-          try {
-            const gmailContext = await loadRecentGmailContext(5);
-            effectiveText = `${text}\n\n${gmailContext}\n\nUse the live Gmail context above directly. Do not claim you cannot access email; if the context is sparse, say exactly what was available.`;
-            effectiveHistory = history.map((m) =>
-              m.id === userMsg.id ? { ...m, content: effectiveText } : m,
-            );
-          } catch (connectorError) {
-            const msg = connectorError instanceof Error ? connectorError.message : String(connectorError);
-            const finalMessage: Message = {
-              id: uid(),
-              role: "assistant",
-              content: `I tried to read Gmail, but the connector failed: ${msg}\n\nReconnect Gmail from Connectors, then ask me again.`,
-              type: "error",
-              timestamp: Date.now(),
-            };
-            setMessages((prev) => [...prev, finalMessage]);
-            await persistMessage(chatId, finalMessage);
-            return;
-          }
-        }
-
-        if (intent === "CHAT") {
-          setLoadingStage("Thinking…");
-          await streamChat(effectiveHistory, chatId);
-        } else if (intent === "QUICK_STUDY") {
-          setLoadingStage("Building 10-minute revision guide…");
-          await runQuickStudy(topic, history, chatId);
-        } else {
-          const type =
-            intent === "NOTES_ARTIFACT"
-              ? "notes"
-              : intent === "EXAM_ARTIFACT"
-                ? "exam"
-                : intent === "SLIDES_ARTIFACT"
-                  ? "slides"
-                  : "code";
-          setLoadingStage(`Queueing your ${type}…`);
-          await runArtifact(type, topic, text, chatId, history.slice(-6).map((m) => m.id));
-        }
-      } catch (e: any) {
-        const isAbort = e?.name === "AbortError";
-        if (!isAbort) {
-          const finalMessage: Message = {
-            id: uid(),
-            role: "assistant",
-            content: e?.message?.includes("429")
-              ? "Too many requests. Please wait 30 seconds."
-              : (e?.message ?? "Something went wrong. Please try again."),
-            type: "error",
-            timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, finalMessage]);
-          await persistMessage(chatId, finalMessage);
-        }
-      } finally {
-        setLoading(false);
-        setLoadingStage("");
-        abortRef.current = null;
-      }
-    },
-    [
-      ensureChat,
-      input,
-      loading,
-      messages,
-      navigate,
-      persistMessage,
-      runArtifact,
-      runQuickStudy,
-      streamChat,
-    ],
-  );
-
-  const handleStop = useCallback(() => {
-    abortRef.current?.abort();
-    setLoading(false);
-    setLoadingStage("");
-    toast.info("Stopped.");
-  }, []);
-
-  const handleRegenerate = useCallback(
-    async (assistantId?: string) => {
-      if (assistantId) {
-        const idx = messages.findIndex((m) => m.id === assistantId);
-        if (idx > 0) {
-          for (let i = idx - 1; i >= 0; i--) {
-            if (messages[i].role === "user" && messages[i].type === "text") {
-              const userText = messages[i].content;
-              await removePersistedFrom(i);
-              setMessages((prev) => prev.slice(0, i));
-              handleSend(userText);
-              return;
-            }
-          }
-        }
-      }
-      if (!lastUserMsgRef.current) return;
-      handleSend(lastUserMsgRef.current);
-    },
-    [handleSend, messages, removePersistedFrom],
-  );
-
-  const handleRetry = useCallback(
-    (assistantId?: string) => handleRegenerate(assistantId),
-    [handleRegenerate],
-  );
-
-  const handleEdit = useCallback(
-    async (userMsgId: string, newText: string) => {
-      const idx = messages.findIndex((m) => m.id === userMsgId);
-      if (idx < 0) return;
-      await removePersistedFrom(idx);
-      setMessages((prev) => prev.slice(0, idx));
-      handleSend(newText);
-    },
-    [handleSend, messages, removePersistedFrom],
-  );
-
-  const handleConfirmAction = useCallback(
-    async (msgId: string) => {
-      const msg = messages.find((m) => m.id === msgId);
-      if (!msg?.pendingAction) return;
-      // Mark this confirm card as resolved
-      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, actionResolved: true } : m)));
-      const chatId = currentChatIdRef.current;
-      try {
-        const result = await executeAgentAction(msg.pendingAction, (p) => navigate(p));
-        const finalMessage: Message = {
-          id: uid(),
-          role: "assistant",
-          content: result.message,
-          type: result.ok ? "text" : "error",
-          timestamp: Date.now(),
-        };
-        setMessages((prev) => [...prev, finalMessage]);
-        await persistMessage(chatId, finalMessage);
-      } catch (e: any) {
-        const finalMessage: Message = {
-          id: uid(), role: "assistant",
-          content: `Action failed: ${e?.message || e}`,
-          type: "error",
-          timestamp: Date.now(),
-        };
-        setMessages((prev) => [...prev, finalMessage]);
-        await persistMessage(chatId, finalMessage);
-      }
-    },
-    [messages, navigate, persistMessage],
-  );
-
-  const handleCancelAction = useCallback((msgId: string) => {
-    setMessages((prev) => prev.map((m) =>
-      m.id === msgId ? { ...m, actionResolved: true, content: "Cancelled." } : m
-    ));
-  }, []);
-
+  const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
+  const handleRegenerate = useCallback(async (messageId: string) => { const idx = messages.findIndex(m => m.id === messageId); if (idx < 0) return; const chatId = currentChatIdRef.current; if (!chatId) return; setMessages(p => p.slice(0, idx)); try { await streamChat(messages.slice(0, idx), chatId); } catch {} }, [messages, streamChat]);
+  const handleRetry = useCallback(async (messageId: string) => { const msg = messages.find(m => m.id === messageId); if (!msg) return; handleRegenerate(messageId); }, [messages, handleRegenerate]);
+  const handleEdit = useCallback(async (messageId: string, newText: string) => { const idx = messages.findIndex(m => m.id === messageId); if (idx < 0) return; const chatId = currentChatIdRef.current; if (!chatId) return; setMessages(p => p.slice(0, idx).concat({ ...messages[idx], content: newText })); try { await streamChat(messages.slice(0, idx).concat({ ...messages[idx], content: newText }), chatId); } catch {} }, [messages, streamChat]);
+  const handleConfirmAction = useCallback(async (messageId: string) => { const msg = messages.find(m => m.id === messageId); if (!msg?.pendingAction) return; setMessages(p => p.map(m => m.id === messageId ? { ...m, actionResolved: true } : m)); const result = await executeAgentAction(msg.pendingAction, p => navigate(p)); setMessages(p => p.concat({ id: uid(), role: "assistant", type: "text", content: result.message, timestamp: Date.now() })); }, [messages, navigate]);
+  const handleCancelAction = useCallback((messageId: string) => { setMessages(p => p.map(m => m.id === messageId ? { ...m, actionResolved: true } : m)); }, []);
 
   const empty = messages.length === 0;
+  const [showArtifactPicker, setShowArtifactPicker] = useState(false);
 
   return (
-    <div className="flex h-full bg-background">
-      {/* Sidebar */}
+    <div className="flex h-full" style={{ background: "#0A0A0F" }}>
+      {/* ═══ SIDEBAR ═══ */}
       <AnimatePresence>
         {historyOpen && (
           <motion.aside
@@ -1036,7 +189,8 @@ Q3: ... || A: ...
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
-            className="hidden md:flex flex-col h-full border-r border-sidebar-border bg-sidebar shrink-0 overflow-hidden"
+            className="hidden md:flex flex-col h-full shrink-0 overflow-hidden"
+            style={{ background: "#12121A", borderRight: "1px solid rgba(255,255,255,0.06)" }}
           >
             <div className="p-4 space-y-3">
               <button onClick={startNewChat} className="btn-primary w-full">
@@ -1047,41 +201,46 @@ Q3: ... || A: ...
               {chatSessions.map(chat => (
                 <div
                   key={chat.id}
-                  className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${currentChatId === chat.id ? 'text-secondary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  className="group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all"
+                  style={{ color: currentChatId === chat.id ? "#A78BFA" : "#8A8AA3", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }}
                   onClick={() => loadChat(chat)}
+                  onMouseEnter={e => { if (currentChatId !== chat.id) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+                  onMouseLeave={e => { if (currentChatId !== chat.id) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
                   <span className="flex-1 text-sm truncate">{chat.title}</span>
                   <button
                     onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all shrink-0"
+                    style={{ color: "#8A8AA3" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#EF4444"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8A8AA3"}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               ))}
-              {chatSessions.length === 0 && (
-                <div className="text-xs text-muted-foreground/50 p-3 text-center">Your saved chats will appear here.</div>
-              )}
+              {chatSessions.length === 0 && <div className="text-xs p-3 text-center" style={{ color: "#5A5A73" }}>Your saved chats will appear here.</div>}
             </div>
-            <div className="p-3 border-t border-sidebar-border">
+            <div className="p-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <CreditsDisplay onClick={() => setBuyOpen(true)} />
             </div>
           </motion.aside>
         )}
       </AnimatePresence>
 
-      {/* Main Chat */}
+      {/* ═══ MAIN CHAT ═══ */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        <div className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6 border-b border-border bg-background/80 backdrop-blur-xl">
+        {/* Top Bar */}
+        <div className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6" style={{ background: "rgba(10,10,15,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-3">
-            <button onClick={() => setHistoryOpen(v => !v)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => setHistoryOpen(v => !v)} className="p-2 rounded-lg transition-colors" style={{ color: "#8A8AA3" }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F0F0F5"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8A8AA3"}>
               {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-glow">
-                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7C3AED, #14B8A6)", boxShadow: "0 2px 12px rgba(124,58,237,0.3)" }}>
+                <Sparkles className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="text-sm font-semibold text-foreground">Lumina AI</span>
+              <span className="text-sm font-semibold" style={{ color: "#F0F0F5" }}>Lumina AI</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1093,73 +252,52 @@ Q3: ... || A: ...
           </div>
         </div>
 
+        {/* Messages Area */}
         <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 md:px-6">
           {empty ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center">
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }} className="mb-10">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mx-auto mb-5 shadow-glow">
-                  <Sparkles className="w-8 h-8 text-secondary" />
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.15), rgba(20,184,166,0.1))", border: "1px solid rgba(124,58,237,0.2)", boxShadow: "0 8px 32px rgba(124,58,237,0.15)" }}>
+                  <Sparkles className="w-8 h-8" style={{ color: "#A78BFA" }} />
                 </div>
-                <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-foreground mb-2">How can I help you study?</h1>
-                <p className="text-sm text-muted-foreground max-w-md leading-relaxed">Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
+                <h1 className="text-[28px] font-semibold tracking-[-0.03em] mb-2" style={{ color: "#F0F0F5" }}>How can I help you study?</h1>
+                <p className="text-sm max-w-md leading-relaxed" style={{ color: "#8A8AA3" }}>Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
               </motion.div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
                 {SUGGESTIONS.map((s, i) => (
                   <motion.button
-                    key={s}
+                    key={s.text}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.08 + i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
-                    onClick={() => handleSend(s)}
-                    className="text-left text-sm px-4 py-3.5 rounded-2xl bg-muted/50 border border-white/[0.06] hover:bg-muted hover:border-primary/20 hover:shadow-glow transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    onClick={() => handleSend(s.text)}
+                    className="text-left text-sm px-4 py-3.5 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", color: "#E4E4E7" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(124,58,237,0.2)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.06)"; }}
                   >
-                    <span className="text-foreground/90">{s}</span>
+                    <span className="mr-2">{s.icon}</span>{s.text}
                   </motion.button>
                 ))}
               </div>
             </div>
           ) : (
-            <MessageList
-              messages={messages}
-              loadingStage={loadingStage}
-              onRegenerate={handleRegenerate}
-              onRetry={handleRetry}
-              onEdit={handleEdit}
-              onTopUp={() => setBuyOpen(true)}
-              onConfirmAction={handleConfirmAction}
-              onCancelAction={handleCancelAction}
-            />
+            <MessageList messages={messages} loadingStage={loadingStage} onRegenerate={handleRegenerate} onRetry={handleRetry} onEdit={handleEdit} onTopUp={() => setBuyOpen(true)} onConfirmAction={handleConfirmAction} onCancelAction={handleCancelAction} />
           )}
 
-          <div className="shrink-0 pb-4 pt-2 space-y-2 bg-gradient-to-t from-background via-background to-transparent">
+          {/* Input */}
+          <div className="shrink-0 pb-4 pt-2 space-y-2" style={{ background: "linear-gradient(to top, #0A0A0F 70%, transparent)" }}>
             <ModelSelector value={model} onChange={setModel} />
-            <InputBar
-              value={input}
-              onChange={setInput}
-              onSend={t => handleSend(t)}
-              onStop={handleStop}
-              isLoading={loading}
-              onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }}
-            />
-            <p className="text-[10px] text-center text-muted-foreground/50">Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
+            <InputBar value={input} onChange={setInput} onSend={t => handleSend(t)} onStop={handleStop} isLoading={loading} onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }} />
+            <p className="text-[10px] text-center" style={{ color: "#5A5A73" }}>Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
           </div>
         </div>
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
 
-      {canvasOpen && (
-        <div className="hidden md:flex flex-[0_0_54%] min-w-0">
-          <CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} />
-        </div>
-      )}
-      {activeArtifactId && (
-        <PremiumArtifactWorkspace
-          messages={messages}
-          onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)}
-          onRegenerate={id => handleRegenerate(id)}
-        />
-      )}
+      {canvasOpen && <div className="hidden md:flex flex-[0_0_54%] min-w-0"><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
+      {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
     </div>
   );
 };

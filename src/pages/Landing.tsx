@@ -174,19 +174,46 @@ const Hero = () => {
 
   return (
     <section ref={ref} className="relative pt-36 pb-20 overflow-hidden">
-      {/* Aurora mesh */}
-      <div className="absolute inset-0 -z-10 pointer-events-none">
+      {/* Aurora mesh — large, soft, colorful blobs */}
+      <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+        {/* Primary teal orb — top left */}
         <div
-          className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[1200px] h-[700px] rounded-full opacity-40 blur-[140px]"
-          style={{ background: `radial-gradient(circle at 30% 50%, ${C.teal} 0%, transparent 60%), radial-gradient(circle at 70% 50%, ${C.violet} 0%, transparent 60%)` }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute rounded-full"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+            width: 800, height: 600,
+            top: -200, left: -100,
+            background: `radial-gradient(circle, ${C.teal}50 0%, ${C.teal}00 70%)`,
+            filter: 'blur(80px)',
+          }}
+        />
+        {/* Primary violet orb — top right */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 700, height: 500,
+            top: -150, right: -50,
+            background: `radial-gradient(circle, ${C.violet}45 0%, ${C.violet}00 70%)`,
+            filter: 'blur(90px)',
+          }}
+        />
+        {/* Amber accent — center */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 500, height: 400,
+            top: 100, left: '50%', transform: 'translateX(-50%)',
+            background: `radial-gradient(circle, ${C.amber}25 0%, ${C.amber}00 70%)`,
+            filter: 'blur(100px)',
+          }}
+        />
+        {/* Subtle grid overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)',
             backgroundSize: '64px 64px',
-            maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 30%, transparent 80%)',
+            maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 70%)',
           }}
         />
       </div>
