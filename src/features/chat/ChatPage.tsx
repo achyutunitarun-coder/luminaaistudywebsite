@@ -1,12 +1,13 @@
 /**
- * Lumina AI Chat — Premium Production-Grade UI
- * Complete rewrite with proper glow effects, rich colors, and dense layout.
+ * Lumina AI Chat — Production-Grade UI
+ * Focus: Clear value proposition, strong empty state, proper hierarchy.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
   Sparkles, Trash2, Send, Square, Paperclip, Plus,
+  FileText, HelpCircle, Layers, BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,17 +48,31 @@ type SavedMessageRow = {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const uid = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
-const titleFrom = (text: string) => { const c = text.replace(/\s+/g, " ").trim(); return c.length > 48 ? `${c.slice(0, 48).trim()}…` : c || "New chat"; };
+const titleFrom = (text: string) => {
+  // Generate meaningful titles from user messages
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= 40) return clean;
+  // Try to extract a meaningful title
+  const verbs = ["explain", "create", "make", "build", "write", "generate", "solve", "help", "show", "tell"];
+  const lower = clean.toLowerCase();
+  for (const v of verbs) {
+    const idx = lower.indexOf(v);
+    if (idx >= 0 && idx <= 10) {
+      const phrase = clean.slice(idx, Math.min(idx + 45, clean.length));
+      return phrase.length < clean.length ? phrase.trim() + "…" : phrase.trim();
+    }
+  }
+  return clean.slice(0, 40).trim() + "…";
+};
 const toNumber = (v: number | string | null | undefined) => { if (typeof v === "number") return v; if (typeof v === "string") { const n = Number(v); return Number.isFinite(n) ? n : undefined; } return undefined; };
 const rowToMessage = (row: SavedMessageRow): Message => ({ id: row.id, role: row.role, content: row.content ?? "", type: (row.message_type || "text") as Message["type"], artifactType: row.artifact_type ?? undefined, artifactHtml: row.artifact_html ?? undefined, topic: row.topic ?? undefined, creditsUsed: toNumber(row.credits_used), newBalance: toNumber(row.new_balance), timestamp: new Date(row.created_at).getTime() });
 
+// Action-oriented suggestions with clear outcomes
 const SUGGESTIONS = [
-  { text: "Explain quantum entanglement", icon: "🧬" },
-  { text: "Create notes on photosynthesis", icon: "🌿" },
-  { text: "Make a thermodynamics exam", icon: "📄" },
-  { text: "Build a Snake game", icon: "🐍" },
-  { text: "Newton's laws slides", icon: "⚙️" },
-  { text: "Quick study: cell division", icon: "🔬" },
+  { text: "Explain a concept", desc: "Get clear explanations for any topic", icon: BookOpen, color: "#A78BFA" },
+  { text: "Generate notes", desc: "Create structured study notes from any material", icon: FileText, color: "#10B981" },
+  { text: "Create a test", desc: "Generate practice exams with answers", icon: Layers, color: "#F59E0B" },
+  { text: "Solve a doubt", desc: "Upload a photo or describe your problem", icon: HelpCircle, color: "#3B82F6" },
 ];
 
 const ChatPage = () => {
@@ -143,30 +158,30 @@ const ChatPage = () => {
   const handleCancelAction = useCallback((mid: string) => { setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); }, []);
   const empty = messages.length === 0;
 
+  // Group conversations by date
+  const groupedChats = chatSessions.reduce((acc, chat) => {
+    const date = new Date(chat.updated_at);
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    let label = "Older";
+    if (date.toDateString() === today.toDateString()) label = "Today";
+    else if (date.toDateString() === yesterday.toDateString()) label = "Yesterday";
+    else if (date.getTime() > today.getTime() - 7 * 86400000) label = "This Week";
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(chat);
+    return acc;
+  }, {} as Record<string, ChatSummary[]>);
+
   return (
     <div style={{ display: "flex", height: "100%", background: "#09090B", position: "relative", overflow: "hidden", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* SVG-based ambient glow — works in all browsers */}
+      {/* SVG ambient glow */}
       <svg style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, width: "100%", height: "100%" }}>
         <defs>
-          <radialGradient id="glow-violet" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(124,58,237,0.18)" />
-            <stop offset="60%" stopColor="rgba(124,58,237,0.04)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
-          <radialGradient id="glow-teal" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(16,185,129,0.12)" />
-            <stop offset="60%" stopColor="rgba(16,185,129,0.03)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
-          <radialGradient id="glow-amber" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(245,158,11,0.08)" />
-            <stop offset="60%" stopColor="rgba(245,158,11,0.02)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
+          <radialGradient id="glow-violet" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="rgba(124,58,237,0.15)" /><stop offset="70%" stopColor="transparent" /></radialGradient>
+          <radialGradient id="glow-teal" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="rgba(16,185,129,0.1)" /><stop offset="70%" stopColor="transparent" /></radialGradient>
         </defs>
-        <ellipse cx="200" cy="100" rx="400" ry="300" fill="url(#glow-violet)" />
-        <ellipse cx="700" cy="500" rx="350" ry="250" fill="url(#glow-teal)" />
-        <ellipse cx="500" cy="350" rx="250" ry="200" fill="url(#glow-amber)" />
+        <ellipse cx="150" cy="80" rx="350" ry="250" fill="url(#glow-violet)" />
+        <ellipse cx="650" cy="450" rx="300" ry="200" fill="url(#glow-teal)" />
       </svg>
 
       {/* SIDEBAR */}
@@ -178,14 +193,19 @@ const ChatPage = () => {
                 <Plus style={{ width: 16, height: 16 }} /> New Chat
               </button>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 8px" }}>
-              {chatSessions.map(chat => (
-                <div key={chat.id} onClick={() => loadChat(chat)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontSize: 13, color: currentChatId === chat.id ? "#A78BFA" : "#8A8AA3", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }}>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</span>
-                  <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} style={{ opacity: 0, padding: 4, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Trash2 style={{ width: 12, height: 12 }} /></button>
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}>
+              {Object.entries(groupedChats).map(([label, chats]) => (
+                <div key={label} style={{ marginBottom: 12 }}>
+                  <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 600, color: "#5A5A73", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                  {chats.map(chat => (
+                    <div key={chat.id} onClick={() => loadChat(chat)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, color: currentChatId === chat.id ? "#A78BFA" : "#A0A0B0", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }}>
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</span>
+                      <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} style={{ opacity: 0, padding: 2, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Trash2 style={{ width: 12, height: 12 }} /></button>
+                    </div>
+                  ))}
                 </div>
               ))}
-              {chatSessions.length === 0 && <div style={{ textAlign: "center", padding: 12, fontSize: 12, color: "#5A5A73" }}>No conversations yet</div>}
+              {chatSessions.length === 0 && <div style={{ textAlign: "center", padding: 20, fontSize: 12, color: "#5A5A73" }}>No conversations yet</div>}
             </div>
             <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <CreditsDisplay onClick={() => setBuyOpen(true)} />
@@ -197,37 +217,39 @@ const ChatPage = () => {
       {/* MAIN */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", position: "relative", zIndex: 10 }}>
         {/* Top bar */}
-        <div style={{ height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "rgba(9,9,11,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setHistoryOpen(v => !v)} style={{ padding: 8, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}>{historyOpen ? <PanelLeftClose style={{ width: 16, height: 16 }} /> : <PanelLeftOpen style={{ width: 16, height: 16 }} />}</button>
+        <div style={{ height: 52, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "rgba(9,9,11,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setHistoryOpen(v => !v)} style={{ padding: 6, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "#A0A0B0" }}>{historyOpen ? <PanelLeftClose style={{ width: 16, height: 16 }} /> : <PanelLeftOpen style={{ width: 16, height: 16 }} />}</button>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #7C3AED, #A78BFA)", boxShadow: "0 2px 12px rgba(124,58,237,0.4)" }}><Sparkles style={{ width: 14, height: 14, color: "#fff" }} /></div>
+              <div style={{ width: 26, height: 26, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #7C3AED, #A78BFA)", boxShadow: "0 2px 10px rgba(124,58,237,0.4)" }}><Sparkles style={{ width: 13, height: 13, color: "#fff" }} /></div>
               <span style={{ fontSize: 14, fontWeight: 600, color: "#F0F0F5" }}>Lumina AI</span>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
-            <ManualRestoreButton />
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, maxWidth: 780, width: "100%", margin: "0 auto", padding: "0 20px" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, maxWidth: 760, width: "100%", margin: "0 auto", padding: "0 20px" }}>
           {empty ? (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-              <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", marginBottom: 36 }}>
-                {/* Glowing icon */}
-                <div style={{ width: 64, height: 64, borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.15))", border: "1px solid rgba(124,58,237,0.35)", boxShadow: "0 0 60px rgba(124,58,237,0.3), 0 0 120px rgba(124,58,237,0.15)" }}>
-                  <Sparkles style={{ width: 28, height: 28, color: "#A78BFA" }} />
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", marginBottom: 40 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.15))", border: "1px solid rgba(124,58,237,0.35)", boxShadow: "0 0 50px rgba(124,58,237,0.25)" }}>
+                  <Sparkles style={{ width: 24, height: 24, color: "#A78BFA" }} />
                 </div>
-                <h1 style={{ fontSize: 42, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.1, marginBottom: 10 }}>How can I help you study?</h1>
-                <p style={{ fontSize: 15, color: "#8A8AA3", lineHeight: 1.6, maxWidth: 420, margin: "0 auto" }}>Generate notes, exams, slides, code, and explanations instantly.</p>
+                <h1 style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.15, marginBottom: 8 }}>What do you want to learn?</h1>
+                <p style={{ fontSize: 15, color: "#A0A0B0", lineHeight: 1.6, maxWidth: 400, margin: "0 auto" }}>Ask anything. Upload notes. Generate tests. Your AI study partner.</p>
               </motion.div>
-              {/* Suggestion cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, width: "100%", maxWidth: 640 }}>
+              {/* Action cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, width: "100%", maxWidth: 520 }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <motion.button key={s.text} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }} onClick={() => handleSend(s.text)} className="sugg-card" style={{ textAlign: "left", padding: "16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.04)", cursor: "pointer", color: "#E4E4E7", fontSize: 13, lineHeight: 1.4, transition: "all 0.25s ease" }}>
-                    <span style={{ fontSize: 18, display: "block", marginBottom: 8 }}>{s.icon}</span>{s.text}
+                  <motion.button key={s.text} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }} onClick={() => handleSend(s.text)} className="sugg-card" style={{ textAlign: "left", padding: "18px 20px", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", cursor: "pointer", transition: "all 0.25s ease" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, background: `${s.color}18` }}>
+                      <s.icon style={{ width: 18, height: 18, color: s.color }} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#F0F0F5", marginBottom: 4 }}>{s.text}</div>
+                    <div style={{ fontSize: 12, color: "#8A8AA3", lineHeight: 1.4 }}>{s.desc}</div>
                   </motion.button>
                 ))}
               </div>
@@ -237,24 +259,17 @@ const ChatPage = () => {
           )}
 
           {/* Input */}
-          <div style={{ flexShrink: 0, padding: "12px 0 20px", background: "linear-gradient(to top, #09090B 70%, transparent)" }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-              {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
-                <button key={m} onClick={() => setModel(m)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 11, fontWeight: 500, border: model === m ? "none" : "1px solid rgba(255,255,255,0.08)", background: model === m ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.04)", color: model === m ? "#fff" : "#8A8AA3", cursor: "pointer", transition: "all 0.2s", boxShadow: model === m ? "0 2px 10px rgba(124,58,237,0.3)" : "none" }}>
-                  {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 8, borderRadius: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", minHeight: 56, transition: "border-color 0.2s" }}>
-              <button type="button" style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Paperclip style={{ width: 16, height: 16 }} /></button>
-              <textarea rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }} placeholder="Ask anything…" style={{ flex: 1, background: "none", border: "none", outline: "none", resize: "none", padding: "10px 4px", fontSize: 14, color: "#F0F0F5", maxHeight: 120, caretColor: "#A78BFA" }} />
+          <div style={{ flexShrink: 0, padding: "12px 0 16px", background: "linear-gradient(to top, #09090B 70%, transparent)" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 8, borderRadius: 20, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", minHeight: 52 }}>
+              <button type="button" style={{ flexShrink: 0, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Paperclip style={{ width: 15, height: 15 }} /></button>
+              <textarea rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }} placeholder="Ask anything…" style={{ flex: 1, background: "none", border: "none", outline: "none", resize: "none", padding: "8px 4px", fontSize: 14, color: "#F0F0F5", maxHeight: 120, caretColor: "#A78BFA" }} />
               {loading ? (
-                <button type="button" onClick={handleStop} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: "pointer", background: "rgba(239,68,68,0.15)", color: "#EF4444" }}><Square style={{ width: 14, height: 14, fill: "currentColor" }} /></button>
+                <button type="button" onClick={handleStop} style={{ flexShrink: 0, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: "pointer", background: "rgba(239,68,68,0.15)", color: "#EF4444" }}><Square style={{ width: 13, height: 13, fill: "currentColor" }} /></button>
               ) : (
-                <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: input.trim() ? "pointer" : "not-allowed", background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", opacity: input.trim() ? 1 : 0.3, transition: "all 0.2s", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.4)" : "none" }}><Send style={{ width: 16, height: 16 }} /></button>
+                <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} style={{ flexShrink: 0, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: input.trim() ? "pointer" : "not-allowed", background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", opacity: input.trim() ? 1 : 0.3, transition: "all 0.2s", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.4)" : "none" }}><Send style={{ width: 15, height: 15 }} /></button>
               )}
             </div>
-            <p style={{ fontSize: 10, textAlign: "center", marginTop: 8, color: "#5A5A73" }}>Lumina can make mistakes. Verify important info.</p>
+            <p style={{ fontSize: 10, textAlign: "center", marginTop: 6, color: "#5A5A73" }}>Lumina can make mistakes. Verify important info.</p>
           </div>
         </div>
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
