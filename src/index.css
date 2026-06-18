@@ -434,4 +434,22 @@
     overflow-y: auto;
     animation: scaleIn 200ms var(--ease-out-expo);
   }
+
+  /* Action buttons (chat) */
+  .action-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.5rem;
+    color: hsl(var(--muted-foreground));
+    transition: all 150ms var(--ease-smooth);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .action-btn:hover {
+    color: hsl(var(--foreground));
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
