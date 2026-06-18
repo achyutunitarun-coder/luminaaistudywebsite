@@ -1030,242 +1030,157 @@ Q3: ... || A: ...
     <div className="flex h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] min-h-0">
       <aside
         className={`${historyOpen ? "w-72" : "w-0"} hidden md:block shrink-0 overflow-hidden border-r border-border/60 transition-all duration-200`}
-      >
-        <div className="h-full flex flex-col bg-card/20">
-          <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
-            <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Clock3 className="w-3.5 h-3.5" /> History
-            </div>
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
-              title="New chat"
-            >
-              <MessageSquarePlus className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {!user ? (
-              <div className="text-xs text-muted-foreground p-3">
-                Sign in to keep chat memory across devices.
-              </div>
-            ) : historyLoading ? (
-              <div className="text-xs text-muted-foreground p-3">
-                Loading history…
-              </div>
-            ) : chatSessions.length === 0 ? (
-              <div className="text-xs text-muted-foreground p-3">
-                Your saved chats will appear here.
-              </div>
-            ) : (
-              chatSessions.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group flex items-center gap-1 rounded-lg ${currentChatId === chat.id ? "bg-primary/10" : "hover:bg-accent/60"}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => loadChat(chat)}
-                    className="flex-1 min-w-0 text-left px-2.5 py-2"
-                  >
-                    <div className="text-sm truncate text-foreground">
-                      {chat.title}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {new Date(chat.updated_at).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteChat(chat.id)}
-                    className="w-7 h-7 mr-1 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
-                    title="Delete chat"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </aside>
-
-      {historyOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
-          onClick={() => setHistoryOpen(false)}
-        >
-          <div
-            className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
-              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                <Clock3 className="w-3.5 h-3.5" /> History
-              </div>
-              <button
-                type="button"
-                onClick={startNewChat}
-                className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
-                title="New chat"
+      return (
+        <div className="flex h-full bg-[#050508]">
+          {/* Sidebar */}
+          <AnimatePresence>
+            {historyOpen && (
+              <motion.aside
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 280, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] as const }}
+                className="hidden md:flex flex-col h-full border-r border-white/[0.06] bg-[#0a0a10] shrink-0 overflow-hidden"
               >
-                <MessageSquarePlus className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="h-[calc(100%-57px)] overflow-y-auto p-2 space-y-1">
-              {chatSessions.map((chat) => (
-                <button
-                  key={chat.id}
-                  type="button"
-                  onClick={() => loadChat(chat)}
-                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors"
-                >
-                  <div className="text-sm truncate text-foreground">
-                    {chat.title}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {new Date(chat.updated_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </div>
-                </button>
-              ))}
-              {chatSessions.length === 0 && (
-                <div className="text-xs text-muted-foreground p-3">
-                  Your saved chats will appear here.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div
-        className="min-w-0 flex flex-1 flex-col transition-[flex-basis] duration-200 lg:flex-none lg:basis-[var(--chat-basis)]"
-        style={{ "--chat-basis": activeArtifactId ? `${artifactSplit}%` : "100%" } as React.CSSProperties}
-      >
-        <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((v) => !v)}
-              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              title={historyOpen ? "Hide history" : "Show history"}
-            >
-              {historyOpen ? (
-                <PanelLeftClose className="w-4 h-4" />
-              ) : (
-                <PanelLeftOpen className="w-4 h-4" />
-              )}
-            </button>
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="font-medium">Lumina Chat</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
-            >
-              <MessageSquarePlus className="w-3.5 h-3.5" /> New
-            </button>
-            <CreditsDisplay onClick={() => setBuyOpen(true)} />
-            <ManualRestoreButton className="hidden md:inline-flex" />
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-2 md:px-4">
-          {empty ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 grid place-items-center mb-4">
-                <Sparkles className="w-7 h-7 text-primary" />
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                How can I help you study?
-              </h1>
-              <p className="text-sm text-muted-foreground mb-8 max-w-md">
-                Chat is free. Generated notes, exam papers, slides and code each
-                cost{" "}
-                <span className="inline-flex items-center gap-0.5 text-primary">
-                  <Zap className="w-3 h-3" fill="currentColor" />
-                  1.5 credits
-                </span>{" "}
-                — only when generation succeeds.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-2xl">
-                {SUGGESTIONS.map((s) => (
+                <div className="p-4 space-y-3">
                   <button
-                    key={s}
-                    type="button"
-                    onClick={() => handleSend(s)}
-                    className="text-left text-sm px-3 py-2.5 rounded-xl bg-card/40 border border-border hover:border-primary/40 hover:bg-card/60 transition-all"
+                    onClick={startNewChat}
+                    className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium transition-all"
+                    style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}
                   >
-                    {s}
+                    <MessageSquarePlus className="w-4 h-4" /> New Chat
                   </button>
-                ))}
+                </div>
+                <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-0.5">
+                  {chatSessions.map(chat => (
+                    <div
+                      key={chat.id}
+                      className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${currentChatId === chat.id ? 'text-[#a78bfa]' : 'text-[#8a8aa3] hover:text-[#f0f0f5]'}`}
+                      style={currentChatId === chat.id ? { background: 'rgba(139,92,246,0.1)' } : {}}
+                      onClick={() => loadChat(chat)}
+                    >
+                      <span className="flex-1 text-sm truncate overflow-hidden text-ellipsis whitespace-nowrap">{chat.title}</span>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all shrink-0"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {chatSessions.length === 0 && (
+                    <div className="text-xs text-[#5a5a73] p-3 text-center">Your saved chats will appear here.</div>
+                  )}
+                </div>
+                <div className="p-3 border-t border-white/[0.06]">
+                  <CreditsDisplay onClick={() => setBuyOpen(true)} />
+                </div>
+              </motion.aside>
+            )}
+          </AnimatePresence>
+
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col min-w-0 h-full">
+            {/* Top Bar */}
+            <div className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6 border-b border-white/[0.06] bg-[#050508]/80 backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setHistoryOpen(v => !v)}
+                  className="p-2 rounded-lg text-[#8a8aa3] hover:text-[#f0f0f5] transition-colors"
+                >
+                  {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+                </button>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 2px 8px rgba(139,92,246,0.25)' }}>
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-[#f0f0f5]">Lumina AI</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={startNewChat}
+                  className="hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-white/[0.08] text-[#8a8aa3] hover:text-[#f0f0f5] hover:bg-white/[0.04] transition-all"
+                >
+                  <MessageSquarePlus className="w-3.5 h-3.5" /> New
+                </button>
+                <CreditsDisplay onClick={() => setBuyOpen(true)} />
+                <ManualRestoreButton className="hidden md:inline-flex" />
               </div>
             </div>
-          ) : (
-            <MessageList
+
+            {/* Messages */}
+            <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 md:px-6">
+              {empty ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center">
+                  <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }} className="mb-10">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.1))', border: '1px solid rgba(139,92,246,0.12)', boxShadow: '0 8px 32px rgba(139,92,246,0.08)' }}>
+                      <Sparkles className="w-8 h-8" style={{ color: '#a78bfa' }} />
+                    </div>
+                    <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-[#f0f0f5] mb-2">How can I help you study?</h1>
+                    <p className="text-sm text-[#8a8aa3] max-w-md leading-relaxed">Chat is free. Generate notes, exams, slides & code — only pay when generation succeeds.</p>
+                  </motion.div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
+                    {SUGGESTIONS.map((s, i) => (
+                      <motion.button
+                        key={s}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.08 + i * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
+                        onClick={() => handleSend(s)}
+                        className="text-left text-sm px-4 py-3.5 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                      >
+                        <span className="text-[#d4d4d8]">{s}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <MessageList
+                  messages={messages}
+                  loadingStage={loadingStage}
+                  onRegenerate={handleRegenerate}
+                  onRetry={handleRetry}
+                  onEdit={handleEdit}
+                  onTopUp={() => setBuyOpen(true)}
+                  onConfirmAction={handleConfirmAction}
+                  onCancelAction={handleCancelAction}
+                />
+              )}
+
+              {/* Input */}
+              <div className="shrink-0 pb-4 pt-2 space-y-2" style={{ background: 'linear-gradient(to top, #050508 70%, transparent)' }}>
+                <ModelSelector value={model} onChange={setModel} />
+                <InputBar
+                  value={input}
+                  onChange={setInput}
+                  onSend={t => handleSend(t)}
+                  onStop={handleStop}
+                  isLoading={loading}
+                  onPickArtifact={t => { if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; } handleSend(input, t); }}
+                />
+                <p className="text-[10px] text-center text-[#5a5a73]">Lumina can make mistakes. Verify important info. Credits only charged after successful generation.</p>
+              </div>
+            </div>
+
+            <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
+          </div>
+
+          {canvasOpen && (
+            <div className="hidden md:flex flex-[0_0_54%] min-w-0">
+              <CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} />
+            </div>
+          )}
+          {activeArtifactId && (
+            <PremiumArtifactWorkspace
               messages={messages}
-              loadingStage={loadingStage}
-              onRegenerate={handleRegenerate}
-              onRetry={handleRetry}
-              onEdit={handleEdit}
-              onTopUp={() => setBuyOpen(true)}
-              onConfirmAction={handleConfirmAction}
-              onCancelAction={handleCancelAction}
+              onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)}
+              onRegenerate={id => handleRegenerate(id)}
             />
           )}
-
-          <div className="shrink-0 pb-3 pt-2 space-y-2 sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent">
-            <ModelSelector value={model} onChange={setModel} />
-            <InputBar
-              value={input}
-              onChange={setInput}
-              onSend={(text) => handleSend(text)}
-              onStop={handleStop}
-              isLoading={loading}
-              onPickArtifact={(t) => {
-                if (!input.trim()) {
-                  toast.info("Type a topic first, then pick an artifact type.");
-                  return;
-                }
-                handleSend(input, t);
-              }}
-            />
-            <p className="text-[10px] text-center text-muted-foreground/60">
-              Lumina can make mistakes. Verify important info. Artifacts run as
-              background jobs, and credits are only charged after success.
-            </p>
-          </div>
         </div>
-
-        <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
-      </div>
-      {canvasOpen && (
-        <div className="hidden md:flex flex-[0_0_54%] min-w-0 transition-all duration-300">
-          <CanvasPanel
-            open={canvasOpen}
-            versions={canvasVersions}
-            onClose={() => setCanvasOpen(false)}
-          />
-        </div>
-      )}
-      {activeArtifactId && (
-        <PremiumArtifactWorkspace
-          messages={messages}
-          onQuote={(text) => setInput((prev) => `${prev}${prev ? "\n\n" : ""}${text}`)}
-          onRegenerate={(messageId) => handleRegenerate(messageId)}
-        />
-      )}
-    </div>
-  );
+      );
 };
 
 export default ChatPage;
