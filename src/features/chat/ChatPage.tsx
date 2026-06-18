@@ -1,10 +1,10 @@
 /**
  * Lumina AI Chat — Premium Production-Grade UI
- * Complete rewrite. Dense, rich, production-level.
+ * Complete rewrite using CSS classes from the design system.
  * Every pixel has purpose. No wasted space.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
   Sparkles, Trash2, Send, Square, Paperclip, Plus,
@@ -26,7 +26,7 @@ import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
 import { ManualRestoreButton } from "@/features/credits/ManualRestore";
 import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
 import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
-import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAgent } from "@/lib/agent/actions";
+import { planAction, planToAction, executeAgentAction, actionRequiresConfirmation, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 
 export interface Message {
@@ -35,7 +35,7 @@ export interface Message {
   artifactHtml?: string; artifactType?: "notes" | "exam" | "slides" | "code";
   topic?: string; creditsUsed?: number; newBalance?: number;
   requiredCredits?: number; currentBalance?: number;
-  isStreaming?: boolean; pendingAction?: AgentAgent;
+  isStreaming?: boolean; pendingAction?: AgentAction;
   actionSummary?: string; actionResolved?: boolean; timestamp: number;
 }
 type ChatSummary = { id: string; title: string; updated_at: string; created_at: string; };
@@ -87,12 +87,6 @@ const ChatPage = () => {
   const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
   const [showArtifactPicker, setShowArtifactPicker] = useState(false);
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const springX = useSpring(mouseX, { stiffness: 100, damping: 20 });
-  const springY = useSpring(mouseY, { stiffness: 100, damping: 20 });
-
-  useEffect(() => { const h = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); }; window.addEventListener("mousemove", h); return () => window.removeEventListener("mousemove", h); }, [mouseX, mouseY]);
   useEffect(() => { try { const i = localStorage.getItem("lumina_canvas_import"); if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); } } catch {} }, []);
   const pushCanvasFromMessage = useCallback((text: string) => { const f = detectCanvas(text); if (!f) return; setCanvasVersions(p => [...p, { code: f.code, html: wrapAsHtmlDoc(f.code, f.lang), ts: Date.now() }].slice(-20)); setCanvasOpen(true); }, []);
   useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
@@ -151,35 +145,46 @@ const ChatPage = () => {
   const empty = messages.length === 0;
 
   return (
-    <div style={{ display: "flex", height: "100%", background: "#09090B", position: "relative", overflow: "hidden" }}>
-      {/* Mouse glow */}
-      <motion.div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, background: `radial-gradient(500px circle at ${springX.get()}px ${springY.get()}px, rgba(124,58,237,0.07), transparent 50%)` }} />
-      {/* Ambient orbs */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        <div style={{ position: "absolute", width: 600, height: 600, top: -150, left: -100, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 65%)", filter: "blur(60px)" }} />
-        <div style={{ position: "absolute", width: 500, height: 500, top: "30%", right: -100, borderRadius: "50%", background: "radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 65%)", filter: "blur(70px)" }} />
-        <div style={{ position: "absolute", width: 400, height: 400, bottom: 50, left: "40%", borderRadius: "50%", background: "radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 65%)", filter: "blur(80px)" }} />
-      </div>
-
+    <div className="chat-root">
       {/* SIDEBAR */}
       <AnimatePresence>
         {historyOpen && (
-          <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: 260, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }} style={{ display: "flex", flexDirection: "column", height: "100%", flexShrink: 0, overflow: "hidden", position: "relative", zIndex: 10, background: "#111118", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ padding: 16 }}>
-              <button onClick={startNewChat} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, height: 40, borderRadius: 12, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", background: "linear-gradient(135deg, #7C3AED, #A78BFA)", color: "#fff", boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}>
-                <Plus style={{ width: 16, height: 16 }} /> New Chat
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 260, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="chat-sidebar hidden md:flex"
+          >
+            <div className="chat-sidebar-header">
+              <button onClick={startNewChat} className="chat-sidebar-new-btn">
+                <Plus className="w-4 h-4" /> New Chat
               </button>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 8px" }}>
+            <div className="chat-sidebar-list">
               {chatSessions.map(chat => (
-                <div key={chat.id} onClick={() => loadChat(chat)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontSize: 13, color: currentChatId === chat.id ? "#A78BFA" : "#8A8AA3", background: currentChatId === chat.id ? "rgba(124,58,237,0.1)" : "transparent" }}>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chat.title}</span>
-                  <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} style={{ opacity: 0, padding: 4, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Trash2 style={{ width: 12, height: 12 }} /></button>
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat)}
+                  className={`chat-sidebar-item ${currentChatId === chat.id ? 'active' : ''}`}
+                >
+                  <span className="chat-sidebar-item-title">{chat.title}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); deleteChat(chat.id); }}
+                    className="chat-sidebar-item-delete"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               ))}
-              {chatSessions.length === 0 && <div style={{ textAlign: "center", padding: 12, fontSize: 12, color: "#5A5A73" }}>No conversations yet</div>}
+              {chatSessions.length === 0 && (
+                <div className="text-center p-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  No conversations yet
+                </div>
+              )}
             </div>
-            <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="chat-sidebar-footer">
               <CreditsDisplay onClick={() => setBuyOpen(true)} />
             </div>
           </motion.aside>
@@ -187,71 +192,144 @@ const ChatPage = () => {
       </AnimatePresence>
 
       {/* MAIN */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100%", position: "relative", zIndex: 10 }}>
+      <div className="chat-main">
         {/* Top bar */}
-        <div style={{ height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "rgba(9,9,11,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setHistoryOpen(v => !v)} style={{ padding: 8, borderRadius: 8, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}>{historyOpen ? <PanelLeftClose style={{ width: 16, height: 16 }} /> : <PanelLeftOpen style={{ width: 16, height: 16 }} />}</button>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #7C3AED, #A78BFA)", boxShadow: "0 2px 12px rgba(124,58,237,0.4)" }}><Sparkles style={{ width: 14, height: 14, color: "#fff" }} /></div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "#F0F0F5" }}>Lumina AI</span>
+        <div className="chat-topbar">
+          <div className="chat-topbar-left">
+            <button
+              onClick={() => setHistoryOpen(v => !v)}
+              className="p-2 rounded-lg hover:bg-white/[0.04] transition-colors"
+              style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            </button>
+            <div className="chat-topbar-title">
+              <div className="chat-topbar-logo">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <span className="chat-topbar-name">Lumina AI</span>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={startNewChat} style={{ display: "none", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "none", cursor: "pointer", color: "#8A8AA3" }} className="sm-flex"><MessageSquarePlus style={{ width: 14, height: 14 }} /> New</button>
+          <div className="chat-topbar-right">
+            <button
+              onClick={startNewChat}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+              style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)', background: 'none', cursor: 'pointer' }}
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" /> New
+            </button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
             <ManualRestoreButton />
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, maxWidth: 800, width: "100%", margin: "0 auto", padding: "0 20px" }}>
+        <div className="chat-content">
           {empty ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingBottom: 40 }}>
-              <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} style={{ textAlign: "center", marginBottom: 40 }}>
-                <div style={{ width: 72, height: 72, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(167,139,250,0.1))", border: "1px solid rgba(124,58,237,0.3)", boxShadow: "0 0 50px rgba(124,58,237,0.25), 0 0 100px rgba(124,58,237,0.1)" }}>
-                  <Sparkles style={{ width: 32, height: 32, color: "#A78BFA" }} />
+            <div className="chat-empty">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
+                style={{ textAlign: 'center', marginBottom: 40 }}
+              >
+                <div className="chat-empty-icon">
+                  <Sparkles className="w-8 h-8" style={{ color: 'var(--brand-glow)' }} />
                 </div>
-                <h1 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.03em", color: "#F0F0F5", lineHeight: 1.1, marginBottom: 12 }}>How can I help you study?</h1>
-                <p style={{ fontSize: 15, color: "#8A8AA3", lineHeight: 1.6, maxWidth: 440, margin: "0 auto" }}>Generate notes, exams, slides, code, and explanations instantly.</p>
+                <h1 className="chat-empty-heading">How can I help you study?</h1>
+                <p className="chat-empty-sub">
+                  Generate notes, exams, slides, code, and explanations instantly.
+                </p>
               </motion.div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, width: "100%", maxWidth: 680 }}>
+              <div className="chat-suggestions">
                 {SUGGESTIONS.map((s, i) => (
-                  <motion.button key={s.text} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }} onClick={() => handleSend(s.text)} style={{ textAlign: "left", padding: "14px 16px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", cursor: "pointer", transition: "all 0.2s", color: "#E4E4E7", fontSize: 13, lineHeight: 1.4 }} className="sugg-card">
-                    <span style={{ fontSize: 16, display: "block", marginBottom: 6 }}>{s.icon}</span>{s.text}
+                  <motion.button
+                    key={s.text}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.12 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                    onClick={() => handleSend(s.text)}
+                    className="chat-suggestion-card"
+                  >
+                    <span className="chat-suggestion-icon">{s.icon}</span>
+                    {s.text}
                   </motion.button>
                 ))}
               </div>
             </div>
           ) : (
-            <MessageList messages={messages} loadingStage={loadingStage} onRegenerate={handleRegenerate} onRetry={handleRetry} onEdit={handleEdit} onTopUp={() => setBuyOpen(true)} onConfirmAction={handleConfirmAction} onCancelAction={handleCancelAction} />
+            <MessageList
+              messages={messages}
+              loadingStage={loadingStage}
+              onRegenerate={handleRegenerate}
+              onRetry={handleRetry}
+              onEdit={handleEdit}
+              onTopUp={() => setBuyOpen(true)}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
+            />
           )}
 
           {/* Input */}
-          <div style={{ flexShrink: 0, padding: "12px 0 20px", background: "linear-gradient(to top, #09090B 70%, transparent)" }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+          <div className="chat-input-area">
+            <div className="chat-mode-pills">
               {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
-                <button key={m} onClick={() => setModel(m)} style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 500, border: model === m ? "none" : "1px solid rgba(255,255,255,0.08)", background: model === m ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.04)", color: model === m ? "#fff" : "#8A8AA3", cursor: "pointer", transition: "all 0.2s", boxShadow: model === m ? "0 2px 10px rgba(124,58,237,0.3)" : "none" }}>
+                <button
+                  key={m}
+                  onClick={() => setModel(m)}
+                  className={`chat-mode-pill ${model === m ? 'active' : ''}`}
+                >
                   {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 8, borderRadius: 20, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 56 }}>
-              <button type="button" style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", background: "none", cursor: "pointer", color: "#8A8AA3" }}><Paperclip style={{ width: 16, height: 16 }} /></button>
-              <textarea rows={1} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }} placeholder="Ask anything…" style={{ flex: 1, background: "none", border: "none", outline: "none", resize: "none", padding: "10px 4px", fontSize: 14, color: "#F0F0F5", maxHeight: 120, caretColor: "#A78BFA" }} />
+            <div className="chat-input-box">
+              <button type="button" className="chat-input-btn" title="Attach file">
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <textarea
+                rows={1}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading && input.trim()) handleSend(); } }}
+                placeholder="Ask anything…"
+                className="chat-textarea"
+              />
               {loading ? (
-                <button type="button" onClick={handleStop} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: "pointer", background: "rgba(239,68,68,0.15)", color: "#EF4444" }}><Square style={{ width: 14, height: 14, fill: "currentColor" }} /></button>
+                <button type="button" onClick={handleStop} className="chat-stop-btn" title="Stop generating">
+                  <Square className="w-3.5 h-3.5" style={{ fill: 'currentColor' }} />
+                </button>
               ) : (
-                <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} style={{ flexShrink: 0, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, border: "none", cursor: input.trim() ? "pointer" : "not-allowed", background: input.trim() ? "linear-gradient(135deg, #7C3AED, #9333EA)" : "rgba(255,255,255,0.06)", color: "#fff", opacity: input.trim() ? 1 : 0.3, transition: "all 0.2s", boxShadow: input.trim() ? "0 4px 16px rgba(124,58,237,0.35)" : "none" }}><Send style={{ width: 16, height: 16 }} /></button>
+                <button
+                  type="button"
+                  onClick={() => input.trim() && handleSend()}
+                  disabled={!input.trim()}
+                  className="chat-send-btn"
+                  title="Send"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
               )}
             </div>
-            <p style={{ fontSize: 10, textAlign: "center", marginTop: 8, color: "#5A5A73" }}>Lumina can make mistakes. Verify important info.</p>
+            <p className="chat-disclaimer">Lumina can make mistakes. Verify important info.</p>
           </div>
         </div>
+
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
-      {canvasOpen && <div style={{ display: "none" }} className="md-flex"><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
-      {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
+
+      {canvasOpen && (
+        <div className="hidden md:flex" style={{ flex: '0 0 54%', minWidth: 0 }}>
+          <CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} />
+        </div>
+      )}
+      {activeArtifactId && (
+        <PremiumArtifactWorkspace
+          messages={messages}
+          onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)}
+          onRegenerate={id => handleRegenerate(id)}
+        />
+      )}
     </div>
   );
 };

@@ -70,9 +70,9 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
 
   if (message.type === 'loading') {
     return (
-      <div className="flex gap-3 max-w-3xl mx-auto px-4">
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10">
-          <Sparkles className="w-3.5 h-3.5 text-primary" />
+      <div className="msg-row msg-row-assistant">
+        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center msg-avatar msg-avatar-ai">
+          <Sparkles className="w-3.5 h-3.5" />
         </div>
         <div className="flex-1 min-w-0">
           <LoadingStages stage={loadingStage || message.content} active />
@@ -83,11 +83,11 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
 
   if (message.type === 'error') {
     return (
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="rounded-xl border-l-4 border-destructive bg-destructive/5 p-3 flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+      <div className="msg-row msg-row-assistant">
+        <div className="msg-bubble msg-bubble-error flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm text-foreground">{message.content}</div>
+            <div>{message.content}</div>
             {onRetry && (
               <button
                 type="button"
@@ -159,7 +159,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
     return (
       <div
         id={`msg-${message.id}`}
-        className="flex gap-3 max-w-3xl mx-auto px-4 justify-end group"
+        className="msg-row msg-row-user"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -195,7 +195,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words bg-primary text-primary-foreground" style={{ borderRadius: '16px 16px 4px 16px' }}>
+            <div className="msg-bubble msg-bubble-user">
               {message.content}
             </div>
           )}
@@ -220,8 +220,8 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
             </div>
           )}
         </div>
-        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-muted border border-white/[0.04]">
-          <User className="w-3.5 h-3.5 text-muted-foreground" />
+        <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center msg-avatar msg-avatar-user">
+          <User className="w-3.5 h-3.5" />
         </div>
       </div>
     );
@@ -231,12 +231,12 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   return (
     <div
       id={`msg-${message.id}`}
-      className="flex gap-3 max-w-3xl mx-auto px-4 group"
+      className="msg-row msg-row-assistant"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center bg-primary/10">
-        <Sparkles className="w-3.5 h-3.5 text-primary" />
+      <div className="shrink-0 w-7 h-7 rounded-lg grid place-items-center msg-avatar msg-avatar-ai">
+        <Sparkles className="w-3.5 h-3.5" />
       </div>
       <div className="min-w-0 flex-1">
         {message.type === 'artifact' && message.artifactHtml && message.artifactType ? (
@@ -268,11 +268,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
                   <span className="text-muted-foreground">· Balance: {message.newBalance.toFixed(1)}</span>
                 )}
                 {typeof message.newBalance === 'number' && message.newBalance < 5 && onTopUp && (
-                  <button
-                    type="button"
-                    onClick={onTopUp}
-                    className="ml-1 underline underline-offset-2 hover:text-violet-200"
-                  >
+                  <button type="button" onClick={onTopUp} className="ml-1 underline underline-offset-2 hover:text-violet-200">
                     Top up →
                   </button>
                 )}
@@ -280,27 +276,31 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
             )}
           </>
         ) : (
-          <div className="text-sm leading-relaxed">
+          <div className="msg-bubble msg-bubble-ai">
             {thinking && <ThinkingBlock content={thinking} />}
             <MarkdownRenderer>{main}</MarkdownRenderer>
             {isStreaming && (
-              <span className="inline-block w-1.5 h-4 bg-primary/70 align-text-bottom ml-0.5 animate-pulse" />
+              <span className="msg-streaming-cursor" />
             )}
           </div>
         )}
 
         {message.type !== 'artifact' && hovered && !isStreaming && message.content && (
-          <div className="mt-2 flex items-center gap-1">
-            <button type="button" onClick={handleCopy} title="Copy" className="action-btn">
+          <div className="msg-actions">
+            <button type="button" onClick={handleCopy} title="Copy" className="msg-action-btn">
               <Copy className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={onRegenerate} title="Regenerate" className="action-btn">
+            <button type="button" onClick={onRegenerate} title="Regenerate" className="msg-action-btn">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={() => toast.success('Thanks for the feedback')} title="Good response" className="action-btn">
+            <button type="button" onClick={() => toast.success('Thanks for the feedback')} title="Good response" className="msg-action-btn">
               <ThumbsUp className="w-3.5 h-3.5" />
             </button>
-            <button type="button" onClick={() => toast.success('Thanks — we’ll improve')} title="Bad response" className="action-btn">
+            <button type="button" onClick={() => toast.success('Thanks — we’ll improve')} title="Bad response" className="msg-action-btn">
+              <ThumbsDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
               <ThumbsDown className="w-3.5 h-3.5" />
             </button>
           </div>
