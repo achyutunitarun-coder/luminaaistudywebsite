@@ -1027,139 +1027,183 @@ Q3: ... || A: ...
   const empty = messages.length === 0;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] min-h-0" style={{ background: '#08080a' }}>
-
-      {/* ═══ DESKTOP SIDEBAR ═══ */}
+    <div className="flex h-[calc(100vh-4rem)] md:h-[calc(100vh-2rem)] min-h-0">
       <aside
-        className={`hidden md:flex shrink-0 overflow-hidden transition-all duration-300 flex-col ${historyOpen ? 'w-72' : 'w-0'}`}
-        style={{ background: '#0c0c0f', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        className={`${historyOpen ? "w-72" : "w-0"} hidden md:block shrink-0 overflow-hidden border-r border-border/60 transition-all duration-200`}
       >
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#d4d4d8' }}>
-            <Clock3 className="w-4 h-4" style={{ color: '#71717a' }} />
-            <span>History</span>
+        <div className="h-full flex flex-col bg-card/20">
+          <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
+            <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <Clock3 className="w-3.5 h-3.5" /> History
+            </div>
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
+              title="New chat"
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={startNewChat}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #14b8a6, #0d9488)', color: '#fff', boxShadow: '0 2px 8px rgba(20,184,166,0.25)' }}
-          >
-            <MessageSquarePlus className="w-3.5 h-3.5" /> New Chat
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
-          {!user ? (
-            <div className="text-xs p-3" style={{ color: '#71717a' }}>Sign in to keep chat memory across devices.</div>
-          ) : historyLoading ? (
-            <div className="text-xs p-3" style={{ color: '#71717a' }}>Loading history…</div>
-          ) : chatSessions.length === 0 ? (
-            <div className="text-xs p-3 text-center" style={{ color: '#71717a' }}>Your saved chats will appear here.</div>
-          ) : (
-            chatSessions.map((chat) => (
-              <div
-                key={chat.id}
-                className="group flex items-center gap-1 rounded-lg cursor-pointer transition-all"
-                style={currentChatId === chat.id ? { background: 'rgba(20,184,166,0.08)' } : {}}
-                onMouseEnter={() => { if (currentChatId !== chat.id) Object.assign(document.querySelector(`[data-chat="${chat.id}"]`) || {}, { background: 'rgba(255,255,255,0.03)' }); }}
-                onClick={() => loadChat(chat)}
-              >
-                <div className="flex-1 min-w-0 text-left px-3 py-2.5">
-                  <div className="text-sm truncate" style={{ color: currentChatId === chat.id ? '#14b8a6' : '#a1a1aa' }}>
-                    {chat.title}
-                  </div>
-                  <div className="text-[10px] mt-0.5" style={{ color: '#71717a' }}>
-                    {new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }}
-                  className="w-7 h-7 mr-1 grid place-items-center rounded-md opacity-0 group-hover:opacity-100 transition-all"
-                  style={{ color: '#71717a' }}
-                  title="Delete chat"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {!user ? (
+              <div className="text-xs text-muted-foreground p-3">
+                Sign in to keep chat memory across devices.
               </div>
-            ))
-          )}
+            ) : historyLoading ? (
+              <div className="text-xs text-muted-foreground p-3">
+                Loading history…
+              </div>
+            ) : chatSessions.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-3">
+                Your saved chats will appear here.
+              </div>
+            ) : (
+              chatSessions.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`group flex items-center gap-1 rounded-lg ${currentChatId === chat.id ? "bg-primary/10" : "hover:bg-accent/60"}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => loadChat(chat)}
+                    className="flex-1 min-w-0 text-left px-2.5 py-2"
+                  >
+                    <div className="text-sm truncate text-foreground">
+                      {chat.title}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {new Date(chat.updated_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteChat(chat.id)}
+                    className="w-7 h-7 mr-1 grid place-items-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </aside>
 
-      {/* ═══ MOBILE SIDEBAR OVERLAY ═══ */}
       {historyOpen && (
-        <div className="md:hidden fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }} onClick={() => setHistoryOpen(false)}>
-          <div className="w-[82vw] max-w-80 h-full flex flex-col" style={{ background: '#0c0c0f', borderRight: '1px solid rgba(255,255,255,0.06)' }} onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#d4d4d8' }}>
-                <Clock3 className="w-4 h-4" style={{ color: '#71717a' }} /><span>History</span>
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <div
+            className="w-[82vw] max-w-80 h-full bg-card border-r border-border shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3 border-b border-border/60 flex items-center justify-between gap-2">
+              <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                <Clock3 className="w-3.5 h-3.5" /> History
               </div>
-              <button type="button" onClick={startNewChat} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #14b8a6, #0d9488)', color: '#fff' }}>
-                <MessageSquarePlus className="w-3.5 h-3.5" /> New
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent transition-colors"
+                title="New chat"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+            <div className="h-[calc(100%-57px)] overflow-y-auto p-2 space-y-1">
               {chatSessions.map((chat) => (
-                <button key={chat.id} type="button" onClick={() => loadChat(chat)} className="w-full text-left px-3 py-2.5 rounded-lg transition-all" style={{ color: '#d4d4d8' }}>
-                  <div className="text-sm truncate">{chat.title}</div>
-                  <div className="text-[10px] mt-0.5" style={{ color: '#71717a' }}>{new Date(chat.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                <button
+                  key={chat.id}
+                  type="button"
+                  onClick={() => loadChat(chat)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="text-sm truncate text-foreground">
+                    {chat.title}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(chat.updated_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </div>
                 </button>
               ))}
-              {chatSessions.length === 0 && <div className="text-xs p-3 text-center" style={{ color: '#71717a' }}>Your saved chats will appear here.</div>}
+              {chatSessions.length === 0 && (
+                <div className="text-xs text-muted-foreground p-3">
+                  Your saved chats will appear here.
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ MAIN CHAT AREA ═══ */}
-      <div className="min-w-0 flex-1 flex flex-col">
-
-        {/* Top Bar */}
-        <div className="shrink-0 px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,10,0.8)', backdropFilter: 'blur(12px)' }}>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setHistoryOpen((v) => !v)} className="w-8 h-8 grid place-items-center rounded-lg transition-all" style={{ color: '#71717a' }}>
-              {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+      <div
+        className="min-w-0 flex flex-1 flex-col transition-[flex-basis] duration-200 lg:flex-none lg:basis-[var(--chat-basis)]"
+        style={{ "--chat-basis": activeArtifactId ? `${artifactSplit}%` : "100%" } as React.CSSProperties}
+      >
+        <div className="shrink-0 max-w-4xl w-full mx-auto px-3 md:px-4 pt-2 flex items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((v) => !v)}
+              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              title={historyOpen ? "Hide history" : "Show history"}
+            >
+              {historyOpen ? (
+                <PanelLeftClose className="w-4 h-4" />
+              ) : (
+                <PanelLeftOpen className="w-4 h-4" />
+              )}
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #14b8a6, #7c3aed)', boxShadow: '0 2px 8px rgba(20,184,166,0.3)' }}>
-                <Sparkles className="w-3 h-3 text-white" />
-              </div>
-              <span className="text-sm font-semibold" style={{ color: '#d4d4d8' }}>Lumina AI</span>
-            </div>
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <span className="font-medium">Lumina Chat</span>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={startNewChat} className="hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all" style={{ borderColor: '#27272a', color: '#a1a1aa' }}>
+            <button
+              type="button"
+              onClick={startNewChat}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
+            >
               <MessageSquarePlus className="w-3.5 h-3.5" /> New
             </button>
-            <div className="flex-shrink-0">
-              <CreditsDisplay onClick={() => setBuyOpen(true)} />
-            </div>
+            <CreditsDisplay onClick={() => setBuyOpen(true)} />
             <ManualRestoreButton className="hidden md:inline-flex" />
           </div>
         </div>
 
-        {/* Messages / Empty State */}
-        <div className="flex-1 flex flex-col min-h-0 max-w-3xl w-full mx-auto">
+        <div className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-2 md:px-4">
           {empty ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-              <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6" style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.12), rgba(124,58,237,0.12))', border: '1px solid rgba(20,184,166,0.1)', boxShadow: '0 8px 32px rgba(20,184,166,0.08)' }}>
-                <Sparkles className="w-10 h-10" style={{ color: '#2dd4bf' }} />
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 grid place-items-center mb-4">
+                <Sparkles className="w-7 h-7 text-primary" />
               </div>
-              <h1 className="text-3xl font-bold mb-3" style={{ background: 'linear-gradient(135deg, #f4f4f5 0%, #a1a1aa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
                 How can I help you study?
               </h1>
-              <p className="text-sm mb-10 max-w-md leading-relaxed" style={{ color: '#a1a1aa' }}>
-                Chat is free. Generate notes, exam papers, slides and code — each costs <span className="inline-flex items-center gap-0.5 font-medium" style={{ color: '#2dd4bf' }}><Zap className="w-3 h-3" fill="currentColor" />1.5 credits</span> only when generation succeeds.
+              <p className="text-sm text-muted-foreground mb-8 max-w-md">
+                Chat is free. Generated notes, exam papers, slides and code each
+                cost{" "}
+                <span className="inline-flex items-center gap-0.5 text-primary">
+                  <Zap className="w-3 h-3" fill="currentColor" />
+                  1.5 credits
+                </span>{" "}
+                — only when generation succeeds.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-2xl">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
                     type="button"
                     onClick={() => handleSend(s)}
-                    className="text-left text-sm px-4 py-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#a1a1aa' }}
+                    className="text-left text-sm px-3 py-2.5 rounded-xl bg-card/40 border border-border hover:border-primary/40 hover:bg-card/60 transition-all"
                   >
                     {s}
                   </button>
@@ -1179,8 +1223,7 @@ Q3: ... || A: ...
             />
           )}
 
-          {/* Input Area */}
-          <div className="shrink-0 pb-4 pt-3 space-y-2" style={{ background: 'linear-gradient(to top, #08080a 70%, transparent)' }}>
+          <div className="shrink-0 pb-3 pt-2 space-y-2 sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent">
             <ModelSelector value={model} onChange={setModel} />
             <InputBar
               value={input}
@@ -1189,22 +1232,29 @@ Q3: ... || A: ...
               onStop={handleStop}
               isLoading={loading}
               onPickArtifact={(t) => {
-                if (!input.trim()) { toast.info("Type a topic first, then pick an artifact type."); return; }
+                if (!input.trim()) {
+                  toast.info("Type a topic first, then pick an artifact type.");
+                  return;
+                }
                 handleSend(input, t);
               }}
             />
-            <p className="text-[10px] text-center" style={{ color: '#52525b' }}>
-              Lumina can make mistakes. Verify important info. Artifacts run as background jobs, and credits are only charged after success.
+            <p className="text-[10px] text-center text-muted-foreground/60">
+              Lumina can make mistakes. Verify important info. Artifacts run as
+              background jobs, and credits are only charged after success.
             </p>
           </div>
         </div>
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
-
       {canvasOpen && (
         <div className="hidden md:flex flex-[0_0_54%] min-w-0 transition-all duration-300">
-          <CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} />
+          <CanvasPanel
+            open={canvasOpen}
+            versions={canvasVersions}
+            onClose={() => setCanvasOpen(false)}
+          />
         </div>
       )}
       {activeArtifactId && (

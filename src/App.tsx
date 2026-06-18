@@ -49,6 +49,7 @@ import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import NotFound from "./pages/NotFound";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
