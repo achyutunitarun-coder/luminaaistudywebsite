@@ -108,12 +108,51 @@ const ChatPage = () => {
     const { data: { session } } = await supabase.auth.getSession(); if (!session?.access_token) throw new Error("Please sign in.");
     const wireMode = model === "deepDive" ? "long_context" : model;
     const res = await fetch(CHAT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal });
-    if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
-    const aId = uid(); setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
-    try { while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let nl: number; while ((nl = buf.indexOf("\n")) !== -1) { let line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.endsWith("\r")) line = line.slice(0, -1); if (!line.startsWith("data: ")) continue; const json = line.slice(6).trim(); if (json === "[DONE]") continue; try { const parsed = JSON.parse(json); const delta = parsed?.choices?.[0]?.delta?.content; if (typeof delta === "string" && delta.length > 0) { acc += delta; setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m)); } } catch { buf = line + "\n" + buf; break; } } } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
-    const final: Message = acc.trim().length === 0 ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() } : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
-    setMessages(p => p.map(m => m.id === aId ? final : m)); await persistMessage(chatId, final); if (final.type === "text") pushCanvasFromMessage(final.content);
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`);
+    }
+    const aId = uid();
+    setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let acc = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          let line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (json === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(json);
+            const delta = parsed?.choices?.[0]?.delta?.content;
+            if (typeof delta === "string" && delta.length > 0) {
+              acc += delta;
+              setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
+            }
+          } catch {
+            buf = line + "\n" + buf;
+            break;
+          }
+        }
+      }
+    } finally {
+      setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+    }
+    const final: Message = acc.trim().length === 0
+      ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
+      : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
+    setMessages(p => p.map(m => m.id === aId ? final : m));
+    await persistMessage(chatId, final);
+    if (final.type === "text") pushCanvasFromMessage(final.content);
   }, [model, persistMessage, pushCanvasFromMessage]);
 
   const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null) => {
