@@ -25,7 +25,7 @@ const Performance = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#2dd4bf' }} />
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -36,25 +36,23 @@ const Performance = () => {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[14px] p-8 text-center"
+          className="card rounded-2xl p-8 text-center"
           style={{
-            background: 'linear-gradient(135deg, #0f1f3d 0%, #0d1a2e 50%, #1a0d2e 100%)',
-            border: '0.5px solid rgba(45,212,191,0.2)',
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.05))',
           }}
         >
-          <Brain className="w-12 h-12 mx-auto mb-4" style={{ color: '#2dd4bf' }} />
-          <h2 className="text-xl font-bold mb-2" style={{ color: '#f1f5f9' }}>
+          <Brain className="w-12 h-12 mx-auto mb-4 text-primary" />
+          <h2 className="text-xl font-bold mb-2 text-foreground">
             Your Growth Story Starts Here, {userName}
           </h2>
-          <p className="text-[13px] mb-6 max-w-md mx-auto" style={{ color: '#64748b' }}>
+          <p className="text-[13px] mb-6 max-w-md mx-auto text-muted-foreground">
             Take a test, complete a guided lesson, or start a study session to unlock your personalized performance analytics.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <Button
               onClick={() => navigate('/tests')}
               size="sm"
-              className="rounded-[10px] text-[13px] font-semibold px-5"
-              style={{ background: 'linear-gradient(135deg, #2dd4bf, #0ea5e9)', color: '#0a0c15' }}
+              className="btn-primary px-5"
             >
               Take a Test <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
@@ -62,8 +60,7 @@ const Performance = () => {
               onClick={() => navigate('/guided-lesson')}
               variant="outline"
               size="sm"
-              className="rounded-[10px] text-[13px] font-semibold px-5"
-              style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#f1f5f9' }}
+              className="rounded-xl text-[13px] font-semibold px-5"
             >
               Start a Lesson
             </Button>
@@ -80,31 +77,28 @@ const Performance = () => {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="rounded-[14px] p-6 md:p-8 relative overflow-hidden"
+        className="card rounded-2xl p-6 md:p-8 relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #0f1f3d 0%, #0d1a2e 50%, #1a0d2e 100%)',
-          border: '0.5px solid rgba(45,212,191,0.2)',
-          boxShadow: '0 0 40px rgba(45,212,191,0.06)',
+          background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.05))',
         }}
       >
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(45,212,191,0.08), transparent 70%)' }} />
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] rounded-full pointer-events-none bg-primary/[0.06] blur-[80px]" />
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[99px] mb-4" style={{ background: 'rgba(45,212,191,0.1)', border: '0.5px solid rgba(45,212,191,0.2)' }}>
-            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#2dd4bf' }} />
-            <Brain className="w-3.5 h-3.5" style={{ color: '#2dd4bf' }} />
-            <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: '#2dd4bf' }}>Neural Insight</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 bg-primary/10 border border-primary/20">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-primary" />
+            <Brain className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-primary">Neural Insight</span>
           </div>
-          <h1 className="text-2xl font-bold mb-4" style={{ color: '#f1f5f9' }}>Your Growth Story, {userName}</h1>
+          <h1 className="text-2xl font-bold mb-4 text-foreground">Your Growth Story, {userName}</h1>
           <div className="space-y-2 max-w-xl">
-            <p className="text-[13px]"><span style={{ color: '#64748b' }}>Observation: </span><span style={{ color: '#f1f5f9' }}>{data.insight.observation}</span></p>
-            <p className="text-[13px]"><span style={{ color: '#64748b' }}>Interpretation: </span><span style={{ color: '#f1f5f9' }}>{data.insight.interpretation}</span></p>
-            <p className="text-[13px]"><span style={{ color: '#64748b' }}>Action: </span><span style={{ color: '#2dd4bf', fontWeight: 500, cursor: 'pointer' }} onClick={() => navigate(data.insight.action.url)}>{data.insight.action.text}</span></p>
+            <p className="text-[13px]"><span className="text-muted-foreground">Observation: </span><span className="text-foreground">{data.insight.observation}</span></p>
+            <p className="text-[13px]"><span className="text-muted-foreground">Interpretation: </span><span className="text-foreground">{data.insight.interpretation}</span></p>
+            <p className="text-[13px]"><span className="text-muted-foreground">Action: </span><span className="text-primary font-medium cursor-pointer" onClick={() => navigate(data.insight.action.url)}>{data.insight.action.text}</span></p>
           </div>
           <Button
             onClick={() => navigate(data.insight.action.url)}
             size="sm"
-            className="mt-4 rounded-[10px] text-[13px] font-semibold px-5"
-            style={{ background: 'linear-gradient(135deg, #2dd4bf, #0ea5e9)', color: '#0a0c15' }}
+            className="mt-4 btn-primary px-5"
           >
             {data.insight.action.label} <ArrowRight className="w-3.5 h-3.5 ml-1" />
           </Button>
@@ -120,14 +114,14 @@ const Performance = () => {
       {/* Topic Table */}
       {data.topics.length > 0 && (
         <div>
-          <h2 className="text-[15px] font-semibold mb-3" style={{ color: '#f1f5f9' }}>Topic Progress</h2>
+          <h2 className="text-[15px] font-semibold mb-3 text-foreground">Topic Progress</h2>
           <TopicTable topics={data.topics} />
         </div>
       )}
 
       {/* Tools Grid */}
       <div>
-        <h2 className="text-[15px] font-semibold mb-3" style={{ color: '#f1f5f9' }}>Study Tools Impact</h2>
+        <h2 className="text-[15px] font-semibold mb-3 text-foreground">Study Tools Impact</h2>
         <ToolGrid />
       </div>
 
