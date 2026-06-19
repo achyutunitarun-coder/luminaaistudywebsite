@@ -1,14 +1,6 @@
 /**
- * LUMINA DASHBOARD — World-Class Redesign
- * 
- * Design principles:
- * - Negative space is the primary design element
- * - One focal point per section
- * - Typography hierarchy over color
- * - Subtle motion, never decorative
- * - Content-first, chrome-second
- * 
- * Reference: Linear (spacing), Notion (hierarchy), Vercel (dark theme)
+ * LUMINA DASHBOARD v3 — Complete Rewrite
+ * Fresh start. New class names. New everything.
  */
 import { motion } from "framer-motion";
 import {
@@ -28,7 +20,9 @@ import { useMemo, useState, useEffect } from "react";
 import { openPricing } from "@/lib/pricing";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
-const Dashboard = () => {
+const ease = [0.25, 0.1, 0.25, 1] as const;
+
+export default function Dashboard() {
   const { profile } = useProfile();
   const { user } = useAuth();
   const { seconds: liveSeconds } = useStudyTimer();
@@ -45,10 +39,8 @@ const Dashboard = () => {
     try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
   }, [profile?.extra_preferences]);
 
-  const emailName = user?.email?.split("@")[0]?.trim() || "";
-  const rawName = (profile?.display_name?.split(" ")[0]?.trim() || emailName).trim();
-  const isGenericName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName);
-  const userName = isGenericName ? "back" : rawName;
+  const rawName = (profile?.display_name?.split(" ")[0]?.trim() || user?.email?.split("@")[0]?.trim() || "").trim();
+  const userName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName) ? "back" : rawName;
   const userSubjects = userPrefs?.subjects || [];
 
   const { data: todayMinutes } = useQuery({
@@ -62,7 +54,7 @@ const Dashboard = () => {
   });
 
   const { data: recentTests } = useQuery({
-    queryKey: ["recent-tests-insight", user?.id],
+    queryKey: ["recent-tests", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("tests").select("score, subject, created_at").eq("user_id", user!.id).eq("status", "completed").order("created_at", { ascending: false }).limit(10);
       return data || [];
@@ -81,7 +73,7 @@ const Dashboard = () => {
   });
 
   const { data: mistakeData } = useQuery({
-    queryKey: ["weakness-insight", user?.id],
+    queryKey: ["mistakes", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("mistakes").select("topic, subject, mistake_type").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(50);
       return data || [];
@@ -110,59 +102,25 @@ const Dashboard = () => {
       const sub = m.subject || "General";
       if (!counts[sub]) counts[sub] = { count: 0, types: {} };
       counts[sub].count++;
-      const t = m.mistake_type || "conceptual";
-      counts[sub].types[t] = (counts[sub].types[t] || 0) + 1;
+      counts[sub].types[m.mistake_type || "conceptual"] = (counts[sub].types[m.mistake_type || "conceptual"] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1].count - a[1].count).slice(0, 3)
-      .map(([subject, data]) => ({
-        subject, count: data.count,
-        topMistakeType: Object.entries(data.types).sort((a, b) => b[1] - a[1])[0]?.[0] || "conceptual",
-      }));
+      .map(([subject, data]) => ({ subject, count: data.count, topMistakeType: Object.entries(data.types).sort((a, b) => b[1] - a[1])[0]?.[0] || "conceptual" }));
   }, [mistakeData]);
 
   if (!profile) return null;
 
-  const liveMinutes = Math.floor(liveSeconds / 60);
-  const totalToday = (todayMinutes || 0) + liveMinutes;
+  const liveMin = Math.floor(liveSeconds / 60);
+  const totalToday = (todayMinutes || 0) + liveMin;
   const hrs = Math.floor(totalToday / 60);
   const mins = totalToday % 60;
   const avgScore = recentTests?.length ? Math.round(recentTests.reduce((s, t) => s + (t.score || 0), 0) / recentTests.length) : null;
-  const readinessScore = avgScore ?? 0;
-
-  const scoreTrend = (() => {
-    if (!recentTests || recentTests.length < 4) return null;
-    const recent3 = recentTests.slice(0, 3).reduce((s, t) => s + (t.score || 0), 0) / 3;
-    const prev3 = recentTests.slice(3, 6).reduce((s, t) => s + (t.score || 0), 0) / Math.min(recentTests.length - 3, 3);
-    return Math.round(recent3 - prev3);
-  })();
+  const readiness = avgScore ?? 0;
 
   const getGreeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    return "Good evening";
+    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   };
-
-  const insightObservation = (() => {
-    if (avgScore !== null && recentTests?.length) {
-      const trend = scoreTrend !== null ? (scoreTrend >= 0 ? `, trending up ${scoreTrend}%` : `, dropped ${Math.abs(scoreTrend)}%`) : "";
-      return `Your average score is ${avgScore}%${trend} across ${recentTests.length} tests.`;
-    }
-    return `You've studied ${totalToday > 0 ? `${hrs}h ${mins}m today` : "haven't started today yet"}.`;
-  })();
-
-  const insightInterpretation = (() => {
-    if (weakSubjects.length) return `${weakSubjects[0].subject} is your weakest area — ${weakSubjects[0].count} mistakes, mostly ${weakSubjects[0].topMistakeType}.`;
-    if (avgScore !== null && avgScore < 70) return "Your scores suggest conceptual gaps that need targeted attention.";
-    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency.`;
-    return "Building a study habit is the most important first step. Even 15 minutes creates momentum.";
-  })();
-
-  const insightAction = weakSubjects.length > 0
-    ? { text: `Focus on ${weakSubjects[0].subject}`, label: `Practice ${weakSubjects[0].subject}`, url: "/tests" }
-    : avgScore !== null && avgScore < 70
-    ? { text: "Take a diagnostic test", label: "Take Diagnostic", url: "/tests" }
-    : { text: "Start a focused session", label: "Start Session", url: "/study-session" };
 
   const stats = [
     { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100}/100 XP` },
@@ -176,233 +134,124 @@ const Dashboard = () => {
 
   return (
     <>
-    <div className="d">
+    <div className="v3-dash">
 
-      {/* ═══ HEADER ═══ */}
-      <header className="d-header">
-        <h1 className="d-title">{getGreeting()}, {userName}.</h1>
-        <p className="d-subtitle">Here's where you stand.</p>
+      {/* HEADER */}
+      <header className="v3-header">
+        <h1 className="v3-title">{getGreeting()}, {userName}.</h1>
+        <p className="v3-sub">Here's where you stand.</p>
       </header>
 
-      {/* ═══ NEURAL INSIGHT — The hero. One focal point. ═══ */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-hero">
-        <div className="d-hero-main">
-          <div className="d-hero-badge">
-            <Brain className="w-3.5 h-3.5" />
-            <span>Neural Insight</span>
-          </div>
-
-          <h2 className="d-hero-headline">
-            {avgScore !== null ? (
-              <>
-                {avgScore >= 70 ? "Strong progress" : "Building momentum"}{userName ? `, ${userName}` : ""}
-                {scoreTrend !== null && (
-                  <span className={`d-trend ${scoreTrend >= 0 ? "d-trend-up" : "d-trend-down"}`}>
-                    {scoreTrend >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                    {scoreTrend >= 0 ? "+" : ""}{scoreTrend}%
-                  </span>
-                )}
-              </>
-            ) : (
-              <>Welcome back{userName ? `, ${userName}` : ""}</>
-            )}
+      {/* HERO */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease }} className="v3-hero">
+        <div className="v3-hero-left">
+          <div className="v3-badge"><Brain className="w-3.5 h-3.5" /><span>Neural Insight</span></div>
+          <h2 className="v3-headline">
+            {avgScore !== null ? <>{avgScore >= 70 ? "Strong progress" : "Building momentum"}, {userName}</> : <>Welcome back, {userName}</>}
           </h2>
-
-          <div className="d-hero-insights">
-            <p><span className="d-insight-label">Observation</span> — {insightObservation}</p>
-            <p><span className="d-insight-label">Interpretation</span> — {insightInterpretation}</p>
+          <div className="v3-insights">
+            <p><span className="v3-ilabel">Observation</span> — {avgScore !== null && recentTests?.length ? `Your average score is ${avgScore}% across ${recentTests.length} tests.` : `You've studied ${totalToday > 0 ? `${hrs}h ${mins}m today` : "haven't started today yet"}.`}</p>
+            <p><span className="v3-ilabel">Interpretation</span> — {weakSubjects.length ? `${weakSubjects[0].subject} is your weakest area — ${weakSubjects[0].count} mistakes.` : avgScore !== null && avgScore < 70 ? "Your scores suggest conceptual gaps." : streakDays >= 3 ? `Your ${streakDays}-day streak shows consistency.` : "Building a habit is the first step."}</p>
           </div>
-
           {Object.keys(subjectScores).length > 0 && (
-            <div className="d-subjects">
+            <div className="v3-pills">
               {Object.entries(subjectScores).map(([sub, score]) => (
-                <span key={sub} className={`d-subject-pill ${score >= 70 ? "d-pill-green" : score >= 50 ? "d-pill-amber" : "d-pill-red"}`}>
-                  {sub} <strong>{score}%</strong>
-                </span>
+                <span key={sub} className={`v3-pill ${score >= 70 ? "v3-pill-g" : score >= 50 ? "v3-pill-a" : "v3-pill-r"}`}>{sub} <b>{score}%</b></span>
               ))}
             </div>
           )}
-
-          <Button onClick={() => navigate(insightAction.url)} size="sm" className="d-cta">
-            {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+          <Button onClick={() => navigate(weakSubjects.length ? "/tests" : "/study-session")} size="sm" className="v3-cta">
+            {weakSubjects.length ? `Practice ${weakSubjects[0].subject}` : "Start Session"} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
           </Button>
         </div>
-
-        <div className="d-hero-ring">
-          <svg className="d-ring-svg" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" className="d-ring-bg" />
-            <motion.circle cx="50" cy="50" r="42" className="d-ring-fill"
-              strokeDasharray={`${2 * Math.PI * 42}`}
-              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
-              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
-            />
+        <div className="v3-ring">
+          <svg className="v3-ring-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" className="v3-ring-bg" />
+            <motion.circle cx="50" cy="50" r="42" className="v3-ring-fill" strokeDasharray={`${2 * Math.PI * 42}`} initial={{ strokeDashoffset: 2 * Math.PI * 42 }} animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readiness / 100) }} transition={{ duration: 1.2, delay: 0.3, ease }} />
           </svg>
-          <div className="d-ring-center">
-            <span className="d-ring-value">{avgScore ?? "—"}</span>
-            <span className="d-ring-label">Readiness</span>
-          </div>
+          <div className="v3-ring-center"><span className="v3-ring-val">{avgScore ?? "—"}</span><span className="v3-ring-lbl">Readiness</span></div>
         </div>
       </motion.section>
 
-      {/* ═══ STATS — Minimal, typography-first ═══ */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-stats">
-        {stats.map((stat) => (
-          <div key={stat.label} className="d-stat">
-            <div className="d-stat-icon"><stat.icon className="w-4 h-4" /></div>
-            <div className="d-stat-info">
-              <span className="d-stat-value">{stat.value}</span>
-              <span className="d-stat-label">{stat.label}</span>
-              <span className="d-stat-sub">{stat.sub}</span>
-            </div>
+      {/* STATS */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4, ease }} className="v3-stats">
+        {stats.map(s => (
+          <div key={s.label} className="v3-stat">
+            <div className="v3-stat-ico"><s.icon className="w-4 h-4" /></div>
+            <div><span className="v3-stat-val">{s.value}</span><span className="v3-stat-lbl">{s.label}</span><span className="v3-stat-sub">{s.sub}</span></div>
           </div>
         ))}
       </motion.section>
 
-      {/* ═══ TWO COLUMN — Mastery + Plan ═══ */}
-      <div className="d-two-col">
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
-          <h3 className="d-card-heading">
-            <Layers className="w-4 h-4" />
-            Mastery Map
-          </h3>
+      {/* TWO COL */}
+      <div className="v3-two">
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4, ease }} className="v3-card">
+          <h3 className="v3-ch"><Layers className="w-4 h-4" />Mastery Map</h3>
           {Object.keys(subjectScores).length > 0 ? (
-            <div className="d-subjects">
+            <div className="v3-pills">
               {Object.entries(subjectScores).map(([sub, score]) => (
-                <button key={sub} onClick={() => navigate("/weakness-radar")} className={`d-subject-pill ${score >= 70 ? "d-pill-green" : score >= 50 ? "d-pill-amber" : "d-pill-red"}`}>
-                  {sub} <strong>{score}%</strong>
-                </button>
+                <button key={sub} onClick={() => navigate("/weakness-radar")} className={`v3-pill ${score >= 70 ? "v3-pill-g" : score >= 50 ? "v3-pill-a" : "v3-pill-r"}`}>{sub} <b>{score}%</b></button>
               ))}
             </div>
           ) : (
-            <div className="d-empty">
-              <p>Take tests to see your mastery map</p>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="d-empty-cta">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
-            </div>
+            <div className="v3-empty"><p>Take tests to see your mastery map</p><Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="mt-2 text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
           )}
         </motion.section>
-
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
-          <h3 className="d-card-heading">
-            <Zap className="w-4 h-4" />
-            Today's Plan
-          </h3>
-          <div className="d-plan">
-            {[
-              { label: "Practice weak areas", time: "20 min" },
-              { label: "Review flashcards", time: "10 min" },
-              { label: "Take a quiz", time: "15 min" },
-            ].map((item, i) => (
-              <div key={i} className="d-plan-row">
-                <span className="d-plan-label">{item.label}</span>
-                <span className="d-plan-time">{item.time}</span>
-              </div>
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.4, ease }} className="v3-card">
+          <h3 className="v3-ch"><Zap className="w-4 h-4" />Today's Plan</h3>
+          <div className="v3-plan">
+            {[{ l: "Practice weak areas", t: "20 min" }, { l: "Review flashcards", t: "10 min" }, { l: "Take a quiz", t: "15 min" }].map((x, i) => (
+              <div key={i} className="v3-prow"><span>{x.l}</span><span className="v3-ptime">{x.t}</span></div>
             ))}
           </div>
         </motion.section>
       </div>
 
-      {/* ═══ UPGRADE — Subtle, not loud ═══ */}
+      {/* UPGRADE */}
       {!isProPlus && (
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-upgrade">
-          <div className="d-upgrade-text">
-            <Crown className="w-4 h-4" />
-            <span>Unlock Lumina Hub — 10 science-backed brain engines for ₹499/mo</span>
-          </div>
-          <Button onClick={openPricing} size="sm" className="d-upgrade-btn">
-            <Rocket className="w-3.5 h-3.5 mr-1.5" /> Upgrade
-          </Button>
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4, ease }} className="v3-upgrade">
+          <div className="v3-upg-text"><Crown className="w-4 h-4" /><span>Unlock Lumina Hub — 10 brain engines for ₹499/mo</span></div>
+          <Button onClick={openPricing} size="sm" className="v3-upg-btn"><Rocket className="w-3.5 h-3.5 mr-1.5" />Upgrade</Button>
         </motion.section>
       )}
 
-      {/* ═══ WEAKNESS RADAR ═══ */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}>
-        <div className="d-section-header">
-          <h3 className="d-card-heading">
-            <Activity className="w-4 h-4" />
-            Weakness Radar
-          </h3>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/weakness-radar")} className="d-section-link">
-            Full Analysis <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
-        </div>
+      {/* WEAKNESS */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.4, ease }}>
+        <div className="v3-sh"><h3 className="v3-ch"><Activity className="w-4 h-4" />Weakness Radar</h3><Button variant="ghost" size="sm" onClick={() => navigate("/weakness-radar")} className="v3-slink">Full Analysis <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
         {weakSubjects.length > 0 ? (
-          <div className="d-weakness-grid">
-            {weakSubjects.map((w, i) => {
-              const severity = w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs Work" : "Watch";
-              return (
-                <motion.button key={w.subject} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.08, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-                  onClick={() => navigate("/tests")} className="d-weak-card">
-                  <div className="d-weak-header">
-                    <span className={`d-severity ${w.count >= 10 ? "d-sev-critical" : w.count >= 5 ? "d-sev-warn" : "d-sev-watch"}`}>
-                      <AlertTriangle className="w-3 h-3" />{severity}
-                    </span>
-                    {subjectScores[w.subject] !== undefined && <span className="d-weak-score">{subjectScores[w.subject]}%</span>}
-                  </div>
-                  <h4 className="d-weak-title">{w.subject}</h4>
-                  <p className="d-weak-desc">{w.count} mistakes · {w.topMistakeType}</p>
-                  <div className="d-weak-bar-track">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(w.count * 5, 100)}%` }} transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease: [0.25, 0.1, 0.25, 1] }} className="d-weak-bar-fill" />
-                  </div>
-                </motion.button>
-              );
-            })}
+          <div className="v3-weak-grid">
+            {weakSubjects.map((w, i) => (
+              <motion.button key={w.subject} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.08, duration: 0.35, ease }} onClick={() => navigate("/tests")} className="v3-weak-card">
+                <div className="v3-weak-hdr"><span className={`v3-sev ${w.count >= 10 ? "v3-sev-c" : w.count >= 5 ? "v3-sev-w" : "v3-sev-n"}`}><AlertTriangle className="w-3 h-3" />{w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs Work" : "Watch"}</span></div>
+                <h4 className="v3-weak-title">{w.subject}</h4>
+                <p className="v3-weak-desc">{w.count} mistakes · {w.topMistakeType}</p>
+                <div className="v3-weak-track"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(w.count * 5, 100)}%` }} transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease }} className="v3-weak-fill" /></div>
+              </motion.button>
+            ))}
           </div>
         ) : (
-          <div className="d-empty-card">
-            <CheckCircle2 className="w-6 h-6 mb-2" />
-            <p className="d-empty-title">Looking good!</p>
-            <p className="d-empty-desc">Take tests to discover areas for improvement</p>
-            <Button variant="outline" size="sm" onClick={() => navigate("/tests")} className="d-empty-cta">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
-          </div>
+          <div className="v3-empty-card"><CheckCircle2 className="w-6 h-6 mb-2" /><p className="v3-empty-title">Looking good!</p><p className="v3-empty-desc">Take tests to discover areas for improvement</p><Button variant="outline" size="sm" onClick={() => navigate("/tests")} className="mt-4 rounded-xl text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
         )}
       </motion.section>
 
-      {/* ═══ INTELLIGENCE GRID ═══ */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}>
-        <h3 className="d-card-heading mb-4">
-          <Sparkles className="w-4 h-4" />
-          Intelligence Hub
-        </h3>
-        <div className="d-actions">
-          {[
-            { name: "AI Chat", desc: "Ask anything", icon: MessageSquare, url: "/chat" },
-            { name: "Generate Test", desc: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", icon: Target, url: "/tests" },
-            { name: "Brain Hub", desc: "10 brain engines", icon: Brain, url: "/hub" },
-            { name: "All Tools", desc: "9 AI tools", icon: Sparkles, url: "/ai-tools" },
-          ].map((action) => (
-            <button key={action.name} onClick={() => navigate(action.url)} className="d-action">
-              <div className="d-action-icon"><action.icon className="w-5 h-5" /></div>
-              <div>
-                <span className="d-action-name">{action.name}</span>
-                <span className="d-action-desc">{action.desc}</span>
-              </div>
-            </button>
+      {/* ACTIONS */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4, ease }}>
+        <h3 className="v3-ch mb-4"><Sparkles className="w-4 h-4" />Intelligence Hub</h3>
+        <div className="v3-actions">
+          {[{ n: "AI Chat", d: "Ask anything", i: MessageSquare, u: "/chat" }, { n: "Generate Test", d: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", i: Target, u: "/tests" }, { n: "Brain Hub", d: "10 brain engines", i: Brain, u: "/hub" }, { n: "All Tools", d: "9 AI tools", i: Sparkles, u: "/ai-tools" }].map(a => (
+            <button key={a.n} onClick={() => navigate(a.u)} className="v3-action"><div className="v3-action-ico"><a.i className="w-5 h-5" /></div><span className="v3-action-name">{a.n}</span><span className="v3-action-desc">{a.d}</span></button>
           ))}
         </div>
       </motion.section>
 
-      {/* ═══ WEEKLY CHART ═══ */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
-        <div className="d-section-header">
-          <h3 className="d-card-heading">
-            <BarChart3 className="w-4 h-4" />
-            Weekly Evolution
-          </h3>
-          <span className="d-consistency">{daysStudied}/7 days · {consistency}% consistency</span>
-        </div>
-        <div className="d-chart">
+      {/* CHART */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4, ease }} className="v3-card">
+        <div className="v3-sh"><h3 className="v3-ch"><BarChart3 className="w-4 h-4" />Weekly Evolution</h3><span className="v3-consistency">{daysStudied}/7 days · {consistency}% consistency</span></div>
+        <div className="v3-chart">
           {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => {
-            const dayMins = weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (i + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
-            const allMins = [0,1,2,3,4,5,6].map(j => weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0);
-            const maxMins = Math.max(...allMins, 1);
-            const height = Math.max((dayMins / maxMins) * 100, 6);
-            return (
-              <div key={day} className="d-chart-col">
-                <motion.div initial={{ height: 0 }} animate={{ height: `${height}%` }} transition={{ duration: 0.6, delay: 0.1 * i, ease: [0.25, 0.1, 0.25, 1] }} className="d-chart-bar" />
-                <span className="d-chart-label">{day}{i === 1 ? day : ""}</span>
-              </div>
-            );
+            const dm = weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (i + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
+            const mx = Math.max(...[0,1,2,3,4,5,6].map(j => weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0), 1);
+            return <div key={day} className="v3-chart-col"><motion.div initial={{ height: 0 }} animate={{ height: `${Math.max((dm / mx) * 100, 6)}%` }} transition={{ duration: 0.6, delay: 0.1 * i, ease }} className="v3-chart-bar" /><span className="v3-chart-lbl">{day}</span></div>;
           })}
         </div>
       </motion.section>
@@ -411,6 +260,4 @@ const Dashboard = () => {
     {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
     </>
   );
-};
-
-export default Dashboard;
+}
