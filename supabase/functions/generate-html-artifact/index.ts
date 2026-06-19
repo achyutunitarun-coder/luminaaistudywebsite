@@ -195,20 +195,36 @@ serve(async (req) => {
             let userPrompt = "";
             let label = "";
 
-            // Hard reinforcement appended to EVERY artifact request: the prior
-            // bug was the model shipping a skeleton that said "here is how to
-            // view the notes" with no actual content. The reinforcement forbids
-            // that and demands real subject-matter substance.
+            // HARD REINFORCEMENT — prevents placeholder/skeleton output
             const contentReinforcement = `
 
-CRITICAL OUTPUT REQUIREMENTS — DO NOT VIOLATE:
-1. The HTML you return MUST contain the ACTUAL educational content on the topic "${topic}" (${subject}, ${grade}).
-   - Real definitions, real formulas, real worked examples with numbers, real practice questions with answers.
-   - NEVER write "click here to view the notes", "instructions on how to use", "your notes will appear", "open the file to see content", or any placeholder/meta text. The HTML IS the deliverable.
-2. Treat this like writing a real textbook chapter or exam paper that a student will actually study from. Depth, accuracy, specificity.
-3. ZERO EMOJI in the HTML. No rockets, sparkles, party poppers, lightbulbs, check marks, fire, hearts, targets — nothing in the Unicode emoji block. Use SVG icons or plain text labels (Tip:, Warning:, Example:) instead. Emoji make the output look unprofessional.
-4. Output ONLY raw HTML starting with <!DOCTYPE html>. No markdown fences. No commentary. No "here is your" preamble.
-5. Aim for completeness over brevity. A truncated 200-line skeleton is worse than a complete 600-line document.`;
+═══════════════════════════════════════════════════
+ABSOLUTE OUTPUT CONTRACT — VIOLATION = FAILURE
+═══════════════════════════════════════════════════
+
+You are NOT a template generator. You are a CONTENT creator.
+
+FORBIDDEN (instant failure if present):
+- "Click here to view", "Open the file to see", "Your content will appear here"
+- "Instructions on how to use this", "How to navigate", "Welcome to your"
+- Lorem ipsum, placeholder text, "TODO", "coming soon", "rest of content here"
+- Any meta-commentary about what the artifact IS — just BE the artifact
+- Emoji of any kind (🚀⚡🎯🔥💡✅❌🎉🌟📝📚 etc.) — use SVG icons or text labels
+
+REQUIRED (instant failure if missing):
+- The HTML MUST contain REAL, SUBSTANTIVE educational content for "${topic}"
+- Real definitions with explanations, not just term names
+- Real worked examples with actual numbers and step-by-step solutions
+- Real formulas with variable explanations
+- Real practice questions with complete answers and explanations
+- Minimum 800 lines of actual HTML content
+- Every section must have substantial text — not just headers
+
+IDENTITY: You are writing a real textbook chapter / exam paper / presentation that a student will actually study from. A teacher would be proud to distribute this. A student would learn from this.
+
+OUTPUT: ONLY raw HTML starting with <!DOCTYPE html> and ending with </html>. No markdown fences. No preamble. No commentary. The HTML file IS the deliverable — it must be complete, self-contained, and immediately useful.
+
+UNIQUENESS: This artifact must feel like a custom-designed product, not a template. Choose a distinctive visual approach that fits the topic. Make one design decision that makes this artifact memorable and different from any other.`;
 
             if (type === "notes") {
               themeKey = notesTheme;
