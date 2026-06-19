@@ -144,10 +144,10 @@ export default function Dashboard() {
   const consistency = Math.round((daysStudied / 7) * 100);
 
   const stats = [
-    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, accent: "text-[--brand-glow]" },
-    { icon: Flame, label: "Streak", value: String(streakDays), sub: streakDays === 1 ? "day" : "days", accent: "text-[--amber]" },
-    { icon: Clock, label: "Today", value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : "0m", sub: totalToday >= 60 ? "deep work" : "studying", accent: "text-[--teal]" },
-    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, accent: "text-[--green]" },
+    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, accent: "text-[var(--brand-glow)]" },
+    { icon: Flame, label: "Streak", value: String(streakDays), sub: streakDays === 1 ? "day" : "days", accent: "text-[var(--amber)]" },
+    { icon: Clock, label: "Today", value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : "0m", sub: totalToday >= 60 ? "deep work" : "studying", accent: "text-[var(--teal)]" },
+    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, accent: "text-[var(--green)]" },
   ];
 
   return (
@@ -159,10 +159,10 @@ export default function Dashboard() {
         {/* Top bar */}
         <motion.div {...fadeUp(0)} className="dash-topbar">
           <div className="dash-crumbs">
-            <CircleDot className="w-3 h-3 text-[--brand-glow]" />
+            <CircleDot className="w-3 h-3 text-[var(--brand-glow)]" />
             <span>Workspace</span>
             <ChevronRight className="w-3 h-3 opacity-40" />
-            <span className="text-[--text-primary]">Dashboard</span>
+            <span className="text-[var(--text-primary)]">Dashboard</span>
           </div>
           <div className="dash-topbar-right">
             <span className="dash-date">{today}</span>
@@ -186,9 +186,9 @@ export default function Dashboard() {
             </h1>
             <p className="dash-sub">
               {avgScore !== null && recentTests?.length
-                ? <>You're averaging <b className="text-[--text-primary]">{avgScore}%</b> across <b className="text-[--text-primary]">{recentTests.length}</b> recent tests. {weakSubjects[0] ? <>The gap sits in <b className="text-[--text-primary]">{weakSubjects[0].subject}</b> — let's close it.</> : "Momentum is yours."}</>
+                ? <>You're averaging <b className="text-[var(--text-primary)]">{avgScore}%</b> across <b className="text-[var(--text-primary)]">{recentTests.length}</b> recent tests. {weakSubjects[0] ? <>The gap sits in <b className="text-[var(--text-primary)]">{weakSubjects[0].subject}</b> — let's close it.</> : "Momentum is yours."}</>
                 : totalToday > 0
-                  ? <>You've put in <b className="text-[--text-primary]">{hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}</b> today. Quiet, consistent work compounds.</>
+                  ? <>You've put in <b className="text-[var(--text-primary)]">{hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}</b> today. Quiet, consistent work compounds.</>
                   : <>A fresh canvas. The smallest first move beats the perfect one tomorrow.</>}
             </p>
             <div className="dash-hero-actions">
@@ -413,8 +413,8 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="dash-panel dash-empty">
-              <TrendingUp className="w-5 h-5 mb-2 text-[--green]" />
-              <p className="text-[--text-primary] font-medium">All clear, for now.</p>
+              <TrendingUp className="w-5 h-5 mb-2 text-[var(--green)]" />
+              <p className="text-[var(--text-primary)] font-medium">All clear, for now.</p>
               <p>Take a test to surface what to sharpen next.</p>
             </div>
           )}
