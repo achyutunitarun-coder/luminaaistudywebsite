@@ -1,14 +1,20 @@
 /**
- * LUMINA DASHBOARD — Production-Grade Redesign
- * Linear/Vercel/Notion quality. Every pixel justified.
- * No inline hex values. All colors from design tokens.
+ * LUMINA DASHBOARD — World-Class Redesign
+ * 
+ * Design principles:
+ * - Negative space is the primary design element
+ * - One focal point per section
+ * - Typography hierarchy over color
+ * - Subtle motion, never decorative
+ * - Content-first, chrome-second
+ * 
+ * Reference: Linear (spacing), Notion (hierarchy), Vercel (dark theme)
  */
 import { motion } from "framer-motion";
 import {
   Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain,
   Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp,
-  TrendingDown, Zap, Layers, Activity, Crown, Rocket, Timer,
-  GitBranch, Calendar, Shuffle, BookOpen,
+  TrendingDown, Zap, Layers, Activity, Crown, Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -21,8 +27,6 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useMemo, useState, useEffect } from "react";
 import { openPricing } from "@/lib/pricing";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
-
-const ease = [0.25, 0.1, 0.25, 1] as const;
 
 const Dashboard = () => {
   const { profile } = useProfile();
@@ -148,23 +152,23 @@ const Dashboard = () => {
   })();
 
   const insightInterpretation = (() => {
-    if (weakSubjects.length) return `${weakSubjects[0].subject} is your weakest area with ${weakSubjects[0].count} mistakes — mostly ${weakSubjects[0].topMistakeType} errors.`;
+    if (weakSubjects.length) return `${weakSubjects[0].subject} is your weakest area — ${weakSubjects[0].count} mistakes, mostly ${weakSubjects[0].topMistakeType}.`;
     if (avgScore !== null && avgScore < 70) return "Your scores suggest conceptual gaps that need targeted attention.";
-    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency. Each day builds neural pathways.`;
+    if (streakDays >= 3) return `Your ${streakDays}-day streak shows excellent consistency.`;
     return "Building a study habit is the most important first step. Even 15 minutes creates momentum.";
   })();
 
   const insightAction = weakSubjects.length > 0
-    ? { text: `Focus on ${weakSubjects[0].subject} — do 20 mins of targeted practice.`, label: `Practice ${weakSubjects[0].subject}`, url: "/tests" }
+    ? { text: `Focus on ${weakSubjects[0].subject}`, label: `Practice ${weakSubjects[0].subject}`, url: "/tests" }
     : avgScore !== null && avgScore < 70
-    ? { text: "Take a diagnostic test to pinpoint where your understanding breaks down.", label: "Take Diagnostic", url: "/tests" }
-    : { text: "Start a focused study session to build momentum and earn XP.", label: "Start Session", url: "/study-session" };
+    ? { text: "Take a diagnostic test", label: "Take Diagnostic", url: "/tests" }
+    : { text: "Start a focused session", label: "Start Session", url: "/study-session" };
 
   const stats = [
-    { icon: Trophy, label: "Level", value: profile.level, sub: `${profile.xp % 100}/100 XP`, color: "var(--amber)", bg: "var(--amber-tint)" },
-    { icon: Flame, label: "Streak", value: `${streakDays}d`, sub: streakDays >= 7 ? "🔥 Unstoppable" : streakDays >= 3 ? "🔥 On fire" : "Build it up", color: "#fb923c", bg: "rgba(251,146,60,0.08)" },
-    { icon: Clock, label: "Today", value: `${hrs}h ${mins}m`, sub: totalToday >= 60 ? "Deep work" : totalToday > 0 ? "Getting started" : "Not yet", color: "var(--teal)", bg: "var(--teal-tint)" },
-    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, color: "var(--brand)", bg: "var(--brand-tint)" },
+    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100}/100 XP` },
+    { icon: Flame, label: "Streak", value: `${streakDays}d`, sub: streakDays >= 7 ? "Unstoppable" : streakDays >= 3 ? "On fire" : "Build it up" },
+    { icon: Clock, label: "Today", value: totalToday > 0 ? `${hrs}h ${mins}m` : "—", sub: totalToday >= 60 ? "Deep work" : totalToday > 0 ? "Getting started" : "Not yet" },
+    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests` },
   ];
 
   const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
@@ -172,280 +176,236 @@ const Dashboard = () => {
 
   return (
     <>
-    <div className="dash-container">
+    <div className="d">
 
-      {/* ─── HEADER ─── */}
-      <div className="dash-header">
-        <p className="dash-greeting">{getGreeting()}, {userName}.</p>
-        <p className="dash-sub">Here's where you stand.</p>
-      </div>
+      {/* ═══ HEADER ═══ */}
+      <header className="d-header">
+        <h1 className="d-title">{getGreeting()}, {userName}.</h1>
+        <p className="d-subtitle">Here's where you stand.</p>
+      </header>
 
-      {/* ─── NEURAL INSIGHT ─── */}
-      <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }} className="dash-hero">
-        <div className="dash-hero-inner">
-          <div className="dash-hero-content">
-            <div className="dash-badge dash-badge-teal">
-              <span className="dash-badge-dot" />
-              <Brain className="w-3.5 h-3.5" />
-              <span>Neural Insight</span>
-            </div>
-
-            <h1 className="dash-hero-title">
-              {avgScore !== null ? (
-                <span className="flex items-center gap-3 flex-wrap">
-                  {avgScore >= 70 ? `Strong progress, ${userName}` : `Building momentum, ${userName}`}
-                  {scoreTrend !== null && (
-                    <span className={`dash-trend ${scoreTrend >= 0 ? "dash-trend-up" : "dash-trend-down"}`}>
-                      {scoreTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      {scoreTrend >= 0 ? "+" : ""}{scoreTrend}%
-                    </span>
-                  )}
-                </span>
-              ) : (
-                `Welcome back, ${userName}`
-              )}
-            </h1>
-
-            <div className="dash-hero-copy">
-              <p><span className="dash-label">Observation: </span>{insightObservation}</p>
-              <p><span className="dash-label">Interpretation: </span>{insightInterpretation}</p>
-              <p className="dash-action"><span className="dash-label">Action: </span>{insightAction.text}</p>
-            </div>
-
-            {Object.keys(subjectScores).length > 0 && (
-              <div className="dash-pills">
-                {Object.entries(subjectScores).map(([sub, score]) => (
-                  <span key={sub} className={`dash-pill ${score >= 70 ? "dash-pill-green" : score >= 50 ? "dash-pill-amber" : "dash-pill-red"}`}>
-                    <span className="capitalize">{sub}</span>
-                    <span className="font-bold tabular-nums">{score}%</span>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <Button onClick={() => navigate(insightAction.url)} size="sm" className="btn-primary px-6">
-              {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </Button>
+      {/* ═══ NEURAL INSIGHT — The hero. One focal point. ═══ */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-hero">
+        <div className="d-hero-main">
+          <div className="d-hero-badge">
+            <Brain className="w-3.5 h-3.5" />
+            <span>Neural Insight</span>
           </div>
 
-          <div className="dash-readiness">
-            <div className="dash-readiness-ring">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-faint)" strokeWidth="5" />
-                <motion.circle cx="50" cy="50" r="42" fill="none" stroke="url(#readiness-grad)" strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 42}`}
-                  initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                  animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
-                  transition={{ duration: 1.2, delay: 0.3, ease }}
-                />
-                <defs>
-                  <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="var(--teal)" />
-                    <stop offset="50%" stopColor="var(--brand)" />
-                    <stop offset="100%" stopColor="#3B82F6" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="dash-readiness-center">
-                <span className="dash-readiness-value">{avgScore ?? "—"}</span>
-                <span className="dash-readiness-label">Readiness</span>
-              </div>
+          <h2 className="d-hero-headline">
+            {avgScore !== null ? (
+              <>
+                {avgScore >= 70 ? "Strong progress" : "Building momentum"}{userName ? `, ${userName}` : ""}
+                {scoreTrend !== null && (
+                  <span className={`d-trend ${scoreTrend >= 0 ? "d-trend-up" : "d-trend-down"}`}>
+                    {scoreTrend >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    {scoreTrend >= 0 ? "+" : ""}{scoreTrend}%
+                  </span>
+                )}
+              </>
+            ) : (
+              <>Welcome back{userName ? `, ${userName}` : ""}</>
+            )}
+          </h2>
+
+          <div className="d-hero-insights">
+            <p><span className="d-insight-label">Observation</span> — {insightObservation}</p>
+            <p><span className="d-insight-label">Interpretation</span> — {insightInterpretation}</p>
+          </div>
+
+          {Object.keys(subjectScores).length > 0 && (
+            <div className="d-subjects">
+              {Object.entries(subjectScores).map(([sub, score]) => (
+                <span key={sub} className={`d-subject-pill ${score >= 70 ? "d-pill-green" : score >= 50 ? "d-pill-amber" : "d-pill-red"}`}>
+                  {sub} <strong>{score}%</strong>
+                </span>
+              ))}
             </div>
+          )}
+
+          <Button onClick={() => navigate(insightAction.url)} size="sm" className="d-cta">
+            {insightAction.label} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+          </Button>
+        </div>
+
+        <div className="d-hero-ring">
+          <svg className="d-ring-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" className="d-ring-bg" />
+            <motion.circle cx="50" cy="50" r="42" className="d-ring-fill"
+              strokeDasharray={`${2 * Math.PI * 42}`}
+              initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
+              animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readinessScore / 100) }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+            />
+          </svg>
+          <div className="d-ring-center">
+            <span className="d-ring-value">{avgScore ?? "—"}</span>
+            <span className="d-ring-label">Readiness</span>
           </div>
         </div>
-      </motion.div>
+      </motion.section>
 
-      {/* ─── STATS ─── */}
-      <div className="dash-stats">
-        {stats.map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06, ease }} className="dash-stat">
-            <div className="dash-stat-icon" style={{ background: stat.bg }}>
-              <stat.icon className="w-5 h-5" style={{ color: stat.color }} />
+      {/* ═══ STATS — Minimal, typography-first ═══ */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-stats">
+        {stats.map((stat) => (
+          <div key={stat.label} className="d-stat">
+            <div className="d-stat-icon"><stat.icon className="w-4 h-4" /></div>
+            <div className="d-stat-info">
+              <span className="d-stat-value">{stat.value}</span>
+              <span className="d-stat-label">{stat.label}</span>
+              <span className="d-stat-sub">{stat.sub}</span>
             </div>
-            <div>
-              <p className="dash-stat-label">{stat.label}</p>
-              <p className="dash-stat-value">{stat.value}</p>
-              <p className="dash-stat-sub">{stat.sub}</p>
-            </div>
-          </motion.div>
+          </div>
         ))}
-      </div>
+      </motion.section>
 
-      {/* ─── MASTERY + PLAN ─── */}
-      <div className="dash-grid-2">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }} className="dash-card">
-          <h2 className="dash-card-title">
-            <Layers className="w-4 h-4" style={{ color: "var(--brand)" }} />
+      {/* ═══ TWO COLUMN — Mastery + Plan ═══ */}
+      <div className="d-two-col">
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
+          <h3 className="d-card-heading">
+            <Layers className="w-4 h-4" />
             Mastery Map
-          </h2>
+          </h3>
           {Object.keys(subjectScores).length > 0 ? (
-            <div className="dash-pills">
+            <div className="d-subjects">
               {Object.entries(subjectScores).map(([sub, score]) => (
-                <button key={sub} onClick={() => navigate("/weakness-radar")} className={`dash-pill ${score >= 70 ? "dash-pill-green" : score >= 50 ? "dash-pill-amber" : "dash-pill-red"}`}>
-                  <span className="capitalize">{sub}</span>
-                  <span className="font-bold tabular-nums">{score}%</span>
+                <button key={sub} onClick={() => navigate("/weakness-radar")} className={`d-subject-pill ${score >= 70 ? "d-pill-green" : score >= 50 ? "d-pill-amber" : "d-pill-red"}`}>
+                  {sub} <strong>{score}%</strong>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="dash-empty">
+            <div className="d-empty">
               <p>Take tests to see your mastery map</p>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="mt-2 text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="d-empty-cta">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
             </div>
           )}
-        </motion.div>
+        </motion.section>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease }} className="dash-card">
-          <h2 className="dash-card-title">
-            <Zap className="w-4 h-4" style={{ color: "var(--amber)" }} />
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
+          <h3 className="d-card-heading">
+            <Zap className="w-4 h-4" />
             Today's Plan
-          </h2>
-          <div className="dash-plan-list">
+          </h3>
+          <div className="d-plan">
             {[
-              { label: "Practice weak areas", time: "20 min", color: "var(--red)" },
-              { label: "Review flashcards", time: "10 min", color: "var(--teal)" },
-              { label: "Take a quiz", time: "15 min", color: "var(--brand)" },
+              { label: "Practice weak areas", time: "20 min" },
+              { label: "Review flashcards", time: "10 min" },
+              { label: "Take a quiz", time: "15 min" },
             ].map((item, i) => (
-              <div key={i} className="dash-plan-item">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-                  <span className="text-sm">{item.label}</span>
-                </div>
-                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{item.time}</span>
+              <div key={i} className="d-plan-row">
+                <span className="d-plan-label">{item.label}</span>
+                <span className="d-plan-time">{item.time}</span>
               </div>
             ))}
           </div>
-        </motion.div>
+        </motion.section>
       </div>
 
-      {/* ─── UPGRADE BANNER ─── */}
+      {/* ═══ UPGRADE — Subtle, not loud ═══ */}
       {!isProPlus && (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, ease }} className="dash-upgrade">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Crown className="w-5 h-5" style={{ color: "var(--brand-glow)" }} />
-              <h2 className="text-lg font-bold">Lumina Hub — PRO+</h2>
-            </div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>10 science-backed brain engines for ₹499/mo</p>
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-upgrade">
+          <div className="d-upgrade-text">
+            <Crown className="w-4 h-4" />
+            <span>Unlock Lumina Hub — 10 science-backed brain engines for ₹499/mo</span>
           </div>
-          <Button onClick={openPricing} size="sm" className="shrink-0 rounded-xl text-xs font-semibold hover:opacity-90 px-5" style={{ background: "var(--brand)", color: "#fff" }}>
+          <Button onClick={openPricing} size="sm" className="d-upgrade-btn">
             <Rocket className="w-3.5 h-3.5 mr-1.5" /> Upgrade
           </Button>
-        </motion.div>
+        </motion.section>
       )}
 
-      {/* ─── WEAKNESS RADAR ─── */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ease }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="dash-card-title">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--red-tint)" }}>
-              <Activity className="w-4 h-4" style={{ color: "var(--red)" }} />
-            </div>
+      {/* ═══ WEAKNESS RADAR ═══ */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}>
+        <div className="d-section-header">
+          <h3 className="d-card-heading">
+            <Activity className="w-4 h-4" />
             Weakness Radar
-          </h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/weakness-radar")} className="text-xs rounded-xl" style={{ color: "var(--teal)" }}>
+          </h3>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/weakness-radar")} className="d-section-link">
             Full Analysis <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
         {weakSubjects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="d-weakness-grid">
             {weakSubjects.map((w, i) => {
               const severity = w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs Work" : "Watch";
-              const colors = [
-                { border: "rgba(248,113,113,0.4)", icon: "var(--red)", badge: "var(--red-tint)" },
-                { border: "rgba(251,191,36,0.4)", icon: "var(--amber)", badge: "var(--amber-tint)" },
-                { border: "rgba(251,146,60,0.4)", icon: "#fb923c", badge: "rgba(251,146,60,0.12)" },
-              ];
-              const c = colors[i] || colors[2];
               return (
-                <motion.button key={w.subject} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 + i * 0.1, ease }}
-                  whileHover={{ y: -3, scale: 1.01 }} whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate("/tests")}
-                  className="dash-weak-card" style={{ borderLeftColor: c.border }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="dash-severity" style={{ background: c.badge, color: c.icon }}>
+                <motion.button key={w.subject} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.08, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+                  onClick={() => navigate("/tests")} className="d-weak-card">
+                  <div className="d-weak-header">
+                    <span className={`d-severity ${w.count >= 10 ? "d-sev-critical" : w.count >= 5 ? "d-sev-warn" : "d-sev-watch"}`}>
                       <AlertTriangle className="w-3 h-3" />{severity}
                     </span>
-                    {subjectScores[w.subject] !== undefined && <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{subjectScores[w.subject]}%</span>}
+                    {subjectScores[w.subject] !== undefined && <span className="d-weak-score">{subjectScores[w.subject]}%</span>}
                   </div>
-                  <h3 className="text-sm font-semibold mb-1 capitalize">{w.subject}</h3>
-                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{w.count} mistakes · {w.topMistakeType}</p>
-                  <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: "var(--border-faint)" }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(w.count * 5, 100)}%` }} transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease }} className="h-full rounded-full" style={{ background: c.icon }} />
+                  <h4 className="d-weak-title">{w.subject}</h4>
+                  <p className="d-weak-desc">{w.count} mistakes · {w.topMistakeType}</p>
+                  <div className="d-weak-bar-track">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(w.count * 5, 100)}%` }} transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease: [0.25, 0.1, 0.25, 1] }} className="d-weak-bar-fill" />
                   </div>
                 </motion.button>
               );
             })}
           </div>
         ) : (
-          <div className="dash-empty-card">
-            <CheckCircle2 className="w-8 h-8 mb-2" style={{ color: "var(--green)" }} />
-            <p className="text-sm font-medium mb-1">Looking good!</p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Take tests to discover areas for improvement</p>
-            <Button variant="outline" size="sm" onClick={() => navigate("/tests")} className="mt-4 rounded-xl text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
+          <div className="d-empty-card">
+            <CheckCircle2 className="w-6 h-6 mb-2" />
+            <p className="d-empty-title">Looking good!</p>
+            <p className="d-empty-desc">Take tests to discover areas for improvement</p>
+            <Button variant="outline" size="sm" onClick={() => navigate("/tests")} className="d-empty-cta">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button>
           </div>
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* ─── INTELLIGENCE GRID ─── */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, ease }}>
-        <h2 className="dash-card-title mb-4">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--brand-tint)" }}>
-            <Zap className="w-4 h-4" style={{ color: "var(--brand)" }} />
-          </div>
+      {/* ═══ INTELLIGENCE GRID ═══ */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}>
+        <h3 className="d-card-heading mb-4">
+          <Sparkles className="w-4 h-4" />
           Intelligence Hub
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        </h3>
+        <div className="d-actions">
           {[
-            { name: "AI Chat", desc: "Ask anything", icon: MessageSquare, url: "/chat", color: "var(--teal)" },
-            { name: "Generate Test", desc: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", icon: Target, url: "/tests", color: "var(--brand)" },
-            { name: "Brain Hub", desc: "10 brain engines", icon: Brain, url: "/hub", color: "var(--amber)" },
-            { name: "All Tools", desc: "9 AI tools", icon: Sparkles, url: "/ai-tools", color: "#38bdf8" },
-          ].map((action, i) => (
-            <motion.button key={action.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 + i * 0.06, ease }}
-              whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              onClick={() => navigate(action.url)} className="dash-action-card">
-              <div className="dash-action-icon" style={{ background: `${action.color}15`, border: `1px solid ${action.color}25` }}>
-                <action.icon className="w-5 h-5" style={{ color: action.color }} />
+            { name: "AI Chat", desc: "Ask anything", icon: MessageSquare, url: "/chat" },
+            { name: "Generate Test", desc: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", icon: Target, url: "/tests" },
+            { name: "Brain Hub", desc: "10 brain engines", icon: Brain, url: "/hub" },
+            { name: "All Tools", desc: "9 AI tools", icon: Sparkles, url: "/ai-tools" },
+          ].map((action) => (
+            <button key={action.name} onClick={() => navigate(action.url)} className="d-action">
+              <div className="d-action-icon"><action.icon className="w-5 h-5" /></div>
+              <div>
+                <span className="d-action-name">{action.name}</span>
+                <span className="d-action-desc">{action.desc}</span>
               </div>
-              <h3 className="font-semibold text-sm mb-0.5">{action.name}</h3>
-              <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{action.desc}</p>
-            </motion.button>
+            </button>
           ))}
         </div>
-      </motion.div>
+      </motion.section>
 
-      {/* ─── WEEKLY EVOLUTION ─── */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, ease }} className="dash-card">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="dash-card-title">
-              <BarChart3 className="w-4 h-4" style={{ color: "var(--teal)" }} />
-              Weekly Evolution
-            </h2>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{daysStudied}/7 days · {consistency}% consistency</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/pulse")} className="text-xs rounded-xl" style={{ color: "var(--teal)" }}>
-            Analytics <ArrowRight className="w-3 h-3 ml-1" />
-          </Button>
+      {/* ═══ WEEKLY CHART ═══ */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }} className="d-card">
+        <div className="d-section-header">
+          <h3 className="d-card-heading">
+            <BarChart3 className="w-4 h-4" />
+            Weekly Evolution
+          </h3>
+          <span className="d-consistency">{daysStudied}/7 days · {consistency}% consistency</span>
         </div>
-        <div className="dash-chart">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => {
+        <div className="d-chart">
+          {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => {
             const dayMins = weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (i + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
-            const allMins = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((_, j) => weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0);
+            const allMins = [0,1,2,3,4,5,6].map(j => weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0);
             const maxMins = Math.max(...allMins, 1);
-            const height = Math.max((dayMins / maxMins) * 100, 4);
-            const today = new Date().getDay() === (i + 1) % 7;
+            const height = Math.max((dayMins / maxMins) * 100, 6);
             return (
-              <div key={day} className="dash-chart-col">
-                <motion.div initial={{ height: 0 }} animate={{ height: `${height}%` }} transition={{ duration: 0.8, delay: 0.15 * i, ease }}
-                  className={`dash-chart-bar ${today ? "dash-chart-bar-today" : ""}`} />
-                <span className={`text-[10px] font-medium ${today ? "font-semibold" : ""}`} style={{ color: today ? "var(--teal)" : "var(--text-muted)" }}>{day}</span>
+              <div key={day} className="d-chart-col">
+                <motion.div initial={{ height: 0 }} animate={{ height: `${height}%` }} transition={{ duration: 0.6, delay: 0.1 * i, ease: [0.25, 0.1, 0.25, 1] }} className="d-chart-bar" />
+                <span className="d-chart-label">{day}{i === 1 ? day : ""}</span>
               </div>
             );
           })}
         </div>
-      </motion.div>
+      </motion.section>
 
     </div>
     {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
