@@ -1,6 +1,7 @@
 /**
- * Lumina AI Chat — Cinematic Production-Grade UI
- * Complete visual rewrite. Every pixel has purpose.
+ * Lumina AI Chat — Linear/Vercel/Notion Quality
+ * Complete UI rewrite following design spec.
+ * Every pixel has purpose. No wasted space.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -53,9 +54,9 @@ const toNumber = (v: number | string | null | undefined) => { if (typeof v === "
 const rowToMessage = (row: SavedMessageRow): Message => ({ id: row.id, role: row.role, content: row.content ?? "", type: (row.message_type || "text") as Message["type"], artifactType: row.artifact_type ?? undefined, artifactHtml: row.artifact_html ?? undefined, topic: row.topic ?? undefined, creditsUsed: toNumber(row.credits_used), newBalance: toNumber(row.new_balance), timestamp: new Date(row.created_at).getTime() });
 
 const SUGGESTIONS = [
-  { text: "Explain quantum entanglement", icon: Brain, color: "#a855f7" },
-  { text: "Create notes on photosynthesis", icon: BookOpen, color: "#2dd4bf" },
-  { text: "Make a thermodynamics exam", icon: FileText, color: "#fbbf24" },
+  { text: "Explain quantum entanglement", icon: Brain, color: "var(--brand)" },
+  { text: "Create notes on photosynthesis", icon: BookOpen, color: "var(--teal)" },
+  { text: "Make a thermodynamics exam", icon: FileText, color: "var(--amber)" },
   { text: "Build a Snake game", icon: Code2, color: "#38bdf8" },
   { text: "Newton's laws slides", icon: Presentation, color: "#f472b6" },
   { text: "Quick study: cell division", icon: Target, color: "#22d3ee" },
@@ -184,7 +185,7 @@ const ChatPage = () => {
   const empty = messages.length === 0;
 
   return (
-    <div className="chat-root">
+    <div className="chat-page">
       {/* ═══ SIDEBAR ═══ */}
       <AnimatePresence>
         {historyOpen && (
@@ -232,8 +233,8 @@ const ChatPage = () => {
 
       {/* ═══ MAIN ═══ */}
       <div className="chat-main">
-        {/* Top bar */}
-        <div className="chat-topbar">
+        {/* Header */}
+        <div className="chat-header">
           <div className="chat-topbar-left">
             <button
               onClick={() => setHistoryOpen(v => !v)}
@@ -242,17 +243,25 @@ const ChatPage = () => {
             >
               {historyOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
             </button>
-            <div className="chat-topbar-title">
-              <div className="chat-topbar-logo">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-              <span className="chat-topbar-name">Lumina AI</span>
-              {loading && (
-                <span className="flex items-center gap-1.5 text-[10px] font-medium text-teal-400 ml-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                  Thinking…
-                </span>
-              )}
+            <span className="chat-topbar-name">Lumina AI</span>
+            {loading && (
+              <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: 'var(--teal)' }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--teal)' }} />
+                Thinking…
+              </span>
+            )}
+          </div>
+          <div className="chat-topbar-center">
+            <div className="chat-mode-pills">
+              {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setModel(m)}
+                  className={`chat-mode-pill ${model === m ? 'active' : ''}`}
+                >
+                  {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
           <div className="chat-topbar-right">
@@ -268,8 +277,8 @@ const ChatPage = () => {
           </div>
         </div>
 
-        {/* Content */}
-        <div className={empty ? "chat-content" : "chat-content chat-content-scroll"}>
+        {/* Messages */}
+        <div className={empty ? "chat-messages" : "chat-messages chat-messages-scroll"}>
           {empty ? (
             <div className="chat-empty">
               <motion.div
@@ -303,26 +312,27 @@ const ChatPage = () => {
                   </motion.button>
                 ))}
               </div>
-              {/* Artifact type picker */}
               <div className="flex items-center gap-2 mt-5">
-                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Or generate:</span>
+                <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Or generate:</span>
                 {artifactTypes.map(a => (
                   <button
                     key={a.id}
                     onClick={() => setShowArtifactPicker(true)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-gray-400 hover:text-white hover:bg-white/[0.04] transition-colors border border-white/[0.06]"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors border"
+                    style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)', background: 'none' }}
                   >
                     <a.icon className="w-3 h-3" /> {a.label}
                   </button>
                 ))}
               </div>
               {showArtifactPicker && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 mt-3 p-3 rounded-xl border border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <span className="text-xs text-gray-400 mr-1">Topic:</span>
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 mt-3 p-3 rounded-xl border" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}>
+                  <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>Topic:</span>
                   <input
                     autoFocus
                     placeholder="e.g. Photosynthesis"
-                    className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder:text-gray-500"
+                    className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-gray-500"
+                    style={{ color: 'var(--text-primary)' }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
                         handleSend((e.target as HTMLInputElement).value, artifactTypes[0].id);
@@ -331,38 +341,31 @@ const ChatPage = () => {
                       if (e.key === 'Escape') setShowArtifactPicker(false);
                     }}
                   />
-                  <button onClick={() => setShowArtifactPicker(false)} className="p-1 rounded hover:bg-white/[0.04] text-gray-500">
+                  <button onClick={() => setShowArtifactPicker(false)} className="p-1 rounded hover:bg-white/[0.04]" style={{ color: 'var(--text-muted)' }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
               )}
             </div>
           ) : (
-            <MessageList
-              messages={messages}
-              loadingStage={loadingStage}
-              onRegenerate={handleRegenerate}
-              onRetry={handleRetry}
-              onEdit={handleEdit}
-              onTopUp={() => setBuyOpen(true)}
-              onConfirmAction={handleConfirmAction}
-              onCancelAction={handleCancelAction}
-            />
-          )}
-
-          {/* Input */}
-          <div className="chat-input-area">
-            <div className="chat-mode-pills">
-              {(["auto", "reasoning", "study", "coding", "deepDive", "creative", "fast"] as const).map(m => (
-                <button
-                  key={m}
-                  onClick={() => setModel(m)}
-                  className={`chat-mode-pill ${model === m ? 'active' : ''}`}
-                >
-                  {m === "auto" ? "Auto" : m === "deepDive" ? "Deep Dive" : m.charAt(0).toUpperCase() + m.slice(1)}
-                </button>
-              ))}
+            <div className="message-inner">
+              <MessageList
+                messages={messages}
+                loadingStage={loadingStage}
+                onRegenerate={handleRegenerate}
+                onRetry={handleRetry}
+                onEdit={handleEdit}
+                onTopUp={() => setBuyOpen(true)}
+                onConfirmAction={handleConfirmAction}
+                onCancelAction={handleCancelAction}
+              />
             </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="chat-input-area">
+          <div className="chat-input-inner">
             <div className="chat-input-box">
               <button type="button" className="chat-input-btn" title="Attach file">
                 <Paperclip className="w-4 h-4" />
@@ -391,7 +394,9 @@ const ChatPage = () => {
                 </button>
               )}
             </div>
-            <p className="chat-disclaimer">Lumina can make mistakes. Verify important info.</p>
+            <p className="chat-disclaimer">
+              Model: Owl Alpha · Free · Press ⌘↵ to send · Shift↵ for new line
+            </p>
           </div>
         </div>
 
