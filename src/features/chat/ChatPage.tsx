@@ -269,14 +269,14 @@ const ChatPage = () => {
         </div>
 
         {/* Content */}
-        <div className="chat-content chat-content-top">
+        <div className={empty ? "chat-content" : "chat-content chat-content-scroll"}>
           {empty ? (
             <div className="chat-empty">
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }}
-                style={{ textAlign: 'center', marginBottom: 40 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }}
+                style={{ textAlign: 'center', marginBottom: 32 }}
               >
                 <div className="chat-empty-icon">
                   <Sparkles className="w-8 h-8" style={{ color: 'var(--brand-glow)' }} />
@@ -290,9 +290,9 @@ const ChatPage = () => {
                 {SUGGESTIONS.map((s, i) => (
                   <motion.button
                     key={s.text}
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.12 + i * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                    transition={{ delay: 0.1 + i * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] as const }}
                     onClick={() => handleSend(s.text)}
                     className="chat-suggestion-card"
                   >
@@ -304,7 +304,7 @@ const ChatPage = () => {
                 ))}
               </div>
               {/* Artifact type picker */}
-              <div className="flex items-center gap-2 mt-6">
+              <div className="flex items-center gap-2 mt-5">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider">Or generate:</span>
                 {artifactTypes.map(a => (
                   <button
