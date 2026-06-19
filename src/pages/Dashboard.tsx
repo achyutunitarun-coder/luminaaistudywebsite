@@ -1,6 +1,7 @@
 /**
- * LUMINA DASHBOARD — v4
- * Linear / Notion / Vercel-grade. Cinematic, restrained, precise.
+ * LUMINA DASHBOARD
+ * Linear / Notion / Vercel-grade. Clean, spacious, precise.
+ * Uses design system primitives — no custom CSS classes.
  */
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -21,7 +22,6 @@ import { openPricing } from "@/lib/pricing";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
@@ -131,7 +131,6 @@ export default function Dashboard() {
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  // Weekly chart data
   const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const weeklyData = dayLabels.map((label, i) => {
     const targetDay = (i + 1) % 7;
@@ -144,318 +143,357 @@ export default function Dashboard() {
   const consistency = Math.round((daysStudied / 7) * 100);
 
   const stats = [
-    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, accent: "text-[var(--brand-glow)]" },
-    { icon: Flame, label: "Streak", value: String(streakDays), sub: streakDays === 1 ? "day" : "days", accent: "text-[var(--amber)]" },
-    { icon: Clock, label: "Today", value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : "0m", sub: totalToday >= 60 ? "deep work" : "studying", accent: "text-[var(--teal)]" },
-    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, accent: "text-[var(--green)]" },
+    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, color: "var(--amber)" },
+    { icon: Flame, label: "Streak", value: String(streakDays), sub: streakDays === 1 ? "day" : "days", color: "var(--amber)" },
+    { icon: Clock, label: "Today", value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : "0m", sub: totalToday >= 60 ? "deep work" : "studying", color: "var(--teal)" },
+    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, color: "var(--green)" },
   ];
 
   return (
     <>
-      <div className="dash-v4">
-        {/* Cinematic ambient glow */}
-        <div className="dash-glow" aria-hidden />
+    <div className="page-container" style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
 
-        {/* Top bar */}
-        <motion.div {...fadeUp(0)} className="dash-topbar">
-          <div className="dash-crumbs">
-            <CircleDot className="w-3 h-3 text-[var(--brand-glow)]" />
-            <span>Workspace</span>
-            <ChevronRight className="w-3 h-3 opacity-40" />
-            <span className="text-[var(--text-primary)]">Dashboard</span>
-          </div>
-          <div className="dash-topbar-right">
-            <span className="dash-date">{today}</span>
-            <button className="dash-cmd" onClick={() => navigate("/chat")}>
-              <Command className="w-3 h-3" />
-              <span>Ask Lumina</span>
-              <kbd>⌘K</kbd>
-            </button>
-          </div>
-        </motion.div>
+      {/* Top bar */}
+      <motion.div {...fadeUp(0)} className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-2 text-sm">
+          <CircleDot className="w-3.5 h-3.5" style={{ color: "var(--brand-glow)" }} />
+          <span style={{ color: "var(--text-muted)" }}>Workspace</span>
+          <ChevronRight className="w-3 h-3 opacity-40" style={{ color: "var(--text-muted)" }} />
+          <span style={{ color: "var(--text-primary)" }}>Dashboard</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>{today}</span>
+          <button onClick={() => navigate("/chat")} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--bg-hover)]" style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}>
+            <Command className="w-3 h-3" />
+            <span>Ask Lumina</span>
+            <kbd className="text-[10px] px-1 py-0.5 rounded" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)" }}>⌘K</kbd>
+          </button>
+        </div>
+      </motion.div>
 
-        {/* Hero */}
-        <motion.section {...fadeUp(0.05)} className="dash-hero">
-          <div className="dash-hero-left">
-            <span className="dash-eyebrow">
-              <span className="dash-pulse-dot" />
-              Neural insight · live
-            </span>
-            <h1 className="dash-headline">
-              {getGreeting()}, <em>{userName}</em>.
+      {/* Hero — Neural Insight */}
+      <motion.section {...fadeUp(0.05)} className="rounded-2xl p-8 md:p-10 mb-6 border" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
+          <div className="flex-1 min-w-0 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: "rgba(45,212,191,0.25)", background: "var(--teal-tint)" }}>
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />
+              <Brain className="w-3.5 h-3.5" style={{ color: "var(--teal)" }} />
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--teal)" }}>Neural Insight</span>
+            </div>
+
+            <h1 className="text-2xl md:text-3xl font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
+              {getGreeting()}, <em style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--brand-glow)" }}>{userName}</em>.
             </h1>
-            <p className="dash-sub">
+
+            <p className="text-sm leading-relaxed max-w-xl" style={{ color: "var(--text-secondary)" }}>
               {avgScore !== null && recentTests?.length
-                ? <>You're averaging <b className="text-[var(--text-primary)]">{avgScore}%</b> across <b className="text-[var(--text-primary)]">{recentTests.length}</b> recent tests. {weakSubjects[0] ? <>The gap sits in <b className="text-[var(--text-primary)]">{weakSubjects[0].subject}</b> — let's close it.</> : "Momentum is yours."}</>
+                ? <>You're averaging <b style={{ color: "var(--text-primary)" }}>{avgScore}%</b> across <b style={{ color: "var(--text-primary)" }}>{recentTests.length}</b> recent tests. {weakSubjects[0] ? <>The gap sits in <b style={{ color: "var(--text-primary)" }}>{weakSubjects[0].subject}</b> — let's close it.</> : "Momentum is yours."}</>
                 : totalToday > 0
-                  ? <>You've put in <b className="text-[var(--text-primary)]">{hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}</b> today. Quiet, consistent work compounds.</>
+                  ? <>You've put in <b style={{ color: "var(--text-primary)" }}>{hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}</b> today. Quiet, consistent work compounds.</>
                   : <>A fresh canvas. The smallest first move beats the perfect one tomorrow.</>}
             </p>
-            <div className="dash-hero-actions">
-              <Button onClick={() => navigate(weakSubjects.length ? "/tests" : "/study-session")} className="dash-btn-primary">
+
+            <div className="flex items-center gap-3">
+              <Button onClick={() => navigate(weakSubjects.length ? "/tests" : "/study-session")} className="btn-primary px-6">
                 {weakSubjects.length ? `Practice ${weakSubjects[0].subject}` : "Start a session"}
                 <ArrowRight className="w-3.5 h-3.5 ml-2" />
               </Button>
-              <Button onClick={() => navigate("/chat")} variant="ghost" className="dash-btn-ghost">
+              <Button onClick={() => navigate("/chat")} variant="ghost" className="btn-ghost">
                 <Plus className="w-3.5 h-3.5 mr-1.5" /> New thread
               </Button>
             </div>
           </div>
 
           {/* Readiness gauge */}
-          <div className="dash-gauge">
-            <svg viewBox="0 0 120 120" className="dash-gauge-svg">
-              <defs>
-                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#A78BFA" />
-                  <stop offset="100%" stopColor="#2DD4BF" />
-                </linearGradient>
-              </defs>
-              <circle cx="60" cy="60" r="50" className="dash-gauge-track" />
-              <motion.circle
-                cx="60" cy="60" r="50"
-                className="dash-gauge-fill"
-                strokeDasharray={`${2 * Math.PI * 50}`}
-                initial={{ strokeDashoffset: 2 * Math.PI * 50 }}
-                animate={{ strokeDashoffset: 2 * Math.PI * 50 * (1 - readiness / 100) }}
-                transition={{ duration: prefersReduced ? 0 : 1.6, delay: 0.3, ease: EASE }}
-              />
-            </svg>
-            <div className="dash-gauge-center">
-              <span className="dash-gauge-num">{avgScore ?? "—"}</span>
-              <span className="dash-gauge-lbl">Readiness</span>
+          <div className="flex-shrink-0 flex flex-col items-center gap-3">
+            <div className="relative w-32 h-32">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+                <motion.circle
+                  cx="50" cy="50" r="42" fill="none"
+                  stroke="url(#readiness-grad)" strokeWidth="5" strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 42}`}
+                  initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readiness / 100) }}
+                  transition={{ duration: prefersReduced ? 0 : 1.6, delay: 0.3, ease: EASE }}
+                />
+                <defs>
+                  <linearGradient id="readiness-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="var(--brand)" />
+                    <stop offset="50%" stopColor="var(--teal)" />
+                    <stop offset="100%" stopColor="#3B82F6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>{avgScore ?? "—"}</span>
+                <span className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: "var(--text-muted)" }}>Readiness</span>
+              </div>
             </div>
           </div>
-        </motion.section>
-
-        {/* KPI strip */}
-        <motion.section {...fadeUp(0.1)} className="dash-kpis">
-          {stats.map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.12 + i * 0.04, ease: EASE }}
-              className="dash-kpi"
-            >
-              <div className="dash-kpi-head">
-                <s.icon className={`w-3.5 h-3.5 ${s.accent}`} />
-                <span>{s.label}</span>
-              </div>
-              <div className="dash-kpi-val">{s.value}</div>
-              <div className="dash-kpi-sub">{s.sub}</div>
-            </motion.div>
-          ))}
-        </motion.section>
-
-        {/* Two-column: Mastery + Plan */}
-        <div className="dash-grid-2">
-          <motion.section {...fadeUp(0.15)} className="dash-panel">
-            <header className="dash-panel-head">
-              <div>
-                <h3>Mastery</h3>
-                <p>Across your tracked subjects</p>
-              </div>
-              <button onClick={() => navigate("/weakness-radar")} className="dash-link">
-                Radar <ArrowUpRight className="w-3 h-3 ml-0.5" />
-              </button>
-            </header>
-            {Object.keys(subjectScores).length > 0 ? (
-              <div className="dash-mastery">
-                {Object.entries(subjectScores).map(([sub, score], i) => (
-                  <motion.button
-                    key={sub}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.05, duration: 0.4, ease: EASE }}
-                    onClick={() => navigate("/weakness-radar")}
-                    className="dash-mastery-row"
-                  >
-                    <span className="dash-mastery-name">{sub}</span>
-                    <div className="dash-mastery-bar">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${score}%` }}
-                        transition={{ duration: 1, delay: 0.3 + i * 0.06, ease: EASE }}
-                        className={`dash-mastery-fill ${score >= 75 ? "is-good" : score >= 50 ? "is-mid" : "is-low"}`}
-                      />
-                    </div>
-                    <span className="dash-mastery-pct">{score}%</span>
-                  </motion.button>
-                ))}
-              </div>
-            ) : (
-              <div className="dash-empty">
-                <p>No tests yet. Generate one to see your mastery surface here.</p>
-                <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="dash-link mt-2">
-                  Take a test <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </div>
-            )}
-          </motion.section>
-
-          <motion.section {...fadeUp(0.18)} className="dash-panel">
-            <header className="dash-panel-head">
-              <div>
-                <h3>Today's plan</h3>
-                <p>Quiet wins, in order</p>
-              </div>
-              <span className="dash-badge"><Sparkles className="w-3 h-3" /> auto</span>
-            </header>
-            <ul className="dash-plan">
-              {[
-                { l: weakSubjects[0] ? `Practice ${weakSubjects[0].subject}` : "Warm-up: 5 flashcards", t: "20m", u: "/tests" },
-                { l: "Review yesterday's mistakes", t: "10m", u: "/weakness-radar" },
-                { l: "One focused study session", t: "25m", u: "/study-session" },
-              ].map((x, i) => (
-                <li key={i}>
-                  <button onClick={() => navigate(x.u)} className="dash-plan-row">
-                    <span className="dash-plan-dot" />
-                    <span className="dash-plan-l">{x.l}</span>
-                    <span className="dash-plan-t">{x.t}</span>
-                    <ChevronRight className="w-3.5 h-3.5 opacity-30 group-hover:opacity-80 transition" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </motion.section>
         </div>
+      </motion.section>
 
-        {/* Activity chart */}
-        <motion.section {...fadeUp(0.22)} className="dash-panel">
-          <header className="dash-panel-head">
-            <div>
-              <h3>This week</h3>
-              <p>{daysStudied} of 7 days · {consistency}% consistency</p>
+      {/* KPI strip */}
+      <motion.section {...fadeUp(0.1)} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {stats.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.12 + i * 0.04, ease: EASE }}
+            className="rounded-2xl p-5 border hover:border-[var(--border-default)] transition-all"
+            style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${s.color}15`, border: `1px solid ${s.color}25` }}>
+                <s.icon className="w-5 h-5" style={{ color: s.color }} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+                <p className="text-xl font-bold tabular-nums leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{s.value}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>{s.sub}</p>
+              </div>
             </div>
-            <button onClick={() => navigate("/performance")} className="dash-link">
-              Performance <ArrowUpRight className="w-3 h-3 ml-0.5" />
+          </motion.div>
+        ))}
+      </motion.section>
+
+      {/* Two-column: Mastery + Plan */}
+      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-4 mb-6">
+        <motion.section {...fadeUp(0.15)} className="rounded-2xl p-6 border" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+          <header className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Mastery</h3>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Across your tracked subjects</p>
+            </div>
+            <button onClick={() => navigate("/weakness-radar")} className="flex items-center gap-1 text-xs transition-colors hover:opacity-80" style={{ color: "var(--brand-glow)" }}>
+              Radar <ArrowUpRight className="w-3 h-3 ml-0.5" />
             </button>
           </header>
-          <div className="dash-chart">
-            {weeklyData.map((d, i) => {
-              const pct = (d.minutes / maxMin) * 100;
-              const isToday = i === ((new Date().getDay() + 6) % 7);
-              return (
-                <div key={d.label + i} className="dash-chart-col">
-                  <div className="dash-chart-track">
+          {Object.keys(subjectScores).length > 0 ? (
+            <div className="space-y-3">
+              {Object.entries(subjectScores).map(([sub, score], i) => (
+                <motion.button
+                  key={sub}
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + i * 0.05, duration: 0.4, ease: EASE }}
+                  onClick={() => navigate("/weakness-radar")}
+                  className="w-full flex items-center gap-3 group"
+                >
+                  <span className="text-sm w-24 truncate text-left" style={{ color: "var(--text-secondary)" }}>{sub}</span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border-faint)" }}>
                     <motion.div
-                      initial={{ height: 0 }}
-                      animate={{ height: `${Math.max(pct, d.minutes > 0 ? 4 : 0)}%` }}
-                      transition={{ duration: 0.8, delay: 0.25 + i * 0.05, ease: EASE }}
-                      className={`dash-chart-bar ${isToday ? "is-today" : ""}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${score}%` }}
+                      transition={{ duration: 1, delay: 0.3 + i * 0.06, ease: EASE }}
+                      className="h-full rounded-full"
+                      style={{ background: score >= 75 ? "var(--green)" : score >= 50 ? "var(--amber)" : "var(--red)" }}
                     />
                   </div>
-                  <span className={`dash-chart-lbl ${isToday ? "is-today" : ""}`}>{d.label}</span>
-                </div>
-              );
-            })}
-          </div>
+                  <span className="text-xs font-medium tabular-nums w-10 text-right" style={{ color: score >= 75 ? "var(--green)" : score >= 50 ? "var(--amber)" : "var(--red)" }}>{score}%</span>
+                </motion.button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No tests yet. Generate one to see your mastery surface here.</p>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="mt-2 btn-ghost">
+                Take a test <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
         </motion.section>
 
-        {/* Upgrade banner (subtle, Vercel-style) */}
-        {!isProPlus && (
-          <motion.section {...fadeUp(0.26)} className="dash-upgrade">
-            <div className="dash-upgrade-l">
-              <div className="dash-upgrade-icon"><Crown className="w-4 h-4" /></div>
-              <div>
-                <h4>Lumina Hub</h4>
-                <p>Unlock 10 neurocognitive engines · ₹499/mo</p>
-              </div>
-            </div>
-            <Button onClick={openPricing} className="dash-btn-primary">
-              Upgrade <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </Button>
-          </motion.section>
-        )}
-
-        {/* Weakness cards */}
-        <motion.section {...fadeUp(0.3)}>
-          <header className="dash-panel-head dash-section-head">
+        <motion.section {...fadeUp(0.18)} className="rounded-2xl p-6 border" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+          <header className="flex items-center justify-between mb-5">
             <div>
-              <h3>Where to focus</h3>
-              <p>Top patterns from your recent work</p>
+              <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Today's plan</h3>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Quiet wins, in order</p>
             </div>
-            <button onClick={() => navigate("/weakness-radar")} className="dash-link">
-              Full analysis <ArrowUpRight className="w-3 h-3 ml-0.5" />
-            </button>
+            <span className="badge badge-violet"><Sparkles className="w-3 h-3" /> auto</span>
           </header>
-          {weakSubjects.length > 0 ? (
-            <div className="dash-weak-grid">
-              {weakSubjects.map((w, i) => (
+          <ul className="space-y-1">
+            {[
+              { l: weakSubjects[0] ? `Practice ${weakSubjects[0].subject}` : "Warm-up: 5 flashcards", t: "20m", u: "/tests" },
+              { l: "Review yesterday's mistakes", t: "10m", u: "/weakness-radar" },
+              { l: "One focused study session", t: "25m", u: "/study-session" },
+            ].map((x, i) => (
+              <li key={i}>
+                <button onClick={() => navigate(x.u)} className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg group hover:bg-[var(--bg-hover)] transition-colors text-left">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--brand)" }} />
+                  <span className="text-sm flex-1" style={{ color: "var(--text-primary)" }}>{x.l}</span>
+                  <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{x.t}</span>
+                  <ChevronRight className="w-3.5 h-3.5 opacity-30 group-hover:opacity-80 transition-opacity" style={{ color: "var(--text-muted)" }} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </motion.section>
+      </div>
+
+      {/* Activity chart */}
+      <motion.section {...fadeUp(0.22)} className="rounded-2xl p-6 border mb-6" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+        <header className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>This week</h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{daysStudied} of 7 days · {consistency}% consistency</p>
+          </div>
+          <button onClick={() => navigate("/performance")} className="flex items-center gap-1 text-xs transition-colors hover:opacity-80" style={{ color: "var(--brand-glow)" }}>
+            Performance <ArrowUpRight className="w-3 h-3 ml-0.5" />
+          </button>
+        </header>
+        <div className="flex items-end justify-between gap-2 h-28">
+          {weeklyData.map((d, i) => {
+            const pct = (d.minutes / maxMin) * 100;
+            const isToday = i === ((new Date().getDay() + 6) % 7);
+            return (
+              <div key={d.label + i} className="flex flex-col items-center gap-2 flex-1">
+                <div className="w-full h-24 flex items-end">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${Math.max(pct, d.minutes > 0 ? 4 : 0)}%` }}
+                    transition={{ duration: 0.8, delay: 0.25 + i * 0.05, ease: EASE }}
+                    className="w-full max-w-[36px] rounded-lg mx-auto"
+                    style={{
+                      background: d.minutes > 0
+                        ? "linear-gradient(to top, var(--brand), var(--teal))"
+                        : "rgba(255,255,255,0.04)",
+                      boxShadow: isToday ? "0 0 0 2px rgba(45,212,191,0.25)" : "none",
+                    }}
+                  />
+                </div>
+                <span className={`text-[10px] font-medium ${isToday ? "font-semibold" : ""}`} style={{ color: isToday ? "var(--teal)" : "var(--text-muted)" }}>{d.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </motion.section>
+
+      {/* Upgrade banner */}
+      {!isProPlus && (
+        <motion.section {...fadeUp(0.26)} className="rounded-2xl p-6 border mb-6 flex items-center justify-between" style={{ background: "var(--brand-tint)", borderColor: "var(--border-brand)" }}>
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--brand)", color: "white" }}>
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Lumina Hub</h4>
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Unlock 10 neurocognitive engines · ₹499/mo</p>
+            </div>
+          </div>
+          <Button onClick={openPricing} className="btn-primary">
+            Upgrade <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+          </Button>
+        </motion.section>
+      )}
+
+      {/* Weakness cards */}
+      <motion.section {...fadeUp(0.3)}>
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Where to focus</h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Top patterns from your recent work</p>
+          </div>
+          <button onClick={() => navigate("/weakness-radar")} className="flex items-center gap-1 text-xs transition-colors hover:opacity-80" style={{ color: "var(--brand-glow)" }}>
+            Full analysis <ArrowUpRight className="w-3 h-3 ml-0.5" />
+          </button>
+        </header>
+        {weakSubjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {weakSubjects.map((w, i) => {
+              const colors = [
+                { color: "var(--red)", bg: "var(--red-tint)", border: "rgba(248,113,113,0.25)" },
+                { color: "var(--amber)", bg: "var(--amber-tint)", border: "rgba(245,158,11,0.25)" },
+                { color: "var(--amber)", bg: "var(--amber-tint)", border: "rgba(251,146,60,0.25)" },
+              ];
+              const c = colors[i] || colors[2];
+              return (
                 <motion.button
                   key={w.subject}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.35 + i * 0.06, duration: 0.5, ease: EASE }}
                   onClick={() => navigate("/tests")}
-                  className="dash-weak"
+                  className="rounded-2xl p-5 text-left border hover:border-[var(--border-default)] transition-all"
+                  style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)", borderLeft: `3px solid ${c.color}` }}
                 >
-                  <div className="dash-weak-head">
-                    <span className={`dash-weak-tag ${w.count >= 10 ? "is-c" : w.count >= 5 ? "is-w" : "is-n"}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="badge" style={{ background: c.bg, color: c.color, borderColor: c.border }}>
                       <Activity className="w-3 h-3" />
                       {w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs work" : "Watch"}
                     </span>
-                    <ArrowUpRight className="w-3.5 h-3.5 opacity-40" />
+                    <ArrowUpRight className="w-3.5 h-3.5 opacity-40" style={{ color: "var(--text-muted)" }} />
                   </div>
-                  <h4>{w.subject}</h4>
-                  <p>{w.count} mistakes · mostly {w.topMistakeType}</p>
-                  <div className="dash-weak-track">
+                  <h4 className="text-sm font-semibold mb-1 capitalize" style={{ color: "var(--text-primary)" }}>{w.subject}</h4>
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{w.count} mistakes · mostly {w.topMistakeType}</p>
+                  <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: "var(--border-faint)" }}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(w.count * 5, 100)}%` }}
                       transition={{ duration: 1, delay: 0.45 + i * 0.08, ease: EASE }}
-                      className="dash-weak-fill"
+                      className="h-full rounded-full"
+                      style={{ background: `linear-gradient(90deg, ${c.color}, ${c.color}33)` }}
                     />
                   </div>
                 </motion.button>
-              ))}
-            </div>
-          ) : (
-            <div className="dash-panel dash-empty">
-              <TrendingUp className="w-5 h-5 mb-2 text-[var(--green)]" />
-              <p className="text-[var(--text-primary)] font-medium">All clear, for now.</p>
-              <p>Take a test to surface what to sharpen next.</p>
-            </div>
-          )}
-        </motion.section>
-
-        {/* Actions */}
-        <motion.section {...fadeUp(0.36)}>
-          <header className="dash-panel-head dash-section-head">
-            <div>
-              <h3>Quick actions</h3>
-              <p>Jump into your tools</p>
-            </div>
-          </header>
-          <div className="dash-actions">
-            {[
-              { n: "AI Chat", d: "Ask anything", i: MessageSquare, u: "/chat" },
-              { n: "Generate Test", d: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", i: Target, u: "/tests" },
-              { n: "Brain Hub", d: "10 engines", i: Brain, u: "/hub" },
-              { n: "All Tools", d: "9 AI tools", i: Sparkles, u: "/ai-tools" },
-            ].map((a, i) => (
-              <motion.button
-                key={a.n}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + i * 0.04, duration: 0.4, ease: EASE }}
-                onClick={() => navigate(a.u)}
-                className="dash-action"
-              >
-                <div className="dash-action-icon"><a.i className="w-4 h-4" /></div>
-                <div className="dash-action-text">
-                  <span className="dash-action-name">{a.n}</span>
-                  <span className="dash-action-desc">{a.d}</span>
-                </div>
-                <ArrowUpRight className="w-3.5 h-3.5 opacity-30 group-hover:opacity-100 transition" />
-              </motion.button>
-            ))}
+              );
+            })}
           </div>
-        </motion.section>
-      </div>
+        ) : (
+          <div className="rounded-2xl p-8 text-center border" style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}>
+            <TrendingUp className="w-5 h-5 mb-2 mx-auto" style={{ color: "var(--green)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>All clear, for now.</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Take a test to surface what to sharpen next.</p>
+          </div>
+        )}
+      </motion.section>
 
-      {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
+      {/* Quick actions */}
+      <motion.section {...fadeUp(0.36)}>
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Quick actions</h3>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Jump into your tools</p>
+          </div>
+        </header>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { n: "AI Chat", d: "Ask anything", i: MessageSquare, u: "/chat", color: "var(--teal)" },
+            { n: "Generate Test", d: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", i: Target, u: "/tests", color: "var(--brand)" },
+            { n: "Brain Hub", d: "10 engines", i: Brain, u: "/hub", color: "var(--amber)" },
+            { n: "All Tools", d: "9 AI tools", i: Sparkles, u: "/ai-tools", color: "var(--green)" },
+          ].map((a, i) => (
+            <motion.button
+              key={a.n}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + i * 0.04, duration: 0.4, ease: EASE }}
+              onClick={() => navigate(a.u)}
+              className="rounded-2xl p-5 text-left border hover:border-[var(--border-default)] transition-all group"
+              style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
+            >
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110" style={{ background: `${a.color}12`, border: `1px solid ${a.color}25` }}>
+                <a.i className="w-5 h-5" style={{ color: a.color }} />
+              </div>
+              <span className="text-sm font-semibold block mb-0.5" style={{ color: "var(--text-primary)" }}>{a.n}</span>
+              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{a.d}</span>
+              <ArrowUpRight className="w-3.5 h-3.5 mt-2 opacity-30 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-muted)" }} />
+            </motion.button>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* Marketing sections */}
+      <div className="mt-8">
+        <CTASection />
+        <Testimonials />
+        <FAQ />
+      </div>
+    </div>
+
+    {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
     </>
   );
 }
