@@ -1277,6 +1277,11 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .t-upload { margin-top: 12px; }
 .t-generate-btn { width: 100%; height: 48px; background: var(--brand); color: #fff; border: none; border-radius: var(--r-md); font-size: 14px; font-weight: 500; cursor: pointer; }
 .t-generate-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LUMINA COMPUTER — Agentic Workspace
+   ═══════════════════════════════════════════════════════════════ */
+.lumina-computer-root { background: var(--bg-base) !important; }
 /* Messages list */
 .chat-messages {
   display: flex; flex-direction: column; gap: 24px;

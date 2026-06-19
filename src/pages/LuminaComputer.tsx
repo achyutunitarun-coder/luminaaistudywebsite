@@ -147,7 +147,7 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
 
   if (!file) {
     return (
-      <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
+      <div className="flex-1 flex items-center justify-center text-[var(--text-primary)]/30 text-sm">
         Ready when you are.
       </div>
     );
@@ -159,13 +159,13 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
   const lineOffset = lines.length > cap ? lines.length - cap : 0;
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-auto bg-[#0e0e12]">
-      <pre className="m-0 p-0 text-[12.5px] leading-[1.65] font-mono text-white/85">
+    <div ref={scrollRef} className="flex-1 overflow-auto bg-[var(--bg-surface)]">
+      <pre className="m-0 p-0 text-[12.5px] leading-[1.65] font-mono text-[var(--text-primary)]/85">
         {renderLines.map((line, i) => {
           const n = lineOffset + i + 1;
           return (
-            <div key={n} className="flex hover:bg-white/[0.02]">
-              <span className="select-none text-white/20 text-right pr-4 pl-4 w-16 flex-shrink-0">
+            <div key={n} className="flex hover:bg-[var(--bg-surface)]">
+              <span className="select-none text-[var(--text-primary)]/20 text-right pr-4 pl-4 w-16 flex-shrink-0">
                 {n}
               </span>
               <span className="whitespace-pre-wrap break-words flex-1 pr-6">
@@ -177,7 +177,7 @@ function CodeEditor({ file }: { file: LuminaFile | null }) {
         {!file.done && (
           <div className="flex px-4">
             <span className="w-16" />
-            <span className="inline-block w-1.5 h-4 bg-white/80 animate-pulse rounded-sm" />
+            <span className="inline-block w-1.5 h-4 bg-[var(--text-primary)]/80 animate-pulse rounded-sm" />
           </div>
         )}
       </pre>
@@ -228,43 +228,43 @@ function PreviewPanel({
   if (!open) return null;
 
   const wrapCls = fullscreen
-    ? "fixed inset-0 z-[200] bg-[#0b0b0f] flex flex-col"
-    : "fixed top-0 right-0 bottom-0 z-[100] w-[min(720px,72vw)] bg-[#0b0b0f] border-l border-white/10 flex flex-col shadow-[-30px_0_60px_-30px_rgba(0,0,0,0.7)] animate-in slide-in-from-right duration-300";
+    ? "fixed inset-0 z-[200] bg-[var(--bg-base)] flex flex-col"
+    : "fixed top-0 right-0 bottom-0 z-[100] w-[min(720px,72vw)] bg-[var(--bg-base)] border-l border-[var(--border-default)] flex flex-col shadow-[-30px_0_60px_-30px_rgba(0,0,0,0.7)] animate-in slide-in-from-right duration-300";
 
   return (
     <div className={wrapCls}>
-      <div className="flex items-center gap-2 px-5 h-12 border-b border-white/10 flex-shrink-0">
-        <Eye className="w-4 h-4 text-white/60" />
-        <div className="text-sm font-medium text-white/90">Preview</div>
+      <div className="flex items-center gap-2 px-5 h-12 border-b border-[var(--border-default)] flex-shrink-0">
+        <Eye className="w-4 h-4 text-[var(--text-primary)]/60" />
+        <div className="text-sm font-medium text-[var(--text-primary)]/90">Preview</div>
         {previewTarget && (
-          <div className="text-xs text-white/40 ml-2 truncate">{previewTarget.path}</div>
+          <div className="text-xs text-[var(--text-primary)]/40 ml-2 truncate">{previewTarget.path}</div>
         )}
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={download}
             disabled={!previewTarget}
-            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition disabled:opacity-30"
+            className="p-2 rounded-lg text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-30"
             title="Download"
           >
             <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => setFullscreen(!fullscreen)}
-            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition"
+            className="p-2 rounded-lg text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition"
             title="Fullscreen"
           >
             {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition"
+            className="p-2 rounded-lg text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition"
             title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       </div>
-      <div className="flex-1 bg-white relative overflow-hidden">
+      <div className="flex-1 bg-[var(--text-primary)] relative overflow-hidden">
         {previewTarget ? (
           <iframe
             key={previewTarget.path}
@@ -274,7 +274,7 @@ function PreviewPanel({
             className="w-full h-full border-0"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white/30 text-sm gap-2 bg-[#0e0e12]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-primary)]/30 text-sm gap-2 bg-[var(--bg-surface)]">
             <Sparkles className="w-6 h-6 opacity-40" />
             Nothing to preview yet.
           </div>
@@ -307,7 +307,7 @@ function ActivityEntry({
             ? "bg-amber-400"
             : line.level === "model"
               ? "bg-sky-400"
-              : "bg-white/30";
+              : "bg-[var(--text-primary)]/30";
 
   const act = line.action;
   return (
@@ -315,30 +315,30 @@ function ActivityEntry({
       <span className={`w-1.5 h-1.5 mt-2 rounded-full ${dot} flex-shrink-0`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-[13px] text-white/85">{line.text}</span>
-          <span className="text-[11px] text-white/30">{timeFmt(line.ts)}</span>
+          <span className="text-[13px] text-[var(--text-primary)]/85">{line.text}</span>
+          <span className="text-[11px] text-[var(--text-primary)]/30">{timeFmt(line.ts)}</span>
         </div>
         {act && act.status === "proposed" && (
           <div className="flex gap-2 mt-1.5">
             <button
               onClick={() => onConfirm?.(act.id)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--text-primary)] text-[var(--bg-base)] text-[11px] font-medium hover:bg-[var(--text-primary)]/90 transition"
             >
               <CheckCircle2 className="w-3 h-3" /> Confirm
             </button>
             <button
               onClick={() => onDismiss?.(act.id)}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.06] text-white/70 text-[11px] hover:bg-white/[0.1] transition"
+              className="px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)]/70 text-[11px] hover:bg-[var(--bg-hover)] transition"
             >
               Dismiss
             </button>
           </div>
         )}
         {act && act.status === "confirmed" && (
-          <div className="text-[11px] text-emerald-300/80 mt-0.5">✓ confirmed</div>
+          <div className="text-[11px] text-[var(--green)] mt-0.5">✓ confirmed</div>
         )}
         {act && act.status === "dismissed" && (
-          <div className="text-[11px] text-white/30 mt-0.5">dismissed</div>
+          <div className="text-[11px] text-[var(--text-primary)]/30 mt-0.5">dismissed</div>
         )}
       </div>
     </div>
@@ -918,27 +918,26 @@ export default function LuminaComputer() {
   const isEmpty = files.length === 0 && !plan && !finalMd && !busy;
 
   return (
-    <div className="relative h-screen flex flex-col bg-[#0b0b0f] text-white overflow-hidden">
+    <div className="relative h-screen flex flex-col bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
       {/* subtle ambient */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.4]"
         style={{
-          background:
-            "radial-gradient(1200px 600px at 80% -10%, rgba(120,119,198,0.10), transparent), radial-gradient(900px 500px at 0% 100%, rgba(56,189,248,0.06), transparent)",
+          background: "var(--bg-base)",
         }}
       />
 
       {/* Top bar */}
-      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b border-white/[0.08] bg-[#0b0b0f]/80 backdrop-blur-xl flex-shrink-0">
+      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/80  flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm">
-            <Cpu className="w-4 h-4 text-black" />
+            <Cpu className="w-4 h-4 text-[var(--bg-base)]" />
           </div>
           <div>
-            <div className="text-[14px] font-semibold tracking-tight text-white">
+            <div className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)]">
               Lumina Computer
             </div>
-            <div className="text-[11px] text-white/40 -mt-0.5">
+            <div className="text-[11px] text-[var(--text-primary)]/40 -mt-0.5">
               {busy ? "Working…" : model ? model.split("/").pop() : "Idle"}
             </div>
           </div>
@@ -948,20 +947,20 @@ export default function LuminaComputer() {
           {busy && (
             <button
               onClick={stop}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]/80 text-[13px] transition"
             >
               <Square className="w-3 h-3 fill-current" /> Stop
             </button>
           )}
           <button
             onClick={reset}
-            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/80 text-[13px] transition"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]/80 text-[13px] transition"
           >
             <Plus className="w-3.5 h-3.5" /> New
           </button>
           <div
             title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling"
-            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-emerald-400/[0.08] border border-emerald-400/20 text-emerald-200 text-[13px]"
+            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--green-tint)] border border-[rgba(52,211,153,0.2)] text-[var(--green)] text-[13px]"
           >
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             Factory
@@ -970,8 +969,8 @@ export default function LuminaComputer() {
             onClick={() => setPreviewOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
               previewOpen
-                ? "bg-white text-black hover:bg-white/90"
-                : "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+                ? "bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-[var(--text-primary)]/90"
+                : "bg-[var(--bg-hover)] text-[var(--text-primary)] hover:bg-[var(--text-primary)]/[0.12]"
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -983,18 +982,18 @@ export default function LuminaComputer() {
       {/* Body */}
       <div className="relative z-10 flex-1 grid grid-cols-[260px_1fr] min-h-0">
         {/* File explorer */}
-        <aside className="border-r border-white/[0.06] bg-[#0e0e12] flex flex-col min-h-0">
-          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-            <FolderOpen className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-[12px] font-medium text-white/70">Files</span>
+        <aside className="border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col min-h-0">
+          <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
+            <FolderOpen className="w-3.5 h-3.5 text-[var(--text-primary)]/40" />
+            <span className="text-[12px] font-medium text-[var(--text-primary)]/70">Files</span>
             {files.length > 0 && (
-              <span className="ml-1 text-[11px] text-white/30">{files.length}</span>
+              <span className="ml-1 text-[11px] text-[var(--text-primary)]/30">{files.length}</span>
             )}
             {files.length > 0 && (
               <button
                 onClick={() => downloadFilesAsZip(files, `lumina-${Date.now()}.zip`)}
                 title="Download all files as ZIP"
-                className="ml-auto p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition"
+                className="ml-auto p-1.5 rounded-md text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition"
               >
                 <Download className="w-3.5 h-3.5" />
               </button>
@@ -1003,7 +1002,7 @@ export default function LuminaComputer() {
 
           <div className="p-2 flex-1 overflow-auto">
             {files.length === 0 ? (
-              <div className="text-[12px] text-white/30 px-3 py-4">
+              <div className="text-[12px] text-[var(--text-primary)]/30 px-3 py-4">
                 Files will appear here as Lumina creates them.
               </div>
             ) : (
@@ -1016,8 +1015,8 @@ export default function LuminaComputer() {
 
             {plan && (
               <div className="mt-4 px-3">
-                <div className="text-[11px] font-medium text-white/40 mb-1.5">Plan</div>
-                <div className="text-[12px] text-white/70 leading-relaxed bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                <div className="text-[11px] font-medium text-[var(--text-primary)]/40 mb-1.5">Plan</div>
+                <div className="text-[12px] text-[var(--text-primary)]/70 leading-relaxed bg-[var(--text-primary)]/[0.03] border border-[var(--border-subtle)] rounded-xl p-3">
                   <MarkdownRenderer>{plan}</MarkdownRenderer>
                 </div>
               </div>
@@ -1033,7 +1032,7 @@ export default function LuminaComputer() {
                   events={factoryEvents}
                 />
                 {validationSummary && (
-                  <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-[11px] text-white/45">
+                  <div className="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-[11px] text-[var(--text-primary)]/45">
                     {validationSummary}
                   </div>
                 )}
@@ -1046,15 +1045,15 @@ export default function LuminaComputer() {
         <main className="flex flex-col min-h-0 min-w-0">
           {/* Editor header */}
           {activeFile && (
-            <div className="flex items-center gap-2 px-5 h-10 border-b border-white/[0.06] bg-[#0b0b0f]">
-              <span className="text-[12px] text-white/50 truncate">{activeFile.path}</span>
+            <div className="flex items-center gap-2 px-5 h-10 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
+              <span className="text-[12px] text-[var(--text-primary)]/50 truncate">{activeFile.path}</span>
               <button
                 onClick={copyActive}
-                className="ml-auto p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition"
+                className="ml-auto p-1.5 rounded-lg text-[var(--text-primary)]/50 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition"
                 title="Copy"
               >
                 {copied ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <Check className="w-3.5 h-3.5 text-[var(--green)]" />
                 ) : (
                   <CopyIcon className="w-3.5 h-3.5" />
                 )}
@@ -1072,19 +1071,19 @@ export default function LuminaComputer() {
           </div>
 
           {/* Activity feed */}
-          <div className="border-t border-white/[0.06] bg-[#0b0b0f] flex-shrink-0">
-            <div className="px-5 h-9 flex items-center gap-2 border-b border-white/[0.04]">
-              <span className="text-[11px] font-medium text-white/50">Activity</span>
+          <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-base)] flex-shrink-0">
+            <div className="px-5 h-9 flex items-center gap-2 border-b border-[var(--border-faint)]">
+              <span className="text-[11px] font-medium text-[var(--text-primary)]/50">Activity</span>
               {canContinue && !busy && (
                 <button
                   onClick={onContinue}
-                  className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-white text-black text-[11px] font-medium hover:bg-white/90 transition"
+                  className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-[var(--text-primary)] text-[var(--bg-base)] text-[11px] font-medium hover:bg-[var(--text-primary)]/90 transition"
                   title="Resume from the last line"
                 >
                   <ArrowUp className="w-3 h-3" /> Continue
                 </button>
               )}
-              {busy && <Loader2 className="w-3 h-3 text-white/60 animate-spin ml-auto" />}
+              {busy && <Loader2 className="w-3 h-3 text-[var(--text-primary)]/60 animate-spin ml-auto" />}
             </div>
             <div className="max-h-[160px] overflow-auto px-5 py-2">
               {logs.slice(-8).map((l) => (
@@ -1099,19 +1098,19 @@ export default function LuminaComputer() {
           </div>
 
           {/* Prompt bar — bottom */}
-          <div className="border-t border-white/[0.08] bg-[#0b0b0f] px-5 py-4 flex-shrink-0">
+          <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-base)] px-5 py-4 flex-shrink-0">
             <div className="max-w-3xl mx-auto">
               {/* Prominent Continue banner — surfaces when the model truncates
                   mid-plan or mid-file so the user can recover with one click. */}
               {canContinue && !busy && (
-                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.08] px-4 py-2.5">
-                  <div className="flex items-center gap-2 text-[12.5px] text-amber-100/95">
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[var(--amber-tint)] px-4 py-2.5">
+                  <div className="flex items-center gap-2 text-[12.5px] text-[var(--amber)]">
                     <Loader2 className="w-3.5 h-3.5" />
                     <span>Output was cut off. Continue from the exact stop point.</span>
                   </div>
                   <button
                     onClick={onContinue}
-                    className="flex items-center gap-1.5 px-3.5 h-8 rounded-full bg-amber-300 text-black text-[12px] font-semibold hover:bg-amber-200 transition shadow"
+                    className="flex items-center gap-1.5 px-3.5 h-8 rounded-full bg-[var(--amber)] text-[var(--bg-base)] text-[12px] font-semibold hover:bg-amber-200 transition shadow"
                   >
                     <ArrowUp className="w-3.5 h-3.5" /> Continue
                   </button>
@@ -1124,17 +1123,17 @@ export default function LuminaComputer() {
                   {attachments.map((a) => (
                     <div
                       key={a.id}
-                      className="group flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-[12px] text-white/80"
+                      className="group flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)]/80"
                     >
                       {a.kind === "image" ? (
-                        <ImageIcon className="w-3.5 h-3.5 text-white/50" />
+                        <ImageIcon className="w-3.5 h-3.5 text-[var(--text-primary)]/50" />
                       ) : (
-                        <FileText className="w-3.5 h-3.5 text-white/50" />
+                        <FileText className="w-3.5 h-3.5 text-[var(--text-primary)]/50" />
                       )}
                       <span className="truncate max-w-[160px]">{a.name}</span>
                       <button
                         onClick={() => removeAttachment(a.id)}
-                        className="p-0.5 rounded hover:bg-white/[0.1] text-white/50 hover:text-white"
+                        className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -1143,7 +1142,7 @@ export default function LuminaComputer() {
                 </div>
               )}
 
-              <div className="flex items-end gap-2 rounded-2xl border border-white/[0.1] bg-white/[0.04] focus-within:border-white/30 focus-within:bg-white/[0.06] transition px-3 py-2.5 shadow-[0_4px_30px_-12px_rgba(0,0,0,0.5)]">
+              <div className="flex items-end gap-2 rounded-2xl border border-white/[0.1] bg-[var(--bg-elevated)] focus-within:border-white/30 focus-within:bg-[var(--bg-elevated)] transition px-3 py-2.5 ">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1155,7 +1154,7 @@ export default function LuminaComputer() {
                 <button
                   onClick={onPickFiles}
                   disabled={busy}
-                  className="w-8 h-8 grid place-items-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08] transition disabled:opacity-30"
+                  className="w-8 h-8 grid place-items-center rounded-lg text-[var(--text-primary)]/60 hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition disabled:opacity-30"
                   title="Attach files"
                 >
                   <Paperclip className="w-4 h-4" />
@@ -1181,13 +1180,13 @@ export default function LuminaComputer() {
                       : "Ask Lumina to build, research, or open a page…"
                   }
                   disabled={busy}
-                  className="flex-1 bg-transparent resize-none outline-none text-[14px] text-white placeholder:text-white/35 py-1.5 leading-relaxed max-h-[200px]"
+                  className="flex-1 bg-transparent resize-none outline-none text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-primary)]/35 py-1.5 leading-relaxed max-h-[200px]"
                 />
 
                 <button
                   onClick={onSubmit}
                   disabled={busy || !prompt.trim()}
-                  className="w-8 h-8 grid place-items-center rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed transition"
+                  className="w-8 h-8 grid place-items-center rounded-lg bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-[var(--text-primary)]/90 disabled:bg-[var(--text-primary)]/20 disabled:text-[var(--text-primary)]/40 disabled:cursor-not-allowed transition"
                 >
                   {busy ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1196,7 +1195,7 @@ export default function LuminaComputer() {
                   )}
                 </button>
               </div>
-              <div className="text-[11px] text-white/30 text-center mt-2">
+              <div className="text-[11px] text-[var(--text-primary)]/30 text-center mt-2">
                 Lumina can make mistakes. Attach images or text files for context.
               </div>
             </div>
@@ -1219,15 +1218,15 @@ export default function LuminaComputer() {
 // ─────────────────────────────────────────────────────────────────────
 function EmptyState({ onPick }: { onPick: (s: string) => void }) {
   return (
-    <div className="flex-1 overflow-auto bg-[#0e0e12]">
+    <div className="flex-1 overflow-auto bg-[var(--bg-surface)]">
       <div className="max-w-2xl mx-auto px-8 py-16">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm mb-5">
-          <Cpu className="w-6 h-6 text-black" />
+          <Cpu className="w-6 h-6 text-[var(--bg-base)]" />
         </div>
-        <h1 className="text-[34px] font-semibold tracking-tight leading-tight text-white mb-2">
+        <h1 className="text-[34px] font-semibold tracking-tight leading-tight text-[var(--text-primary)] mb-2">
           What should we build?
         </h1>
-        <p className="text-white/55 text-[15px] leading-relaxed mb-8 max-w-xl">
+        <p className="text-[var(--text-primary)]/55 text-[15px] leading-relaxed mb-8 max-w-xl">
           Describe an interactive page, a deep research report, or a study tool.
           Lumina plans, writes the code live, and renders it in the preview.
         </p>
@@ -1237,11 +1236,11 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
             <button
               key={i}
               onClick={() => onPick(s)}
-              className="group w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/15 transition"
+              className="group w-full text-left flex items-center gap-3 px-4 py-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] hover:border-white/15 transition"
             >
-              <Sparkles className="w-4 h-4 text-white/40 flex-shrink-0 group-hover:text-white/80 transition" />
-              <span className="text-[14px] text-white/85 flex-1">{s}</span>
-              <ArrowUp className="w-3.5 h-3.5 text-white/25 rotate-45 group-hover:text-white/70 transition" />
+              <Sparkles className="w-4 h-4 text-[var(--text-primary)]/40 flex-shrink-0 group-hover:text-[var(--text-primary)]/80 transition" />
+              <span className="text-[14px] text-[var(--text-primary)]/85 flex-1">{s}</span>
+              <ArrowUp className="w-3.5 h-3.5 text-[var(--text-primary)]/25 rotate-45 group-hover:text-[var(--text-primary)]/70 transition" />
             </button>
           ))}
         </div>
@@ -1266,10 +1265,10 @@ function Tile({
   desc: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-      <Icon className="w-4 h-4 text-white/60 mb-2" />
-      <div className="text-[13px] font-medium text-white/90">{label}</div>
-      <div className="text-[12px] text-white/40 mt-0.5">{desc}</div>
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+      <Icon className="w-4 h-4 text-[var(--text-primary)]/60 mb-2" />
+      <div className="text-[13px] font-medium text-[var(--text-primary)]/90">{label}</div>
+      <div className="text-[12px] text-[var(--text-primary)]/40 mt-0.5">{desc}</div>
     </div>
   );
 }
