@@ -52,7 +52,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex flex-col fixed top-0 left-0 h-screen z-40 transition-all duration-300 ease-out ${
-          collapsed ? 'w-[72px]' : 'w-[240px]'
+          collapsed ? 'w-[72px] sidebar-collapsed' : 'w-[240px]'
         } bg-sidebar border-r border-sidebar-border`}
         style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.3)' }}
       >
