@@ -28,6 +28,7 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { ChatErrorBoundary } from "./ChatErrorBoundary";
 
 // ─── Types ───
 export interface Message {
@@ -365,6 +366,7 @@ const ChatPage = () => {
   }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
   const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
+    try {
     const t = (text || input).trim(); if (!t || loading) return;
     if (artifactType) { setShowArtifactPicker(false); const cid = await ensureChat(t); if (cid) { await runArtifact(artifactType, t, t, cid); setInput(""); } return; }
     const isArt = /\b(create|generate|make|build|write|draft)\b.*\b(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\b/i.test(t) || /\b(notes?|exam|test|quiz|slides?|presentation|deck)\b.*\b(on|for|about)\b/i.test(t);
@@ -377,6 +379,7 @@ const ChatPage = () => {
     try { await streamChat(nm, cid); }
     catch (e: any) { if (e?.name !== "AbortError") setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() })); }
     finally { setLoading(false); setLoadingStage(""); }
+    } catch (e: any) { console.error("handleSend error:", e); toast.error(e?.message ?? "Something went wrong"); }
   }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
   const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
@@ -389,6 +392,7 @@ const ChatPage = () => {
   const empty = messages.length === 0;
 
   return (
+    <ChatErrorBoundary>
     <div className="chat-root">
       <AnimatePresence>
         {historyOpen && (
@@ -501,6 +505,7 @@ const ChatPage = () => {
       {canvasOpen && <div className="hidden md:flex" style={{ flex: "0 0 54%", minWidth: 0 }}><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
       {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
     </div>
+    </ChatErrorBoundary>
   );
 };
 
