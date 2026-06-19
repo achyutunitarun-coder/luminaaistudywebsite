@@ -12,8 +12,8 @@ type FeatureLimits = { basic: TierLimit; ultimate: TierLimit; pro_plus: TierLimi
 // Numbers come from the production pricing page (Basic / Ultimate ₹199 / PRO+ ₹499).
 const LIMITS: Record<string, FeatureLimits> = {
   // ── Core chat & doubts ──
-  chat_messages:      { basic: { limit: 20,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
-  doubt_messages:     { basic: { limit: 20,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  chat_messages:      { basic: { limit: 60,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
+  doubt_messages:     { basic: { limit: 60,  period: 'daily' }, ultimate: { limit: 200, period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },
 
   // ── Generators ──
   notes_generations:  { basic: { limit: 3,   period: 'daily' }, ultimate: { limit: 30,  period: 'daily' }, pro_plus: { limit: -1, period: 'daily' } },

@@ -13,8 +13,8 @@ type FeatureLimits = Record<Plan, TierLimit>;
 // -1 = unlimited. Single source of truth for every plan tier.
 // MUST stay in sync with src/hooks/useUsageLimits.tsx.
 export const SERVER_LIMITS: Record<string, FeatureLimits> = {
-  chat_messages:      { basic: { limit: 20,  period: "daily" }, ultimate: { limit: 200, period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
-  doubt_messages:     { basic: { limit: 20,  period: "daily" }, ultimate: { limit: 200, period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
+  chat_messages:      { basic: { limit: 60,  period: "daily" }, ultimate: { limit: 200, period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
+  doubt_messages:     { basic: { limit: 60,  period: "daily" }, ultimate: { limit: 200, period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
   notes_generations:  { basic: { limit: 3,   period: "daily" }, ultimate: { limit: 30,  period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
   test_generations:   { basic: { limit: 3,   period: "daily" }, ultimate: { limit: 30,  period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
   flashcard_sets:     { basic: { limit: 3,   period: "daily" }, ultimate: { limit: 30,  period: "daily" }, pro_plus: { limit: -1, period: "daily" } },
