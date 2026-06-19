@@ -1,6 +1,6 @@
 /**
- * LUMINA AI CHAT — Complete Rewrite
- * Clean architecture: flex column, proper overflow, streaming-first
+ * LUMINA AI CHAT — Production-Grade UI
+ * Linear/Vercel/Notion quality. Every pixel justified.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -8,13 +8,13 @@ import {
   MessageSquarePlus, PanelLeftClose, PanelLeftOpen,
   Sparkles, Trash2, Send, Square, Paperclip, Plus, X,
   FileText, Code2, Presentation, BookOpen, Brain, Target,
+  User, AlertCircle, Copy, RefreshCw, ThumbsUp, ThumbsDown, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 import { attemptGeneration } from "./utils/generationWrapper";
-import { MessageList } from "./components/MessageList";
 import { CanvasPanel } from "@/features/canvas/CanvasPanel";
 import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
 import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWorkspace";
@@ -27,6 +27,7 @@ import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsSt
 import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 // ─── Types ───
 export interface Message {
@@ -78,7 +79,107 @@ const MODES: { key: ModelMode; label: string }[] = [
   { key: "fast", label: "Fast" },
 ];
 
-// ─── Component ───
+// ─── Message Bubble ───
+const MessageBubble = ({
+  message, onRegenerate, onRetry, onEdit, onTopUp,
+}: {
+  message: Message;
+  onRegenerate?: () => void;
+  onRetry?: () => void;
+  onEdit?: (newText: string) => void;
+  onTopUp?: () => void;
+}) => {
+  const [hovered, setHovered] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(message.content);
+  const isUser = message.role === "user";
+  const isStreaming = !!message.isStreaming;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    toast.success("Copied");
+  };
+
+  // User message
+  if (isUser) {
+    return (
+      <div className={`msg-row ${isUser ? "msg-row-user" : "msg-row-assistant"}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+        <div className="msg-bubble msg-bubble-user">
+          {editing ? (
+            <div className="w-full min-w-[280px]">
+              <textarea autoFocus value={editText} onChange={(e) => setEditText(e.target.value)} rows={Math.min(8, Math.max(2, editText.split("\n").length))} className="w-full text-sm rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] focus:border-[var(--border-brand)] outline-none p-3 resize-none" style={{ color: "var(--text-primary)" }} />
+              <div className="mt-1.5 flex gap-2 justify-end">
+                <button type="button" onClick={() => { setEditing(false); setEditText(message.content); }} className="text-xs px-3 py-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                <button type="button" onClick={() => { if (!editText.trim()) return; setEditing(false); onEdit?.(editText.trim()); }} className="text-xs px-3 py-1.5 rounded-md bg-[var(--brand)] text-white hover:brightness-110 transition-all">Submit</button>
+              </div>
+            </div>
+          ) : (
+            <div>{message.content}</div>
+          )}
+        </div>
+        <div className="msg-avatar msg-avatar-user"><User className="w-3.5 h-3.5" /></div>
+        {!editing && hovered && onEdit && (
+          <div className="flex gap-1 opacity-60 ml-2">
+            <button type="button" onClick={() => { setEditText(message.content); setEditing(true); }} title="Edit" className="w-6 h-6 grid place-items-center rounded-md hover:bg-[var(--bg-hover)] transition-colors" style={{ color: "var(--text-muted)" }}><Pencil className="w-3 h-3" /></button>
+            <button type="button" onClick={handleCopy} title="Copy" className="w-6 h-6 grid place-items-center rounded-md hover:bg-[var(--bg-hover)] transition-colors" style={{ color: "var(--text-muted)" }}><Copy className="w-3 h-3" /></button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Error
+  if (message.type === "error") {
+    return (
+      <div className="msg-row msg-row-assistant">
+        <div className="msg-avatar msg-avatar-ai"><Sparkles className="w-3.5 h-3.5" /></div>
+        <div className="msg-bubble msg-bubble-error">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div>{message.content}</div>
+            {onRetry && <button type="button" onClick={onRetry} className="mt-2 text-xs px-2.5 py-1 rounded-md transition-colors" style={{ background: "var(--red-tint)", color: "var(--red)" }}>Try again</button>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading
+  if (message.type === "loading") {
+    return (
+      <div className="msg-row msg-row-assistant">
+        <div className="msg-avatar msg-avatar-ai"><Sparkles className="w-3.5 h-3.5" /></div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />
+            {message.content}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant text
+  return (
+    <div className="msg-row msg-row-assistant" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div className="msg-avatar msg-avatar-ai"><Sparkles className="w-3.5 h-3.5" /></div>
+      <div className="msg-bubble msg-bubble-ai">
+        <MarkdownRenderer>{message.content}</MarkdownRenderer>
+        {isStreaming && <span className="msg-streaming-cursor" />}
+      </div>
+      {hovered && !isStreaming && message.content && (
+        <div className="msg-actions">
+          <button type="button" onClick={handleCopy} title="Copy" className="msg-action-btn"><Copy className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={onRegenerate} title="Regenerate" className="msg-action-btn"><RefreshCw className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => toast.success("Thanks for the feedback")} title="Good" className="msg-action-btn"><ThumbsUp className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => toast.success("Thanks — we'll improve")} title="Bad" className="msg-action-btn"><ThumbsDown className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Component ───
 const ChatPage = () => {
   const { user } = useAuth();
   const { isPro } = useSubscription();
@@ -107,32 +208,21 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Keep ref in sync
   useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current;
-    if (ta) {
-      ta.style.height = "auto";
-      ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
-    }
+    if (ta) { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 180) + "px"; }
   }, [input]);
 
-  // Canvas import from localStorage
   useEffect(() => {
     try {
       const i = localStorage.getItem("lumina_canvas_import");
-      if (i) {
-        setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]);
-        setCanvasOpen(true);
-        localStorage.removeItem("lumina_canvas_import");
-      }
+      if (i) { setCanvasVersions([{ code: i, html: wrapAsHtmlDoc(i, /<!doctype html|<html/i.test(i) ? "html" : "html"), ts: Date.now() }]); setCanvasOpen(true); localStorage.removeItem("lumina_canvas_import"); }
     } catch { /* ignore */ }
   }, []);
 
@@ -143,7 +233,6 @@ const ChatPage = () => {
     setCanvasOpen(true);
   }, []);
 
-  // ─── Chat CRUD ───
   const refreshChats = useCallback(async () => {
     if (!user) { setChatSessions([]); setCurrentChatId(null); currentChatIdRef.current = null; return; }
     const { data, error } = await supabase.from("chats").select("id,title,created_at,updated_at").eq("user_id", user.id).eq("chat_type", "general").order("updated_at", { ascending: false }).limit(40);
@@ -158,8 +247,7 @@ const ChatPage = () => {
     const { data, error } = await supabase.from("chats").insert({ user_id: user.id, title: titleFrom(t), chat_type: "general" }).select("id,title,created_at,updated_at").single();
     if (error || !data) return null;
     const c = data as ChatSummary;
-    setCurrentChatId(c.id);
-    currentChatIdRef.current = c.id;
+    setCurrentChatId(c.id); currentChatIdRef.current = c.id;
     setChatSessions(p => [c, ...p.filter(x => x.id !== c.id)]);
     return c.id;
   }, [user]);
@@ -180,34 +268,22 @@ const ChatPage = () => {
   const loadChat = useCallback(async (chat: ChatSummary) => {
     setHistoryLoading(true);
     try {
-      const { data, error } = await (supabase as any).from("chat_messages")
-        .select("id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance")
-        .eq("chat_id", chat.id).order("created_at", { ascending: true });
+      const { data, error } = await (supabase as any).from("chat_messages").select("id,role,content,created_at,message_type,artifact_type,artifact_html,topic,credits_used,new_balance").eq("chat_id", chat.id).order("created_at", { ascending: true });
       if (error) throw error;
-      setCurrentChatId(chat.id);
-      currentChatIdRef.current = chat.id;
+      setCurrentChatId(chat.id); currentChatIdRef.current = chat.id;
       setMessages(((data ?? []) as any[]).map(r => ({
-        id: r.id, role: r.role, content: r.content ?? "",
-        type: (r.message_type || "text") as Message["type"],
+        id: r.id, role: r.role, content: r.content ?? "", type: (r.message_type || "text") as Message["type"],
         artifactType: r.artifact_type ?? undefined, artifactHtml: r.artifact_html ?? undefined,
         topic: r.topic ?? undefined, timestamp: new Date(r.created_at).getTime(),
       })));
       setHistoryOpen(false);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Could not open chat.");
-    } finally {
-      setHistoryLoading(false);
-    }
+    } catch (e: any) { toast.error(e?.message ?? "Could not open chat."); }
+    finally { setHistoryLoading(false); }
   }, []);
 
   const startNewChat = useCallback(() => {
-    abortRef.current?.abort();
-    setCurrentChatId(null);
-    currentChatIdRef.current = null;
-    setMessages([]);
-    setInput("");
-    setLoading(false);
-    setLoadingStage("");
+    abortRef.current?.abort(); setCurrentChatId(null); currentChatIdRef.current = null;
+    setMessages([]); setInput(""); setLoading(false); setLoadingStage("");
   }, []);
 
   const deleteChat = useCallback(async (id: string) => {
@@ -218,35 +294,21 @@ const ChatPage = () => {
     if (currentChatIdRef.current === id) startNewChat();
   }, [startNewChat, user]);
 
-  // ─── Streaming ───
   const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
+    const ctrl = new AbortController(); abortRef.current = ctrl;
     const aiMessages = history.filter(m => m.type === "text").slice(-20).map(m => ({ role: m.role, content: m.content }));
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error("Please sign in.");
-
     const wireMode = model === "deepDive" ? "long_context" : model;
     const res = await fetch(CHAT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ messages: aiMessages, mode: wireMode }),
-      signal: ctrl.signal,
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal,
     });
-
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`);
-    }
+    if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
 
     const aId = uid();
     setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    let acc = "";
+    const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
 
     try {
       while (true) {
@@ -255,8 +317,7 @@ const ChatPage = () => {
         buf += decoder.decode(value, { stream: true });
         let nl: number;
         while ((nl = buf.indexOf("\n")) !== -1) {
-          let line = buf.slice(0, nl);
-          buf = buf.slice(nl + 1);
+          let line = buf.slice(0, nl); buf = buf.slice(nl + 1);
           if (line.charCodeAt(line.length - 1) === 13) line = line.slice(0, -1);
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
@@ -264,185 +325,87 @@ const ChatPage = () => {
           try {
             const parsed = JSON.parse(json);
             const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === "string" && delta.length > 0) {
-              acc += delta;
-              setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
-            }
-          } catch {
-            buf = line + "\n" + buf;
-            break;
-          }
+            if (typeof delta === "string" && delta.length > 0) { acc += delta; setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m)); }
+          } catch { buf = line + "\n" + buf; break; }
         }
       }
-    } finally {
-      setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
-    }
+    } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
 
     const final: Message = acc.trim().length === 0
       ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
       : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
-
     setMessages(p => p.map(m => m.id === aId ? final : m));
     await persistMessage(chatId, final);
     if (final.type === "text") pushCanvasFromMessage(final.content);
   }, [model, persistMessage, pushCanvasFromMessage]);
 
-  // ─── Artifact Generation ───
   const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null) => {
-    const action = `${type}_artifact` as CreditAction;
-    const cost = CREDIT_COSTS[action];
+    const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];
     if (!isPro && !hasEnoughCredits(action, credits.balance)) { setBuyOpen(true); return; }
-
     const lid = uid();
     setMessages(p => [...p, { id: lid, role: "assistant", content: `Creating your ${type}…`, type: "loading", timestamp: Date.now() }]);
-
     try {
       const result = await attemptGeneration({ type, topic, prompt: originalPrompt, chatId: chatId ?? undefined, timeoutMs: 540_000, maxRetries: 1, onStage: setLoadingStage });
       if (result.success) {
         let nb = credits.balance;
         if (!isPro) {
-          try {
-            const { data } = await (supabase as any).rpc("spend_user_credits", { _amount: cost, _action: action.replace(/_/g, " ") });
-            const r = Array.isArray(data) ? data[0] : data;
-            if (r?.success && typeof r.balance !== "undefined") { nb = Number(r.balance); credits.setBalance(nb); }
-            else { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); }
-          } catch { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); }
+          try { const { data } = await (supabase as any).rpc("spend_user_credits", { _amount: cost, _action: action.replace(/_/g, " ") }); const r = Array.isArray(data) ? data[0] : data; if (r?.success && typeof r.balance !== "undefined") { nb = Number(r.balance); credits.setBalance(nb); } else { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); } }
+          catch { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); }
         }
         const msg: Message = { id: uid(), role: "assistant", type: "artifact", content: "", artifactHtml: result.content, artifactType: type, topic, creditsUsed: isPro ? 0 : cost, newBalance: nb, timestamp: Date.now() };
         upsertArtifact({ id: msg.id, type, title: topic, html: result.content, createdAt: msg.timestamp, sourceMessageId: msg.id, contextMessageIds: [], summary: `Created ${type}` });
-        openArtifact(msg.id);
-        setMessages(p => p.filter(m => m.id !== lid).concat(msg));
-        await persistMessage(chatId, msg);
-      } else {
-        setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() }));
-      }
-    } catch {
-      setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() }));
-    }
+        openArtifact(msg.id); setMessages(p => p.filter(m => m.id !== lid).concat(msg)); await persistMessage(chatId, msg);
+      } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
+    } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
   }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
-  // ─── Send Handler ───
   const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
-    const t = (text || input).trim();
-    if (!t || loading) return;
-
-    if (artifactType) {
-      setShowArtifactPicker(false);
-      const cid = await ensureChat(t);
-      if (cid) { await runArtifact(artifactType, t, t, cid); setInput(""); }
-      return;
-    }
-
-    const isArt = /\b(create|generate|make|build|write|draft)\b.*\b(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\b/i.test(t) ||
-                  /\b(notes?|exam|test|quiz|slides?|presentation|deck)\b.*\b(on|for|about)\b/i.test(t);
+    const t = (text || input).trim(); if (!t || loading) return;
+    if (artifactType) { setShowArtifactPicker(false); const cid = await ensureChat(t); if (cid) { await runArtifact(artifactType, t, t, cid); setInput(""); } return; }
+    const isArt = /\b(create|generate|make|build|write|draft)\b.*\b(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\b/i.test(t) || /\b(notes?|exam|test|quiz|slides?|presentation|deck)\b.*\b(on|for|about)\b/i.test(t);
     const dt = isArt ? (/\b(exam|test|quiz)\b/i.test(t) ? "exam" : /\b(slides?|presentation|deck)\b/i.test(t) ? "slides" : /\b(code|app|game|website|build)\b/i.test(t) ? "code" : "notes") : undefined;
-
-    if (dt) {
-      const cid = await ensureChat(t);
-      if (cid) { await runArtifact(dt, t, t, cid); setInput(""); }
-      return;
-    }
-
-    const cid = await ensureChat(t);
-    if (!cid) return;
-
+    if (dt) { const cid = await ensureChat(t); if (cid) { await runArtifact(dt, t, t, cid); setInput(""); } return; }
+    const cid = await ensureChat(t); if (!cid) return;
     const um: Message = { id: uid(), role: "user", content: t, type: "text", timestamp: Date.now() };
-    const nm = [...messages, um];
-    setMessages(nm);
-    setInput("");
-    setLoading(true);
-    setLoadingStage("Thinking…");
+    const nm = [...messages, um]; setMessages(nm); setInput(""); setLoading(true); setLoadingStage("Thinking…");
     await persistMessage(cid, um);
-
-    try {
-      await streamChat(nm, cid);
-    } catch (e: any) {
-      if (e?.name !== "AbortError") {
-        setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() }));
-      }
-    } finally {
-      setLoading(false);
-      setLoadingStage("");
-    }
+    try { await streamChat(nm, cid); }
+    catch (e: any) { if (e?.name !== "AbortError") setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() })); }
+    finally { setLoading(false); setLoadingStage(""); }
   }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
   const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
-
-  const handleRegenerate = useCallback(async (mid: string) => {
-    const idx = messages.findIndex(m => m.id === mid);
-    if (idx < 0) return;
-    const cid = currentChatIdRef.current;
-    if (!cid) return;
-    setMessages(p => p.slice(0, idx));
-    try { await streamChat(messages.slice(0, idx), cid); } catch { /* ignore */ }
-  }, [messages, streamChat]);
-
+  const handleRegenerate = useCallback(async (mid: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx)); try { await streamChat(messages.slice(0, idx), cid); } catch { /* ignore */ } }, [messages, streamChat]);
   const handleRetry = useCallback(async (mid: string) => { await handleRegenerate(mid); }, [handleRegenerate]);
-
-  const handleEdit = useCallback(async (mid: string, nt: string) => {
-    const idx = messages.findIndex(m => m.id === mid);
-    if (idx < 0) return;
-    const cid = currentChatIdRef.current;
-    if (!cid) return;
-    setMessages(p => p.slice(0, idx).concat({ ...messages[idx], content: nt }));
-    try { await streamChat(messages.slice(0, idx).concat({ ...messages[idx], content: nt }), cid); } catch { /* ignore */ }
-  }, [messages, streamChat]);
-
-  const handleConfirmAction = useCallback(async (mid: string) => {
-    const msg = messages.find(m => m.id === mid);
-    if (!msg?.pendingAction) return;
-    setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m));
-    const result = await executeAgentAction(msg.pendingAction, p => navigate(p));
-    setMessages(p => p.concat({ id: uid(), role: "assistant", type: "text", content: result.message, timestamp: Date.now() }));
-  }, [messages, navigate]);
-
-  const handleCancelAction = useCallback((mid: string) => {
-    setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m));
-  }, []);
+  const handleEdit = useCallback(async (mid: string, nt: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx).concat({ ...messages[idx], content: nt })); try { await streamChat(messages.slice(0, idx).concat({ ...messages[idx], content: nt }), cid); } catch { /* ignore */ } }, [messages, streamChat]);
+  const handleConfirmAction = useCallback(async (mid: string) => { const msg = messages.find(m => m.id === mid); if (!msg?.pendingAction) return; setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); const result = await executeAgentAction(msg.pendingAction, p => navigate(p)); setMessages(p => p.concat({ id: uid(), role: "assistant", type: "text", content: result.message, timestamp: Date.now() })); }, [messages, navigate]);
+  const handleCancelAction = useCallback((mid: string) => { setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); }, []);
 
   const empty = messages.length === 0;
 
-  // ─── Render ───
   return (
     <div className="chat-root">
-      {/* Sidebar */}
       <AnimatePresence>
         {historyOpen && (
-          <motion.aside
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 260, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="chat-sidebar"
-          >
+          <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: 260, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="chat-sidebar">
             <div className="chat-sidebar-header">
-              <button onClick={startNewChat} className="chat-sidebar-new-btn">
-                <Plus className="w-4 h-4" /> New Chat
-              </button>
+              <button onClick={startNewChat} className="chat-sidebar-new-btn"><Plus className="w-4 h-4" /> New Chat</button>
             </div>
             <div className="chat-sidebar-list">
               {chatSessions.map(chat => (
                 <div key={chat.id} onClick={() => loadChat(chat)} className={`chat-sidebar-item ${currentChatId === chat.id ? "active" : ""}`}>
                   <span className="chat-sidebar-item-title">{chat.title}</span>
-                  <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} className="chat-sidebar-item-delete" title="Delete">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <button onClick={e => { e.stopPropagation(); deleteChat(chat.id); }} className="chat-sidebar-item-delete" title="Delete"><Trash2 className="w-3 h-3" /></button>
                 </div>
               ))}
-              {chatSessions.length === 0 && (
-                <div className="text-center p-3 text-xs" style={{ color: "var(--text-muted)" }}>No conversations yet</div>
-              )}
+              {chatSessions.length === 0 && <div className="text-center p-3 text-xs" style={{ color: "var(--text-muted)" }}>No conversations yet</div>}
             </div>
-            <div className="chat-sidebar-footer">
-              <CreditsDisplay onClick={() => setBuyOpen(true)} />
-            </div>
+            <div className="chat-sidebar-footer"><CreditsDisplay onClick={() => setBuyOpen(true)} /></div>
           </motion.aside>
         )}
       </AnimatePresence>
 
-      {/* Main */}
       <div className="chat-main">
-        {/* Header */}
         <div className="chat-topbar">
           <div className="chat-topbar-left">
             <button onClick={() => setHistoryOpen(v => !v)} className="chat-topbar-btn">
@@ -451,33 +414,21 @@ const ChatPage = () => {
             <div className="chat-topbar-title">
               <div className="chat-topbar-logo"><Sparkles className="w-3.5 h-3.5" /></div>
               <span className="chat-topbar-name">Lumina AI</span>
-              {loading && (
-                <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: "var(--teal)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />
-                  Thinking…
-                </span>
-              )}
+              {loading && <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: "var(--teal)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />Thinking…</span>}
             </div>
           </div>
           <div className="chat-topbar-center">
             <div className="chat-mode-pills">
-              {MODES.map(m => (
-                <button key={m.key} onClick={() => setModel(m.key)} className={`chat-mode-pill ${model === m.key ? "active" : ""}`}>
-                  {m.label}
-                </button>
-              ))}
+              {MODES.map(m => <button key={m.key} onClick={() => setModel(m.key)} className={`chat-mode-pill ${model === m.key ? "active" : ""}`}>{m.label}</button>)}
             </div>
           </div>
           <div className="chat-topbar-right">
-            <button onClick={startNewChat} className="chat-topbar-btn hidden sm:inline-flex">
-              <MessageSquarePlus className="w-3.5 h-3.5" /> New
-            </button>
+            <button onClick={startNewChat} className="chat-topbar-btn hidden sm:inline-flex"><MessageSquarePlus className="w-3.5 h-3.5" /> New</button>
             <CreditsDisplay onClick={() => setBuyOpen(true)} />
             <ManualRestoreButton />
           </div>
         </div>
 
-        {/* Messages */}
         <div className="chat-content">
           {empty ? (
             <div className="chat-empty">
@@ -496,41 +447,33 @@ const ChatPage = () => {
               </div>
               <div className="chat-artifact-bar">
                 <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Or generate:</span>
-                {ARTIFACT_TYPES.map(a => (
-                  <button key={a.id} onClick={() => setShowArtifactPicker(true)} className="chat-artifact-btn">
-                    <a.icon className="w-3 h-3" /> {a.label}
-                  </button>
-                ))}
+                {ARTIFACT_TYPES.map(a => <button key={a.id} onClick={() => setShowArtifactPicker(true)} className="chat-artifact-btn"><a.icon className="w-3 h-3" /> {a.label}</button>)}
               </div>
               {showArtifactPicker && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="chat-artifact-input">
                   <span className="text-xs mr-1" style={{ color: "var(--text-muted)" }}>Topic:</span>
                   <input autoFocus placeholder="e.g. Photosynthesis" className="flex-1 bg-transparent border-none outline-none text-sm" style={{ color: "var(--text-primary)" }}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) { handleSend((e.target as HTMLInputElement).value, ARTIFACT_TYPES[0].id); setShowArtifactPicker(false); }
-                      if (e.key === "Escape") setShowArtifactPicker(false);
-                    }}
+                    onKeyDown={e => { if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) { handleSend((e.target as HTMLInputElement).value, ARTIFACT_TYPES[0].id); setShowArtifactPicker(false); } if (e.key === "Escape") setShowArtifactPicker(false); }}
                   />
                   <button onClick={() => setShowArtifactPicker(false)} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><X className="w-3.5 h-3.5" /></button>
                 </motion.div>
               )}
             </div>
           ) : (
-            <MessageList
-              messages={messages}
-              loadingStage={loadingStage}
-              onRegenerate={handleRegenerate}
-              onRetry={handleRetry}
-              onEdit={handleEdit}
-              onTopUp={() => setBuyOpen(true)}
-              onConfirmAction={handleConfirmAction}
-              onCancelAction={handleCancelAction}
-            />
+            <div className="chat-messages">
+              {messages.map(m => (
+                <MessageBubble key={m.id} message={m}
+                  onRegenerate={() => handleRegenerate(m.id)} onRetry={() => handleRetry(m.id)}
+                  onEdit={onEdit ? (text) => handleEdit(m.id, text) : undefined} onTopUp={() => setBuyOpen(true)}
+                  onConfirmAction={handleConfirmAction ? () => handleConfirmAction(m.id) : undefined}
+                  onCancelAction={handleCancelAction ? () => handleCancelAction(m.id) : undefined}
+                />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div className="chat-input-area">
           <div className="chat-input-box">
             <button type="button" className="chat-input-btn" title="Attach file"><Paperclip className="w-4 h-4" /></button>
@@ -539,7 +482,7 @@ const ChatPage = () => {
               placeholder="Ask anything…" className="chat-textarea"
             />
             {loading ? (
-              <button type="button" onClick={handleStop} className="chat-stop-btn" title="Stop generating"><Square className="w-3.5 h-3.5" style={{ fill: "currentColor" }} /></button>
+              <button type="button" onClick={handleStop} className="chat-stop-btn" title="Stop"><Square className="w-3.5 h-3.5" style={{ fill: "currentColor" }} /></button>
             ) : (
               <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} className="chat-send-btn" title="Send"><Send className="w-4 h-4" /></button>
             )}
@@ -550,14 +493,8 @@ const ChatPage = () => {
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
 
-      {canvasOpen && (
-        <div className="hidden md:flex" style={{ flex: "0 0 54%", minWidth: 0 }}>
-          <CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} />
-        </div>
-      )}
-      {activeArtifactId && (
-        <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />
-      )}
+      {canvasOpen && <div className="hidden md:flex" style={{ flex: "0 0 54%", minWidth: 0 }}><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
+      {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
     </div>
   );
 };
