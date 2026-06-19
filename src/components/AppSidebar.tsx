@@ -1,132 +1,134 @@
 import {
-  LayoutDashboard,
-  MessageSquare,
-  FileText,
-  Layers,
-  HelpCircle,
-  Gamepad2,
-  BarChart3,
-  Settings,
-  LogOut,
-  Sparkles,
-  Calendar,
-  Zap,
-  Target,
-  ClipboardList,
-  FileAudio,
-  NotebookPen,
-  BookOpen,
-  Trophy,
-  Swords,
+  LayoutDashboard, MessageSquare, Sparkles, Brain,
+  FileText, HelpCircle, Zap, Calendar, FileAudio,
+  NotebookPen, Layers, Gamepad2, Trophy, BarChart3,
+  Target, BookOpen, Settings, LogOut, Wand2, Crown,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
-  useSidebar,
-} from '@/components/ui/sidebar';
 
-const mainItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'AI Chat', url: '/chat', icon: MessageSquare },
-  { title: 'Resources', url: '/resources', icon: BookOpen },
-  { title: 'Study Session', url: '/study-session', icon: Target },
-  { title: 'Tests', url: '/tests', icon: FileText },
-  { title: 'Flashcards', url: '/flashcards', icon: Layers },
-  { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
-  
-  { title: 'Quick Study', url: '/quick-study', icon: Zap },
-  { title: 'Study Planner', url: '/study-planner', icon: Calendar },
-  { title: 'Lecture AI', url: '/lecture-ai', icon: FileAudio },
-  { title: 'Game Modes', url: '/game-modes', icon: Swords },
-  { title: 'Lumina Quest', url: '/quest', icon: Gamepad2 },
-  { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
-  { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
-  { title: 'Smart Notebook', url: '/smart-notebook', icon: NotebookPen },
-  { title: 'Settings', url: '/settings', icon: Settings },
+const navGroups = [
+  {
+    items: [
+      { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+      { title: 'AI Tools', url: '/ai-tools', icon: Sparkles },
+      { title: 'Brain Hub', url: '/hub', icon: Brain },
+    ],
+  },
+  {
+    label: 'Study',
+    items: [
+      { title: 'AI Chat', url: '/chat', icon: MessageSquare },
+      { title: 'Lumina Computer', url: '/lumina-computer', icon: Wand2 },
+      { title: 'Documents', url: '/documents', icon: FileText },
+      { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
+      { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
+      { title: 'Quick Study', url: '/quick-study', icon: Zap },
+      { title: 'Lecture AI', url: '/lecture-ai', icon: FileAudio },
+      { title: 'Smart Notebook', url: '/smart-notebook', icon: NotebookPen },
+    ],
+  },
+  {
+    label: 'Practice',
+    items: [
+      { title: 'Tests', url: '/tests', icon: FileText },
+      { title: 'Flashcards', url: '/flashcards', icon: Layers },
+      { title: 'Game Modes', url: '/game-modes', icon: Gamepad2 },
+      { title: 'Quest', url: '/quest', icon: Crown },
+    ],
+  },
+  {
+    label: 'Analytics',
+    items: [
+      { title: 'Performance', url: '/performance', icon: BarChart3 },
+      { title: 'Pulse', url: '/pulse', icon: Target },
+      { title: 'Weakness Radar', url: '/weakness-radar', icon: BarChart3 },
+      { title: 'Leaderboard', url: '/leaderboard', icon: Trophy },
+    ],
+  },
+  {
+    label: 'More',
+    items: [
+      { title: 'Study Planner', url: '/study-planner', icon: Calendar },
+      { title: 'Study Session', url: '/study-session', icon: Target },
+      { title: 'Resources', url: '/resources', icon: BookOpen },
+    ],
+  },
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === 'collapsed';
   const location = useLocation();
   const { signOut } = useAuth();
   const { profile } = useProfile();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/50">
-      <SidebarContent className="bg-sidebar">
-        {/* Logo */}
-        <div className="p-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0 glow-primary">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
-          {!collapsed && (
-            <span className="font-display font-bold text-lg text-foreground text-glow-primary">
-              LUMINA
-            </span>
-          )}
+    <aside className="sidebar">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-4 py-5">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--teal), var(--brand))' }}>
+          <Sparkles className="w-4 h-4 text-white" />
         </div>
+        <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Lumina</span>
+        <div className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: 'var(--brand)' }} />
+      </div>
 
-        {/* XP Bar */}
-        {!collapsed && profile && (
-          <div className="px-4 pb-4">
-            <div className="glass rounded-lg p-3">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-xp font-semibold">Level {profile.level}</span>
-                <span className="text-muted-foreground">{profile.xp} XP</span>
-              </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full gradient-xp transition-all duration-500"
-                  style={{ width: `${Math.min((profile.xp % 100), 100)}%` }}
-                />
-              </div>
-            </div>
+      {/* XP Bar */}
+      {profile && (
+        <div className="px-4 pb-3">
+          <div className="flex justify-between text-[11px] mb-1.5">
+            <span className="font-semibold" style={{ color: 'var(--amber)' }}>Lv.{profile.level}</span>
+            <span style={{ color: 'var(--text-muted)' }}>{profile.xp % 100}/100 XP</span>
           </div>
-        )}
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${Math.min((profile.xp % 100), 100)}%`, background: 'var(--brand)' }} />
+          </div>
+        </div>
+      )}
 
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === '/'}
-                      className="hover:bg-sidebar-accent/50 transition-colors"
-                      activeClassName="bg-sidebar-accent text-primary font-medium glow-primary"
-                    >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+      {/* Nav Groups */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2" style={{ scrollbarWidth: 'none' }}>
+        {navGroups.map((group, gi) => (
+          <div key={gi} className="mb-1">
+            {group.label && (
+              <div className="nav-section-label">{group.label}</div>
+            )}
+            {group.items.map((item) => {
+              const isActive = item.url === '/'
+                ? location.pathname === '/'
+                : location.pathname.startsWith(item.url);
+              return (
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  end={item.url === '/'}
+                  className={`nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <item.icon className="nav-icon" />
+                  <span>{item.title}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
 
-      <SidebarFooter className="bg-sidebar p-3">
-        <SidebarMenuButton
-          onClick={signOut}
-          className="hover:bg-destructive/10 hover:text-destructive transition-colors w-full"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          {!collapsed && <span>Sign Out</span>}
-        </SidebarMenuButton>
-      </SidebarFooter>
-    </Sidebar>
+      {/* Footer */}
+      <div className="px-3 py-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+        <NavLink to="/upgrade" className="nav-item">
+          <Crown className="nav-icon" style={{ color: 'var(--amber)' }} />
+          <span>Upgrade</span>
+        </NavLink>
+        <NavLink to="/settings" className="nav-item">
+          <Settings className="nav-icon" />
+          <span>Settings</span>
+        </NavLink>
+        <button onClick={signOut} className="nav-item w-full text-left" style={{ background: 'none', border: 'none' }}>
+          <LogOut className="nav-icon" />
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
   );
 }
