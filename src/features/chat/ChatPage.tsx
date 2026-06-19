@@ -469,7 +469,7 @@ const ChatPage = () => {
               {messages.map(m => (
                 <MessageBubble key={m.id} message={m}
                   onRegenerate={() => handleRegenerate(m.id)} onRetry={() => handleRetry(m.id)}
-                  onEdit={onEdit ? (text) => handleEdit(m.id, text) : undefined} onTopUp={() => setBuyOpen(true)}
+                  onEdit={(text) => handleEdit(m.id, text)} onTopUp={() => setBuyOpen(true)}
                   onConfirmAction={handleConfirmAction ? () => handleConfirmAction(m.id) : undefined}
                   onCancelAction={handleCancelAction ? () => handleCancelAction(m.id) : undefined}
                 />
