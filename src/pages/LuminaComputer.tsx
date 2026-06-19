@@ -919,62 +919,38 @@ export default function LuminaComputer() {
 
   return (
     <div className="relative h-screen flex flex-col bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
-      {/* subtle ambient */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.4]"
-        style={{
-          background: "var(--bg-base)",
-        }}
-      />
-
       {/* Top bar */}
-      <header className="relative z-10 flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/80  flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white to-white/70 flex items-center justify-center shadow-sm">
-            <Cpu className="w-4 h-4 text-[var(--bg-base)]" />
+      <header className="relative z-10 flex items-center gap-3 px-4 h-11 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[var(--teal)] to-[var(--brand)] flex items-center justify-center">
+            <Cpu className="w-3 h-3 text-white" />
           </div>
-          <div>
-            <div className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)]">
-              Lumina Computer
-            </div>
-            <div className="text-[11px] text-[var(--text-primary)]/40 -mt-0.5">
-              {busy ? "Working…" : model ? model.split("/").pop() : "Idle"}
-            </div>
-          </div>
+          <span className="text-[13px] font-semibold tracking-tight text-[var(--text-primary)]">Lumina Computer</span>
+          <span className="text-[10px] text-[var(--text-muted)]">
+            {busy ? "Working…" : model ? model.split("/").pop() : "Idle"}
+          </span>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           {busy && (
-            <button
-              onClick={stop}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]/80 text-[13px] transition"
-            >
-              <Square className="w-3 h-3 fill-current" /> Stop
+            <button onClick={stop} className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-[var(--red-tint)] text-[var(--red)] text-[11px] font-medium">
+              <Square className="w-2.5 h-2.5 fill-current" /> Stop
             </button>
           )}
-          <button
-            onClick={reset}
-            className="flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)]/80 text-[13px] transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> New
+          <button onClick={reset} className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-[11px] hover:bg-[var(--bg-hover)] transition">
+            <Plus className="w-3 h-3" /> New
           </button>
-          <div
-            title="Planner → Router → Research → Architect → Coding → Evaluating → Debugging → Running → Assembling"
-            className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full bg-[var(--green-tint)] border border-[rgba(52,211,153,0.2)] text-[var(--green)] text-[13px]"
-          >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          <div title="Factory Pipeline" className="hidden sm:flex items-center gap-1 px-2.5 h-7 rounded-md bg-[var(--green-tint)] text-[var(--green)] text-[11px]">
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
             Factory
           </div>
           <button
             onClick={() => setPreviewOpen((v) => !v)}
-            className={`flex items-center gap-1.5 px-3.5 h-9 rounded-full text-[13px] font-medium transition ${
-              previewOpen
-                ? "bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-[var(--text-primary)]/90"
-                : "bg-[var(--bg-hover)] text-[var(--text-primary)] hover:bg-[var(--text-primary)]/[0.12]"
+            className={`flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-medium transition ${
+              previewOpen ? "bg-[var(--brand)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
             }`}
           >
-            <Eye className="w-3.5 h-3.5" />
-            Preview
+            <Eye className="w-3 h-3" /> Preview
           </button>
         </div>
       </header>
