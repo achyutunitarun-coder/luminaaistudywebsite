@@ -43,6 +43,9 @@ export interface Message {
   isStreaming?: boolean;
   pendingAction?: AgentAction;
   actionResolved?: boolean;
+  actionSummary?: string;
+  requiredCredits?: number;
+  currentBalance?: number;
   timestamp: number;
 }
 
