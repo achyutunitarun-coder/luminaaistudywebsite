@@ -579,8 +579,8 @@ const Dashboard = () => {
                     className={`w-full max-w-[36px] rounded-lg ${today ? 'ring-2 ring-offset-2' : ''}`}
                     style={{
                       background: dayMins > 0 ? 'linear-gradient(to top, var(--teal), var(--brand))' : 'var(--border-faint)',
-                      ringColor: 'rgba(45,212,191,0.25)',
-                      ringOffsetColor: 'var(--bg-surface)',
+                      ['--tw-ring-color' as any]: 'rgba(45,212,191,0.25)',
+                      ['--tw-ring-offset-color' as any]: 'var(--bg-surface)',
                     }}
                   />
                   <span className={`text-[10px] font-medium ${today ? 'font-semibold' : ''}`} style={{ color: today ? 'var(--teal)' : 'var(--text-muted)' }}>{day}</span>

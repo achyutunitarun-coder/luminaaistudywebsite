@@ -43,6 +43,9 @@ export interface Message {
   isStreaming?: boolean;
   pendingAction?: AgentAction;
   actionResolved?: boolean;
+  actionSummary?: string;
+  requiredCredits?: number;
+  currentBalance?: number;
   timestamp: number;
 }
 
@@ -88,6 +91,8 @@ const MessageBubble = ({
   onRetry?: () => void;
   onEdit?: (newText: string) => void;
   onTopUp?: () => void;
+  onConfirmAction?: () => void | Promise<void>;
+  onCancelAction?: () => void;
 }) => {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -464,7 +469,7 @@ const ChatPage = () => {
               {messages.map(m => (
                 <MessageBubble key={m.id} message={m}
                   onRegenerate={() => handleRegenerate(m.id)} onRetry={() => handleRetry(m.id)}
-                  onEdit={onEdit ? (text) => handleEdit(m.id, text) : undefined} onTopUp={() => setBuyOpen(true)}
+                  onEdit={(text) => handleEdit(m.id, text)} onTopUp={() => setBuyOpen(true)}
                   onConfirmAction={handleConfirmAction ? () => handleConfirmAction(m.id) : undefined}
                   onCancelAction={handleCancelAction ? () => handleCancelAction(m.id) : undefined}
                 />
