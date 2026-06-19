@@ -28,7 +28,6 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useNavigate } from "react-router-dom";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { ChatErrorBoundary } from "./ChatErrorBoundary";
 
 // ─── Types ───
 export interface Message {
@@ -392,7 +391,6 @@ const ChatPage = () => {
   const empty = messages.length === 0;
 
   return (
-    <ChatErrorBoundary>
     <div className="chat-root">
       <AnimatePresence>
         {historyOpen && (
@@ -505,7 +503,6 @@ const ChatPage = () => {
       {canvasOpen && <div className="hidden md:flex" style={{ flex: "0 0 54%", minWidth: 0 }}><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}
       {activeArtifactId && <PremiumArtifactWorkspace messages={messages} onQuote={t => setInput(p => `${p}${p ? "\n\n" : ""}${t}`)} onRegenerate={id => handleRegenerate(id)} />}
     </div>
-    </ChatErrorBoundary>
   );
 };
 
