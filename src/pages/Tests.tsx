@@ -140,135 +140,139 @@ const Tests = () => {
     const answeredCount = Object.keys(answers).length;
 
     return (
-      <div className="t-layout">
-        <div className="t-main">
-          {/* Question Navigator — Desktop */}
-          <div className="t-nav">
-            <div className="t-nav-card">
-              <div className="t-nav-header">
-                <Brain className="w-4 h-4" />
-                <span>{subject || "Test"}</span>
-              </div>
-              <div className="t-progress">
-                <div className="t-progress-text">
-                  <span>{answeredCount}/{questions.length} answered</span>
-                  <span>{Math.round((answeredCount / questions.length) * 100)}%</span>
-                </div>
-                <div className="progress-track">
-                  <motion.div className="progress-fill" animate={{ width: `${(answeredCount / questions.length) * 100}%` }} />
-                </div>
-              </div>
-              <div className="t-qgrid">
-                {questions.map((_, i) => {
-                  const isAnswered = answers[i] !== undefined;
-                  const isCurrent = i === currentQ;
-                  const isCorrect = submitted && answers[i] === questions[i].correct;
-                  const isWrong = submitted && isAnswered && answers[i] !== questions[i].correct;
-                  let cls = "t-qbtn";
-                  if (submitted) {
-                    if (isCorrect) cls += " t-qbtn-correct";
-                    else if (isWrong) cls += " t-qbtn-wrong";
-                    else cls += " t-qbtn-unanswered";
-                  } else if (isCurrent) cls += " t-qbtn-current";
-                  else if (isAnswered) cls += " t-qbtn-answered";
-                  else cls += " t-qbtn-default";
-                  return <button key={i} onClick={() => setCurrentQ(i)} className={cls}>{i + 1}</button>;
-                })}
-              </div>
-              {!submitted ? (
-                <Button onClick={submitTest} disabled={answeredCount !== questions.length} className="t-submit-btn">
-                  <CheckCircle className="w-4 h-4 mr-2" /> Submit Test
-                </Button>
-              ) : (
-                <Button onClick={() => { setQuestions([]); setAnswers({}); setSubmitted(false); setSyllabus(""); setSubject(""); }} className="t-new-btn">
-                  <ArrowLeft className="w-4 h-4 mr-2" /> New Test
-                </Button>
-              )}
+      <div className="exam-layout">
+        {/* Sidebar Navigator */}
+        <aside className="exam-sidebar">
+          <div className="exam-sidebar-header">
+            <Brain className="w-4 h-4" />
+            <span className="exam-sidebar-title">{subject || "Test"}</span>
+          </div>
+          <div className="exam-progress">
+            <div className="exam-progress-text">
+              <span>{answeredCount}/{questions.length} answered</span>
+              <span>{Math.round((answeredCount / questions.length) * 100)}%</span>
+            </div>
+            <div className="progress-track">
+              <motion.div className="progress-fill" animate={{ width: `${(answeredCount / questions.length) * 100}%` }} />
             </div>
           </div>
+          <div className="exam-qgrid">
+            {questions.map((_, i) => {
+              const isAnswered = answers[i] !== undefined;
+              const isCurrent = i === currentQ;
+              const isCorrect = submitted && answers[i] === questions[i].correct;
+              const isWrong = submitted && isAnswered && answers[i] !== questions[i].correct;
+              let cls = "exam-qbtn";
+              if (submitted) {
+                if (isCorrect) cls += " exam-q-correct";
+                else if (isWrong) cls += " exam-q-wrong";
+                else cls += " exam-q-skip";
+              } else if (isCurrent) cls += " exam-q-current";
+              else if (isAnswered) cls += " exam-q-done";
+              else cls += " exam-q-pending";
+              return <button key={i} onClick={() => setCurrentQ(i)} className={cls}>{i + 1}</button>;
+            })}
+          </div>
+          {!submitted ? (
+            <Button onClick={submitTest} disabled={answeredCount !== questions.length} className="exam-submit-btn">
+              <CheckCircle className="w-4 h-4 mr-2" /> Submit
+            </Button>
+          ) : (
+            <Button onClick={() => { setQuestions([]); setAnswers({}); setSubmitted(false); setSyllabus(""); setSubject(""); }} className="exam-new-btn">
+              <ArrowLeft className="w-4 h-4 mr-2" /> New Test
+            </Button>
+          )}
+        </aside>
 
-          {/* Question Area */}
-          <div className="t-question-area">
-            {submitted && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="t-score-banner">
-                <div className={`t-score-icon ${scoreCount === questions.length ? "t-score-perfect" : scoreCount >= questions.length / 2 ? "t-score-good" : "t-score-bad"}`}>
-                  <Trophy className="w-7 h-7" />
+        {/* Main Exam Paper */}
+        <main className="exam-paper">
+          {/* Score Banner */}
+          {submitted && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="exam-score-banner">
+              <div className={`exam-score-icon ${scoreCount === questions.length ? "exam-score-perfect" : scoreCount >= questions.length / 2 ? "exam-score-good" : "exam-score-bad"}`}>
+                <Trophy className="w-7 h-7" />
+              </div>
+              <div>
+                <p className="exam-score-value">{scoreCount}/{questions.length}</p>
+                <p className="exam-score-label">{scoreCount === questions.length ? "Perfect Score!" : scoreCount >= questions.length / 2 ? "Good effort!" : "Keep practicing"}</p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Question Card */}
+          <div className="exam-question-card">
+            <AnimatePresence mode="wait">
+              <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }} className="exam-question-inner">
+                {/* Question Header */}
+                <div className="exam-q-header">
+                  <span className={`exam-q-badge ${submitted ? (answers[currentQ] === q.correct ? "exam-qb-correct" : answers[currentQ] !== undefined ? "exam-qb-wrong" : "exam-qb-skip") : "exam-qb-active"}`}>
+                    Question {currentQ + 1}
+                  </span>
+                  <MarkdownRenderer className="exam-q-text">{q.question}</MarkdownRenderer>
+                  {submitted && (answers[currentQ] === q.correct ? <CheckCircle className="w-5 h-5 exam-icon-correct" /> : answers[currentQ] !== undefined ? <XCircle className="w-5 h-5 exam-icon-wrong" /> : null)}
                 </div>
-                <div>
-                  <p className="t-score-value">{scoreCount}/{questions.length}</p>
-                  <p className="t-score-label">{scoreCount === questions.length ? "Perfect!" : scoreCount >= questions.length / 2 ? "Good effort!" : "Keep practicing"}</p>
+
+                {/* Options */}
+                <div className="exam-options">
+                  {q.options.map((opt, oi) => {
+                    const isSelected = answers[currentQ] === oi;
+                    const isCorrectOpt = oi === q.correct;
+                    let cls = "exam-opt";
+                    if (submitted) {
+                      if (isCorrectOpt) cls += " exam-opt-correct";
+                      else if (isSelected) cls += " exam-opt-wrong";
+                      else cls += " exam-opt-dimmed";
+                    } else if (isSelected) cls += " exam-opt-selected";
+                    else cls += " exam-opt-default";
+
+                    return (
+                      <button type="button" key={oi} className={cls} onClick={() => !submitted && setAnswers(p => ({ ...p, [currentQ]: oi }))} disabled={submitted}>
+                        <span className={`exam-opt-ltr ${submitted ? (isCorrectOpt ? "exam-ltr-correct" : isSelected ? "exam-ltr-wrong" : "exam-ltr-dim") : isSelected ? "exam-ltr-sel" : "exam-ltr-def"}`}>
+                          {String.fromCharCode(65 + oi)}
+                        </span>
+                        <MarkdownRenderer className="exam-opt-text">{opt}</MarkdownRenderer>
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* Explanation */}
+                <AnimatePresence>
+                  {submitted && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="exam-explanation">
+                      <span className="exam-exp-icon">💡</span>
+                      <MarkdownRenderer className="inline">{q.explanation}</MarkdownRenderer>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
-            )}
+            </AnimatePresence>
 
-            <div className="t-question-card">
-              <AnimatePresence mode="wait">
-                <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }} className="t-question-content">
-                  <div className="t-question-header">
-                    <span className={`t-qnum ${submitted ? (answers[currentQ] === q.correct ? "t-qnum-correct" : answers[currentQ] !== undefined ? "t-qnum-wrong" : "t-qnum-skipped") : "t-qnum-active"}`}>
-                      Q{currentQ + 1}
-                    </span>
-                    <MarkdownRenderer className="t-qtext">{q.question}</MarkdownRenderer>
-                    {submitted && (answers[currentQ] === q.correct ? <CheckCircle className="w-5 h-5 t-icon-correct" /> : answers[currentQ] !== undefined ? <XCircle className="w-5 h-5 t-icon-wrong" /> : null)}
-                  </div>
-
-                  <div className="t-options">
-                    {q.options.map((opt, oi) => {
-                      const isSelected = answers[currentQ] === oi;
-                      const isCorrectOpt = oi === q.correct;
-                      let cls = "t-option";
-                      if (submitted) {
-                        if (isCorrectOpt) cls += " t-opt-correct";
-                        else if (isSelected) cls += " t-opt-wrong";
-                        else cls += " t-opt-dimmed";
-                      } else if (isSelected) cls += " t-opt-selected";
-                      else cls += " t-opt-default";
-
-                      return (
-                        <button type="button" key={oi} className={cls} onClick={() => !submitted && setAnswers(p => ({ ...p, [currentQ]: oi }))} disabled={submitted}>
-                          <span className={`t-opt-letter ${submitted ? (isCorrectOpt ? "t-ltr-correct" : isSelected ? "t-ltr-wrong" : "t-ltr-dimmed") : isSelected ? "t-ltr-selected" : "t-ltr-default"}`}>
-                            {String.fromCharCode(65 + oi)}
-                          </span>
-                          <MarkdownRenderer className="t-opt-text">{opt}</MarkdownRenderer>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <AnimatePresence>
-                    {submitted && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="t-explanation">
-                        💡 <MarkdownRenderer className="inline">{q.explanation}</MarkdownRenderer>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              </AnimatePresence>
-
-              <div className="t-question-nav">
-                <button type="button" onClick={() => setCurrentQ(c => Math.max(0, c - 1))} disabled={currentQ === 0} className="t-nav-btn">
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </button>
-                <span className="t-nav-counter">{currentQ + 1} of {questions.length}</span>
-                <button type="button" onClick={() => setCurrentQ(c => Math.min(questions.length - 1, c + 1))} disabled={currentQ === questions.length - 1} className="t-nav-btn">
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
-              </div>
-            </div>
-
-            <div className="t-mobile-submit">
-              {!submitted ? (
-                <Button onClick={submitTest} disabled={answeredCount !== questions.length} className="t-submit-btn">
-                  <CheckCircle className="w-5 h-5 mr-2" /> Submit Test
-                </Button>
-              ) : (
-                <Button onClick={() => { setQuestions([]); setAnswers({}); setSubmitted(false); setSyllabus(""); setSubject(""); }} className="t-new-btn">
-                  <ArrowLeft className="w-4 h-4 mr-2" /> New Test
-                </Button>
-              )}
+            {/* Navigation */}
+            <div className="exam-nav">
+              <button type="button" onClick={() => setCurrentQ(c => Math.max(0, c - 1))} disabled={currentQ === 0} className="exam-nav-btn">
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </button>
+              <span className="exam-nav-counter">{currentQ + 1} of {questions.length}</span>
+              <button type="button" onClick={() => setCurrentQ(c => Math.min(questions.length - 1, c + 1))} disabled={currentQ === questions.length - 1} className="exam-nav-btn">
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </button>
             </div>
           </div>
-        </div>
+
+          {/* Mobile Submit */}
+          <div className="exam-mobile-submit">
+            {!submitted ? (
+              <Button onClick={submitTest} disabled={answeredCount !== questions.length} className="exam-submit-btn">
+                <CheckCircle className="w-5 h-5 mr-2" /> Submit Test
+              </Button>
+            ) : (
+              <Button onClick={() => { setQuestions([]); setAnswers({}); setSubmitted(false); setSyllabus(""); setSubject(""); }} className="exam-new-btn">
+                <ArrowLeft className="w-4 h-4 mr-2" /> New Test
+              </Button>
+            )}
+          </div>
+        </main>
       </div>
     );
   }
