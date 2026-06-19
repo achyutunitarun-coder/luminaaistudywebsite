@@ -558,8 +558,11 @@ export async function callWithFallback(
   // If it fails within 8s, fall back to openrouter/free.
   // This guarantees <4s TTFB for 95%+ of requests.
 
-  // Primary: OWL-alpha with 3-key fanout, 8s timeout
-  const primaryTimeout = Math.min(8_000, timeoutMs);
+  // Primary: OWL-alpha with 3-key fanout. For artifacts, use longer timeout.
+  // Artifact generation needs 60-90s; chat needs <8s. Scale by tag type.
+  const isArtifactCall = /artifact|html-artifact|generate-html/i.test(tag);
+  const primaryRawMs = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(8_000, timeoutMs);
+  const primaryTimeout = primaryRawMs;
   if (primaryTimeout > 1000) {
     try {
       const res = await callModelKeyFanout(OWL, baseBody, primaryTimeout, tag, OWL_KEY_FANOUT);
@@ -569,8 +572,9 @@ export async function callWithFallback(
     }
   }
 
-  // Fallback: openrouter/free (no key needed, always available), 6s timeout
-  const fallbackTimeout = Math.min(6_000, timeoutMs);
+  // Fallback: openrouter/free. For artifacts, use longer timeout.
+  const fallbackRawMs = isArtifactCall ? Math.min(90_000, timeoutMs) : Math.min(6_000, timeoutMs);
+  const fallbackTimeout = fallbackRawMs;
   if (fallbackTimeout > 1000) {
     try {
       const res = await callModel(MODEL_FREE_ROUTER, baseBody, fallbackTimeout, `${tag}/free`);
@@ -580,10 +584,10 @@ export async function callWithFallback(
     }
   }
 
-  // Last resort: try the original model list sequentially with short timeouts
-  // Only for non-streaming (artifacts/computer) where quality matters more than speed
+  // Last resort: try the original model list sequentially
+  // For artifacts, use longer timeout; for chat, keep it short
   if (isArtifact || !isStreaming) {
-    const shortTimeout = Math.min(15_000, timeoutMs);
+    const shortTimeout = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(15_000, timeoutMs);
     for (const model of models) {
       if (_deadModels.has(model)) continue;
       try {
