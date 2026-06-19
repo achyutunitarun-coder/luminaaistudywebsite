@@ -1,12 +1,12 @@
 /**
- * LUMINA DASHBOARD v3 — Complete Rewrite
- * Fresh start. New class names. New everything.
+ * LUMINA DASHBOARD — v4
+ * Linear / Notion / Vercel-grade. Cinematic, restrained, precise.
  */
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
-  Trophy, Flame, Target, Clock, ArrowRight, CheckCircle2, Brain,
-  Sparkles, AlertTriangle, MessageSquare, BarChart3, TrendingUp,
-  TrendingDown, Zap, Layers, Activity, Crown, Rocket,
+  Trophy, Flame, Target, Clock, ArrowRight, ArrowUpRight, Brain,
+  Sparkles, MessageSquare, Activity, Crown, Command, Plus,
+  CircleDot, TrendingUp, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +20,13 @@ import { useMemo, useState, useEffect } from "react";
 import { openPricing } from "@/lib/pricing";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
-const ease = [0.25, 0.1, 0.25, 1] as const;
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, delay, ease: EASE },
+});
 
 export default function Dashboard() {
   const { profile } = useProfile();
@@ -29,6 +35,7 @@ export default function Dashboard() {
   const { isProPlus } = useSubscription();
   const navigate = useNavigate();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const prefersReduced = useReducedMotion();
 
   useEffect(() => {
     if (profile && !profile.extra_preferences) setShowOnboarding(true);
@@ -40,7 +47,7 @@ export default function Dashboard() {
   }, [profile?.extra_preferences]);
 
   const rawName = (profile?.display_name?.split(" ")[0]?.trim() || user?.email?.split("@")[0]?.trim() || "").trim();
-  const userName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName) ? "back" : rawName;
+  const userName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName) ? "Scholar" : rawName;
   const userSubjects = userPrefs?.subjects || [];
 
   const { data: todayMinutes } = useQuery({
@@ -119,145 +126,336 @@ export default function Dashboard() {
 
   const getGreeting = () => {
     const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    return h < 5 ? "Burning the midnight oil" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 21 ? "Good evening" : "Welcome back";
   };
 
-  const stats = [
-    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100}/100 XP` },
-    { icon: Flame, label: "Streak", value: `${streakDays}d`, sub: streakDays >= 7 ? "Unstoppable" : streakDays >= 3 ? "On fire" : "Build it up" },
-    { icon: Clock, label: "Today", value: totalToday > 0 ? `${hrs}h ${mins}m` : "—", sub: totalToday >= 60 ? "Deep work" : totalToday > 0 ? "Getting started" : "Not yet" },
-    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests` },
-  ];
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  const daysStudied = new Set(weeklyMinutes?.map(w => new Date(w.started_at).toDateString())).size;
+  // Weekly chart data
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weeklyData = dayLabels.map((label, i) => {
+    const targetDay = (i + 1) % 7;
+    const dm = weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === targetDay)
+      .reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
+    return { label, minutes: dm };
+  });
+  const maxMin = Math.max(...weeklyData.map(d => d.minutes), 60);
+  const daysStudied = weeklyData.filter(d => d.minutes > 0).length;
   const consistency = Math.round((daysStudied / 7) * 100);
+
+  const stats = [
+    { icon: Trophy, label: "Level", value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, accent: "text-[--brand-glow]" },
+    { icon: Flame, label: "Streak", value: String(streakDays), sub: streakDays === 1 ? "day" : "days", accent: "text-[--amber]" },
+    { icon: Clock, label: "Today", value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : "0m", sub: totalToday >= 60 ? "deep work" : "studying", accent: "text-[--teal]" },
+    { icon: Target, label: "Avg Score", value: avgScore !== null ? `${avgScore}%` : "—", sub: `${recentTests?.length || 0} tests`, accent: "text-[--green]" },
+  ];
 
   return (
     <>
-    <div className="v3-dash">
+      <div className="dash-v4">
+        {/* Cinematic ambient glow */}
+        <div className="dash-glow" aria-hidden />
 
-      {/* HEADER */}
-      <header className="v3-header">
-        <h1 className="v3-title">{getGreeting()}, {userName}.</h1>
-        <p className="v3-sub">Here's where you stand.</p>
-      </header>
-
-      {/* HERO */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease }} className="v3-hero">
-        <div className="v3-hero-left">
-          <div className="v3-badge"><Brain className="w-3.5 h-3.5" /><span>Neural Insight</span></div>
-          <h2 className="v3-headline">
-            {avgScore !== null ? <>{avgScore >= 70 ? "Strong progress" : "Building momentum"}, {userName}</> : <>Welcome back, {userName}</>}
-          </h2>
-          <div className="v3-insights">
-            <p><span className="v3-ilabel">Observation</span> — {avgScore !== null && recentTests?.length ? `Your average score is ${avgScore}% across ${recentTests.length} tests.` : `You've studied ${totalToday > 0 ? `${hrs}h ${mins}m today` : "haven't started today yet"}.`}</p>
-            <p><span className="v3-ilabel">Interpretation</span> — {weakSubjects.length ? `${weakSubjects[0].subject} is your weakest area — ${weakSubjects[0].count} mistakes.` : avgScore !== null && avgScore < 70 ? "Your scores suggest conceptual gaps." : streakDays >= 3 ? `Your ${streakDays}-day streak shows consistency.` : "Building a habit is the first step."}</p>
+        {/* Top bar */}
+        <motion.div {...fadeUp(0)} className="dash-topbar">
+          <div className="dash-crumbs">
+            <CircleDot className="w-3 h-3 text-[--brand-glow]" />
+            <span>Workspace</span>
+            <ChevronRight className="w-3 h-3 opacity-40" />
+            <span className="text-[--text-primary]">Dashboard</span>
           </div>
-          {Object.keys(subjectScores).length > 0 && (
-            <div className="v3-pills">
-              {Object.entries(subjectScores).map(([sub, score]) => (
-                <span key={sub} className={`v3-pill ${score >= 70 ? "v3-pill-g" : score >= 50 ? "v3-pill-a" : "v3-pill-r"}`}>{sub} <b>{score}%</b></span>
-              ))}
+          <div className="dash-topbar-right">
+            <span className="dash-date">{today}</span>
+            <button className="dash-cmd" onClick={() => navigate("/chat")}>
+              <Command className="w-3 h-3" />
+              <span>Ask Lumina</span>
+              <kbd>⌘K</kbd>
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Hero */}
+        <motion.section {...fadeUp(0.05)} className="dash-hero">
+          <div className="dash-hero-left">
+            <span className="dash-eyebrow">
+              <span className="dash-pulse-dot" />
+              Neural insight · live
+            </span>
+            <h1 className="dash-headline">
+              {getGreeting()}, <em>{userName}</em>.
+            </h1>
+            <p className="dash-sub">
+              {avgScore !== null && recentTests?.length
+                ? <>You're averaging <b className="text-[--text-primary]">{avgScore}%</b> across <b className="text-[--text-primary]">{recentTests.length}</b> recent tests. {weakSubjects[0] ? <>The gap sits in <b className="text-[--text-primary]">{weakSubjects[0].subject}</b> — let's close it.</> : "Momentum is yours."}</>
+                : totalToday > 0
+                  ? <>You've put in <b className="text-[--text-primary]">{hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}</b> today. Quiet, consistent work compounds.</>
+                  : <>A fresh canvas. The smallest first move beats the perfect one tomorrow.</>}
+            </p>
+            <div className="dash-hero-actions">
+              <Button onClick={() => navigate(weakSubjects.length ? "/tests" : "/study-session")} className="dash-btn-primary">
+                {weakSubjects.length ? `Practice ${weakSubjects[0].subject}` : "Start a session"}
+                <ArrowRight className="w-3.5 h-3.5 ml-2" />
+              </Button>
+              <Button onClick={() => navigate("/chat")} variant="ghost" className="dash-btn-ghost">
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> New thread
+              </Button>
             </div>
-          )}
-          <Button onClick={() => navigate(weakSubjects.length ? "/tests" : "/study-session")} size="sm" className="v3-cta">
-            {weakSubjects.length ? `Practice ${weakSubjects[0].subject}` : "Start Session"} <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-          </Button>
-        </div>
-        <div className="v3-ring">
-          <svg className="v3-ring-svg" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" className="v3-ring-bg" />
-            <motion.circle cx="50" cy="50" r="42" className="v3-ring-fill" strokeDasharray={`${2 * Math.PI * 42}`} initial={{ strokeDashoffset: 2 * Math.PI * 42 }} animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - readiness / 100) }} transition={{ duration: 1.2, delay: 0.3, ease }} />
-          </svg>
-          <div className="v3-ring-center"><span className="v3-ring-val">{avgScore ?? "—"}</span><span className="v3-ring-lbl">Readiness</span></div>
-        </div>
-      </motion.section>
-
-      {/* STATS */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4, ease }} className="v3-stats">
-        {stats.map(s => (
-          <div key={s.label} className="v3-stat">
-            <div className="v3-stat-ico"><s.icon className="w-4 h-4" /></div>
-            <div><span className="v3-stat-val">{s.value}</span><span className="v3-stat-lbl">{s.label}</span><span className="v3-stat-sub">{s.sub}</span></div>
           </div>
-        ))}
-      </motion.section>
 
-      {/* TWO COL */}
-      <div className="v3-two">
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4, ease }} className="v3-card">
-          <h3 className="v3-ch"><Layers className="w-4 h-4" />Mastery Map</h3>
-          {Object.keys(subjectScores).length > 0 ? (
-            <div className="v3-pills">
-              {Object.entries(subjectScores).map(([sub, score]) => (
-                <button key={sub} onClick={() => navigate("/weakness-radar")} className={`v3-pill ${score >= 70 ? "v3-pill-g" : score >= 50 ? "v3-pill-a" : "v3-pill-r"}`}>{sub} <b>{score}%</b></button>
+          {/* Readiness gauge */}
+          <div className="dash-gauge">
+            <svg viewBox="0 0 120 120" className="dash-gauge-svg">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#A78BFA" />
+                  <stop offset="100%" stopColor="#2DD4BF" />
+                </linearGradient>
+              </defs>
+              <circle cx="60" cy="60" r="50" className="dash-gauge-track" />
+              <motion.circle
+                cx="60" cy="60" r="50"
+                className="dash-gauge-fill"
+                strokeDasharray={`${2 * Math.PI * 50}`}
+                initial={{ strokeDashoffset: 2 * Math.PI * 50 }}
+                animate={{ strokeDashoffset: 2 * Math.PI * 50 * (1 - readiness / 100) }}
+                transition={{ duration: prefersReduced ? 0 : 1.6, delay: 0.3, ease: EASE }}
+              />
+            </svg>
+            <div className="dash-gauge-center">
+              <span className="dash-gauge-num">{avgScore ?? "—"}</span>
+              <span className="dash-gauge-lbl">Readiness</span>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* KPI strip */}
+        <motion.section {...fadeUp(0.1)} className="dash-kpis">
+          {stats.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.12 + i * 0.04, ease: EASE }}
+              className="dash-kpi"
+            >
+              <div className="dash-kpi-head">
+                <s.icon className={`w-3.5 h-3.5 ${s.accent}`} />
+                <span>{s.label}</span>
+              </div>
+              <div className="dash-kpi-val">{s.value}</div>
+              <div className="dash-kpi-sub">{s.sub}</div>
+            </motion.div>
+          ))}
+        </motion.section>
+
+        {/* Two-column: Mastery + Plan */}
+        <div className="dash-grid-2">
+          <motion.section {...fadeUp(0.15)} className="dash-panel">
+            <header className="dash-panel-head">
+              <div>
+                <h3>Mastery</h3>
+                <p>Across your tracked subjects</p>
+              </div>
+              <button onClick={() => navigate("/weakness-radar")} className="dash-link">
+                Radar <ArrowUpRight className="w-3 h-3 ml-0.5" />
+              </button>
+            </header>
+            {Object.keys(subjectScores).length > 0 ? (
+              <div className="dash-mastery">
+                {Object.entries(subjectScores).map(([sub, score], i) => (
+                  <motion.button
+                    key={sub}
+                    initial={{ opacity: 0, x: -4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + i * 0.05, duration: 0.4, ease: EASE }}
+                    onClick={() => navigate("/weakness-radar")}
+                    className="dash-mastery-row"
+                  >
+                    <span className="dash-mastery-name">{sub}</span>
+                    <div className="dash-mastery-bar">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${score}%` }}
+                        transition={{ duration: 1, delay: 0.3 + i * 0.06, ease: EASE }}
+                        className={`dash-mastery-fill ${score >= 75 ? "is-good" : score >= 50 ? "is-mid" : "is-low"}`}
+                      />
+                    </div>
+                    <span className="dash-mastery-pct">{score}%</span>
+                  </motion.button>
+                ))}
+              </div>
+            ) : (
+              <div className="dash-empty">
+                <p>No tests yet. Generate one to see your mastery surface here.</p>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="dash-link mt-2">
+                  Take a test <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
+            )}
+          </motion.section>
+
+          <motion.section {...fadeUp(0.18)} className="dash-panel">
+            <header className="dash-panel-head">
+              <div>
+                <h3>Today's plan</h3>
+                <p>Quiet wins, in order</p>
+              </div>
+              <span className="dash-badge"><Sparkles className="w-3 h-3" /> auto</span>
+            </header>
+            <ul className="dash-plan">
+              {[
+                { l: weakSubjects[0] ? `Practice ${weakSubjects[0].subject}` : "Warm-up: 5 flashcards", t: "20m", u: "/tests" },
+                { l: "Review yesterday's mistakes", t: "10m", u: "/weakness-radar" },
+                { l: "One focused study session", t: "25m", u: "/study-session" },
+              ].map((x, i) => (
+                <li key={i}>
+                  <button onClick={() => navigate(x.u)} className="dash-plan-row">
+                    <span className="dash-plan-dot" />
+                    <span className="dash-plan-l">{x.l}</span>
+                    <span className="dash-plan-t">{x.t}</span>
+                    <ChevronRight className="w-3.5 h-3.5 opacity-30 group-hover:opacity-80 transition" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </motion.section>
+        </div>
+
+        {/* Activity chart */}
+        <motion.section {...fadeUp(0.22)} className="dash-panel">
+          <header className="dash-panel-head">
+            <div>
+              <h3>This week</h3>
+              <p>{daysStudied} of 7 days · {consistency}% consistency</p>
+            </div>
+            <button onClick={() => navigate("/performance")} className="dash-link">
+              Performance <ArrowUpRight className="w-3 h-3 ml-0.5" />
+            </button>
+          </header>
+          <div className="dash-chart">
+            {weeklyData.map((d, i) => {
+              const pct = (d.minutes / maxMin) * 100;
+              const isToday = i === ((new Date().getDay() + 6) % 7);
+              return (
+                <div key={d.label + i} className="dash-chart-col">
+                  <div className="dash-chart-track">
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${Math.max(pct, d.minutes > 0 ? 4 : 0)}%` }}
+                      transition={{ duration: 0.8, delay: 0.25 + i * 0.05, ease: EASE }}
+                      className={`dash-chart-bar ${isToday ? "is-today" : ""}`}
+                    />
+                  </div>
+                  <span className={`dash-chart-lbl ${isToday ? "is-today" : ""}`}>{d.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* Upgrade banner (subtle, Vercel-style) */}
+        {!isProPlus && (
+          <motion.section {...fadeUp(0.26)} className="dash-upgrade">
+            <div className="dash-upgrade-l">
+              <div className="dash-upgrade-icon"><Crown className="w-4 h-4" /></div>
+              <div>
+                <h4>Lumina Hub</h4>
+                <p>Unlock 10 neurocognitive engines · ₹499/mo</p>
+              </div>
+            </div>
+            <Button onClick={openPricing} className="dash-btn-primary">
+              Upgrade <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+            </Button>
+          </motion.section>
+        )}
+
+        {/* Weakness cards */}
+        <motion.section {...fadeUp(0.3)}>
+          <header className="dash-panel-head dash-section-head">
+            <div>
+              <h3>Where to focus</h3>
+              <p>Top patterns from your recent work</p>
+            </div>
+            <button onClick={() => navigate("/weakness-radar")} className="dash-link">
+              Full analysis <ArrowUpRight className="w-3 h-3 ml-0.5" />
+            </button>
+          </header>
+          {weakSubjects.length > 0 ? (
+            <div className="dash-weak-grid">
+              {weakSubjects.map((w, i) => (
+                <motion.button
+                  key={w.subject}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 + i * 0.06, duration: 0.5, ease: EASE }}
+                  onClick={() => navigate("/tests")}
+                  className="dash-weak"
+                >
+                  <div className="dash-weak-head">
+                    <span className={`dash-weak-tag ${w.count >= 10 ? "is-c" : w.count >= 5 ? "is-w" : "is-n"}`}>
+                      <Activity className="w-3 h-3" />
+                      {w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs work" : "Watch"}
+                    </span>
+                    <ArrowUpRight className="w-3.5 h-3.5 opacity-40" />
+                  </div>
+                  <h4>{w.subject}</h4>
+                  <p>{w.count} mistakes · mostly {w.topMistakeType}</p>
+                  <div className="dash-weak-track">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(w.count * 5, 100)}%` }}
+                      transition={{ duration: 1, delay: 0.45 + i * 0.08, ease: EASE }}
+                      className="dash-weak-fill"
+                    />
+                  </div>
+                </motion.button>
               ))}
             </div>
           ) : (
-            <div className="v3-empty"><p>Take tests to see your mastery map</p><Button variant="ghost" size="sm" onClick={() => navigate("/tests")} className="mt-2 text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
+            <div className="dash-panel dash-empty">
+              <TrendingUp className="w-5 h-5 mb-2 text-[--green]" />
+              <p className="text-[--text-primary] font-medium">All clear, for now.</p>
+              <p>Take a test to surface what to sharpen next.</p>
+            </div>
           )}
         </motion.section>
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.4, ease }} className="v3-card">
-          <h3 className="v3-ch"><Zap className="w-4 h-4" />Today's Plan</h3>
-          <div className="v3-plan">
-            {[{ l: "Practice weak areas", t: "20 min" }, { l: "Review flashcards", t: "10 min" }, { l: "Take a quiz", t: "15 min" }].map((x, i) => (
-              <div key={i} className="v3-prow"><span>{x.l}</span><span className="v3-ptime">{x.t}</span></div>
+
+        {/* Actions */}
+        <motion.section {...fadeUp(0.36)}>
+          <header className="dash-panel-head dash-section-head">
+            <div>
+              <h3>Quick actions</h3>
+              <p>Jump into your tools</p>
+            </div>
+          </header>
+          <div className="dash-actions">
+            {[
+              { n: "AI Chat", d: "Ask anything", i: MessageSquare, u: "/chat" },
+              { n: "Generate Test", d: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", i: Target, u: "/tests" },
+              { n: "Brain Hub", d: "10 engines", i: Brain, u: "/hub" },
+              { n: "All Tools", d: "9 AI tools", i: Sparkles, u: "/ai-tools" },
+            ].map((a, i) => (
+              <motion.button
+                key={a.n}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + i * 0.04, duration: 0.4, ease: EASE }}
+                onClick={() => navigate(a.u)}
+                className="dash-action"
+              >
+                <div className="dash-action-icon"><a.i className="w-4 h-4" /></div>
+                <div className="dash-action-text">
+                  <span className="dash-action-name">{a.n}</span>
+                  <span className="dash-action-desc">{a.d}</span>
+                </div>
+                <ArrowUpRight className="w-3.5 h-3.5 opacity-30 group-hover:opacity-100 transition" />
+              </motion.button>
             ))}
           </div>
         </motion.section>
       </div>
 
-      {/* UPGRADE */}
-      {!isProPlus && (
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4, ease }} className="v3-upgrade">
-          <div className="v3-upg-text"><Crown className="w-4 h-4" /><span>Unlock Lumina Hub — 10 brain engines for ₹499/mo</span></div>
-          <Button onClick={openPricing} size="sm" className="v3-upg-btn"><Rocket className="w-3.5 h-3.5 mr-1.5" />Upgrade</Button>
-        </motion.section>
-      )}
-
-      {/* WEAKNESS */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.4, ease }}>
-        <div className="v3-sh"><h3 className="v3-ch"><Activity className="w-4 h-4" />Weakness Radar</h3><Button variant="ghost" size="sm" onClick={() => navigate("/weakness-radar")} className="v3-slink">Full Analysis <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
-        {weakSubjects.length > 0 ? (
-          <div className="v3-weak-grid">
-            {weakSubjects.map((w, i) => (
-              <motion.button key={w.subject} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.08, duration: 0.35, ease }} onClick={() => navigate("/tests")} className="v3-weak-card">
-                <div className="v3-weak-hdr"><span className={`v3-sev ${w.count >= 10 ? "v3-sev-c" : w.count >= 5 ? "v3-sev-w" : "v3-sev-n"}`}><AlertTriangle className="w-3 h-3" />{w.count >= 10 ? "Critical" : w.count >= 5 ? "Needs Work" : "Watch"}</span></div>
-                <h4 className="v3-weak-title">{w.subject}</h4>
-                <p className="v3-weak-desc">{w.count} mistakes · {w.topMistakeType}</p>
-                <div className="v3-weak-track"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(w.count * 5, 100)}%` }} transition={{ duration: 0.8, delay: 0.5 + i * 0.1, ease }} className="v3-weak-fill" /></div>
-              </motion.button>
-            ))}
-          </div>
-        ) : (
-          <div className="v3-empty-card"><CheckCircle2 className="w-6 h-6 mb-2" /><p className="v3-empty-title">Looking good!</p><p className="v3-empty-desc">Take tests to discover areas for improvement</p><Button variant="outline" size="sm" onClick={() => navigate("/tests")} className="mt-4 rounded-xl text-xs">Take a Test <ArrowRight className="w-3 h-3 ml-1" /></Button></div>
-        )}
-      </motion.section>
-
-      {/* ACTIONS */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.4, ease }}>
-        <h3 className="v3-ch mb-4"><Sparkles className="w-4 h-4" />Intelligence Hub</h3>
-        <div className="v3-actions">
-          {[{ n: "AI Chat", d: "Ask anything", i: MessageSquare, u: "/chat" }, { n: "Generate Test", d: userSubjects[0] ? `Try ${userSubjects[0]}` : "Any topic", i: Target, u: "/tests" }, { n: "Brain Hub", d: "10 brain engines", i: Brain, u: "/hub" }, { n: "All Tools", d: "9 AI tools", i: Sparkles, u: "/ai-tools" }].map(a => (
-            <button key={a.n} onClick={() => navigate(a.u)} className="v3-action"><div className="v3-action-ico"><a.i className="w-5 h-5" /></div><span className="v3-action-name">{a.n}</span><span className="v3-action-desc">{a.d}</span></button>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* CHART */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45, duration: 0.4, ease }} className="v3-card">
-        <div className="v3-sh"><h3 className="v3-ch"><BarChart3 className="w-4 h-4" />Weekly Evolution</h3><span className="v3-consistency">{daysStudied}/7 days · {consistency}% consistency</span></div>
-        <div className="v3-chart">
-          {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => {
-            const dm = weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (i + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0;
-            const mx = Math.max(...[0,1,2,3,4,5,6].map(j => weeklyMinutes?.filter(s => new Date(s.started_at).getDay() === (j + 1) % 7).reduce((sum, s) => sum + Math.min(s.duration_minutes || 0, 1440), 0) || 0), 1);
-            return <div key={day} className="v3-chart-col"><motion.div initial={{ height: 0 }} animate={{ height: `${Math.max((dm / mx) * 100, 6)}%` }} transition={{ duration: 0.6, delay: 0.1 * i, ease }} className="v3-chart-bar" /><span className="v3-chart-lbl">{day}</span></div>;
-          })}
-        </div>
-      </motion.section>
-
-    </div>
-    {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
+      {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
     </>
   );
 }
