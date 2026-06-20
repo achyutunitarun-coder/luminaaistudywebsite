@@ -12,7 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 const navGroups = [
   {
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
       { title: "Brain Hub", url: "/hub", icon: Brain },
     ],
