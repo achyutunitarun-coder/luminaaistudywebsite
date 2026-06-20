@@ -1,4 +1,4 @@
--- [1/47] 20260306080304_c1d51353-bdfa-4fbe-bca3-1016c10d2fb6.sql
+-- Migration: 20260306080304_c1d51353-bdfa-4fbe-bca3-1016c10d2fb6.sql
 -- Timestamp update function
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -192,11 +192,11 @@ ALTER TABLE public.achievements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own achievements" ON public.achievements FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own achievements" ON public.achievements FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- [2/47] 20260306080305_add_onboarding.sql
+-- Migration: 20260306080305_add_onboarding.sql
 -- Add onboarding_completed column to profiles table
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
 
--- [3/47] 20260307053621_cbf11a40-471c-4c0a-bb3f-6d60dbe79eac.sql
+-- Migration: 20260307053621_cbf11a40-471c-4c0a-bb3f-6d60dbe79eac.sql
 -- Study plans table
 CREATE TABLE public.study_plans (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -254,18 +254,18 @@ CREATE POLICY "Users can update own sessions" ON public.study_sessions FOR UPDAT
 -- Add total_study_minutes to profiles
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS total_study_minutes INTEGER NOT NULL DEFAULT 0;
 
--- [4/47] 20260307152721_4b1ea84c-884d-4040-9406-789066f82b9a.sql
+-- Migration: 20260307152721_4b1ea84c-884d-4040-9406-789066f82b9a.sql
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS extra_preferences text DEFAULT NULL;
 
--- [5/47] 20260307155326_e7f72800-f9ed-4492-8563-d42514d8dec0.sql
+-- Migration: 20260307155326_e7f72800-f9ed-4492-8563-d42514d8dec0.sql
 UPDATE study_sessions SET status = 'completed', ended_at = now(), duration_minutes = 0 WHERE status = 'active';
 UPDATE study_sessions SET duration_minutes = 0;
 
--- [6/47] 20260308073544_02fe62be-4f79-465a-afe0-f0096cf17679.sql
+-- Migration: 20260308073544_02fe62be-4f79-465a-afe0-f0096cf17679.sql
 UPDATE study_sessions SET duration_minutes = 0;
 UPDATE profiles SET total_study_minutes = 0;
 
--- [7/47] 20260308074642_c10b65ce-c496-4745-b134-461e9b3d517e.sql
+-- Migration: 20260308074642_c10b65ce-c496-4745-b134-461e9b3d517e.sql
 CREATE OR REPLACE FUNCTION public.increment_study_minutes(p_user_id uuid, p_minutes integer)
 RETURNS void
 LANGUAGE plpgsql
@@ -279,7 +279,7 @@ BEGIN
 END;
 $$;
 
--- [8/47] 20260312101310_a3895a67-3dfb-48ac-aa7a-6c49d397fac4.sql
+-- Migration: 20260312101310_a3895a67-3dfb-48ac-aa7a-6c49d397fac4.sql
 CREATE TABLE public.transcription_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -304,7 +304,7 @@ CREATE POLICY "Service can update jobs" ON public.transcription_jobs
   USING (true)
   WITH CHECK (true);
 
--- [9/47] 20260312131619_56196f0a-9237-4c1c-98b3-480bf897d7c7.sql
+-- Migration: 20260312131619_56196f0a-9237-4c1c-98b3-480bf897d7c7.sql
 CREATE TABLE public.saved_lectures (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -326,7 +326,7 @@ CREATE POLICY "Users can delete own lectures" ON public.saved_lectures FOR DELET
 
 CREATE TRIGGER update_saved_lectures_updated_at BEFORE UPDATE ON public.saved_lectures FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- [10/47] 20260326124233_cc094c90-6531-4f92-a0c4-0edbc5e32c6f.sql
+-- Migration: 20260326124233_cc094c90-6531-4f92-a0c4-0edbc5e32c6f.sql
 CREATE TABLE public.usage_tracking (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -412,7 +412,7 @@ BEGIN
 END;
 $$;
 
--- [11/47] 20260328062308_c3c18458-3e4b-4c2e-9b89-24b5172cd7af.sql
+-- Migration: 20260328062308_c3c18458-3e4b-4c2e-9b89-24b5172cd7af.sql
 -- 1. Fix profiles: restrict SELECT to own profile only
 DROP POLICY IF EXISTS "Anyone can view profiles" ON public.profiles;
 CREATE POLICY "Users can view own profile"
@@ -481,7 +481,7 @@ CREATE POLICY "Users can delete own usage"
   TO authenticated
   USING (auth.uid() = user_id);
 
--- [12/47] 20260328062404_005feeb6-c74f-4417-95f7-b5643d043bcc.sql
+-- Migration: 20260328062404_005feeb6-c74f-4417-95f7-b5643d043bcc.sql
 -- 1. Subscriptions: remove user INSERT, only service role should manage
 DROP POLICY IF EXISTS "Users can insert own subscription" ON public.subscriptions;
 
@@ -516,7 +516,7 @@ CREATE POLICY "Users can insert own profile"
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
--- [13/47] 20260329100852_34a08339-7ec5-4225-b4db-9464a6218626.sql
+-- Migration: 20260329100852_34a08339-7ec5-4225-b4db-9464a6218626.sql
 -- Fix all RLS policies: change from public role to authenticated role
 -- This prevents anonymous/unauthenticated users from even attempting queries
 
@@ -611,7 +611,7 @@ CREATE POLICY "Users can insert own tests" ON public.tests FOR INSERT TO authent
 CREATE POLICY "Users can update own tests" ON public.tests FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users can view own tests" ON public.tests FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
--- [14/47] 20260329102838_b98e3af9-ba93-4e63-96e2-9efd349b565c.sql
+-- Migration: 20260329102838_b98e3af9-ba93-4e63-96e2-9efd349b565c.sql
 -- Create a SECURITY DEFINER function to safely award XP, coins, update level and streak
 CREATE OR REPLACE FUNCTION public.award_xp_coins(
   p_user_id uuid,
@@ -809,7 +809,7 @@ BEGIN
 END;
 $$;
 
--- [15/47] 20260329122105_98c26582-3ca5-4465-968c-00166a818478.sql
+-- Migration: 20260329122105_98c26582-3ca5-4465-968c-00166a818478.sql
 -- 1. Ensure protect_gamification_columns trigger is attached to profiles
 DO $$
 BEGIN
@@ -860,7 +860,7 @@ CREATE TRIGGER enforce_quest_limits_trigger
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_quest_limits();
 
--- [16/47] 20260330144601_e71846bf-e9ee-4375-a611-d5452c2be709.sql
+-- Migration: 20260330144601_e71846bf-e9ee-4375-a611-d5452c2be709.sql
 -- Resources table for persistent AI-generated study materials
 CREATE TABLE public.resources (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -958,7 +958,7 @@ BEGIN
 END;
 $$;
 
--- [17/47] 20260410112012_d9344296-a964-4433-9d6f-29f8cd861cff.sql
+-- Migration: 20260410112012_d9344296-a964-4433-9d6f-29f8cd861cff.sql
 CREATE TABLE public.guided_lessons (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -996,7 +996,7 @@ ON public.guided_lessons FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
--- [18/47] 20260416022100_7c24c1cc-f9e7-4c4d-884d-7638df6f4618.sql
+-- Migration: 20260416022100_7c24c1cc-f9e7-4c4d-884d-7638df6f4618.sql
 CREATE TABLE public.learning_questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -1081,7 +1081,7 @@ CREATE POLICY "Members can insert squad messages" ON public.squad_messages FOR I
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.squad_messages;
 
--- [19/47] 20260418044902_df23ad44-b401-40ca-9ede-0ac2d75aef03.sql
+-- Migration: 20260418044902_df23ad44-b401-40ca-9ede-0ac2d75aef03.sql
 -- 1. CONSENT TABLE: User opt-in for training data collection
 CREATE TABLE IF NOT EXISTS public.data_consent (
   user_id UUID PRIMARY KEY,
@@ -1182,7 +1182,7 @@ CREATE TRIGGER feedback_bumps_quality
 AFTER INSERT ON public.learning_feedback
 FOR EACH ROW EXECUTE FUNCTION public.bump_interaction_quality();
 
--- [20/47] 20260419033854_313c3ef4-76df-45dc-b176-e85313e0550f.sql
+-- Migration: 20260419033854_313c3ef4-76df-45dc-b176-e85313e0550f.sql
 CREATE TABLE public.chat_artifacts (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
@@ -1208,11 +1208,76 @@ CREATE POLICY "Service role full access artifacts" ON public.chat_artifacts FOR 
 CREATE INDEX idx_chat_artifacts_chat ON public.chat_artifacts(chat_id, created_at DESC);
 CREATE INDEX idx_chat_artifacts_user ON public.chat_artifacts(user_id, created_at DESC);
 
--- [21/47] 20260426162547_9d6e38ca-34b2-46c8-a72d-88448bd59dab.sql
+-- Migration: 20260426162547_9d6e38ca-34b2-46c8-a72d-88448bd59dab.sql
 ALTER TABLE public.chat_artifacts DROP CONSTRAINT IF EXISTS chat_artifacts_artifact_type_check;
 ALTER TABLE public.chat_artifacts ADD CONSTRAINT chat_artifacts_artifact_type_check CHECK (artifact_type = ANY (ARRAY['notes'::text, 'exam'::text, 'slides'::text]));
 
--- [22/47] 20260504062357_ec837ab2-ba51-4afc-a697-5bc039ff3c8d.sql
+-- Migration: 20260502035809_3feb8f37-e86e-4577-a348-c766b237b602.sql
+CREATE TABLE IF NOT EXISTS public.artifact_jobs (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL,
+  chat_id UUID REFERENCES public.chats(id) ON DELETE SET NULL,
+  prompt TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  artifact_type TEXT NOT NULL CHECK (artifact_type IN ('notes', 'exam', 'slides', 'code')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+  html TEXT,
+  error_message TEXT,
+  model_used TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.artifact_jobs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own artifact jobs" ON public.artifact_jobs;
+CREATE POLICY "Users can view their own artifact jobs"
+ON public.artifact_jobs FOR SELECT
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create their own artifact jobs" ON public.artifact_jobs;
+CREATE POLICY "Users can create their own artifact jobs"
+ON public.artifact_jobs FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+ALTER TABLE public.chat_messages
+  ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text',
+  ADD COLUMN IF NOT EXISTS artifact_type TEXT,
+  ADD COLUMN IF NOT EXISTS artifact_html TEXT,
+  ADD COLUMN IF NOT EXISTS topic TEXT,
+  ADD COLUMN IF NOT EXISTS credits_used NUMERIC,
+  ADD COLUMN IF NOT EXISTS new_balance NUMERIC;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chat_messages_message_type_check'
+  ) THEN
+    ALTER TABLE public.chat_messages
+      ADD CONSTRAINT chat_messages_message_type_check
+      CHECK (message_type IN ('text', 'artifact', 'error', 'insufficient_credits'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chat_messages_artifact_type_check'
+  ) THEN
+    ALTER TABLE public.chat_messages
+      ADD CONSTRAINT chat_messages_artifact_type_check
+      CHECK (artifact_type IS NULL OR artifact_type IN ('notes', 'exam', 'slides', 'code'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_artifact_jobs_user_created ON public.artifact_jobs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_artifact_jobs_status_created ON public.artifact_jobs(status, created_at ASC);
+
+DROP TRIGGER IF EXISTS update_artifact_jobs_updated_at ON public.artifact_jobs;
+CREATE TRIGGER update_artifact_jobs_updated_at
+BEFORE UPDATE ON public.artifact_jobs
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Migration: 20260504062357_ec837ab2-ba51-4afc-a697-5bc039ff3c8d.sql
 create table if not exists public.user_credit_balances (
   user_id uuid primary key,
   balance numeric(12,2) not null default 5,
@@ -1410,7 +1475,7 @@ grant execute on function public.apply_dodo_credits_for_user(uuid,text,text,text
 grant execute on function public.apply_dodo_credits(text,text,text) to authenticated;
 grant execute on function public.spend_user_credits(numeric,text) to authenticated;
 
--- [23/47] 20260504062425_495be6c1-3c19-4846-8f22-e788962e3cdd.sql
+-- Migration: 20260504062425_495be6c1-3c19-4846-8f22-e788962e3cdd.sql
 revoke execute on function public.get_dodo_credit_product(text) from public, anon;
 revoke execute on function public.apply_dodo_credits(text,text,text) from public, anon;
 revoke execute on function public.apply_dodo_credits_for_user(uuid,text,text,text) from public, anon, authenticated;
@@ -1421,7 +1486,7 @@ grant execute on function public.apply_dodo_credits(text,text,text) to authentic
 grant execute on function public.apply_dodo_credits_for_user(uuid,text,text,text) to service_role;
 grant execute on function public.spend_user_credits(numeric,text) to authenticated;
 
--- [24/47] 20260601044811_39ed7356-c7c1-4a11-b8dc-aec6db3cbbe2.sql
+-- Migration: 20260601044811_39ed7356-c7c1-4a11-b8dc-aec6db3cbbe2.sql
 -- 1. parent_links: remove permissive anon read; add a SECURITY DEFINER lookup-by-code function
 DROP POLICY IF EXISTS "Public read by access code" ON public.parent_links;
 
@@ -1468,7 +1533,7 @@ REVOKE EXECUTE ON FUNCTION public.sync_leaderboard(uuid) FROM anon, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.apply_dodo_credits_for_user(uuid, text, text, text) FROM anon, authenticated, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_dodo_credit_product(text) FROM anon, PUBLIC;
 
--- [25/47] 20260602052331_cd9f6632-e1ea-4443-988f-85d8803262c2.sql
+-- Migration: 20260602052331_cd9f6632-e1ea-4443-988f-85d8803262c2.sql
 -- 1) Stop users from self-granting paid exam pack unlocks.
 -- Remove authenticated INSERT/UPDATE policies; only service_role (via webhook) should write.
 DROP POLICY IF EXISTS "Users insert own unlocks" ON public.user_unlocked_packs;
@@ -1501,10 +1566,10 @@ USING (
   OR realtime.topic() LIKE ('%' || auth.uid()::text)
 );
 
--- [26/47] 20260602053409_78ab28cc-97fe-4bb9-a3d1-dd450b4dbbb6.sql
+-- Migration: 20260602053409_78ab28cc-97fe-4bb9-a3d1-dd450b4dbbb6.sql
 REVOKE EXECUTE ON FUNCTION public.apply_dodo_credits(text, text, text) FROM authenticated, anon, public;
 
--- [27/47] 20260605135446_cb398f96-012d-4ece-bdcc-63a64e61d594.sql
+-- Migration: 20260605135446_cb398f96-012d-4ece-bdcc-63a64e61d594.sql
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.artifact_jobs TO authenticated;
 GRANT ALL ON public.artifact_jobs TO service_role;
 
@@ -1529,7 +1594,7 @@ GRANT ALL ON public.saved_lectures TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.tests TO authenticated;
 GRANT ALL ON public.tests TO service_role;
 
--- [28/47] 20260606033456_02200699-f573-4916-a703-b1e5f3405517.sql
+-- Migration: 20260606033456_02200699-f573-4916-a703-b1e5f3405517.sql
 -- Fix: squads table exposed all rows + invite codes via USING(true) SELECT policy
 -- Replace with a SECURITY DEFINER lookup function that only returns a squad
 -- when the caller provides the exact invite code.
@@ -1568,7 +1633,7 @@ WITH CHECK (
   )
 );
 
--- [29/47] 20260606035120_47745d77-e0d0-43d5-96b9-1e2566e151bb.sql
+-- Migration: 20260606035120_47745d77-e0d0-43d5-96b9-1e2566e151bb.sql
 -- thread_summaries
 CREATE TABLE public.thread_summaries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1633,7 +1698,7 @@ ALTER TABLE public.safety_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own safety events" ON public.safety_events FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 
--- [30/47] 20260608070501_d4be5c85-43f6-4cc8-9d7b-38d36fb04c1d.sql
+-- Migration: 20260608070501_d4be5c85-43f6-4cc8-9d7b-38d36fb04c1d.sql
 DROP POLICY IF EXISTS "Scoped realtime subscriptions" ON realtime.messages;
 
 CREATE POLICY "Scoped realtime subscriptions"
@@ -1654,10 +1719,10 @@ USING (
   OR realtime.topic() LIKE ('user-' || auth.uid()::text || '-%')
 );
 
--- [31/47] 20260608071100_f9f342c6-4db3-47fe-b4ae-8e52feb31e47.sql
+-- Migration: 20260608071100_f9f342c6-4db3-47fe-b4ae-8e52feb31e47.sql
 UPDATE public.crisis_sessions SET state='resolved', last_updated=now() WHERE state NOT IN ('resolved','escalated');
 
--- [32/47] 20260608073214_b94442ea-ed31-4e94-8f8c-103481b91e28.sql
+-- Migration: 20260608073214_b94442ea-ed31-4e94-8f8c-103481b91e28.sql
 CREATE TABLE IF NOT EXISTS public.user_connections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1696,7 +1761,7 @@ CREATE TRIGGER user_connections_touch_updated_at
   BEFORE UPDATE ON public.user_connections
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
--- [33/47] 20260608080300_324c7726-d50d-4b40-8578-7d63191bd587.sql
+-- Migration: 20260608080300_324c7726-d50d-4b40-8578-7d63191bd587.sql
 CREATE OR REPLACE FUNCTION public.sync_dodo_entitlement_for_user(
   _user_id uuid,
   _product_id text,
@@ -1837,14 +1902,14 @@ GRANT EXECUTE ON FUNCTION public.sync_dodo_entitlement_for_user(uuid,text,text,t
 REVOKE EXECUTE ON FUNCTION public.apply_dodo_credits_for_user(uuid,text,text,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.apply_dodo_credits_for_user(uuid,text,text,text) TO service_role;
 
--- [34/47] 20260608101040_bdd57e8a-cf8d-4dad-903a-9c6d260a8391.sql
+-- Migration: 20260608101040_bdd57e8a-cf8d-4dad-903a-9c6d260a8391.sql
 ALTER POLICY "Users can create their own artifact jobs" ON public.artifact_jobs TO authenticated;
 ALTER POLICY "Users can view their own artifact jobs" ON public.artifact_jobs TO authenticated;
 
--- [35/47] 20260608104348_9f31b823-8541-4070-b734-ef0922a7f9d7.sql
+-- Migration: 20260608104348_9f31b823-8541-4070-b734-ef0922a7f9d7.sql
 CREATE POLICY "Users insert own safety events" ON public.safety_events FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
--- [36/47] 20260610071905_04aaa840-f5d8-4b5b-8714-dcc8850f08fc.sql
+-- Migration: 20260610071905_04aaa840-f5d8-4b5b-8714-dcc8850f08fc.sql
 DROP POLICY IF EXISTS "Users upload own pack html" ON storage.objects;
 CREATE POLICY "Users upload own pack html" ON storage.objects
 FOR INSERT TO authenticated
@@ -1877,7 +1942,7 @@ WITH CHECK (
   )
 );
 
--- [37/47] 20260612081229_38e66832-be4d-4215-ac82-1a3485897cb3.sql
+-- Migration: 20260612081229_38e66832-be4d-4215-ac82-1a3485897cb3.sql
 -- 1) Allow reading shared (null user_id) learning questions
 DROP POLICY IF EXISTS "Read shared learning questions" ON public.learning_questions;
 CREATE POLICY "Read shared learning questions"
@@ -1903,7 +1968,7 @@ USING (
   )
 );
 
--- [38/47] 20260612101155_2b46da8b-907e-4136-b806-5126ee2bcb56.sql
+-- Migration: 20260612101155_2b46da8b-907e-4136-b806-5126ee2bcb56.sql
 CREATE OR REPLACE FUNCTION public.get_dodo_credit_product(_product_id text)
  RETURNS TABLE(product_name text, credits numeric, product_type text, plan_tier text)
  LANGUAGE sql
@@ -1924,7 +1989,7 @@ AS $function$
   where p.product_id = _product_id;
 $function$;
 
--- [39/47] 20260614104241_email_infra.sql
+-- Migration: 20260614104241_email_infra.sql
 -- Email infrastructure
 -- Creates the queue system, send log, send state, suppression, and unsubscribe
 -- tables used by both auth and transactional emails.
@@ -2228,20 +2293,20 @@ CREATE INDEX IF NOT EXISTS idx_unsubscribe_tokens_token ON public.email_unsubscr
 --    via net.http_post using the vault-stored service_role key.
 --    To revert: SELECT cron.unschedule('process-email-queue');
 
--- [40/47] 20260615063328_b450b63e-99d3-44f2-9f3d-2c0157d6d602.sql
+-- Migration: 20260615063328_b450b63e-99d3-44f2-9f3d-2c0157d6d602.sql
 SELECT 1;
 
--- [41/47] 20260615063347_3ac5731a-a34e-4b0d-80df-0e68c71e303e.sql
+-- Migration: 20260615063347_3ac5731a-a34e-4b0d-80df-0e68c71e303e.sql
 ALTER FUNCTION public.enqueue_email(text, jsonb) SET search_path = public, pgmq;
 ALTER FUNCTION public.delete_email(text, bigint) SET search_path = public, pgmq;
 ALTER FUNCTION public.move_to_dlq(text, text, bigint, jsonb) SET search_path = public, pgmq;
 ALTER FUNCTION public.read_email_batch(text, integer, integer) SET search_path = public, pgmq;
 
--- [42/47] 20260615063406_96630180-249a-43c5-a605-2c65a530f604.sql
+-- Migration: 20260615063406_96630180-249a-43c5-a605-2c65a530f604.sql
 DROP POLICY IF EXISTS "Block client writes to user_unlocked_packs" ON public.user_unlocked_packs;
 CREATE POLICY "Block client writes to user_unlocked_packs" ON public.user_unlocked_packs AS RESTRICTIVE FOR ALL TO authenticated, anon USING (false) WITH CHECK (false);
 
--- [43/47] 20260616093928_cd47e417-b4e2-40f7-8924-3ab2c68074a9.sql
+-- Migration: 20260616093928_cd47e417-b4e2-40f7-8924-3ab2c68074a9.sql
 -- Remove client-side write access to leaderboard_entries; only the sync_leaderboard SECURITY DEFINER RPC writes.
 DROP POLICY IF EXISTS "Users can insert own entries" ON public.leaderboard_entries;
 DROP POLICY IF EXISTS "Users can update own entries" ON public.leaderboard_entries;
@@ -2251,7 +2316,7 @@ COMMENT ON TABLE public.achievements IS 'Inserts performed by service role / edg
 COMMENT ON TABLE public.usage_tracking IS 'Writes only via public.increment_usage(...) SECURITY DEFINER RPC. Clients may only read their own rows.';
 COMMENT ON TABLE public.user_connections IS 'OAuth tokens. Writes performed exclusively by service role in edge functions. Clients may read/delete their own rows.';
 
--- [44/47] 20260616095903_ce9924b8-9c62-4654-bcfd-f43207a45f76.sql
+-- Migration: 20260616095903_ce9924b8-9c62-4654-bcfd-f43207a45f76.sql
 -- 1. daily_quests: drop client write policies; writes only via service role/edge function
 DROP POLICY IF EXISTS "Users can insert their own daily quests" ON public.daily_quests;
 DROP POLICY IF EXISTS "Users can update their own daily quests" ON public.daily_quests;
@@ -2310,7 +2375,7 @@ WITH CHECK (
   )
 );
 
--- [45/47] 20260617104229_c8a0c00b-1b01-487c-872d-f16cfd63b35a.sql
+-- Migration: 20260617104229_c8a0c00b-1b01-487c-872d-f16cfd63b35a.sql
 -- daily_quests: remove client INSERT/UPDATE; keep SELECT and DELETE
 DROP POLICY IF EXISTS "Users can insert own quests" ON public.daily_quests;
 DROP POLICY IF EXISTS "Users can update own quests" ON public.daily_quests;
@@ -2328,76 +2393,10 @@ REVOKE UPDATE (xp, coins, level, streak_days, last_study_date, total_study_minut
 REVOKE UPDATE (xp, coins, level, streak_days, last_study_date, total_study_minutes)
   ON public.profiles FROM anon;
 
--- [46/47] 20260619065343_603ea78e-cd13-4a2a-93a7-2ebe1d2c4c4a.sql
+-- Migration: 20260619065343_603ea78e-cd13-4a2a-93a7-2ebe1d2c4c4a.sql
 -- Remove direct client read access to OAuth tokens; all reads go through edge functions with service role.
 DROP POLICY IF EXISTS "users read own connections" ON public.user_connections;
 REVOKE SELECT ON public.user_connections FROM authenticated, anon;
 
 -- Prevent students from reading their own access_code column directly; lookups must use get_parent_link_by_code().
 REVOKE SELECT (access_code) ON public.parent_links FROM authenticated, anon;
-
--- [47/47] 20260502035809_3feb8f37-e86e-4577-a348-c766b237b602.sql
-CREATE TABLE IF NOT EXISTS public.artifact_jobs (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
-  chat_id UUID REFERENCES public.chats(id) ON DELETE SET NULL,
-  prompt TEXT NOT NULL,
-  topic TEXT NOT NULL,
-  artifact_type TEXT NOT NULL CHECK (artifact_type IN ('notes', 'exam', 'slides', 'code')),
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'completed', 'failed')),
-  html TEXT,
-  error_message TEXT,
-  model_used TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ
-);
-
-ALTER TABLE public.artifact_jobs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view their own artifact jobs" ON public.artifact_jobs;
-CREATE POLICY "Users can view their own artifact jobs"
-ON public.artifact_jobs FOR SELECT
-USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can create their own artifact jobs" ON public.artifact_jobs;
-CREATE POLICY "Users can create their own artifact jobs"
-ON public.artifact_jobs FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
-ALTER TABLE public.chat_messages
-  ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text',
-  ADD COLUMN IF NOT EXISTS artifact_type TEXT,
-  ADD COLUMN IF NOT EXISTS artifact_html TEXT,
-  ADD COLUMN IF NOT EXISTS topic TEXT,
-  ADD COLUMN IF NOT EXISTS credits_used NUMERIC,
-  ADD COLUMN IF NOT EXISTS new_balance NUMERIC;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'chat_messages_message_type_check'
-  ) THEN
-    ALTER TABLE public.chat_messages
-      ADD CONSTRAINT chat_messages_message_type_check
-      CHECK (message_type IN ('text', 'artifact', 'error', 'insufficient_credits'));
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'chat_messages_artifact_type_check'
-  ) THEN
-    ALTER TABLE public.chat_messages
-      ADD CONSTRAINT chat_messages_artifact_type_check
-      CHECK (artifact_type IS NULL OR artifact_type IN ('notes', 'exam', 'slides', 'code'));
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_artifact_jobs_user_created ON public.artifact_jobs(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_artifact_jobs_status_created ON public.artifact_jobs(status, created_at ASC);
-
-DROP TRIGGER IF EXISTS update_artifact_jobs_updated_at ON public.artifact_jobs;
-CREATE TRIGGER update_artifact_jobs_updated_at
-BEFORE UPDATE ON public.artifact_jobs
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
-

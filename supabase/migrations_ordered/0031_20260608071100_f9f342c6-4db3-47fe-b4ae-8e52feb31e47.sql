@@ -1,0 +1,1 @@
+UPDATE public.crisis_sessions SET state='resolved', last_updated=now() WHERE state NOT IN ('resolved','escalated');

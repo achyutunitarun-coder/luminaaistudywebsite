@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.apply_dodo_credits(text, text, text) FROM authenticated, anon, public;
