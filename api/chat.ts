@@ -11,7 +11,7 @@ export default async function handler(req: Request) {
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${process hf.env.HF_TOKEN}`,
+          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
