@@ -74,9 +74,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
+      const redirectUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:5173'
+        : 'https://luminaai.co.in';
       await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: redirectUrl },
       });
     } catch {
       toast.error('Google sign-in failed');
