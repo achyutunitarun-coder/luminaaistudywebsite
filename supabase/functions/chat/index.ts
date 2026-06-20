@@ -135,6 +135,7 @@ serve(async (req) => {
 
     // ── Hot cache: instant response for common queries ──
     // Check BEFORE preflight/AI to avoid any latency for cached queries.
+    const isComputerMode = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
     if (!isComputerMode && !hasImages && !hasFiles) {
       try {
         const { hotCacheLookup } = await import("../_shared/preflight.ts");
@@ -251,11 +252,9 @@ serve(async (req) => {
       console.warn("memory fetch failed:", memErr);
     }
 
-    const isComputerMode = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
-
-    if (isComputerMode) {
-      systemPrompt += COMPUTER_AGENTIC_PROMPT;
-    }
+      if (isComputerMode) {
+        systemPrompt += COMPUTER_AGENTIC_PROMPT;
+      }
 
     // ── Skills System: auto-activate expert modules + TIER directive ──
     const activeSkills = detectSkills(queryText);
