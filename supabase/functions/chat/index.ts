@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY, MODELS_VISION, messageText, messagesHaveImages } from "../_shared/models.ts";
+import { streamAI, classifyIntent, getSystemPromptForIntent, getModelsForIntent, getModelsForMode, MODELS_LONG_CTX, MODELS_QUALITY, MODELS_VISION, messageText, messagesHaveImages, OWL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
 import { LUMINA_PERSONA } from "../_shared/lumina-persona.ts";
 import { preFlight } from "../_shared/preflight.ts";
 import { condenseHistory } from "../_shared/contextManager.ts";
