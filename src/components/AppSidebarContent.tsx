@@ -21,13 +21,17 @@ type SidebarContentProps = {
   onSignOut: () => void | Promise<void>;
   collapsed?: boolean;
   isMobile?: boolean;
+  levelProgress?: number;
+  timerMins?: number;
+  timerSecs?: number;
+  onNavigateStudySession?: () => void;
 };
 
 const navGroups = [
   {
     label: "Main",
     items: [
-      { title: "Dashboard", url: "/", icon: BarChart3 },
+      { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
       { title: "Brain Hub", url: "/hub", icon: Brain },
     ],

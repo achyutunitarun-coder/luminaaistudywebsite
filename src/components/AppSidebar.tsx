@@ -12,7 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 const navGroups = [
   {
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
       { title: "Brain Hub", url: "/hub", icon: Brain },
     ],
@@ -93,15 +93,13 @@ export function AppSidebar() {
           <div key={gi} className="sidebar-group">
             {group.label && <div className="sidebar-group-label">{group.label}</div>}
             {group.items.map((item) => {
-              const isActive = item.url === "/"
-                ? location.pathname === "/"
-                : location.pathname.startsWith(item.url);
+              const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
               return (
                 <NavLink
                   key={item.title}
                   to={item.url}
-                  end={item.url === "/"}
-                  className={`sidebar-nav-item ${isActive ? "active" : ""`}
+                  end
+                  className={`sidebar-nav-item ${isActive ? "active" : ""}`}
                   title={item.title}
                 >
                   <item.icon className="sidebar-nav-icon" />
