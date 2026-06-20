@@ -21,6 +21,10 @@ type SidebarContentProps = {
   onSignOut: () => void | Promise<void>;
   collapsed?: boolean;
   isMobile?: boolean;
+  levelProgress?: number;
+  timerMins?: number;
+  timerSecs?: number;
+  onNavigateStudySession?: () => void;
 };
 
 const navGroups = [
