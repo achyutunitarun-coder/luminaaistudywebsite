@@ -27,3 +27,4 @@ dist-ssr
 hf.env
 *.env
 !.env.example
+.vercel
