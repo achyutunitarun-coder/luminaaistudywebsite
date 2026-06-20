@@ -16,9 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useStudyTimer } from "@/hooks/useStudyTimer";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useMemo, useState, useEffect } from "react";
-import { openPricing } from "@/lib/pricing";
-import { OnboardingTutorial } from "@/components/OnboardingTutorial";
+import { useMemo, useState, useEffect } from 'react';
+import { openPricing } from '@/lib/pricing';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const fadeUp = (delay = 0) => ({
@@ -33,12 +32,7 @@ export default function Dashboard() {
   const { seconds: liveSeconds } = useStudyTimer();
   const { isProPlus } = useSubscription();
   const navigate = useNavigate();
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const prefersReduced = useReducedMotion();
-
-  useEffect(() => {
-    if (profile && !profile.extra_preferences) setShowOnboarding(true);
-  }, [profile]);
 
   const userPrefs = useMemo(() => {
     if (!profile?.extra_preferences) return null;
@@ -446,7 +440,6 @@ export default function Dashboard() {
         </motion.section>
       </div>
 
-      {showOnboarding && <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />}
     </>
   );
 }
