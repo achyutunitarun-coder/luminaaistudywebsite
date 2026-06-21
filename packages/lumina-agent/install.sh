@@ -30,48 +30,31 @@ fi
 PM="npm"
 if command -v bun &> /dev/null; then PM="bun"; echo "  Using bun"; else echo "  Using npm"; fi
 
-# Clone repo
-REPO="$HOME/.lumina/repo"
-if [ -d "$REPO" ]; then
-    echo "  Updating repo..."
-    git -C "$REPO" pull --quiet 2>/dev/null || true
-else
-    echo "  Cloning repo..."
-    mkdir -p "$HOME/.lumina"
-    git clone --depth 1 https://github.com/achyutunitarun-coder/luminaaistudywebsite.git "$REPO" 2>/dev/null || {
-        echo "  ERROR: Failed to clone repo. Make sure you have internet access."
-        exit 1
-    }
-fi
-
-# Build
-AGENT="$REPO/packages/lumina-agent"
+# Install from npm (preferred) or build from source
 echo ""
-echo "  Building Lumina Code..."
-cd "$AGENT"
+echo "  Installing Lumina Code..."
+echo ""
 
 if [ "$PM" = "bun" ]; then
-    bun install --silent 2>/dev/null
+    bun install -g @lumina/agent 2>/dev/null && {
+        echo "  Installed via bun!"
+    } || {
+        echo "  bun install failed, trying npm..."
+        npm install -g @lumina/agent 2>/dev/null && {
+            echo "  Installed via npm!"
+        } || {
+            echo "  npm install failed, building from source..."
+            install_from_source
+        }
+    }
 else
-    npm install --silent 2>/dev/null
+    npm install -g @lumina/agent 2>/dev/null && {
+        echo "  Installed via npm!"
+    } || {
+        echo "  npm install failed, building from source..."
+        install_from_source
+    }
 fi
-
-# Compile TypeScript
-if [ -f "$AGENT/node_modules/.bin/tsc" ]; then
-    "$AGENT/node_modules/.bin/tsc" -p "$AGENT/tsconfig.json" 2>/dev/null || npx -y typescript@latest tsc -p "$AGENT/tsconfig.json" 2>/dev/null || true
-fi
-
-# Link globally
-echo "  Linking lumina command..."
-cd "$AGENT"
-npm link 2>/dev/null || sudo npm link 2>/dev/null || {
-    # Fallback: create alias in ~/.local/bin
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "$AGENT/src/index.ts" "$HOME/.local/bin/lumina" 2>/dev/null || true
-    echo "  Created symlink at ~/.local/bin/lumina"
-    echo "  Make sure ~/.local/bin is in your PATH"
-    echo '  Add this to your ~/.bashrc or ~/.zshrc: export PATH="$HOME/.local/bin:$PATH"'
-}
 
 echo ""
 echo "  Lumina Code installed!"
@@ -82,3 +65,38 @@ echo "    lumina code"
 echo ""
 echo "  Get API key: https://openrouter.ai/keys"
 echo ""
+
+install_from_source() {
+    REPO="$HOME/.lumina/repo"
+    if [ -d "$REPO" ]; then
+        git -C "$REPO" pull --quiet 2>/dev/null || true
+    else
+        mkdir -p "$HOME/.lumina"
+        git clone --depth 1 https://github.com/achyutunitarun-coder/luminaaistudywebsite.git "$REPO"
+    fi
+
+    AGENT="$REPO/packages/lumina-agent"
+    cd "$AGENT"
+
+    if [ "$PM" = "bun" ]; then
+        bun install --silent 2>/dev/null
+    else
+        npm install --silent 2>/dev/null
+    fi
+
+    # Compile TypeScript
+    if [ -f "$AGENT/node_modules/.bin/tsc" ]; then
+        "$AGENT/node_modules/.bin/tsc" -p "$AGENT/tsconfig.json" 2>/dev/null || true
+    fi
+
+    # Link globally
+    cd "$AGENT"
+    npm link 2>/dev/null || sudo npm link 2>/dev/null || {
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$AGENT/dist/index.js" "$HOME/.local/bin/lumina" 2>/dev/null || true
+        echo "  Created symlink at ~/.local/bin/lumina"
+        echo "  Add to PATH: export PATH=\"$HOME/.local/bin:\$PATH\""
+    }
+
+    echo "  Built and linked from source!"
+}

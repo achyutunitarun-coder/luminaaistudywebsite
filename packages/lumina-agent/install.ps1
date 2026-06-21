@@ -1,5 +1,5 @@
 # Lumina Code Installer - Windows PowerShell
-# Usage: irm https://luminaai.co.in/install.ps1 | iex
+# Usage: irm https://lumina.ai/install.ps1 | iex
 
 Write-Host ""
 Write-Host "  LUMINA CODE - AI Coding Agent (Windows)" -ForegroundColor Magenta
@@ -32,16 +32,62 @@ Write-Host ""
 Write-Host "  Installing Lumina Code..." -ForegroundColor Cyan
 Write-Host ""
 
-if ($installer -eq "bun") {
-    bun install -g lumina-agent
-} else {
-    npm install -g lumina-agent
+# Try npm/bun install first
+$installed = $false
+try {
+    if ($installer -eq "bun") {
+        bun install -g @lumina/agent 2>$null
+    } else {
+        npm install -g @lumina/agent 2>$null
+    }
+    if ($LASTEXITCODE -eq 0) {
+        $installed = $true
+        Write-Host "  Installed via $installer!" -ForegroundColor Green
+    }
+} catch {}
+
+if (-not $installed) {
+    Write-Host "  Building from source..." -ForegroundColor Yellow
+
+    # Check git
+    try { git -v 2>$null } catch {
+        Write-Host "  ERROR: git required. Install from https://git-scm.com/" -ForegroundColor Red
+        exit 1
+    }
+
+    $repo = "$env:USERPROFILE\.lumina\repo"
+    if (Test-Path $repo) {
+        git -C $repo pull --quiet 2>$null
+    } else {
+        New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.lumina" | Out-Null
+        git clone --depth 1 https://github.com/achyutunitarun-coder/luminaaistudywebsite.git $repo
+    }
+
+    $agent = "$repo\packages\lumina-agent"
+    Set-Location $agent
+
+    if ($installer -eq "bun") {
+        bun install --silent 2>$null
+    } else {
+        npm install --silent 2>$null
+    }
+
+    # Compile
+    if (Test-Path "$agent\node_modules\.bin\tsc.cmd") {
+        & "$agent\node_modules\.bin\tsc.cmd" -p "$agent\tsconfig.json" 2>$null
+    }
+
+    # Link
+    Set-Location $agent
+    npm link 2>$null
+
+    Write-Host "  Built and linked from source!" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "  Lumina Code installed successfully!" -ForegroundColor Green
+Write-Host "  Lumina Code installed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor Yellow
-Write-Host "    1. lumina config set openrouter-key YOUR_KEY" -ForegroundColor White
-Write-Host "    2. lumina code" -ForegroundColor White
+Write-Host "    lumina config set openrouter-key YOUR_KEY" -ForegroundColor White
+Write-Host "    lumina code" -ForegroundColor White
 Write-Host ""
