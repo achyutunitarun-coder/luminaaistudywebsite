@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
-import { Agent, AgentEvent } from '../agent.js';
+import { Agent } from '../agent.js';
 import { LuminaConfig } from '../utils/config.js';
 import { basename } from 'path';
+
+type AgentEvent = { type: string; content?: string; tool?: string; args?: string; output?: string; message?: string; summary?: string; question?: string; resolve?: (v: string) => void };
 
 interface Props {
   prompt?: string;
