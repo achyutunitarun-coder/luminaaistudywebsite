@@ -73,6 +73,21 @@ verify_jwt = false
 [functions.extract-memory]
 verify_jwt = false
 
+[functions.memory-log]
+verify_jwt = false
+
+[functions.memory-preferences]
+verify_jwt = false
+
+[functions.memory-progress]
+verify_jwt = false
+
+[functions.memory-recently-viewed]
+verify_jwt = false
+
+[functions.memory-summary]
+verify_jwt = false
+
 [functions.ingest-learning-data]
 verify_jwt = false
 

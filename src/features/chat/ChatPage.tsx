@@ -26,7 +26,7 @@ import { ManualRestoreButton } from "@/features/credits/ManualRestore";
 import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
 import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
-import { useNavigate } from "react-router-dom";
+import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 // ─── Types ───
@@ -375,6 +375,7 @@ const ChatPage = () => {
     const um: Message = { id: uid(), role: "user", content: t, type: "text", timestamp: Date.now() };
     const nm = [...messages, um]; setMessages(nm); setInput(""); setLoading(true); setLoadingStage("Thinking…");
     await persistMessage(cid, um);
+    logActivity("chat_sent", "chat", t.slice(0, 80), { page: "/chat" });
     try { await streamChat(nm, cid); }
     catch (e: any) { if (e?.name !== "AbortError") setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() })); }
     finally { setLoading(false); setLoadingStage(""); }
@@ -388,7 +389,11 @@ const ChatPage = () => {
   const handleConfirmAction = useCallback(async (mid: string) => { const msg = messages.find(m => m.id === mid); if (!msg?.pendingAction) return; setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); const result = await executeAgentAction(msg.pendingAction, p => navigate(p)); setMessages(p => p.concat({ id: uid(), role: "assistant", type: "text", content: result.message, timestamp: Date.now() })); }, [messages, navigate]);
   const handleCancelAction = useCallback((mid: string) => { setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); }, []);
 
-  const empty = messages.length === 0;
+  const { logActivity } = useMemory();
+
+  useEffect(() => {
+    logActivity("page_view", "navigation", "Viewed Chat", { page: "/chat" });
+  }, [logActivity]);
 
   return (
     <div className="chat-root">

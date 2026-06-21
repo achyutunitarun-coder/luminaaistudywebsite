@@ -5,7 +5,8 @@ import { useStudyTimer } from '@/hooks/useStudyTimer';
 import { ChevronLeft, ChevronRight, Flame, Menu, X, Brain } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppSidebarContent } from '@/components/AppSidebarContent';
+import { MemorySidebar } from "@/components/MemoryDashboard";
+import { AppSidebarContent } from "@/components/AppSidebarContent";
 
 const FULL_BLEED_ROUTES = ['/computer', '/chat', '/lecture-ai', '/smart-notebook'];
 const SIDEBAR_W_EXPANDED = 240;
@@ -67,6 +68,8 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           onNavigateStudySession={navigateStudySession}
           onSignOut={signOut}
         />
+        {/* Memory widget in sidebar */}
+        {!collapsed && <MemorySidebar />}
         <button
           onClick={toggleCollapsed}
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border/20 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/30 transition-all z-50 shadow-lg"

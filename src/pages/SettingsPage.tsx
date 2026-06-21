@@ -4,6 +4,7 @@ import { Settings, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProfile } from '@/hooks/useProfile';
+import { useMemory } from '@/contexts/MemoryContext';
 import { toast } from 'sonner';
 
 const options = {
@@ -33,6 +34,11 @@ const options = {
 
 const SettingsPage = () => {
   const { profile, updateProfile } = useProfile();
+  const { logActivity, updatePreferences } = useMemory();
+
+  useEffect(() => {
+    logActivity("page_view", "settings", "Viewed Settings", { page: "/settings" });
+  }, [logActivity]);
   const [settings, setSettings] = useState({
     study_mode: 'exam_preparation',
     difficulty: 'adaptive',
@@ -55,6 +61,12 @@ const SettingsPage = () => {
 
   const save = async () => {
     await updateProfile.mutateAsync(settings);
+    // Also save to memory preferences
+    await updatePreferences({
+      preferred_model: settings.study_mode === 'concept_mastery' ? 'openrouter/owl-alpha' : undefined,
+      metadata: { study_mode: settings.study_mode, difficulty: settings.difficulty, learning_style: settings.learning_style },
+    });
+    logActivity("settings_changed", "settings", "Updated settings", settings as any);
     toast.success('Settings saved!');
   };
 
