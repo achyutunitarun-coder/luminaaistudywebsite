@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-nocheck
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
-import { join, dirname, resolve, basename, extname } from 'path';
+import { join, dirname, resolve, extname } from 'path';
 import { createInterface } from 'readline';
 import { execSync } from 'child_process';
 
@@ -29,38 +29,20 @@ async function onboarding() {
   console.log('  ✓ Ready!\n');
 }
 
-// ── Extract files from complete model output ────────────────────────
 function extractFiles(text) {
   const files = [];
-
-  // Match FILENAME: path\n...content...END FILE
   const fileRegex = /FILENAME:\s*([^\n]+)\n([\s\S]*?)END FILE/g;
   let match;
   while ((match = fileRegex.exec(text)) !== null) {
     const rawPath = match[1].trim();
     const content = match[2].trim();
-    // Skip if it's a directory path (no extension or ends with /)
     if (!rawPath || rawPath.endsWith('/') || !extname(rawPath)) continue;
-    // Skip if path contains invalid chars
     if (rawPath.includes('<') || rawPath.includes('>') || rawPath.includes('"')) continue;
     files.push({ path: rawPath, content });
   }
-
-  // Also match ```filename ... ``` code blocks
-  const blockRegex = /```([\w./\-_]+)\n([\s\S]*?)```/g;
-  while ((match = blockRegex.exec(text)) !== null) {
-    const rawPath = match[1].trim();
-    const content = match[2].trim();
-    if (!rawPath || rawPath.endsWith('/') || !extname(rawPath)) continue;
-    // Skip common non-file patterns
-    if (rawPath.startsWith('http') || rawPath.includes('node_modules')) continue;
-    files.push({ path: rawPath, content });
-  }
-
   return files;
 }
 
-// ── Chat Loop ───────────────────────────────────────────────────────
 async function chat(config) {
   console.log('  Type what you want to build. I\'ll handle the rest.');
   console.log('  Commands: /help /clear /files /exit\n');
@@ -80,9 +62,9 @@ async function chat(config) {
     }
     if (trimmed === '/help') { console.log('  /help /clear /files /exit\n'); continue; }
 
-    const systemPrompt = `You are LUMINA CODE. You create COMPLETE production-grade websites.
+    const systemPrompt = `You are LUMINA CODE. Create COMPLETE production-grade websites.
 
-MANDATORY OUTPUT FORMAT — You MUST use this for EVERY file:
+OUTPUT FORMAT — Use this EXACT format for EVERY file:
 
 FILENAME: index.html
 <!DOCTYPE html>
@@ -94,34 +76,35 @@ FILENAME: index.html
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- Complete HTML -->
+<!-- Complete HTML here -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
 END FILE
 
 FILENAME: style.css
-/* Complete CSS */
+/* Complete CSS here */
 END FILE
 
 FILENAME: script.js
-// Complete JavaScript
+// Complete JavaScript here
 END FILE
 
-CRITICAL RULES:
-1. ALWAYS start with FILENAME: index.html
-2. Output COMPLETE files — every line, no truncation
-3. Do NOT describe what you will do — JUST DO IT
-4. Do NOT output any text before FILENAME:
-5. Do NOT use markdown code blocks — ONLY FILENAME: ... END FILE
-6. Create ALL files needed for a complete working project
-7. Use Three.js from CDN: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
-8. Use modern CSS (grid, flexbox, custom properties)
-9. No placeholders, no TODOs, no lorem ipsum
+RULES:
+- Start IMMEDIATELY with FILENAME: index.html
+- Output COMPLETE files — every line, no truncation
+- Do NOT describe what you will do — JUST DO IT
+- Do NOT output any text before FILENAME:
+- Do NOT use markdown code blocks
+- Create ALL files needed for a complete working project
+- Use Three.js from CDN for 3D
+- No placeholders, no TODOs, no lorem ipsum
 
 Working directory: ${process.cwd()}`;
 
-    console.log('  ⏳ Generating...\n');
+    console.log('');
+    console.log('  ⏳ Sending to AI...');
 
     try {
       const controller = new AbortController();
@@ -155,6 +138,7 @@ Working directory: ${process.cwd()}`;
         throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
       }
 
+      console.log('  ⏳ AI is thinking...');
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content || '';
 
@@ -163,23 +147,26 @@ Working directory: ${process.cwd()}`;
         continue;
       }
 
-      // Show the raw output for debugging
-      console.log('  📝 Model output preview:');
-      console.log('  ' + content.slice(0, 200).replace(/\n/g, '\n  '));
-      console.log('');
+      console.log('  ✓ AI responded! Parsing files...\n');
 
-      // Extract and create files
       const files = extractFiles(content);
 
       if (files.length === 0) {
-        console.log('  ⚠ No files detected in output. The model may not have used FILENAME: format.');
-        console.log('  Here is the full output:\n');
-        console.log(content);
-        console.log('');
+        console.log('  ⚠ No files detected. Full output:\n');
+        console.log('  ──────────────────────────────────────');
+        // Print first 100 lines
+        const lines = content.split('\n').slice(0, 100);
+        for (const line of lines) {
+          console.log('  ' + line);
+        }
+        if (content.split('\n').length > 100) {
+          console.log('  ... (truncated)');
+        }
+        console.log('  ──────────────────────────────────────\n');
         continue;
       }
 
-      console.log(`  📁 Creating ${files.length} file(s)...\n`);
+      console.log(`  📁 Found ${files.length} file(s):\n`);
       for (const file of files) {
         try {
           const filePath = join(process.cwd(), file.path);
@@ -187,13 +174,14 @@ Working directory: ${process.cwd()}`;
           if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
           writeFileSync(filePath, file.content, 'utf-8');
           createdFiles.add(file.path);
-          console.log(`  ✓ ${file.path} (${file.content.length} chars)`);
+          console.log(`  ✅ ${file.path} (${file.content.length} chars)`);
         } catch (e) {
-          console.log(`  ✗ ${file.path}: ${e.message}`);
+          console.log(`  ❌ ${file.path}: ${e.message}`);
         }
       }
 
-      console.log(`\n  📊 Total files: ${createdFiles.size}\n`);
+      console.log(`\n  📊 Total files created: ${createdFiles.size}`);
+      console.log('');
 
     } catch (e) {
       console.log(`  ⚠ Error: ${e.message}\n`);
