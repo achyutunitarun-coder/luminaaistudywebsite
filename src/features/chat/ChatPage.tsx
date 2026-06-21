@@ -195,6 +195,7 @@ const ChatPage = () => {
   const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const empty = messages.length === 0;
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
