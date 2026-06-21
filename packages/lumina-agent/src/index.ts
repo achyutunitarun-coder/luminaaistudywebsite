@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join, dirname, resolve, extname } from 'path';
 import { createInterface } from 'readline';
-import { execSync } from 'child_process';
 
 const CONFIG_DIR = join(homedir(), '.lumina');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -104,11 +103,11 @@ RULES:
 Working directory: ${process.cwd()}`;
 
     console.log('');
-    console.log('  ⏳ Sending to AI...');
+    console.log('  ⏳ Generating...');
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 300000);
+      const timeout = setTimeout(() => controller.abort(), 600000); // 10 min timeout
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -125,7 +124,7 @@ Working directory: ${process.cwd()}`;
             { role: 'user', content: trimmed },
           ],
           stream: false,
-          max_tokens: 16000,
+          max_tokens: 65000,
           temperature: 0.1,
         }),
         signal: controller.signal,
@@ -138,8 +137,27 @@ Working directory: ${process.cwd()}`;
         throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
       }
 
-      console.log('  ⏳ AI is thinking...');
-      const data = await res.json();
+      // Read response as text first, then parse
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        // If JSON is truncated, try to fix it
+        console.log('  ⚠ Response was truncated. Attempting to parse...');
+        // Try to find the last complete JSON object
+        const lastBrace = rawText.lastIndexOf('}');
+        if (lastBrace > 0) {
+          try {
+            data = JSON.parse(rawText.slice(0, lastBrace + 1));
+          } catch (e2) {
+            throw new Error('Response was truncated and could not be parsed. Try a shorter prompt.');
+          }
+        } else {
+          throw new Error('Response was truncated. Try a shorter prompt.');
+        }
+      }
+
       const content = data.choices?.[0]?.message?.content || '';
 
       if (!content) {
@@ -147,26 +165,21 @@ Working directory: ${process.cwd()}`;
         continue;
       }
 
-      console.log('  ✓ AI responded! Parsing files...\n');
+      console.log(`  ✓ AI responded (${content.length} chars)`);
 
       const files = extractFiles(content);
 
       if (files.length === 0) {
-        console.log('  ⚠ No files detected. Full output:\n');
-        console.log('  ──────────────────────────────────────');
-        // Print first 100 lines
-        const lines = content.split('\n').slice(0, 100);
-        for (const line of lines) {
-          console.log('  ' + line);
-        }
-        if (content.split('\n').length > 100) {
-          console.log('  ... (truncated)');
-        }
-        console.log('  ──────────────────────────────────────\n');
+        console.log('  ⚠ No files detected in output.\n');
+        // Show first 50 lines of output
+        const lines = content.split('\n').slice(0, 50);
+        console.log('  ── Output preview ──');
+        for (const line of lines) console.log('  ' + line);
+        console.log('  ── End ──\n');
         continue;
       }
 
-      console.log(`  📁 Found ${files.length} file(s):\n`);
+      console.log(`  📁 Creating ${files.length} file(s):\n`);
       for (const file of files) {
         try {
           const filePath = join(process.cwd(), file.path);
@@ -180,8 +193,7 @@ Working directory: ${process.cwd()}`;
         }
       }
 
-      console.log(`\n  📊 Total files created: ${createdFiles.size}`);
-      console.log('');
+      console.log(`\n  📊 Total files: ${createdFiles.size}\n`);
 
     } catch (e) {
       console.log(`  ⚠ Error: ${e.message}\n`);
