@@ -1,20 +1,21 @@
 /**
- * Lumina Computer — Fixed Edition
+ * Lumina Computer — Ultimate AI Coding Environment
  * 
- * Fixes:
- * 1. Plan shown in separate panel, NOT in response.md
- * 2. Proper file tabs with icons
- * 3. Syntax highlighting via Prism
- * 4. Split view: code left, preview right
- * 5. Terminal panel for activity
- * 6. Reliable Continue button
+ * Features:
+ * - Effort picker: Quick / Normal / Beast
+ * - OWL-alpha model (hidden, always best)
+ * - Plan shown in separate panel
+ * - File tabs with syntax highlighting
+ * - Split view: code + preview
+ * - Terminal panel
+ * - Reliable Continue
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp, Paperclip, Square, Plus, FileCode, FileText, Eye, Copy as CopyIcon,
   Check, Loader2, X, Sparkles, Cpu, Download, Maximize2, Minimize2,
   PlayCircle, FolderOpen, Compass, CheckCircle2, Image as ImageIcon,
-  Terminal as TerminalIcon, PanelLeftClose, PanelLeftOpen,
+  Terminal as TerminalIcon, PanelLeftClose, PanelLeftOpen, Zap, Brain, Rocket,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileTree, downloadFilesAsZip } from "@/features/computer/FileTree";
@@ -43,6 +44,13 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 // ── Types ──
 interface Attachment { id: string; name: string; kind: "image" | "text" | "file"; size: number; preview?: string; text?: string; }
 interface LogLine { id: string; level: "system" | "model" | "file" | "action" | "done" | "warn"; text: string; ts: number; action?: LuminaAction; }
+type Effort = 'quick' | 'normal' | 'beast';
+
+const EFFORT_CONFIG = {
+  quick: { label: 'Quick', icon: Zap, color: '#2DD4BF', desc: 'Fast & simple' },
+  normal: { label: 'Normal', icon: Brain, color: '#7C5CFC', desc: 'Balanced quality' },
+  beast: { label: 'Beast', icon: Rocket, color: '#F59E0B', desc: 'Maximum quality' },
+};
 
 const SUGGESTIONS = [
   "Build a photosynthesis learning lab with chloroplast animation and exam practice.",
@@ -220,7 +228,7 @@ export default function LuminaComputer() {
   const [finalMd, setFinalMd] = useState("");
   const [logs, setLogs] = useState<LogLine[]>([{ id: uid(), level: "system", text: "Lumina Computer is ready.", ts: Date.now() }]);
   const [busy, setBusy] = useState(false);
-  const [model, setModel] = useState("");
+  const [effort, setEffort] = useState<Effort>('normal');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [canContinue, setCanContinue] = useState(false);
@@ -391,7 +399,7 @@ export default function LuminaComputer() {
         const res = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ messages: payload, mode: "computer" }),
+          body: JSON.stringify({ messages: payload, mode: "computer", effort }),
           signal: ctrl.signal,
         });
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -483,10 +491,33 @@ export default function LuminaComputer() {
             <Cpu className="w-3 h-3 text-white" />
           </div>
           <span className="text-[13px] font-semibold tracking-tight">Lumina Computer</span>
-          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-            {busy ? "Working..." : model ? model.split("/").pop() : "Idle"}
-          </span>
         </div>
+
+        {/* Effort Picker */}
+        <div className="flex items-center gap-1 ml-4">
+          {(['quick', 'normal', 'beast'] as Effort[]).map(e => {
+            const cfg = EFFORT_CONFIG[e];
+            const Icon = cfg.icon;
+            const isActive = effort === e;
+            return (
+              <button
+                key={e}
+                onClick={() => setEffort(e)}
+                className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-medium transition-all"
+                style={{
+                  background: isActive ? cfg.color + '20' : 'transparent',
+                  color: isActive ? cfg.color : 'var(--text-muted)',
+                  border: isActive ? `1px solid ${cfg.color}40` : '1px solid transparent',
+                }}
+                title={cfg.desc}
+              >
+                <Icon className="w-3 h-3" />
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="ml-auto flex items-center gap-1">
           {busy && (
             <button onClick={stop} className="flex items-center gap-1 px-2.5 h-7 rounded-md text-[11px] font-medium" style={{ background: "var(--red-tint)", color: "var(--red)" }}>

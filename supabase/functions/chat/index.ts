@@ -115,7 +115,7 @@ serve(async (req) => {
 
     const body = await req.text();
     if (body.length > 5_000_000) return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const { messages, mode } = JSON.parse(body);
+    const { messages, mode, effort } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > 60) return new Response(JSON.stringify({ error: "Invalid or too many messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Adaptive intent classification
@@ -125,6 +125,7 @@ serve(async (req) => {
     const hasImages = messagesHaveImages(messages);
     const intent = hasFiles ? "study" as const : classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
+    const effortLevel = typeof effort === "string" && ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
 
     // Server-side plan/usage enforcement (cannot be bypassed by tampering with client)
     {
@@ -254,6 +255,23 @@ serve(async (req) => {
 
       if (isComputerMode) {
         systemPrompt += COMPUTER_AGENTIC_PROMPT;
+        // Effort-based additions
+        if (effortLevel === 'beast') {
+          systemPrompt += `\n\n## BEAST MODE ACTIVATED
+You are in MAXIMUM QUALITY mode. This means:
+- Generate COMPLETE, production-grade code — every file, every function, every component
+- No shortcuts, no placeholders, no "TODO" comments
+- Include comprehensive error handling, edge cases, accessibility
+- Generate tests, documentation, and type definitions
+- Think deeply about architecture, performance, and security
+- Take as many iterations as needed to get it perfect
+- You have 65536 max tokens — use them all if needed`;
+        } else if (effortLevel === 'quick') {
+          systemPrompt += `\n\n## QUICK MODE
+Be fast and direct. Generate working code quickly.
+Skip tests and documentation unless explicitly asked.
+Focus on the core functionality only.`;
+        }
       }
 
     // ── Skills System: auto-activate expert modules + TIER directive ──
@@ -263,21 +281,17 @@ serve(async (req) => {
       console.log(`[chat/skills] activated: ${activeSkills.map(s => s.id).join(", ")}`);
     }
 
-    // Model selection: OWL-ALPHA PRIMARY + FREE ROUTER
-    // No more multi-model chains. Just owl-alpha with 3-key fanout, then free router fallback.
-    const models = [OWL, MODEL_FREE_ROUTER];
-
-    const hasKimi = !!Deno.env.get("KIMI_API_KEY");
+    // Model: ALWAYS owl-alpha (best reasoning, 1M+ context)
+    // Effort level changes system prompt depth and max tokens, NOT the model
+    const models = [OWL];
     const maxTokens = isComputerMode
-      ? (hasKimi ? 128000 : 32000)
-      : intent === "greeting" || intent === "conversational"
-        ? 800
-        : intent === "coding" || intent === "deep"
-          ? 16000
-          : 4000;
+      ? (effortLevel === 'beast' ? 65536 : effortLevel === 'normal' ? 32000 : 16000)
+      : effortLevel === 'beast' ? 16000
+      : effortLevel === 'quick' ? 4000
+      : 8000;
     const temperature = isComputerMode ? 0.55 : artifactFeature ? 0.55 : requestedMode === "creative" ? 0.85 : intent === "coding" ? 0.35 : 0.65;
     // Short timeouts for fast responses. callWithFallback handles the actual model timeouts.
-    const timeoutMs = isComputerMode ? (hasKimi ? 480_000 : 240_000) : (artifactFeature || intent === "coding" || requestedMode === "coding" ? 180_000 : 30_000);
+    const timeoutMs = isComputerMode ? (effortLevel === 'beast' ? 480_000 : 240_000) : (effortLevel === 'beast' ? 300_000 : effortLevel === 'quick' ? 60_000 : 120_000);
 
     // ── Centralised conversation summarisation ───────────────────────
     // Skip condensation for short conversations (< 4 messages) — saves DB round-trip.
