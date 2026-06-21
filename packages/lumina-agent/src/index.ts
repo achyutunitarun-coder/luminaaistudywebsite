@@ -2,26 +2,7 @@
 import { Command } from 'commander';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Dynamic import of TUI (works after build)
-async function runTUI(prompt: string, config: any, model: string, autoApprove: boolean, cwd: string) {
-  try {
-    const { TUIApp } = await import(join(__dirname, 'tui', 'index.js'));
-    const { render } = await import('ink');
-    const React = await import('react');
-    render(
-      React.createElement(TUIApp, { prompt, config, model, autoApprove, cwd })
-    );
-  } catch (e: any) {
-    console.error('  Error loading TUI:', e.message);
-    console.error('  Make sure to run: npm run build');
-    process.exit(1);
-  }
-}
+import { join } from 'path';
 
 const CONFIG_DIR = join(homedir(), '.lumina');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -64,12 +45,18 @@ program.command('code')
       console.error('  Get a key at: https://openrouter.ai/keys\n');
       process.exit(1);
     }
-    await runTUI(
-      prompt,
-      config,
-      opts.model || config.defaultModel || 'openrouter/owl-alpha',
-      opts.yes || false,
-      opts.cwd
+    // Dynamic require to avoid ESM issues
+    const { TUIApp } = require('./tui/index');
+    const { render } = require('ink');
+    const React = require('react');
+    render(
+      React.createElement(TUIApp, {
+        prompt,
+        config,
+        model: opts.model || config.defaultModel || 'openrouter/owl-alpha',
+        autoApprove: opts.yes || false,
+        cwd: opts.cwd,
+      })
     );
   });
 

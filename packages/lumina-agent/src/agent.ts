@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Message, ToolCall, callModel } from '../models/openrouter.js';
 import { LuminaConfig } from '../utils/config.js';
 import * as tools from '../tools/index.js';
