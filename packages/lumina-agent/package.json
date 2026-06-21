@@ -4,10 +4,21 @@
   "description": "Lumina Code — AI coding agent that works locally on your machine",
   "license": "MIT",
   "bin": {
-    "lumina": "./bin/lumina.js"
+    "lumina": "./dist/index.js"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md"
+  ],
   "engines": {
     "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "commander": "^12.1.0",
@@ -18,11 +29,7 @@
     "inquirer": "^12.1.0",
     "cross-spawn": "^7.0.3",
     "glob": "^11.0.0",
-    "highlight.js": "^11.10.0",
-    "marked": "^14.1.2",
-    "marked-terminal": "^7.1.0",
-    "node-fetch": "^3.3.2",
-    "undici": "^6.19.8"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

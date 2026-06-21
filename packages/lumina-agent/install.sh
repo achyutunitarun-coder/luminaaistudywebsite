@@ -1,6 +1,6 @@
 #!/bin/bash
 # Lumina Code Installer - macOS / Linux
-# Usage: curl -fsSL https://luminaai.co.in/install.sh | bash
+# Usage: curl -fsSL https://lumina.ai/install.sh | bash
 
 set -e
 
@@ -9,52 +9,76 @@ echo "  LUMINA CODE - AI Coding Agent"
 echo "  =============================="
 echo ""
 
-# Detect OS
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 echo "  Detected: $OS ($ARCH)"
 
-# Check for Node.js
+# Check Node.js
 if ! command -v node &> /dev/null; then
-    echo "  ERROR: Node.js not found. Please install Node.js 18+ first."
-    echo "  Visit: https://nodejs.org/"
+    echo "  ERROR: Node.js 18+ required. Install from https://nodejs.org/"
     exit 1
 fi
-
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo "  ERROR: Node.js version must be 18+. Found: $(node -v)"
-    exit 1
-fi
-
 echo "  Node.js: $(node -v)"
 
-# Check for bun (preferred) or npm
-INSTALLER="npm"
-if command -v bun &> /dev/null; then
-    INSTALLER="bun"
-    echo "  Package manager: bun ($(bun -v))"
-else
-    echo "  Package manager: npm ($(npm -v))"
+# Check git
+if ! command -v git &> /dev/null; then
+    echo "  ERROR: git required. Install from https://git-scm.com/"
+    exit 1
 fi
 
-# Install
-echo ""
-echo "  Installing Lumina Code..."
-echo ""
+# Package manager
+PM="npm"
+if command -v bun &> /dev/null; then PM="bun"; echo "  Using bun"; else echo "  Using npm"; fi
 
-if [ "$INSTALLER" = "bun" ]; then
-    bun install -g lumina-agent
+# Clone repo
+REPO="$HOME/.lumina/repo"
+if [ -d "$REPO" ]; then
+    echo "  Updating repo..."
+    git -C "$REPO" pull --quiet 2>/dev/null || true
 else
-    npm install -g lumina-agent
+    echo "  Cloning repo..."
+    mkdir -p "$HOME/.lumina"
+    git clone --depth 1 https://github.com/achyutunitarun-coder/luminaaistudywebsite.git "$REPO" 2>/dev/null || {
+        echo "  ERROR: Failed to clone repo. Make sure you have internet access."
+        exit 1
+    }
 fi
 
+# Build
+AGENT="$REPO/packages/lumina-agent"
 echo ""
-echo "  Lumina Code installed successfully!"
+echo "  Building Lumina Code..."
+cd "$AGENT"
+
+if [ "$PM" = "bun" ]; then
+    bun install --silent 2>/dev/null
+else
+    npm install --silent 2>/dev/null
+fi
+
+# Compile TypeScript
+if [ -f "$AGENT/node_modules/.bin/tsc" ]; then
+    "$AGENT/node_modules/.bin/tsc" -p "$AGENT/tsconfig.json" 2>/dev/null || npx -y typescript@latest tsc -p "$AGENT/tsconfig.json" 2>/dev/null || true
+fi
+
+# Link globally
+echo "  Linking lumina command..."
+cd "$AGENT"
+npm link 2>/dev/null || sudo npm link 2>/dev/null || {
+    # Fallback: create alias in ~/.local/bin
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$AGENT/src/index.ts" "$HOME/.local/bin/lumina" 2>/dev/null || true
+    echo "  Created symlink at ~/.local/bin/lumina"
+    echo "  Make sure ~/.local/bin is in your PATH"
+    echo '  Add this to your ~/.bashrc or ~/.zshrc: export PATH="$HOME/.local/bin:$PATH"'
+}
+
+echo ""
+echo "  Lumina Code installed!"
 echo ""
 echo "  Next steps:"
-echo "    1. Set your API key: lumina config set openrouter-key YOUR_KEY"
-echo "    2. Start coding:     lumina code"
+echo "    lumina config set openrouter-key YOUR_KEY"
+echo "    lumina code"
 echo ""
-echo "  Get your API key at: https://openrouter.ai/keys"
+echo "  Get API key: https://openrouter.ai/keys"
 echo ""
