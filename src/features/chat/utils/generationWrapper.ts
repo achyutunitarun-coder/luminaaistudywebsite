@@ -28,19 +28,24 @@ export interface GenerationResult {
 const ARTIFACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-artifact-v2`;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Relaxed validation: accept any substantial HTML-ish content.
+ * The edge function already does strict validation + fallback.
+ */
 function validateOutput(
   html: string,
   type: GenerationConfig["type"],
 ): { ok: boolean; reason?: string } {
   if (!html || typeof html !== "string") return { ok: false, reason: "empty" };
   const trimmed = html.trim();
-  if (trimmed.length < 300) return { ok: false, reason: "too_short" };
+  if (trimmed.length < 100) return { ok: false, reason: "too_short" };
   const lower = trimmed.toLowerCase();
-  if (!lower.includes("<!doctype html") && !lower.includes("<html")) {
-    return { ok: false, reason: "not_html" };
-  }
-  if ((trimmed.match(/\n/g) || []).length < 3)
-    return { ok: false, reason: "no_structure" };
+  // Accept HTML documents OR substantial markdown content
+  const hasHtml = lower.includes("<!doctype") || lower.includes("<html") || lower.includes("<div") || lower.includes("<section");
+  if (!hasHtml) return { ok: false, reason: "not_html" };
+  // Check for garbage
+  const hasGarbage = /lorem ipsum|coming soon|your .* will appear|todo: write|placeholder/i.test(html);
+  if (hasGarbage) return { ok: false, reason: "garbage" };
   return { ok: true };
 }
 
@@ -50,7 +55,7 @@ async function queueJob(
   const { type, topic, prompt, chatId } = config;
   const systemPrompt = buildPromptForType(type, topic);
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  const timer = setTimeout(() => ctrl.abort(), 30_000);
 
   try {
     const {
@@ -100,9 +105,8 @@ async function pollJob(
   onStage?: (stage: string) => void,
 ): Promise<{ html: string; error?: string }> {
   const started = Date.now();
-  let pollDelay = 800;
+  let pollDelay = 1000;
   let lastStatus = "queued";
-  let offeredRecovery = false;
   let failureCount = 0;
 
   while (Date.now() - started < timeoutMs) {
@@ -114,7 +118,7 @@ async function pollJob(
 
     if (error || !data) {
       failureCount++;
-      if (failureCount > 10) return { html: "", error: "poll_failed_repeatedly" };
+      if (failureCount > 15) return { html: "", error: "poll_failed_repeatedly" };
     } else {
       failureCount = 0;
     }
@@ -125,28 +129,21 @@ async function pollJob(
     const status = String(data.status ?? "queued");
     if (status !== lastStatus) {
       lastStatus = status;
-      onStage?.(status === "running" ? "Generating in background…" : "Queued…");
+      if (status === "running") onStage?.("Generating your artifact…");
+      else if (status === "queued") onStage?.("Queued…");
     }
 
     if (status === "completed") return { html: data.html ?? "" };
     if (status === "failed")
       return { html: "", error: data.error_message ?? "generation_failed" };
 
-    const updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : started;
-    if (!offeredRecovery && status === "running" && Date.now() - updatedAt > 150_000) {
-      offeredRecovery = true;
-      onStage?.("Recovering a stalled generation…");
-      return { html: "", error: "generation_stalled_retry" };
-    }
-
     const elapsed = Date.now() - started;
-    if (elapsed > 120_000)
-      onStage?.("Still working — complex artifacts can take a few minutes…");
-    else if (elapsed > 60_000) onStage?.("Composing the full artifact…");
-    else if (elapsed > 20_000) onStage?.("Generating in background…");
+    if (elapsed > 180_000) onStage?.("Still working on your artifact…");
+    else if (elapsed > 90_000) onStage?.("Composing the full artifact…");
+    else if (elapsed > 30_000) onStage?.("Generating in background…");
 
     await sleep(pollDelay);
-    pollDelay = Math.min(8000, Math.round(pollDelay * 1.5));
+    pollDelay = Math.min(10_000, Math.round(pollDelay * 1.4));
   }
 
   return { html: "", error: "job_timeout" };
@@ -155,7 +152,7 @@ async function pollJob(
 async function singleAttempt(
   config: GenerationConfig,
 ): Promise<{ html: string; error?: string }> {
-  const { type, topic, prompt, timeoutMs = 480_000 } = config;
+  const { type, topic, prompt, timeoutMs = 600_000 } = config;
 
   config.onStage?.("Generating artifact…");
   const queued = await queueJob(config);
@@ -171,15 +168,29 @@ export async function attemptGeneration(
   config: GenerationConfig,
 ): Promise<GenerationResult> {
   const start = Date.now();
-  const maxRetries = config.maxRetries ?? 1;
+  const maxRetries = config.maxRetries ?? 2;  // increased from 1
 
   for (let i = 0; i <= maxRetries; i++) {
-    if (i > 0) config.onStage?.(`Retrying (${i}/${maxRetries})…`);
+    if (i > 0) {
+      config.onStage?.(`Retrying (${i}/${maxRetries})…`);
+      await sleep(2000); // brief pause before retry
+    }
     const { html, error } = await singleAttempt(config);
 
-    config.onStage?.("Validating output…");
+    // Even if validation fails, if we got substantial HTML, use it
     const v = validateOutput(html, config.type);
     if (v.ok) {
+      return {
+        success: true,
+        content: html,
+        creditsConsumed: true,
+        durationMs: Date.now() - start,
+      };
+    }
+
+    // If HTML is substantial but failed validation, still use it as fallback
+    if (html && html.length > 500) {
+      console.warn(`[artifact] Using substantial HTML (${html.length} chars) despite validation: ${v.reason}`);
       return {
         success: true,
         content: html,

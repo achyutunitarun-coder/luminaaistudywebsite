@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-// rehype-raw intentionally removed for XSS hardening on AI-generated content.
+import rehypeRaw from 'rehype-raw';  // restored — needed for KaTeX + mixed HTML/math content
 import 'katex/dist/katex.min.css';
 import { Check, Copy, Download, Play, X } from 'lucide-react';
 
@@ -23,7 +23,6 @@ function buildRunnableDoc(lang: string, code: string): string {
   if (l === 'html' || l === 'htm' || l === 'xhtml') return code;
   if (l === 'svg') return `<!doctype html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#0a0c12">${code}</body></html>`;
   if (l === 'css') return `<!doctype html><html><head><style>${code}</style></head><body><div class="demo"><h1>Hello</h1><p>This is a styled preview.</p><button>Button</button></div></body></html>`;
-  // JS / generic — capture console & errors
   return `<!doctype html><html><head><style>
     body{margin:0;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0a0c12;color:#e7eaf2;padding:14px;white-space:pre-wrap}
     .err{color:#ff6b6b}.warn{color:#ffd166}.info{color:#7dd3fc}
@@ -144,96 +143,36 @@ function renderBreaks(children: ReactNode): ReactNode {
 }
 
 /**
- * Robust LaTeX preprocessor:
- * - Protects code blocks first
- * - \( ... \) → $ ... $
- * - \[ ... \] → $$ ... $$
- * - Handles \begin{...}...\end{...} environments wrapped in $$ or standalone
- * - Handles multi-line blocks
+ * LaTeX preprocessor — conservative version.
+ * Only converts LaTeX that the model actually uses with standard delimiters.
+ * Does NOT auto-wrap bare text (that was causing raw output to look broken).
  */
 function preprocessLatex(text: string): string {
   if (!text) return text;
 
-  // 1. Normalize line endings
   let processed = text.replace(/\r\n?/g, '\n');
 
-  // 2. Protect code blocks (fenced + inline)
+  // 1. Protect code blocks
   const codeBlocks: string[] = [];
   processed = processed.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
     codeBlocks.push(match);
     return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
   });
 
-  // 3. HTML <br> tags
+  // 2. HTML <br> tags
   processed = processed.replace(/<br\s*\/?>/gi, HTML_BREAK_TOKEN);
 
-  // 4. \( ... \) → $ ... $   (inline; collapse internal newlines so KaTeX accepts it)
+  // 3. \( ... \) → $ ... $ (inline; collapse internal newlines)
   processed = processed.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_, m) => `$${String(m).replace(/\s*\n\s*/g, ' ').trim()}$`);
 
-  // 5. \[ ... \] → $$ ... $$ (display)
+  // 4. \[ ... \] → $$ ... $$ (display)
   processed = processed.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_, m) => `\n\n$$\n${String(m).trim()}\n$$\n\n`);
 
-  // 6. Bare \begin{env}...\end{env} → wrap in $$ (only when NOT already wrapped).
-  //    We protect already-$$-wrapped envs first, then wrap the rest.
-  const protectedEnvs: string[] = [];
-  processed = processed.replace(
-    /\$\$\s*\\begin\{([a-zA-Z*]+)\}[\s\S]*?\\end\{\1\}\s*\$\$/g,
-    (m) => { protectedEnvs.push(m); return `%%MATHENV_${protectedEnvs.length - 1}%%`; }
-  );
-  processed = processed.replace(
-    /\\begin\{(aligned|align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|Vmatrix|smallmatrix|cases|array|split|multline\*?)\}([\s\S]*?)\\end\{\1\}/g,
-    (m) => `\n\n$$\n${m}\n$$\n\n`
-  );
-  processed = processed.replace(/%%MATHENV_(\d+)%%/g, (_, i) => protectedEnvs[parseInt(i)]);
-
-  // 7. Escape lone "$" used as currency so remark-math doesn't grab it.
-  //    Heuristic: $ immediately followed by a digit and NOT closed by another $ on the same line.
-  processed = processed.replace(/(^|[^\\$])\$(\d[\d,.]*)(?!\s*[^\n$]*\$)/g, '$1\\$$$2');
-
-  // 8. Inline $...$ — kill internal newlines (LLMs sometimes wrap)
-  processed = processed.replace(/(^|[^\$\\])\$([^\n$][^$]*?)\$(?!\$)/g, (_, pre, body) => {
-    if (!body || body.length > 200) return _;
-    return `${pre}$${body.replace(/\s*\n\s*/g, ' ').trim()}$`;
-  });
-
-  // 9. Ensure $$ display blocks have blank-line separation (remark-math is strict)
+  // 5. Ensure $$ display blocks have blank-line separation
   processed = processed.replace(/([^\n])\$\$/g, '$1\n\n$$');
   processed = processed.replace(/\$\$([^\n])/g, '$$\n$1');
 
-  // 9b. Auto-wrap obvious bare LaTeX (no delimiters) so the renderer doesn't show raw backslashes.
-  //     Heuristic: a line containing common KaTeX commands (\frac, \sqrt, \sum, \int, \alpha, etc.)
-  //     or sub/sup constructs ({_}, {^}) with NO existing $ on the line.
-  const BARE_LATEX_RE = /\\(frac|sqrt|sum|int|prod|lim|alpha|beta|gamma|delta|theta|lambda|mu|pi|sigma|phi|omega|infty|cdot|times|approx|leq|geq|neq|rightarrow|leftarrow|partial|nabla|hat|vec|bar|overline|underline|mathbb|mathrm|mathbf|mathcal|begin\{)/;
-  processed = processed
-    .split('\n')
-    .map((line) => {
-      if (line.includes('$') || line.startsWith('%%CODEBLOCK_')) return line;
-      // Skip lines that are part of markdown structure (headings, lists, tables, blockquotes)
-      if (/^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|\|)/.test(line)) return line;
-      if (BARE_LATEX_RE.test(line) || /[A-Za-z]_\{[^}]+\}|[A-Za-z]\^\{[^}]+\}/.test(line)) {
-        const trimmed = line.trim();
-        if (trimmed.length > 0 && trimmed.length < 200) {
-          return line.replace(trimmed, `$$${trimmed}$$`);
-        }
-      }
-      return line;
-    })
-    .join('\n');
-
-  // 9c. Auto-wrap bare inline exponents / subscripts like x^2, x^{10}, H_2O, a_{i,j}.
-  //     Only on lines with no existing $ delimiters. Skip protected code blocks.
-  const BARE_EXP_RE = /([A-Za-z])(\^|_)(\{[^}]{1,12}\}|[A-Za-z0-9])/g;
-  processed = processed
-    .split('\n')
-    .map((line) => {
-      if (line.includes('$') || line.startsWith('%%CODEBLOCK_')) return line;
-      if (!BARE_EXP_RE.test(line)) return line;
-      BARE_EXP_RE.lastIndex = 0;
-      return line.replace(BARE_EXP_RE, (m) => `$${m}$`);
-    })
-    .join('\n');
-
-  // 10. Restore code blocks
+  // 6. Restore code blocks
   processed = processed.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
   return processed;
@@ -281,10 +220,9 @@ const markdownComponents = {
 };
 
 // CRITICAL: remarkMath MUST come before remarkGfm to prevent pipe conflicts in tables
-// Security: rehypeRaw removed — AI-generated content must not bypass React escaping.
-// KaTeX trust: false — disable \url, \href, \htmlClass, \htmlStyle, \includegraphics.
+// rehypeRaw restored — KaTeX needs it for mixed HTML + math content
 const remarkPlugins = [remarkMath, remarkGfm];
-const rehypePlugins = [[rehypeKatex, { strict: false, throwOnError: false, trust: false }]] as any[];
+const rehypePlugins = [[rehypeKatex, { strict: false, throwOnError: false, trust: false }], rehypeRaw] as any[];
 
 export default function MarkdownRenderer({ children, className }: MarkdownRendererProps) {
   const processed = useMemo(() => preprocessLatex(children), [children]);

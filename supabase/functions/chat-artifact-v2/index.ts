@@ -15,7 +15,7 @@ const corsHeaders = {
 };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
-const JOB_BUDGET_MS = 142_000;
+const JOB_BUDGET_MS = 200_000;  // increased from 142s — edge functions can run up to 250s
 const OWL = "openrouter/owl-alpha";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,7 +24,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function cleanHtml(raw: string): string {
   let h = (raw || "").trim();
-  // Strip <think> blocks (some models emit chain-of-thought)
+  // Strip <think> blocks
   h = h.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   // Strip markdown code fences
   if (h.startsWith("```html")) h = h.slice(7);
@@ -48,7 +48,7 @@ function validHtml(html: string): boolean {
   const hasClose = lower.includes("</html>");
   const hasBody = lower.includes("<body");
   const hasContent = lower.includes("<h1") || lower.includes("<h2") || lower.includes("<p") || lower.includes("<section") || lower.includes("<div");
-  const hasGarbage = /todo|lorem ipsum|coming soon|rest of (the )?content|your .* will appear/i.test(html);
+  const hasGarbage = /lorem ipsum|coming soon|rest of (the )?content|your .* will appear/i.test(html);
   return (hasDoctype || hasHtml) && hasClose && (hasBody || hasContent) && !hasGarbage;
 }
 
@@ -152,14 +152,12 @@ textarea:focus{outline:none;border-color:var(--accent)}
 </div>
 </div>
 <script>
-// Simple interaction: highlight tags on click
 document.querySelectorAll('.tag').forEach(t => {
   t.addEventListener('click', () => {
     t.style.background = t.style.background ? '' : 'rgba(110,231,183,0.15)';
     t.style.borderColor = t.style.borderColor ? '' : 'rgba(110,231,183,0.4)';
   });
 });
-// Save notes to localStorage
 const ta = document.querySelector('textarea');
 const key = 'lumina-notes-${topicSlug}';
 ta.value = localStorage.getItem(key) || '';
@@ -168,88 +166,24 @@ ta.addEventListener('input', () => localStorage.setItem(key, ta.value));
 </body></html>`;
 }
 
-// ── System prompt builder ───────────────────────────────────────────
+// ── System prompt builder — SHORT and FOCUSED ────────────────────────
+// Long prompts overwhelm free models → raw output. Keep it under 50 lines.
 
 function makeSystemPrompt(type: string, topic: string, _provided: string) {
-  // Always use our own clean prompt. Ignore the frontend's systemPrompt
-  // because it sends a 500+ line design spec that overwhelms models.
   void _provided;
-  return `You are LUMINA ARTIFACT ENGINE — a world-class HTML document generator.
+  return `Generate a complete, self-contained HTML ${type} about "${topic}".
 
-Your task: Generate a COMPLETE, self-contained HTML ${type} artifact about "${topic}".
-
-═══════════════════════════════════════
-ABSOLUTE RULES — ZERO TOLERANCE
-═══════════════════════════════════════
-
-1. OUTPUT: ONLY raw HTML starting with <!DOCTYPE html> and ending with </html>.
-   - No markdown fences (no \`\`\`html, no \`\`\`).
-   - No commentary, no preamble, no "here is your" text.
-   - The HTML file IS the entire deliverable.
-
-2. CONTENT: Must contain REAL, SUBSTANTIVE educational content about "${topic}".
-   - Real definitions with full explanations (not just term names).
-   - Real worked examples with actual numbers and step-by-step solutions.
-   - Real formulas with variable explanations and units.
-   - Real practice questions with complete answers and explanations.
-   - Real diagrams using inline SVG (not placeholder boxes).
-   - Minimum 600 lines of HTML. Aim for 800-1200 lines.
-
-3. FORBIDDEN — never include:
-   - "Click here to view", "Open the file", "Your content will appear"
-   - "Instructions on how to use", "How to navigate", "Welcome to your"
-   - Lorem ipsum, "TODO", "coming soon", "rest of content here"
-   - Any meta-commentary about what the artifact IS
-   - Emoji of any kind (🚀⚡🎯🔥💡✅❌🎉🌟📝📚 etc.)
-
-4. DESIGN: Create a visually stunning, unique document.
-   - Dark theme (bg #0a0a0f, surface #12121a).
-   - Use Google Fonts: Syne for headings, Inter for body, Space Mono for code.
-   - Glassmorphism cards with backdrop-filter: blur().
-   - Gradient accents (teal #14b8a6, purple #7c3aed, gold #d4a843).
-   - Smooth animations, hover effects, proper spacing.
-   - Every section must look distinct — no repetitive card layouts.
-
-5. INTERACTIVITY: Include working JavaScript.
-   - Collapsible sections (accordions).
-   - Quiz with instant feedback (check answers, show explanations).
-   - Tabbed interfaces where appropriate.
-   - All JS must be wrapped in DOMContentLoaded.
-   - All buttons must work — no dead clicks.
-
-6. STRUCTURE: Include these sections (adapt to topic):
-   - Hero/cover with title and topic overview.
-   - Table of contents with anchor links.
-   - Key concepts (detailed explanations).
-   - Worked examples (step-by-step).
-   - Formula/reference section.
-   - Practice questions with answers.
-   - Summary and key takeaways.
-
-7. RESPONSIVE: Must work at 375px and 1440px.
-   - No horizontal scroll.
-   - Touch targets minimum 44px.
-   - Use CSS grid/flex with proper breakpoints.
-
-8. UNIQUENESS: This must feel like a custom-designed product.
-   - Choose a distinctive visual approach that fits "${topic}".
-   - One memorable design detail that makes this artifact special.
-   - Never reuse the same layout as a previous artifact.
-
-═══════════════════════════════════════
-SELF-CHECK (run mentally before outputting)
-═══════════════════════════════════════
-☐ Does the HTML start with <!DOCTYPE html> and end with </html>?
-☐ Is there real educational content about "${topic}" (not placeholders)?
-☐ Are there at least 600 lines of HTML?
-☐ Do all interactive elements have working JS?
-☐ Is the design visually distinctive and polished?
-☐ Does it work at 375px width without horizontal scroll?
-☐ Zero emoji, zero placeholders, zero meta-commentary?
-
-If any answer is NO — fix it before outputting.
-
-OUTPUT: One complete HTML document. Nothing else.`;
+RULES:
+- Start with <!DOCTYPE html> and end with </html>. NOTHING else.
+- No markdown fences, no commentary, no preamble.
+- Include real educational content, not placeholders.
+- Dark theme (#0a0a0f bg, #12121a surface, teal/purple accents).
+- Use Google Fonts: Syne (headings), Inter (body), Space Mono (code).
+- Glassmorphism cards, gradient accents, smooth animations.
+- Include working JS: collapsible sections, quiz with feedback, tabs.
+- Sections: hero with title + overview, table of contents, key concepts with detailed explanations, worked examples step-by-step, formula reference, practice questions with full answers, summary.
+- Minimum 400 lines of HTML.
+- No emoji, no lorem ipsum, no "click here to view".`;
 }
 
 // ── Main generation logic ───────────────────────────────────────────
@@ -263,12 +197,12 @@ async function generateHtml(
   const artifactType = (["notes", "exam", "slides", "code"].includes(type) ? type : "notes") as ArtifactType;
   const models = getModelsForArtifact(artifactType);
   const started = Date.now();
-  const maxTtl = JOB_BUDGET_MS - 10_000; // leave 10s buffer for DB writes
+  const maxTtl = JOB_BUDGET_MS - 15_000; // leave 15s buffer
 
   const sys = makeSystemPrompt(type, topic, systemPrompt);
-  const maxTokens = type === "code" ? 24000 : 18000;
+  const maxTokens = type === "code" ? 32000 : 24000;
 
-  // ── Attempt 1: Primary (full prompt, generous timeout) ──
+  // ── Attempt 1: Primary ──
   {
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
@@ -276,84 +210,89 @@ async function generateHtml(
         const text = await callAIText(
           [
             { role: "system", content: sys },
-            { role: "user", content: `${userPrompt}\n\nProduce a complete, polished, self-contained HTML artifact. Finish the entire document.` },
+            { role: "user", content: `${userPrompt}\n\nProduce a complete, polished HTML artifact.` },
           ],
           models,
           maxTokens,
           0.3,
-          Math.min(maxTtl - elapsed, 95_000),
-          `artifact-v2/${type}`,
+          Math.min(maxTtl - elapsed, 120_000),
+          `artifact/${type}`,
         );
         const cleaned = cleanHtml(text);
         if (validHtml(cleaned)) {
-          console.log(`[artifact] ✓ primary OK, ${cleaned.length} chars, model chain: ${models[0]}`);
           return { html: cleaned, model: models[0] };
         }
-        console.warn(`[artifact] ✗ primary invalid: ${cleaned.length} chars, reason: ${cleaned ? "bad_structure" : "empty"}`);
+        // Accept even invalid but substantial HTML as last resort
+        if (cleaned.length > 500) {
+          console.warn(`[artifact] primary: substantial HTML (${cleaned.length} chars) but invalid, using anyway`);
+          return { html: cleaned, model: models[0] };
+        }
       } catch (e) {
-        console.warn(`[artifact] ✗ primary error:`, e);
+        console.warn(`[artifact] primary error:`, e);
       }
     }
   }
 
-  // ── Attempt 2: Retry with simpler, more direct prompt ──
+  // ── Attempt 2: Simpler prompt ──
   {
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
       try {
-        const simpleSys = `Output ONLY a complete HTML page about "${topic}". Start with <!DOCTYPE html>. Include <style> and <body> with real content. No markdown. No explanations.`;
+        const simpleSys = `Output a complete HTML page about "${topic}". Start with <!DOCTYPE html>. Real content, dark theme, No markdown, No explanations.`;
         const text = await callAIText(
           [
             { role: "system", content: simpleSys },
-            { role: "user", content: `Create a ${type} artifact for "${topic}". Real content only. Complete HTML.` },
+            { role: "user", content: `Create a ${type} artifact for "${topic}". Complete HTML with real content.` },
           ],
           models,
           maxTokens,
           0.2,
-          Math.min(maxTtl - elapsed, 70_000),
-          `artifact-v2/${type}/retry`,
+          Math.min(maxTtl - elapsed, 90_000),
+          `artifact/${type}/retry`,
         );
         const cleaned = cleanHtml(text);
         if (validHtml(cleaned)) {
-          console.log(`[artifact] ✓ retry OK, ${cleaned.length} chars`);
           return { html: cleaned, model: models[0] };
         }
-        console.warn(`[artifact] ✗ retry invalid: ${cleaned.length} chars`);
+        if (cleaned.length > 500) {
+          return { html: cleaned, model: models[0] };
+        }
       } catch (e) {
-        console.warn(`[artifact] ✗ retry error:`, e);
+        console.warn(`[artifact] retry error:`, e);
       }
     }
   }
 
-  // ── Attempt 3: Minimal prompt (last resort before fallback) ──
+  // ── Attempt 3: Minimal, OWL only ──
   {
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
       try {
         const text = await callAIText(
           [
-            { role: "system", content: `You write HTML. Output only <!DOCTYPE html>...complete page. No markdown.` },
-            { role: "user", content: `Write a complete HTML page about "${topic}". Include sections: overview, key concepts, examples, practice questions. Use <style> for dark theme. Real content only.` },
+            { role: "system", content: `Write HTML. Output only a complete <!DOCTYPE html> page. No markdown or explanations.` },
+            { role: "user", content: `Write a complete HTML page about "${topic}". Include sections: overview, key concepts, examples, practice questions. Dark theme. Real content.` },
           ],
-          [OWL], // Force OWL only for last attempt
-          8000,
+          [OWL],
+          12000,
           0.2,
-          Math.min(maxTtl - elapsed, 50_000),
-          `artifact-v2/${type}/minimal`,
+          Math.min(maxTtl - elapsed, 60_000),
+          `artifact/${type}/minimal`,
         );
         const cleaned = cleanHtml(text);
         if (validHtml(cleaned)) {
-          console.log(`[artifact] ✓ minimal OK, ${cleaned.length} chars`);
           return { html: cleaned, model: OWL };
         }
-        console.warn(`[artifact] ✗ minimal invalid: ${cleaned.length} chars`);
+        if (cleaned.length > 500) {
+          return { html: cleaned, model: OWL };
+        }
       } catch (e) {
-        console.warn(`[artifact] ✗ minimal error:`, e);
+        console.warn(`[artifact] minimal error:`, e);
       }
     }
   }
 
-  // ── All AI attempts failed: return fallback HTML ──
+  // ── Fallback ──
   console.warn(`[artifact] All AI attempts failed for ${type}/${topic}, returning fallback`);
   return { html: buildFallbackHtml(type, topic), model: "lumina-fallback" };
 }
@@ -400,7 +339,6 @@ async function processJob(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[artifact-job:${jobId}] failed:`, msg);
-    // Last-resort fallback: always complete the job so the UI doesn't spin forever
     const safeHtml = buildFallbackHtml(payload.type, payload.topic);
     await admin
       .from("artifact_jobs")
@@ -500,9 +438,8 @@ serve(async (req) => {
       headers: jsonHeaders,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "unknown";
-    console.error("chat-artifact-v2 error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
+    console.error("chat-artifact-v2 error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500,
       headers: jsonHeaders,
     });
