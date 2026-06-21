@@ -1,5 +1,28 @@
 #!/usr/bin/env node
 // @ts-nocheck
+
+// Check if we have a proper TTY for the TUI
+const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+if (!hasTTY) {
+  // Non-TUI mode: just show help
+  console.log('');
+  console.log('  ⚡ LUMINA CODE — AI Coding Agent');
+  console.log('');
+  console.log('  Lumina Code requires a proper terminal (TTY) to run.');
+  console.log('  Please open one of these and type: lumina');
+  console.log('');
+  console.log('  • Windows Terminal (recommended)');
+  console.log('  • PowerShell');
+  console.log('  • Command Prompt (cmd.exe)');
+  console.log('  • iTerm2 / Terminal.app (macOS)');
+  console.log('  • Any Linux terminal');
+  console.log('');
+  console.log('  If you\'re in Git Bash, try running from Windows Terminal instead.');
+  console.log('');
+  process.exit(0);
+}
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useInput, useApp, Spacer } from 'ink';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
@@ -17,31 +40,13 @@ function saveConfig(config) {
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
-// ── Simple Text Input Component ─────────────────────────────────────
-function PromptInput({ value, onChange, onSubmit, placeholder }) {
-  useInput((input, key) => {
-    if (key.return && onSubmit) {
-      onSubmit(value);
-    } else if (key.backspace || key.delete) {
-      onChange(value.slice(0, -1));
-    } else if (!key.ctrl && !key.meta && input) {
-      onChange(value + input);
-    }
-  });
-  return React.createElement(Box, null,
-    React.createElement(Text, { color: '#7C5CFC' }, ' > '),
-    React.createElement(Text, { color: '#FAFAFA' }, value || placeholder || 'Type something...'),
-    React.createElement(Text, { color: '#52525B' }, '▌'),
-  );
-}
-
 // ── Onboarding Screen ───────────────────────────────────────────────
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [apiKey, setApiKey] = useState('');
   const [name, setName] = useState('');
 
-  const handleKey = useCallback((input, key) => {
+  useInput((input, key) => {
     if (key.return) {
       if (step === 0) {
         setStep(1);
@@ -58,9 +63,7 @@ function Onboarding({ onComplete }) {
       if (step === 1) setApiKey(v => v + input);
       if (step === 2) setName(v => v + input);
     }
-  }, [step, apiKey, name, onComplete]);
-
-  useInput(handleKey);
+  });
 
   return React.createElement(Box, { flexDirection: 'column', padding: 2 },
     React.createElement(Box, { flexDirection: 'column', marginBottom: 2 },
@@ -206,7 +209,6 @@ Working directory: ${process.cwd()}` }, ...currentMessages],
           break;
         }
 
-        // Execute tools
         for (const tc of toolCalls) {
           const args = JSON.parse(tc.function.arguments || '{}');
           const toolName = tc.function.name;
@@ -318,14 +320,11 @@ Working directory: ${process.cwd()}` }, ...currentMessages],
   });
 
   return React.createElement(Box, { flexDirection: 'column', height: '100%' },
-    // Header
     React.createElement(Box, { borderStyle: 'round', borderColor: '#7C5CFC', paddingX: 2, paddingY: 1 },
       React.createElement(Text, { bold: true, color: '#7C5CFC' }, ' ⚡ LUMINA CODE'),
       React.createElement(Spacer, null),
       React.createElement(Text, { color: '#52525B' }, thinking ? ' ⏳ ' + status : ' ● ' + status),
     ),
-
-    // Messages
     React.createElement(Box, { flexDirection: 'column', flexGrow: 1, paddingX: 2, paddingY: 1, overflowY: 'hidden' },
       visibleMessages.map((m, i) => {
         if (m.role === 'user') {
@@ -345,15 +344,11 @@ Working directory: ${process.cwd()}` }, ...currentMessages],
       }),
       thinking && React.createElement(Text, { color: '#F59E0B' }, '  ⏳ thinking...'),
     ),
-
-    // Input
     React.createElement(Box, { borderStyle: 'single', borderColor: '#3F3F46', paddingX: 1 },
       React.createElement(Text, { color: '#7C5CFC' }, ' > '),
       React.createElement(Text, { color: '#FAFAFA' }, input || 'What do you want to build?'),
       React.createElement(Text, { color: '#52525B' }, '▌'),
     ),
-
-    // Footer
     React.createElement(Box, { paddingX: 2 },
       React.createElement(Text, { color: '#3F3F46' }, ' Ctrl+C to exit | OWL-Alpha '),
     ),
