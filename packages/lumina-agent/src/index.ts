@@ -33,7 +33,7 @@ async function onboarding() {
 function parseCodeBlocks(text) {
   const files = [];
   // Match ```filename ... ``` blocks
-  const blockRegex = ```([\w./\-_]+)?\s*\n([\s\S]*?)```/g;
+  const blockRegex = /```([\w./\-_]+)?\s*\n([\s\S]*?)```/g;
   let match;
   while ((match = blockRegex.exec(text)) !== null) {
     const filename = match[1]?.trim();
