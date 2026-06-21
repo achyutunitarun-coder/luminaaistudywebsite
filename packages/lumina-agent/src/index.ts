@@ -29,7 +29,6 @@ async function onboarding() {
   console.log('  ✓ Ready!\n');
 }
 
-// ── Streaming chat with real-time file creation ─────────────────────
 async function chat(config) {
   console.log('  Type what you want to build. I\'ll handle the rest.');
   console.log('  Commands: /help /clear /files /exit\n');
@@ -49,23 +48,47 @@ async function chat(config) {
     }
     if (trimmed === '/help') { console.log('  /help /clear /files /exit\n'); continue; }
 
-    const systemPrompt = `You are LUMINA CODE. Create COMPLETE production-grade websites.
+    // Ultra-explicit system prompt
+    const systemPrompt = `You are LUMINA CODE. You MUST output files using this EXACT format. Do NOT describe what you will do. DO IT.
 
-OUTPUT FORMAT — Use this exact format for every file:
+OUTPUT THIS EXACT FORMAT — NO EXCEPTIONS:
 
-FILENAME: path/to/file.ext
-[COMPLETE file content — every line, no truncation]
+FILENAME: index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page</title>
+<style>
+/* ALL CSS here */
+</style>
+</head>
+<body>
+<!-- ALL HTML here -->
+<script>
+// ALL JavaScript here
+</script>
+</body>
+</html>
 END FILE
 
-For commands:
-COMMAND: npm install something
+FILENAME: style.css
+/* ALL CSS */
+END FILE
+
+FILENAME: script.js
+// ALL JavaScript
+END FILE
 
 RULES:
-- Output COMPLETE files — every single line
-- Use Three.js for 3D, CSS animations for motion
-- No placeholders, no TODOs, no lorem ipsum
-- Beautiful, cinematic, production-quality
-- Create ALL files needed for a working project
+- Start IMMEDIATELY with FILENAME: index.html
+- Output COMPLETE file contents — every single line
+- Do NOT output any text before FILENAME:
+- Do NOT describe what you will do
+- Do NOT output markdown code blocks
+- ONLY use FILENAME: ... END FILE format
+- Create ALL files needed for a complete working project
 
 Working directory: ${process.cwd()}`;
 
@@ -91,7 +114,7 @@ Working directory: ${process.cwd()}`;
           ],
           stream: true,
           max_tokens: 16000,
-          temperature: 0.2,
+          temperature: 0.1,
         }),
         signal: controller.signal,
       });
@@ -103,7 +126,7 @@ Working directory: ${process.cwd()}`;
         throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
       }
 
-      // Stream the response and create files in real-time
+      // Stream and parse files in real-time
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -111,6 +134,7 @@ Working directory: ${process.cwd()}`;
       let currentContent = '';
       let inFile = false;
       let fileCount = 0;
+      let outputBuffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -118,89 +142,101 @@ Working directory: ${process.cwd()}`;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep incomplete line
+        buffer = lines.pop();
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
           if (data === '[DONE]') continue;
 
+          let delta = '';
           try {
             const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (!delta) continue;
+            delta = parsed.choices?.[0]?.delta?.content || '';
+          } catch { continue; }
 
-            // Process the delta character by character for file detection
-            for (const char of delta) {
-              if (!inFile) {
-                // Check for FILENAME: pattern
-                if (currentFile === null) {
-                  // Accumulate to check for FILENAME:
-                  if (!currentContent) {
-                    if (char === 'F') currentContent = 'F';
-                    else if (currentContent === 'F' && char === 'I') currentContent = 'FI';
-                    else if (currentContent === 'FI' && char === 'L') currentContent = 'FIL';
-                    else if (currentContent === 'FIL' && char === 'E') currentContent = 'FILE';
-                    else if (currentContent === 'FILE' && char === 'N') currentContent = 'FILEN';
-                    else if (currentContent === 'FILEN' && char === 'A') currentContent = 'FILENA';
-                    else if (currentContent === 'FILENA' && char === 'M') currentContent = 'FILENAM';
-                    else if (currentContent === 'FILENAM' && char === 'E') currentContent = 'FILENAME';
-                    else if (currentContent === 'FILENAME' && char === ':') {
-                      currentFile = '';
-                      currentContent = '';
-                      process.stdout.write('  📄 Creating: ');
-                    } else {
-                      // Not a FILENAME: pattern, just output
-                      if (currentContent) {
-                        process.stdout.write(currentContent + char);
-                        currentContent = '';
-                      } else {
-                        process.stdout.write(char);
-                      }
-                    }
-                  }
+          if (!delta) continue;
+
+          // Process delta for file detection
+          for (let i = 0; i < delta.length; i++) {
+            const char = delta[i];
+
+            if (!inFile) {
+              // Look for FILENAME:
+              outputBuffer += char;
+              if (outputBuffer.endsWith('FILENAME:')) {
+                // Found it! Extract filename on next line
+                currentFile = '';
+                inFile = true;
+                currentContent = '';
+                outputBuffer = '';
+                process.stdout.write('  📄 ');
+              } else if (outputBuffer.length > 20) {
+                // Not matching, flush
+                process.stdout.write(outputBuffer);
+                outputBuffer = '';
+              }
+            } else {
+              // In filename or content
+              if (char === '\n' && !currentFile.includes('/')) {
+                // Still in filename line (no path separator yet)
+                if (currentFile.length > 0 && !currentFile.includes('.')) {
+                  // This is a path separator line, keep accumulating
+                  currentFile += char;
                 } else {
-                  // We're inside a filename or file content
-                  if (char === '\n' && !inFile) {
-                    // End of filename line
-                    const filename = currentFile.trim();
-                    currentFile = filename;
-                    inFile = true;
-                    currentContent = '';
-                    console.log(`  ✓ ${filename}`);
-                    fileCount++;
-                  } else if (inFile) {
-                    currentContent += char;
-                    // Check for END FILE
-                    if (currentContent.endsWith('END FILE')) {
-                      const fileContent = currentContent.slice(0, -8).trim();
-                      try {
-                        const filePath = join(process.cwd(), currentFile);
-                        const dir = dirname(resolve(filePath));
-                        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-                        writeFileSync(filePath, fileContent, 'utf-8');
-                        createdFiles.add(currentFile);
-                        console.log(`  ✓ Saved: ${currentFile} (${fileContent.length} chars)`);
-                      } catch (e) {
-                        console.log(`  ✗ Error saving ${currentFile}: ${e.message}`);
-                      }
-                      currentFile = null;
-                      currentContent = '';
-                      inFile = false;
-                    }
-                  } else {
-                    currentFile += char;
-                  }
+                  // End of filename
+                  currentFile = currentFile.trim();
+                  console.log(currentFile);
+                  fileCount++;
                 }
+              } else if (currentFile && !currentContent && char === '\n' && currentFile.includes('.')) {
+                // First newline after filename, start content
+                currentContent = '';
+              } else if (currentContent !== null) {
+                currentContent += char;
+                // Check for END FILE
+                if (currentContent.endsWith('END FILE')) {
+                  const fileContent = currentContent.slice(0, -8).trim();
+                  try {
+                    const filePath = join(process.cwd(), currentFile);
+                    const dir = dirname(resolve(filePath));
+                    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+                    writeFileSync(filePath, fileContent, 'utf-8');
+                    createdFiles.add(currentFile);
+                    console.log(`  ✓ Saved: ${currentFile} (${fileContent.length} chars)`);
+                  } catch (e) {
+                    console.log(`  ✗ Error: ${currentFile}: ${e.message}`);
+                  }
+                  currentFile = null;
+                  currentContent = null;
+                  inFile = false;
+                }
+              } else {
+                currentFile += char;
               }
             }
-          } catch (e) {
-            // Skip malformed JSON chunks
           }
         }
       }
 
-      console.log(`\n  📊 Created ${fileCount} file(s) total: ${createdFiles.size}`);
+      // Handle any remaining content
+      if (inFile && currentFile && currentContent) {
+        const fileContent = currentContent.replace(/END FILE$/, '').trim();
+        if (fileContent) {
+          try {
+            const filePath = join(process.cwd(), currentFile);
+            const dir = dirname(resolve(filePath));
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            writeFileSync(filePath, fileContent, 'utf-8');
+            createdFiles.add(currentFile);
+            console.log(`  ✓ Saved: ${currentFile} (${fileContent.length} chars)`);
+          } catch (e) {
+            console.log(`  ✗ Error: ${currentFile}: ${e.message}`);
+          }
+        }
+      }
+
+      console.log(`\n  📊 Created ${fileCount} file(s) | Total: ${createdFiles.size}`);
       console.log('');
 
     } catch (e) {
@@ -211,7 +247,6 @@ Working directory: ${process.cwd()}`;
   rl.close();
 }
 
-// ── Main ────────────────────────────────────────────────────────────
 const config = loadConfig();
 if (!config?.openrouterKey) {
   onboarding().then(() => chat(loadConfig()).then(() => process.exit(0)));
