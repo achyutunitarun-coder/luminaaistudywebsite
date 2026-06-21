@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ts-nocheck
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join, dirname, resolve } from 'path';
 import { createInterface } from 'readline';
@@ -29,126 +29,51 @@ async function onboarding() {
   console.log('  ✓ Ready!\n');
 }
 
-// ── Parse code blocks from model output ─────────────────────────────
-function parseCodeBlocks(text) {
-  const files = [];
-  // Match ```filename ... ``` blocks
-  const blockRegex = /```([\w./\-_]+)?\s*\n([\s\S]*?)```/g;
-  let match;
-  while ((match = blockRegex.exec(text)) !== null) {
-    const filename = match[1]?.trim();
-    const content = match[2].trim();
-    if (filename && content) {
-      files.push({ path: filename, content });
-    }
-  }
-  // Also match FILE: path ... END FILE blocks
-  const fileRegex = /FILE:\s*([\w./\-_]+)\n([\s\S]*?)END FILE/g;
-  while ((match = fileRegex.exec(text)) !== null) {
-    files.push({ path: match[1].trim(), content: match[2].trim() });
-  }
-  return files;
-}
-
-// ── Execute shell commands from model output ────────────────────────
-function extractCommands(text) {
-  const commands = [];
-  const cmdRegex = /COMMAND:\s*(.+)/g;
-  let match;
-  while ((match = cmdRegex.exec(text)) !== null) {
-    commands.push(match[1].trim());
-  }
-  return commands;
-}
-
-// ── Chat Loop ───────────────────────────────────────────────────────
+// ── Streaming chat with real-time file creation ─────────────────────
 async function chat(config) {
   console.log('  Type what you want to build. I\'ll handle the rest.');
-  console.log('  Commands: /help /clear /files /run /exit\n');
+  console.log('  Commands: /help /clear /files /exit\n');
 
   const createdFiles = new Set();
-  let conversationHistory = [];
 
   while (true) {
     const input = await ask('  > ');
     const trimmed = input.trim();
-
     if (!trimmed) continue;
     if (trimmed === '/exit' || trimmed === '/quit') break;
-    if (trimmed === '/clear') { conversationHistory = []; console.log('  ✓ Cleared.\n'); continue; }
+    if (trimmed === '/clear') { console.log('  ✓ Cleared.\n'); continue; }
     if (trimmed === '/files') {
-      if (createdFiles.size === 0) { console.log('  No files created yet.\n'); }
-      else { console.log('  Created files:'); for (const f of createdFiles) console.log(`    ${f}`); console.log(''); }
+      if (createdFiles.size === 0) { console.log('  No files yet.\n'); }
+      else { console.log('  Files:'); for (const f of createdFiles) console.log(`    ${f}`); console.log(''); }
       continue;
     }
-    if (trimmed === '/help') {
-      console.log('  Commands: /help /clear /files /run <cmd> /exit\n');
-      continue;
-    }
-    if (trimmed.startsWith('/run ')) {
-      const cmd = trimmed.slice(5);
-      try {
-        console.log(`  Running: ${cmd}`);
-        const out = execSync(cmd, { cwd: process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 });
-        console.log(`  ${out.slice(0, 500)}`);
-      } catch (e) { console.log(`  Error: ${e.message}`); }
-      console.log('');
-      continue;
-    }
+    if (trimmed === '/help') { console.log('  /help /clear /files /exit\n'); continue; }
 
-    // Build the prompt
-    const systemPrompt = `You are LUMINA CODE — an elite AI coding agent. You create COMPLETE, production-grade websites and apps.
+    const systemPrompt = `You are LUMINA CODE. Create COMPLETE production-grade websites.
 
-CRITICAL RULES:
-1. Output COMPLETE files using this exact format:
-   FILENAME: path/to/file.ext
-   [complete file content]
-   END FILE
+OUTPUT FORMAT — Use this exact format for every file:
 
-2. Output shell commands using:
-   COMMAND: npm install something
-   COMMAND: npm run build
-
-3. Create ALL necessary files for a complete, working project
-4. Use modern HTML/CSS/JS, Three.js for 3D, CSS animations
-5. No placeholders, no TODOs, no lorem ipsum
-6. Beautiful, cinematic, production-quality code
-7. Each file should be COMPLETE — not snippets
-
-Working directory: ${process.cwd()}
-
-Example output:
-FILENAME: index.html
-<!DOCTYPE html>
-<html>
-...
-</html>
+FILENAME: path/to/file.ext
+[COMPLETE file content — every line, no truncation]
 END FILE
 
-FILENAME: style.css
-:root { --bg: #0a0a0f; }
-...
-END FILE
+For commands:
+COMMAND: npm install something
 
-FILENAME: script.js
-import * as THREE from 'three';
-...
-END FILE
+RULES:
+- Output COMPLETE files — every single line
+- Use Three.js for 3D, CSS animations for motion
+- No placeholders, no TODOs, no lorem ipsum
+- Beautiful, cinematic, production-quality
+- Create ALL files needed for a working project
 
-COMMAND: npm install three
-COMMAND: npm run build`;
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory,
-      { role: 'user', content: trimmed },
-    ];
+Working directory: ${process.cwd()}`;
 
     console.log('  ⏳ Generating...\n');
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180000);
+      const timeout = setTimeout(() => controller.abort(), 300000);
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -160,8 +85,11 @@ COMMAND: npm run build`;
         },
         body: JSON.stringify({
           model: 'openrouter/owl-alpha',
-          messages,
-          stream: false,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: trimmed },
+          ],
+          stream: true,
           max_tokens: 16000,
           temperature: 0.2,
         }),
@@ -175,66 +103,105 @@ COMMAND: npm run build`;
         throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
       }
 
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content || '';
+      // Stream the response and create files in real-time
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentFile = null;
+      let currentContent = '';
+      let inFile = false;
+      let fileCount = 0;
 
-      if (!content) {
-        console.log('  ⚠ No response from model. Try again.\n');
-        continue;
-      }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Parse and create files
-      const files = parseCodeBlocks(content);
-      const commands = extractCommands(content);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line
 
-      if (files.length > 0) {
-        console.log(`  📁 Creating ${files.length} file(s)...\n`);
-        for (const file of files) {
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+
           try {
-            const filePath = join(process.cwd(), file.path);
-            const dir = dirname(resolve(filePath));
-            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-            writeFileSync(filePath, file.content, 'utf-8');
-            createdFiles.add(file.path);
-            console.log(`  ✓ ${file.path} (${file.content.length} chars)`);
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (!delta) continue;
+
+            // Process the delta character by character for file detection
+            for (const char of delta) {
+              if (!inFile) {
+                // Check for FILENAME: pattern
+                if (currentFile === null) {
+                  // Accumulate to check for FILENAME:
+                  if (!currentContent) {
+                    if (char === 'F') currentContent = 'F';
+                    else if (currentContent === 'F' && char === 'I') currentContent = 'FI';
+                    else if (currentContent === 'FI' && char === 'L') currentContent = 'FIL';
+                    else if (currentContent === 'FIL' && char === 'E') currentContent = 'FILE';
+                    else if (currentContent === 'FILE' && char === 'N') currentContent = 'FILEN';
+                    else if (currentContent === 'FILEN' && char === 'A') currentContent = 'FILENA';
+                    else if (currentContent === 'FILENA' && char === 'M') currentContent = 'FILENAM';
+                    else if (currentContent === 'FILENAM' && char === 'E') currentContent = 'FILENAME';
+                    else if (currentContent === 'FILENAME' && char === ':') {
+                      currentFile = '';
+                      currentContent = '';
+                      process.stdout.write('  📄 Creating: ');
+                    } else {
+                      // Not a FILENAME: pattern, just output
+                      if (currentContent) {
+                        process.stdout.write(currentContent + char);
+                        currentContent = '';
+                      } else {
+                        process.stdout.write(char);
+                      }
+                    }
+                  }
+                } else {
+                  // We're inside a filename or file content
+                  if (char === '\n' && !inFile) {
+                    // End of filename line
+                    const filename = currentFile.trim();
+                    currentFile = filename;
+                    inFile = true;
+                    currentContent = '';
+                    console.log(`  ✓ ${filename}`);
+                    fileCount++;
+                  } else if (inFile) {
+                    currentContent += char;
+                    // Check for END FILE
+                    if (currentContent.endsWith('END FILE')) {
+                      const fileContent = currentContent.slice(0, -8).trim();
+                      try {
+                        const filePath = join(process.cwd(), currentFile);
+                        const dir = dirname(resolve(filePath));
+                        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+                        writeFileSync(filePath, fileContent, 'utf-8');
+                        createdFiles.add(currentFile);
+                        console.log(`  ✓ Saved: ${currentFile} (${fileContent.length} chars)`);
+                      } catch (e) {
+                        console.log(`  ✗ Error saving ${currentFile}: ${e.message}`);
+                      }
+                      currentFile = null;
+                      currentContent = '';
+                      inFile = false;
+                    }
+                  } else {
+                    currentFile += char;
+                  }
+                }
+              }
+            }
           } catch (e) {
-            console.log(`  ✗ ${file.path}: ${e.message}`);
+            // Skip malformed JSON chunks
           }
         }
       }
 
-      // Execute commands
-      if (commands.length > 0) {
-        console.log(`\n  ⚙ Running ${commands.length} command(s)...\n`);
-        for (const cmd of commands) {
-          try {
-            console.log(`  $ ${cmd}`);
-            const out = execSync(cmd, { cwd: process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 });
-            console.log(`  ✓ ${out.slice(0, 200)}`);
-          } catch (e) {
-            console.log(`  ✗ ${e.message}`);
-          }
-        }
-      }
-
-      // Show any text output from the model
-      const textOnly = content
-        .replace(/FILENAME:[\s\S]*?END FILE/g, '')
-        .replace(/COMMAND:.+/g, '')
-        .trim();
-
-      if (textOnly) {
-        console.log(`\n  💬 ${textOnly.slice(0, 500)}`);
-      }
-
-      console.log(`\n  📊 Total files created: ${createdFiles.size}`);
+      console.log(`\n  📊 Created ${fileCount} file(s) total: ${createdFiles.size}`);
       console.log('');
-
-      // Save conversation
-      conversationHistory.push({ role: 'user', content: trimmed });
-      conversationHistory.push({ role: 'assistant', content });
-      // Keep last 10 messages
-      if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
 
     } catch (e) {
       console.log(`  ⚠ Error: ${e.message}\n`);
