@@ -20,12 +20,13 @@ const rl = createInterface({ input: process.stdin, output: process.stdout });
 function ask(q) { return new Promise(r => rl.question(q, r)); }
 
 async function onboarding() {
-  console.log('\n  ⚡ LUMINA CODE — AI Coding Agent\n');
-  const apiKey = await ask('  Enter your OpenRouter API key: ');
-  if (!apiKey.trim() || apiKey.trim().length < 10) { console.log('  ❌ Invalid key.'); process.exit(1); }
-  const name = await ask('  Your name (optional): ');
-  saveConfig({ openrouterKey: apiKey.trim(), userName: name.trim() || 'User' });
-  console.log('  ✓ Ready!\n');
+  console.log('\n╔══════════════════════════════════════╗');
+  console.log('║   ⚡ LUMINA CODE — AI Coding Agent  ║');
+  console.log('╚══════════════════════════════════════╝\n');
+  const apiKey = await ask('  🔑 OpenRouter API key: ');
+  if (!apiKey.trim() || apiKey.trim().length < 10) { console.log('  ❌ Invalid.'); process.exit(1); }
+  saveConfig({ openrouterKey: apiKey.trim(), userName: 'User' });
+  console.log('  ✅ Ready!\n');
 }
 
 function extractFiles(text) {
@@ -36,79 +37,59 @@ function extractFiles(text) {
     const rawPath = match[1].trim();
     const content = match[2].trim();
     if (!rawPath || rawPath.endsWith('/') || !extname(rawPath)) continue;
-    if (rawPath.includes('<') || rawPath.includes('>') || rawPath.includes('"')) continue;
+    if (rawPath.includes('<') || rawPath.includes('"') || rawPath.includes('`')) continue;
     files.push({ path: rawPath, content });
   }
   return files;
 }
 
 async function chat(config) {
-  console.log('  Type what you want to build. I\'ll handle the rest.');
-  console.log('  Commands: /help /clear /files /exit\n');
-
+  console.log('  💬 Type what you want to build. /exit to quit.\n');
   const createdFiles = new Set();
 
-  while (true) {
-    const input = await ask('  > ');
-    const trimmed = input.trim();
-    if (!trimmed) continue;
-    if (trimmed === '/exit' || trimmed === '/quit') break;
-    if (trimmed === '/clear') { console.log('  ✓ Cleared.\n'); continue; }
-    if (trimmed === '/files') {
-      if (createdFiles.size === 0) { console.log('  No files yet.\n'); }
-      else { console.log('  Files:'); for (const f of createdFiles) console.log(`    ${f}`); console.log(''); }
-      continue;
-    }
-    if (trimmed === '/help') { console.log('  /help /clear /files /exit\n'); continue; }
+  const SYSTEM = `You are LUMINA CODE — the world's best AI coding agent.
 
-    const systemPrompt = `You are LUMINA CODE. Create COMPLETE production-grade websites.
-
-OUTPUT FORMAT — Use this EXACT format for EVERY file:
-
+OUTPUT FORMAT — MANDATORY:
 FILENAME: index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Title</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- Complete HTML here -->
+<!-- COMPLETE HTML -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
 END FILE
 
 FILENAME: style.css
-/* Complete CSS here */
+/* COMPLETE CSS */
 END FILE
 
 FILENAME: script.js
-// Complete JavaScript here
+// COMPLETE JS
 END FILE
 
-RULES:
-- Start IMMEDIATELY with FILENAME: index.html
-- Output COMPLETE files — every line, no truncation
-- Do NOT describe what you will do — JUST DO IT
-- Do NOT output any text before FILENAME:
-- Do NOT use markdown code blocks
-- Create ALL files needed for a complete working project
-- Use Three.js from CDN for 3D
-- No placeholders, no TODOs, no lorem ipsum
+RULES: Start IMMEDIATELY with FILENAME: index.html. Do NOT describe. JUST OUTPUT COMPLETE FILES. No placeholders. No TODOs. Robot: Three.js primitives, PBR materials, wave/blink animations, scroll-driven sections (Hero=wave, Features=point, About=think, Contact=wave goodbye), particles, dark gradient bg. 56000 tokens max.
 
 Working directory: ${process.cwd()}`;
 
-    console.log('');
-    console.log('  ⏳ Generating...');
+  while (true) {
+    const input = await ask('  > ');
+    const trimmed = input.trim();
+    if (!trimmed) continue;
+    if (trimmed === '/exit') break;
+
+    console.log('\n  ⏳ Streaming...\n');
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 600000); // 10 min timeout
-
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -120,62 +101,57 @@ Working directory: ${process.cwd()}`;
         body: JSON.stringify({
           model: 'openrouter/owl-alpha',
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: SYSTEM },
             { role: 'user', content: trimmed },
           ],
-          stream: false,
-          max_tokens: 65000,
+          stream: true,
+          max_tokens: 56000,
           temperature: 0.1,
         }),
-        signal: controller.signal,
       });
-
-      clearTimeout(timeout);
 
       if (!res.ok) {
         const err = await res.text().catch(() => '');
-        throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
+        throw new Error(`API ${res.status}: ${err.slice(0, 200)}`);
       }
 
-      // Read response as text first, then parse
-      const rawText = await res.text();
-      let data;
-      try {
-        data = JSON.parse(rawText);
-      } catch (e) {
-        // If JSON is truncated, try to fix it
-        console.log('  ⚠ Response was truncated. Attempting to parse...');
-        // Try to find the last complete JSON object
-        const lastBrace = rawText.lastIndexOf('}');
-        if (lastBrace > 0) {
-          try {
-            data = JSON.parse(rawText.slice(0, lastBrace + 1));
-          } catch (e2) {
-            throw new Error('Response was truncated and could not be parsed. Try a shorter prompt.');
-          }
-        } else {
-          throw new Error('Response was truncated. Try a shorter prompt.');
+      // Stream and collect full text
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let fullText = '';
+      let filesCreated = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') continue;
+
+          let delta = '';
+          try { delta = JSON.parse(d).choices?.[0]?.delta?.content || ''; } catch { continue; }
+          if (!delta) continue;
+
+          fullText += delta;
+          process.stdout.write(delta);
         }
       }
 
-      const content = data.choices?.[0]?.message?.content || '';
+      console.log('\n');
+      console.log(`  ✅ Stream complete (${fullText.length} chars)`);
 
-      if (!content) {
-        console.log('  ⚠ No response from model.\n');
-        continue;
-      }
-
-      console.log(`  ✓ AI responded (${content.length} chars)`);
-
-      const files = extractFiles(content);
+      // Parse files from complete output
+      const files = extractFiles(fullText);
 
       if (files.length === 0) {
-        console.log('  ⚠ No files detected in output.\n');
-        // Show first 50 lines of output
-        const lines = content.split('\n').slice(0, 50);
-        console.log('  ── Output preview ──');
-        for (const line of lines) console.log('  ' + line);
-        console.log('  ── End ──\n');
+        console.log('  ⚠ No files detected.\n');
         continue;
       }
 
@@ -187,16 +163,17 @@ Working directory: ${process.cwd()}`;
           if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
           writeFileSync(filePath, file.content, 'utf-8');
           createdFiles.add(file.path);
+          filesCreated++;
           console.log(`  ✅ ${file.path} (${file.content.length} chars)`);
         } catch (e) {
           console.log(`  ❌ ${file.path}: ${e.message}`);
         }
       }
 
-      console.log(`\n  📊 Total files: ${createdFiles.size}\n`);
+      console.log(`\n  📊 Created ${filesCreated} file(s) | Total: ${createdFiles.size}\n`);
 
     } catch (e) {
-      console.log(`  ⚠ Error: ${e.message}\n`);
+      console.log(`  ❌ ${e.message}\n`);
     }
   }
 
