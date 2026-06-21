@@ -101,7 +101,29 @@ export function listDir(path: string): { name: string; isDir: boolean; size: num
 }
 
 export function searchFiles(pattern: string, cwd: string): string[] {
-  try { return require('glob').sync(pattern, { cwd, nodir: true, ignore: ['node_modules/**', '.git/**', 'dist/**', 'build/**'] }); } catch { return []; }
+  // Simple glob-like search using fs
+  const results: string[] = [];
+  const searchDir = (dir: string, depth: number) => {
+    if (depth > 5) return;
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') continue;
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          searchDir(fullPath, depth + 1);
+        } else {
+          // Simple pattern matching
+          const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\?/g, '.'), 'i');
+          if (regex.test(entry.name)) {
+            results.push(relative(cwd, fullPath));
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  };
+  searchDir(cwd, 0);
+  return results;
 }
 
 export function grep(pattern: string, path: string, context = 2): string[] {

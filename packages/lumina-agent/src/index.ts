@@ -22,8 +22,9 @@ async function ensureConfig() {
 }
 
 const program = new Command();
-program.name('lumina').description('Lumina Code — AI coding agent').version('1.0.0');
+program.name('lumina').description('Lumina Code — AI coding agent').version('1.1.0');
 
+// Main command: lumina code
 program.command('code')
   .description('Start Lumina Code agent')
   .argument('[prompt]', 'What you want to build')
@@ -45,7 +46,10 @@ program.command('code')
     render(React.createElement(TUIApp, { prompt, config, effort, autoApprove: opts.yes || false, cwd: opts.cwd }));
   });
 
-program.command('config').description('Show configuration').action(async () => {
+// Config commands: lumina config, lumina config set <key> <value>
+const configCmd = program.command('config').description('Manage configuration');
+
+configCmd.action(async () => {
   const config = await ensureConfig();
   console.log('\n  Lumina Code Configuration\n');
   console.log('  Config:', CONFIG_FILE);
@@ -56,11 +60,13 @@ program.command('config').description('Show configuration').action(async () => {
   console.log('    lumina config set default-effort <quick|normal|beast>\n');
 });
 
-program.command('config set <key> <value>').description('Set config value').action(async (key, value) => {
-  const config = await ensureConfig();
-  (config as any)[key] = value;
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-  console.log('  Set', key, '=', value);
-});
+configCmd.command('set <key> <value>')
+  .description('Set a config value')
+  .action(async (key, value) => {
+    const config = await ensureConfig();
+    (config as any)[key] = value;
+    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    console.log('  Set', key, '=', value);
+  });
 
 program.parse();

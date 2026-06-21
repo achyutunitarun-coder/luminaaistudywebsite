@@ -421,7 +421,7 @@ export default function LuminaComputer() {
             if (!json || json === "[DONE]") continue;
             try {
               const parsed = JSON.parse(json);
-              if (parsed?.lumina_meta?.model) { setModel(parsed.lumina_meta.model); log("model", `Using ${parsed.lumina_meta.model}`); }
+              if (parsed?.lumina_meta?.model) { log("model", "Using OWL-Alpha"); }
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
                 rawAssistantRef.current += delta;
@@ -703,7 +703,7 @@ export default function LuminaComputer() {
                 </button>
               </div>
               <div className="text-[10px] text-center mt-2" style={{ color: "var(--text-muted)" }}>
-                Model: {model || "owl-alpha"} | {files.length} file(s)
+                Effort: {effort} | {files.length} file(s)
               </div>
             </div>
           </div>
