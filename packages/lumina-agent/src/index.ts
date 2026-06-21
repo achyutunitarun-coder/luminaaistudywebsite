@@ -2,11 +2,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Text, useInput, useApp, Spacer } from 'ink';
-import TextInput from 'ink-text-input';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
-import chalk from 'chalk';
+import { join, basename, dirname, resolve, relative } from 'path';
 
 const CONFIG_DIR = join(homedir(), '.lumina');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -14,10 +12,27 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 function loadConfig() {
   try { if (!existsSync(CONFIG_FILE)) return null; return JSON.parse(readFileSync(CONFIG_FILE, 'utf-8')); } catch { return null; }
 }
-
 function saveConfig(config) {
   if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true });
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+// ── Simple Text Input Component ─────────────────────────────────────
+function PromptInput({ value, onChange, onSubmit, placeholder }) {
+  useInput((input, key) => {
+    if (key.return && onSubmit) {
+      onSubmit(value);
+    } else if (key.backspace || key.delete) {
+      onChange(value.slice(0, -1));
+    } else if (!key.ctrl && !key.meta && input) {
+      onChange(value + input);
+    }
+  });
+  return React.createElement(Box, null,
+    React.createElement(Text, { color: '#7C5CFC' }, ' > '),
+    React.createElement(Text, { color: '#FAFAFA' }, value || placeholder || 'Type something...'),
+    React.createElement(Text, { color: '#52525B' }, '▌'),
+  );
 }
 
 // ── Onboarding Screen ───────────────────────────────────────────────
@@ -26,45 +41,52 @@ function Onboarding({ onComplete }) {
   const [apiKey, setApiKey] = useState('');
   const [name, setName] = useState('');
 
-  useInput((input, key) => {
+  const handleKey = useCallback((input, key) => {
     if (key.return) {
       if (step === 0) {
         setStep(1);
       } else if (step === 1 && apiKey.trim().length > 10) {
         setStep(2);
       } else if (step === 2) {
-        saveConfig({ openrouterKey: apiKey.trim(), userName: name.trim() || 'User', defaultEffort: 'normal' });
+        saveConfig({ openrouterKey: apiKey.trim(), userName: name.trim() || 'User' });
         onComplete();
       }
+    } else if (key.backspace || key.delete) {
+      if (step === 1) setApiKey(v => v.slice(0, -1));
+      if (step === 2) setName(v => v.slice(0, -1));
+    } else if (!key.ctrl && !key.meta && input) {
+      if (step === 1) setApiKey(v => v + input);
+      if (step === 2) setName(v => v + input);
     }
-  });
+  }, [step, apiKey, name, onComplete]);
+
+  useInput(handleKey);
 
   return React.createElement(Box, { flexDirection: 'column', padding: 2 },
     React.createElement(Box, { flexDirection: 'column', marginBottom: 2 },
       React.createElement(Text, { bold: true, color: '#7C5CFC' }, '  ⚡ LUMINA CODE'),
-      React.createElement(Text, { color: '#52525B' }, '  AI Coding Agent — Better than Claude Code'),
+      React.createElement(Text, { color: '#52525B' }, '  AI Coding Agent'),
     ),
-
     step === 0 && React.createElement(Box, { flexDirection: 'column' },
       React.createElement(Text, { color: '#A1A1AA' }, '  Welcome! Let\'s get you set up.'),
       React.createElement(Text, { color: '#52525B' }, '  Press Enter to continue...'),
     ),
-
     step === 1 && React.createElement(Box, { flexDirection: 'column' },
       React.createElement(Text, { color: '#A1A1AA' }, '  Enter your OpenRouter API key:'),
       React.createElement(Text, { color: '#52525B' }, '  (Get one at https://openrouter.ai/keys)'),
       React.createElement(Box, { marginTop: 1 },
         React.createElement(Text, { color: '#7C5CFC' }, '  > '),
-        React.createElement(TextInput, { value: apiKey, onChange: setApiKey, placeholder: 'sk-or-...' }),
+        React.createElement(Text, { color: '#FAFAFA' }, apiKey || 'sk-or-...'),
+        React.createElement(Text, { color: '#52525B' }, '▌'),
       ),
       React.createElement(Text, { color: '#3F3F46', marginTop: 1 }, '  Press Enter to continue'),
     ),
-
     step === 2 && React.createElement(Box, { flexDirection: 'column' },
       React.createElement(Text, { color: '#A1A1AA' }, '  What should I call you? (optional)'),
       React.createElement(Box, { marginTop: 1 },
         React.createElement(Text, { color: '#7C5CFC' }, '  > '),
-        React.createElement(TextInput, { value: name, onChange: setName, placeholder: 'Your name' }),
+        React.createElement(Text, { color: '#FAFAFA' }, name || 'Your name'),
+        React.createElement(Text, { color: '#52525B' }, '▌'),
       ),
       React.createElement(Text, { color: '#3F3F46', marginTop: 1 }, '  Press Enter to start coding!'),
     ),
@@ -74,64 +96,41 @@ function Onboarding({ onComplete }) {
 // ── Chat Screen ─────────────────────────────────────────────────────
 function ChatScreen({ config }) {
   const { exit } = useApp();
-  const [messages, setMessages] = useState([
-    { role: 'system', content: `You are LUMINA CODE — an elite AI coding agent running locally.
-
-MODEL: openrouter/owl-alpha (1M+ context, best reasoning)
-
-WORKFLOW:
-1. PLAN: Analyze the task. Create a brief plan.
-2. ACT: Execute tools step by step. Read before writing.
-3. VERIFY: Run builds, check for errors.
-4. FIX: If something fails, debug and fix.
-5. DEPLOY: If requested, deploy automatically.
-
-QUALITY: Production-grade code. No placeholders. No TODOs. No emoji in code.
-Handle errors. Use TypeScript. Responsive design. Accessible.
-
-TOOLS: run_command, read_file, write_file, edit_file, list_dir, search_files, grep, git, npm, deploy, detect_project, get_file_tree
-
-When using a tool, output ONLY:
-TOOL: <name>
-PARAMS: <json>
-
-Working directory: ${process.cwd()}` },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('Ready');
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef(0);
 
-  const visibleMessages = messages.filter(m => m.role !== 'system').slice(-50);
+  const visibleMessages = messages.slice(-50);
 
-  const handleSubmit = useCallback(async () => {
-    const trimmed = input.trim();
+  const handleSubmit = useCallback(async (text) => {
+    const trimmed = text.trim();
     if (!trimmed || thinking) return;
     setInput('');
     setThinking(true);
     setStatus('Thinking...');
+    scrollRef.current++;
 
     const userMsg = { role: 'user', content: trimmed };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
-    scrollRef.current++;
 
     try {
       const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
       const tools = [
         { type: 'function', function: { name: 'run_command', description: 'Run any shell command', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' }, timeout: { type: 'number' } }, required: ['command'] } } },
-        { type: 'function', function: { name: 'read_file', description: 'Read file contents', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'write_file', description: 'Create or overwrite a file', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
-        { type: 'function', function: { name: 'edit_file', description: 'Make precise edits to a file', parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' } }, required: ['path', 'search', 'replace'] } } },
+        { type: 'function', function: { name: 'read_file', description: 'Read file contents. ALWAYS read before editing.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
+        { type: 'function', function: { name: 'write_file', description: 'Create or overwrite a file. Creates directories automatically.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
+        { type: 'function', function: { name: 'edit_file', description: 'Make precise edits to a file. search/replace.', parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' } }, required: ['path', 'search', 'replace'] } } },
         { type: 'function', function: { name: 'list_dir', description: 'List directory contents', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'search_files', description: 'Find files by pattern', parameters: { type: 'object', properties: { pattern: { type: 'string' }, cwd: { type: 'string' } }, required: ['pattern'] } } },
+        { type: 'function', function: { name: 'search_files', description: 'Find files by glob pattern', parameters: { type: 'object', properties: { pattern: { type: 'string' }, cwd: { type: 'string' } }, required: ['pattern'] } } },
         { type: 'function', function: { name: 'grep', description: 'Search file contents', parameters: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' } }, required: ['pattern', 'path'] } } },
         { type: 'function', function: { name: 'git', description: 'Run git commands', parameters: { type: 'object', properties: { args: { type: 'string' }, cwd: { type: 'string' } }, required: ['args'] } } },
-        { type: 'function', function: { name: 'npm', description: 'Run npm/yarn/pnpm commands', parameters: { type: 'object', properties: { args: { type: 'string' }, cwd: { type: 'string' } }, required: ['args'] } } },
+        { type: 'function', function: { name: 'npm', description: 'Run npm/yarn/pnpm/bun commands', parameters: { type: 'object', properties: { args: { type: 'string' }, cwd: { type: 'string' } }, required: ['args'] } } },
         { type: 'function', function: { name: 'deploy', description: 'Deploy to Vercel', parameters: { type: 'object', properties: { target: { type: 'string' }, cwd: { type: 'string' } } } } },
       ];
 
-      let assistantContent = '';
       let iterations = 0;
       const maxIterations = 30;
       let currentMessages = [...newMessages];
@@ -143,7 +142,47 @@ Working directory: ${process.cwd()}` },
         const res = await fetch(OPENROUTER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.openrouterKey}`, 'HTTP-Referer': 'https://luminaai.co.in', 'X-Title': 'Lumina Code' },
-          body: JSON.stringify({ model: 'openrouter/owl-alpha', messages: currentMessages, tools, stream: false, max_tokens: 32000, temperature: 0.1 }),
+          body: JSON.stringify({
+            model: 'openrouter/owl-alpha',
+            messages: [{ role: 'system', content: `You are LUMINA CODE — an elite AI coding agent.
+
+MODEL: openrouter/owl-alpha (1M+ context, best reasoning)
+
+WORKFLOW:
+1. PLAN: Analyze the task. Create a brief plan.
+2. ACT: Execute tools step by step. Read before writing.
+3. VERIFY: Run builds, check for errors.
+4. FIX: If something fails, debug and fix immediately.
+5. DEPLOY: If requested, deploy automatically.
+
+QUALITY STANDARDS:
+- Production-grade code, always
+- TypeScript with proper types (never use 'any')
+- Error handling everywhere
+- Responsive design (320px to 2560px)
+- Accessible (semantic HTML, ARIA, keyboard navigation)
+- Clean architecture, modern patterns
+- Beautiful UI (consistent spacing, typography, color)
+
+FORBIDDEN:
+- Lorem ipsum or placeholder content
+- TODO/FIXME comments in production code
+- Emoji in code or UI
+- var keyword (always let/const)
+- any type in TypeScript
+- Skipping error handling
+- Hardcoded secrets
+
+When using a tool, output ONLY:
+TOOL: <name>
+PARAMS: <json>
+
+Working directory: ${process.cwd()}` }, ...currentMessages],
+            tools,
+            stream: false,
+            max_tokens: 32000,
+            temperature: 0.1,
+          }),
         });
 
         if (!res.ok) {
@@ -158,11 +197,11 @@ Working directory: ${process.cwd()}` },
         const content = choice.message?.content || '';
         const toolCalls = choice.message?.tool_calls || [];
 
-        assistantContent = content;
-        currentMessages.push({ role: 'assistant', content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
+        currentMessages.push({ role: 'assistant', content });
+        setMessages([...currentMessages]);
+        scrollRef.current++;
 
         if (toolCalls.length === 0) {
-          setMessages([...currentMessages]);
           setStatus('Done');
           break;
         }
@@ -176,9 +215,9 @@ Working directory: ${process.cwd()}` },
 
           let output = '';
           try {
+            const { execSync } = await import('child_process');
             switch (toolName) {
               case 'run_command': {
-                const { execSync } = await import('child_process');
                 const cwd = args.cwd || process.cwd();
                 output = execSync(args.command, { cwd, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: args.timeout || 120000, shell: true }) || '(no output)';
                 break;
@@ -188,7 +227,7 @@ Working directory: ${process.cwd()}` },
                 break;
               }
               case 'write_file': {
-                const dir = join(args.path, '..');
+                const dir = dirname(resolve(args.path));
                 if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
                 writeFileSync(args.path, args.content, 'utf-8');
                 output = `Wrote ${args.content.length} chars to ${args.path}`;
@@ -208,17 +247,15 @@ Working directory: ${process.cwd()}` },
                 break;
               }
               case 'search_files': {
-                const { readdirSync } = await import('fs');
-                const { join: pathJoin, relative: pathRelative } = await import('path');
                 const results = [];
                 const search = (dir, depth) => {
                   if (depth > 5) return;
                   try {
                     for (const e of readdirSync(dir, { withFileTypes: true })) {
-                      if (e.name.startsWith('.') || e.name === 'node_modules') continue;
-                      const fp = pathJoin(dir, e.name);
+                      if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist') continue;
+                      const fp = join(dir, e.name);
                       if (e.isDirectory()) search(fp, depth + 1);
-                      else if (new RegExp(pattern.replace(/\*/g, '.*'), 'i').test(e.name)) results.push(pathRelative(cwd, fp));
+                      else if (new RegExp(args.pattern.replace(/\*/g, '.*'), 'i').test(e.name)) results.push(relative(args.cwd || process.cwd(), fp));
                     }
                   } catch {}
                 };
@@ -234,18 +271,15 @@ Working directory: ${process.cwd()}` },
                 break;
               }
               case 'git': {
-                const { execSync } = await import('child_process');
                 output = execSync(`git ${args.args}`, { cwd: args.cwd || process.cwd(), encoding: 'utf-8', maxBuffer: 1024 * 1024 }) || '(ok)';
                 break;
               }
               case 'npm': {
-                const { execSync } = await import('child_process');
                 const pm = existsSync(join(args.cwd || process.cwd(), 'bun.lockb')) ? 'bun' : existsSync(join(args.cwd || process.cwd(), 'yarn.lock')) ? 'yarn' : 'npm';
                 output = execSync(`${pm} ${args.args}`, { cwd: args.cwd || process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 }) || '(ok)';
                 break;
               }
               case 'deploy': {
-                const { execSync } = await import('child_process');
                 output = execSync('npx vercel deploy --prod --yes', { cwd: args.cwd || process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 300000 }) || '(deployed)';
                 break;
               }
@@ -262,9 +296,7 @@ Working directory: ${process.cwd()}` },
         }
       }
 
-      if (iterations >= maxIterations) {
-        setStatus('Reached max iterations');
-      }
+      if (iterations >= maxIterations) setStatus('Reached max iterations');
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: `⚠ Error: ${e.message}` }]);
       setStatus('Error');
@@ -273,9 +305,16 @@ Working directory: ${process.cwd()}` },
     setThinking(false);
   }, [input, thinking, messages, config]);
 
-  useInput((_input, key) => {
-    if (key.ctrl && _input === 'c') exit();
-    if (key.ctrl && _input === 'd') exit();
+  useInput((input, key) => {
+    if (key.ctrl && input === 'c') exit();
+    if (key.ctrl && input === 'd') exit();
+    if (key.return) {
+      handleSubmit(input);
+    } else if (key.backspace || key.delete) {
+      setInput(v => v.slice(0, -1));
+    } else if (!key.ctrl && !key.meta) {
+      setInput(v => v + input);
+    }
   });
 
   return React.createElement(Box, { flexDirection: 'column', height: '100%' },
@@ -300,7 +339,6 @@ Working directory: ${process.cwd()}` },
             React.createElement(Text, { color: '#52525B' }, '  ' + m.content.slice(0, 200)),
           );
         }
-        // Assistant
         return React.createElement(Box, { key: i, marginTop: 1, paddingLeft: 2 },
           React.createElement(Text, { color: '#A1A1AA' }, m.content.slice(0, 500)),
         );
@@ -311,12 +349,8 @@ Working directory: ${process.cwd()}` },
     // Input
     React.createElement(Box, { borderStyle: 'single', borderColor: '#3F3F46', paddingX: 1 },
       React.createElement(Text, { color: '#7C5CFC' }, ' > '),
-      React.createElement(TextInput, {
-        value: input,
-        onChange: setInput,
-        onSubmit: handleSubmit,
-        placeholder: 'What do you want to build?',
-      }),
+      React.createElement(Text, { color: '#FAFAFA' }, input || 'What do you want to build?'),
+      React.createElement(Text, { color: '#52525B' }, '▌'),
     ),
 
     // Footer
@@ -329,10 +363,8 @@ Working directory: ${process.cwd()}` },
 // ── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const config = loadConfig();
-
   if (!config?.openrouterKey) {
     return React.createElement(Onboarding, { onComplete: () => {} });
   }
-
   return React.createElement(ChatScreen, { config });
 }
