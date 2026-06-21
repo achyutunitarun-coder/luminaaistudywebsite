@@ -1,6 +1,6 @@
 {
   "name": "lumina-code-agent",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "description": "Lumina Code - AI coding agent",
   "license": "MIT",
   "type": "module",
@@ -9,13 +9,9 @@
   "files": ["dist/", "README.md"],
   "engines": { "node": ">=18.0.0" },
   "scripts": { "build": "tsc --noEmit false", "prepublishOnly": "npm run build" },
-  "dependencies": {
-    "ink": "^5.1.0",
-    "react": "^18.3.1",
-    "chalk": "^5.3.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/react": "^18.3.12",
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.2"
   }
 }
