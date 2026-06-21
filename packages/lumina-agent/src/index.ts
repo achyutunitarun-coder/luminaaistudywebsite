@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // @ts-nocheck
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { homedir } from 'os';
-import { join, dirname, resolve, relative, basename, extname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { createInterface } from 'readline';
-import { execSync, exec } from 'child_process';
+import { execSync } from 'child_process';
 
 const CONFIG_DIR = join(homedir(), '.lumina');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
@@ -18,122 +18,56 @@ function saveConfig(config) {
 }
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
-
-function ask(question) {
-  return new Promise(resolve => rl.question(question, resolve));
-}
+function ask(q) { return new Promise(r => rl.question(q, r)); }
 
 async function onboarding() {
-  console.log('');
-  console.log('  ⚡ LUMINA CODE — AI Coding Agent');
-  console.log('');
+  console.log('\n  ⚡ LUMINA CODE — AI Coding Agent\n');
   const apiKey = await ask('  Enter your OpenRouter API key: ');
-  if (!apiKey.trim() || apiKey.trim().length < 10) {
-    console.log('  ❌ Invalid API key.');
-    process.exit(1);
-  }
+  if (!apiKey.trim() || apiKey.trim().length < 10) { console.log('  ❌ Invalid key.'); process.exit(1); }
   const name = await ask('  Your name (optional): ');
   saveConfig({ openrouterKey: apiKey.trim(), userName: name.trim() || 'User' });
-  console.log('  ✓ Ready!');
-  console.log('');
+  console.log('  ✓ Ready!\n');
 }
 
-// ── Tool Execution ──────────────────────────────────────────────────
-async function executeTool(name, args, cwd) {
-  const workDir = cwd || process.cwd();
-  let output = '';
-
-  try {
-    switch (name) {
-      case 'run_command': {
-        const cmdCwd = args.cwd || workDir;
-        output = execSync(args.command, { cwd: cmdCwd, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: args.timeout || 120000 }) || '(ok)';
-        break;
-      }
-      case 'read_file': {
-        const p = args.path.startsWith('/') ? args.path : join(workDir, args.path);
-        if (!existsSync(p)) { output = `File not found: ${args.path}`; break; }
-        output = readFileSync(p, 'utf-8');
-        break;
-      }
-      case 'write_file': {
-        const p = args.path.startsWith('/') ? args.path : join(workDir, args.path);
-        const dir = dirname(resolve(p));
-        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        writeFileSync(p, args.content, 'utf-8');
-        output = `✓ Created ${args.path} (${args.content.length} chars)`;
-        break;
-      }
-      case 'edit_file': {
-        const p = args.path.startsWith('/') ? args.path : join(workDir, args.path);
-        let fc = readFileSync(p, 'utf-8');
-        if (!fc.includes(args.search)) throw new Error(`Not found: "${args.search.slice(0, 50)}"`);
-        fc = fc.replace(args.search, args.replace);
-        writeFileSync(p, fc, 'utf-8');
-        output = `✓ Edited ${args.path}`;
-        break;
-      }
-      case 'list_dir': {
-        const p = args.path || workDir;
-        const entries = readdirSync(p, { withFileTypes: true });
-        output = entries.slice(0, 50).map(e => `${e.isDirectory() ? '📁' : '📄'} ${e.name}`).join('\n');
-        break;
-      }
-      case 'search_files': {
-        const results = [];
-        const search = (dir, depth) => {
-          if (depth > 5) return;
-          try {
-            for (const e of readdirSync(dir, { withFileTypes: true })) {
-              if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist' || e.name === '.git') continue;
-              const fp = join(dir, e.name);
-              if (e.isDirectory()) search(fp, depth + 1);
-              else if (new RegExp(args.pattern.replace(/\*/g, '.*').replace(/\?/g, '.'), 'i').test(e.name))
-                results.push(relative(workDir, fp));
-            }
-          } catch {}
-        };
-        search(args.cwd || workDir, 0);
-        output = results.join('\n') || 'No files found';
-        break;
-      }
-      case 'grep': {
-        const p = args.path.startsWith('/') ? args.path : join(workDir, args.path);
-        const c = readFileSync(p, 'utf-8');
-        output = c.split('\n').map((l, i) => new RegExp(args.pattern, 'gi').test(l) ? `${i + 1}: ${l}` : null).filter(Boolean).join('\n') || 'No matches';
-        break;
-      }
-      case 'git': {
-        output = execSync(`git ${args.args}`, { cwd: args.cwd || workDir, encoding: 'utf-8', maxBuffer: 1024 * 1024 }) || '(ok)';
-        break;
-      }
-      case 'npm': {
-        const pm = existsSync(join(args.cwd || workDir, 'bun.lockb')) ? 'bun' : existsSync(join(args.cwd || workDir, 'yarn.lock')) ? 'yarn' : 'npm';
-        output = execSync(`${pm} ${args.args}`, { cwd: args.cwd || workDir, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 }) || '(ok)';
-        break;
-      }
-      case 'deploy': {
-        output = execSync('npx vercel deploy --prod --yes', { cwd: args.cwd || workDir, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 300000 }) || '(deployed)';
-        break;
-      }
-      default:
-        output = `Unknown tool: ${name}`;
+// ── Parse code blocks from model output ─────────────────────────────
+function parseCodeBlocks(text) {
+  const files = [];
+  // Match ```filename ... ``` blocks
+  const blockRegex = ```([\w./\-_]+)?\s*\n([\s\S]*?)```/g;
+  let match;
+  while ((match = blockRegex.exec(text)) !== null) {
+    const filename = match[1]?.trim();
+    const content = match[2].trim();
+    if (filename && content) {
+      files.push({ path: filename, content });
     }
-  } catch (e) {
-    output = `Error: ${e.message}`;
   }
+  // Also match FILE: path ... END FILE blocks
+  const fileRegex = /FILE:\s*([\w./\-_]+)\n([\s\S]*?)END FILE/g;
+  while ((match = fileRegex.exec(text)) !== null) {
+    files.push({ path: match[1].trim(), content: match[2].trim() });
+  }
+  return files;
+}
 
-  return output;
+// ── Execute shell commands from model output ────────────────────────
+function extractCommands(text) {
+  const commands = [];
+  const cmdRegex = /COMMAND:\s*(.+)/g;
+  let match;
+  while ((match = cmdRegex.exec(text)) !== null) {
+    commands.push(match[1].trim());
+  }
+  return commands;
 }
 
 // ── Chat Loop ───────────────────────────────────────────────────────
 async function chat(config) {
   console.log('  Type what you want to build. I\'ll handle the rest.');
-  console.log('  Commands: /help /clear /files /exit');
-  console.log('');
+  console.log('  Commands: /help /clear /files /run /exit\n');
 
-  let messages = [];
   const createdFiles = new Set();
+  let conversationHistory = [];
 
   while (true) {
     const input = await ask('  > ');
@@ -141,157 +75,169 @@ async function chat(config) {
 
     if (!trimmed) continue;
     if (trimmed === '/exit' || trimmed === '/quit') break;
-    if (trimmed === '/clear') { messages = []; console.log('  ✓ Cleared.'); continue; }
+    if (trimmed === '/clear') { conversationHistory = []; console.log('  ✓ Cleared.\n'); continue; }
     if (trimmed === '/files') {
-      if (createdFiles.size === 0) { console.log('  No files created yet.'); }
-      else { console.log('  Created files:'); for (const f of createdFiles) console.log(`    ${f}`); }
+      if (createdFiles.size === 0) { console.log('  No files created yet.\n'); }
+      else { console.log('  Created files:'); for (const f of createdFiles) console.log(`    ${f}`); console.log(''); }
       continue;
     }
     if (trimmed === '/help') {
-      console.log('  Commands: /help /clear /files /exit');
+      console.log('  Commands: /help /clear /files /run <cmd> /exit\n');
+      continue;
+    }
+    if (trimmed.startsWith('/run ')) {
+      const cmd = trimmed.slice(5);
+      try {
+        console.log(`  Running: ${cmd}`);
+        const out = execSync(cmd, { cwd: process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 });
+        console.log(`  ${out.slice(0, 500)}`);
+      } catch (e) { console.log(`  Error: ${e.message}`); }
+      console.log('');
       continue;
     }
 
-    messages.push({ role: 'user', content: trimmed });
-    console.log('');
+    // Build the prompt
+    const systemPrompt = `You are LUMINA CODE — an elite AI coding agent. You create COMPLETE, production-grade websites and apps.
 
-    try {
-      const systemPrompt = `You are LUMINA CODE — an elite AI coding agent.
+CRITICAL RULES:
+1. Output COMPLETE files using this exact format:
+   FILENAME: path/to/file.ext
+   [complete file content]
+   END FILE
 
-WORKFLOW:
-1. PLAN: Think about what files you need to create.
-2. ACT: Use write_file to create each file. Use run_command to install packages, run builds.
-3. VERIFY: Run builds to check for errors.
-4. FIX: If something fails, debug and fix immediately.
+2. Output shell commands using:
+   COMMAND: npm install something
+   COMMAND: npm run build
 
-QUALITY STANDARDS:
-- Production-grade code, always
-- TypeScript with proper types (never use 'any')
-- Error handling everywhere
-- Responsive design (320px to 2560px)
-- Accessible (semantic HTML, ARIA, keyboard navigation)
-- Clean architecture, modern patterns
-- Beautiful UI (consistent spacing, typography, color)
-- Use modern CSS (grid, flexbox, custom properties)
-- Use Three.js or CSS 3D for 3D effects
-
-FORBIDDEN:
-- Lorem ipsum or placeholder content
-- TODO/FIXME comments in production code
-- Emoji in code or UI
-- var keyword (always let/const)
-- any type in TypeScript
-- Skipping error handling
-- Hardcoded secrets
-
-IMPORTANT: When you need to create a file, use the write_file tool IMMEDIATELY.
-Don't just describe what you'll do — actually DO it.
-Create ALL necessary files for a complete, working project.
+3. Create ALL necessary files for a complete, working project
+4. Use modern HTML/CSS/JS, Three.js for 3D, CSS animations
+5. No placeholders, no TODOs, no lorem ipsum
+6. Beautiful, cinematic, production-quality code
+7. Each file should be COMPLETE — not snippets
 
 Working directory: ${process.cwd()}
 
-When using a tool, output ONLY:
-TOOL: <tool_name>
-PARAMS: {"key": "value"}`;
+Example output:
+FILENAME: index.html
+<!DOCTYPE html>
+<html>
+...
+</html>
+END FILE
 
-      const tools = [
-        { type: 'function', function: { name: 'run_command', description: 'Run any shell command (npm, git, build, etc.)', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' }, timeout: { type: 'number' } }, required: ['command'] } } },
-        { type: 'function', function: { name: 'read_file', description: 'Read file contents', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'write_file', description: 'Create or overwrite a file with exact content', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
-        { type: 'function', function: { name: 'edit_file', description: 'Edit a file by replacing exact text', parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' } }, required: ['path', 'search', 'replace'] } } },
-        { type: 'function', function: { name: 'list_dir', description: 'List directory contents', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'search_files', description: 'Find files by glob pattern', parameters: { type: 'object', properties: { pattern: { type: 'string' }, cwd: { type: 'string' } }, required: ['pattern'] } } },
-        { type: 'function', function: { name: 'grep', description: 'Search file contents', parameters: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' } }, required: ['pattern', 'path'] } } },
-        { type: 'function', function: { name: 'git', description: 'Run git commands', parameters: { type: 'object', properties: { args: { type: 'string' }, cwd: { type: 'string' } }, required: ['args'] } } },
-        { type: 'function', function: { name: 'npm', description: 'Run npm/yarn/pnpm/bun commands', parameters: { type: 'object', properties: { args: { type: 'string' }, cwd: { type: 'string' } }, required: ['args'] } } },
-        { type: 'function', function: { name: 'deploy', description: 'Deploy to Vercel', parameters: { type: 'object', properties: { target: { type: 'string' }, cwd: { type: 'string' } } } } },
-      ];
+FILENAME: style.css
+:root { --bg: #0a0a0f; }
+...
+END FILE
 
-      let iterations = 0;
-      const maxIterations = 50;
-      let currentMessages = [...messages];
-      let lastAssistantContent = '';
+FILENAME: script.js
+import * as THREE from 'three';
+...
+END FILE
 
-      while (iterations < maxIterations) {
-        iterations++;
-        process.stdout.write(`  ⏳ Thinking (step ${iterations})...\r`);
+COMMAND: npm install three
+COMMAND: npm run build`;
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120000);
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory,
+      { role: 'user', content: trimmed },
+    ];
 
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.openrouterKey}`, 'HTTP-Referer': 'https://luminaai.co.in', 'X-Title': 'Lumina Code' },
-          body: JSON.stringify({
-            model: 'openrouter/owl-alpha',
-            messages: [{ role: 'system', content: systemPrompt }, ...currentMessages],
-            tools,
-            tool_choice: 'auto',
-            stream: false,
-            max_tokens: 8000,
-            temperature: 0.1,
-          }),
-          signal: controller.signal,
-        });
+    console.log('  ⏳ Generating...\n');
 
-        clearTimeout(timeout);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 180000);
 
-        if (!res.ok) {
-          const err = await res.text().catch(() => '');
-          throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
-        }
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.openrouterKey}`,
+          'HTTP-Referer': 'https://luminaai.co.in',
+          'X-Title': 'Lumina Code',
+        },
+        body: JSON.stringify({
+          model: 'openrouter/owl-alpha',
+          messages,
+          stream: false,
+          max_tokens: 16000,
+          temperature: 0.2,
+        }),
+        signal: controller.signal,
+      });
 
-        const data = await res.json();
-        const choice = data.choices?.[0];
-        if (!choice) throw new Error('No response from model');
+      clearTimeout(timeout);
 
-        const content = choice.message?.content || '';
-        const toolCalls = choice.message?.tool_calls || [];
-        lastAssistantContent = content;
+      if (!res.ok) {
+        const err = await res.text().catch(() => '');
+        throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
+      }
 
-        currentMessages.push({ role: 'assistant', content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content || '';
 
-        if (toolCalls.length === 0) {
-          messages = currentMessages;
-          if (content) console.log(`  ${content.slice(0, 300)}`);
-          console.log('');
-          break;
-        }
+      if (!content) {
+        console.log('  ⚠ No response from model. Try again.\n');
+        continue;
+      }
 
-        for (const tc of toolCalls) {
-          let args = {};
-          try { args = JSON.parse(tc.function.arguments || '{}'); } catch {}
-          const toolName = tc.function.name;
-          console.log(`  ⚙ ${toolName}(${JSON.stringify(args).slice(0, 100)})`);
+      // Parse and create files
+      const files = parseCodeBlocks(content);
+      const commands = extractCommands(content);
 
-          const output = await executeTool(toolName, args, process.cwd());
-
-          // Track created files
-          if (toolName === 'write_file' && args.path) {
-            createdFiles.add(args.path);
-            console.log(`  ✓ Created: ${args.path}`);
-          } else {
-            const shortOut = output.slice(0, 150).replace(/\n/g, ' ');
-            console.log(`  ✓ ${shortOut}`);
+      if (files.length > 0) {
+        console.log(`  📁 Creating ${files.length} file(s)...\n`);
+        for (const file of files) {
+          try {
+            const filePath = join(process.cwd(), file.path);
+            const dir = dirname(resolve(filePath));
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            writeFileSync(filePath, file.content, 'utf-8');
+            createdFiles.add(file.path);
+            console.log(`  ✓ ${file.path} (${file.content.length} chars)`);
+          } catch (e) {
+            console.log(`  ✗ ${file.path}: ${e.message}`);
           }
-
-          currentMessages.push({ role: 'tool', content: output.slice(0, 3000), tool_call_id: tc.id });
         }
       }
 
-      if (iterations >= maxIterations) {
-        console.log('  ⚠ Reached max iterations. Partial result:');
-        console.log(`  ${lastAssistantContent.slice(0, 300)}`);
+      // Execute commands
+      if (commands.length > 0) {
+        console.log(`\n  ⚙ Running ${commands.length} command(s)...\n`);
+        for (const cmd of commands) {
+          try {
+            console.log(`  $ ${cmd}`);
+            const out = execSync(cmd, { cwd: process.cwd(), encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 });
+            console.log(`  ✓ ${out.slice(0, 200)}`);
+          } catch (e) {
+            console.log(`  ✗ ${e.message}`);
+          }
+        }
       }
 
-      if (createdFiles.size > 0) {
-        console.log(`  📁 Created ${createdFiles.size} file(s)`);
+      // Show any text output from the model
+      const textOnly = content
+        .replace(/FILENAME:[\s\S]*?END FILE/g, '')
+        .replace(/COMMAND:.+/g, '')
+        .trim();
+
+      if (textOnly) {
+        console.log(`\n  💬 ${textOnly.slice(0, 500)}`);
       }
+
+      console.log(`\n  📊 Total files created: ${createdFiles.size}`);
       console.log('');
+
+      // Save conversation
+      conversationHistory.push({ role: 'user', content: trimmed });
+      conversationHistory.push({ role: 'assistant', content });
+      // Keep last 10 messages
+      if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
 
     } catch (e) {
-      console.log(`  ⚠ Error: ${e.message}`);
-      console.log('');
+      console.log(`  ⚠ Error: ${e.message}\n`);
     }
   }
 
@@ -301,10 +247,7 @@ PARAMS: {"key": "value"}`;
 // ── Main ────────────────────────────────────────────────────────────
 const config = loadConfig();
 if (!config?.openrouterKey) {
-  onboarding().then(() => {
-    const newConfig = loadConfig();
-    chat(newConfig).then(() => process.exit(0));
-  });
+  onboarding().then(() => chat(loadConfig()).then(() => process.exit(0)));
 } else {
   chat(config).then(() => process.exit(0));
 }
