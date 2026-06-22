@@ -41,7 +41,7 @@ const Nav = () => {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2dd4bf, #a855f7)' }}>
             <Sparkles className="w-5 h-5 text-black" />
           </div>
-          <span className="text-xl font-semibold text-white tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>Lumina</span>
+          <span className="text-xl font-semibold text-white tracking-tight font-display">Lumina</span>
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-gray-400">
@@ -104,8 +104,8 @@ const Hero = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease, delay: 0.1 }}
-          className="mx-auto max-w-[960px] text-white leading-[1.0]"
-          style={{ fontFamily: "'Instrument Serif', serif", fontSize: 'clamp(56px, 8vw, 100px)', fontWeight: 400, letterSpacing: '-0.04em' }}
+          className="font-display mx-auto max-w-[960px] text-white leading-[1.0]"
+          style={{ fontSize: 'clamp(56px, 8vw, 100px)' }}
         >
           Your textbook can't
           <br />

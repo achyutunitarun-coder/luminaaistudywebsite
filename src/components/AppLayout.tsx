@@ -41,13 +41,10 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="min-h-screen flex bg-background relative overflow-hidden">
-
-      {/* Ambient Background */}
+    <div className="min-h-screen flex bg-background relative">
+      {/* Subtle mesh background — no floating orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="ambient-orb w-[600px] h-[600px] bg-primary opacity-[0.03] -top-40 -left-40 animate-pulse-glow" />
-        <div className="ambient-orb w-[500px] h-[500px] bg-secondary opacity-[0.025] bottom-0 right-0 animate-pulse-glow" style={{ animationDelay: '1s' }} />
-        <div className="ambient-orb w-[300px] h-[300px] bg-xp opacity-[0.02] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-float" />
+        <div className="absolute inset-0 bg-mesh" aria-hidden />
       </div>
 
       {/* Desktop Sidebar */}

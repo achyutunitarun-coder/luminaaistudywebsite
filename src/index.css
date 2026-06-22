@@ -3,7 +3,7 @@
  * Complete token system. Every value is load-bearing.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:opsz,wght@14..32,300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -120,20 +120,42 @@
   body {
     background: var(--bg-base);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.65;
+    letter-spacing: -0.005em;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
+  h1, h2, h3 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
     color: var(--text-primary);
     margin: 0;
+  }
+
+  h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .font-display {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
   }
 
   a, button, input, textarea, select {
@@ -1386,22 +1408,41 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .cine-bg {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(124,92,252,0.10), transparent 60%),
-    radial-gradient(900px 600px at 92% 8%, rgba(45,212,191,0.06), transparent 60%),
-    linear-gradient(180deg, #07070b 0%, #06060a 60%, #050509 100%);
+    radial-gradient(1000px 600px at 15% -5%, rgba(124,92,252,0.06), transparent 60%),
+    radial-gradient(800px 500px at 90% 5%, rgba(45,212,191,0.04), transparent 60%),
+    linear-gradient(180deg, #08080c 0%, #06060a 50%, #050508 100%);
 }
 .cine-bg::before {
   content: ''; position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 75%);
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 0%, black 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 50% at 50% 0%, black 0%, transparent 80%);
 }
 .cine-bg::after {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 60% 40% at 50% 110%, rgba(124,92,252,0.06), transparent 70%);
+  background: radial-gradient(ellipse 50% 30% at 50% 105%, rgba(124,92,252,0.03), transparent 70%);
+}
+
+/* Mesh background for app layout */
+.bg-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,92,252,0.04), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(45,212,191,0.025), transparent 50%),
+    linear-gradient(180deg, #09090b 0%, #07070b 100%);
+}
+.bg-mesh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 0%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 0%, transparent 85%);
 }
 
 /* ════════════════════════════════════════════════════════════════
