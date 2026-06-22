@@ -39,6 +39,8 @@ CRITICAL RULES:
 6. No placeholders, no TODOs, no lorem ipsum, no "// rest unchanged"
 7. Every file must be COMPLETE and deployable
 8. Think like a senior software engineer — architecture matters
+9. You MUST generate at minimum 3-5 files for any website request
+10. Each file must be COMPLETE — never truncate or abbreviate code
 
 EFFORT LEVEL: ${effort}
 ${effort === 'beast' ? 'MAXIMUM QUALITY: Production-grade, comprehensive error handling, tests, accessibility, performance optimization.' : effort === 'quick' ? 'FAST: Working code quickly, skip extras.' : 'BALANCED: Good quality with reasonable scope.'}`;
@@ -101,16 +103,16 @@ serve(async (req) => {
     // Build system prompt
     const systemPrompt = buildSystemPrompt(intent, requestedMode, effortLevel, isComputer);
 
-    // Determine max tokens — computer mode needs much more
+    // Determine max tokens — use reasonable limits for OpenRouter
     let maxTokens: number;
     if (isComputer) {
-      maxTokens = effortLevel === 'beast' ? 65536 : effortLevel === 'quick' ? 32000 : 48000;
+      maxTokens = effortLevel === 'beast' ? 16384 : effortLevel === 'quick' ? 8192 : 12288;
     } else if (intent === "coding") {
-      maxTokens = 32000;
+      maxTokens = 8192;
     } else if (requestedMode === "deepDive") {
-      maxTokens = 16000;
+      maxTokens = 8192;
     } else {
-      maxTokens = 8000;
+      maxTokens = 4096;
     }
 
     const temperature = isComputer ? 0.2 : intent === "coding" ? 0.3 : 0.7;
@@ -133,7 +135,9 @@ serve(async (req) => {
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
         max_tokens: maxTokens,
+        max_completion_tokens: maxTokens,
         temperature,
+        top_p: 0.95,
       }),
       signal: controller.signal,
     });

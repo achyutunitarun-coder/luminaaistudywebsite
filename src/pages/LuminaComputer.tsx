@@ -428,6 +428,11 @@ export default function LuminaComputer() {
                 parserRef.current!.push(delta);
                 applyState();
               }
+              // Log finish_reason when model stops
+              const finishReason = parsed?.choices?.[0]?.finish_reason;
+              if (finishReason && finishReason !== 'stop') {
+                log('system', `Model stopped: ${finishReason}`);
+              }
             } catch { sseBuf = line + "\n" + sseBuf; break; }
           }
         }
