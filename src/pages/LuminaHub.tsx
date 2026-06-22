@@ -74,18 +74,24 @@ export default function LuminaHub() {
 
     try {
       if (toolId === 'study_plan') {
-        // Get user's recent topics from chats
-        const { data: msgs } = await supabase
-          .from('chat_messages')
-          .select('content')
-          .eq('role', 'user')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        const topics = msgs?.map((m: any) => m.content?.slice(0, 50)).join(', ') || 'your recent topics';
+        // Get user's recent topics from their chats (RLS-compliant: filter by chat_id)
+        const chatIds = recentChats.map((c: any) => c.id);
+        let topics = 'your recent topics';
+        if (chatIds.length > 0) {
+          const { data: msgs } = await supabase
+            .from('chat_messages')
+            .select('content')
+            .in('chat_id', chatIds)
+            .eq('role', 'user')
+            .order('created_at', { ascending: false })
+            .limit(5);
+          if (msgs && msgs.length > 0) {
+            topics = msgs.map((m: any) => m.content?.slice(0, 40) || '').filter(Boolean).join(', ');
+          }
+        }
         setToolResult({
           type: 'success',
-          message: `Based on your recent activity, here's what I suggest: Review "${topics}" for 20 minutes, then try 5 practice questions on the same topic. Want me to generate those questions?`
+          message: `Based on what you've been studying, I suggest: Review "${topics}" for 20 minutes, then try 5 practice questions. Want me to generate those?`
         });
       } else if (toolId === 'weak_areas') {
         // Get user's mistakes
@@ -262,8 +268,8 @@ export default function LuminaHub() {
             {/* TOOLS */}
             {activeNav === 'tools' && (
               <motion.div key="tools" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-lg font-semibold text-white mb-4">Study Tools</h2>
-                <p className="text-gray-500 text-sm mb-6">These tools help you study smarter. Pick one and it gets to work.</p>
+                <h2 className="text-lg font-semibold text-white mb-4">Tools</h2>
+                <p className="text-gray-500 text-sm mb-6">Pick one and it gets to work.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                   {[
