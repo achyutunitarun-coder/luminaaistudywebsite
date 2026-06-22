@@ -123,7 +123,7 @@ const App = () => (
                 <Route path="/ai-tools" element={<AITools />} />
                 <Route path="/hub" element={<LuminaHub />} />
                 <Route path="/chat" element={<ChatErrorBoundary><Chat /></ChatErrorBoundary>} />
-                <Route path="/computer" element={<LuminaComputer />} />
+                <Route path="/computer" element={<ChatErrorBoundary><LuminaComputer /></ChatErrorBoundary>} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/flashcards" element={<Flashcards />} />
