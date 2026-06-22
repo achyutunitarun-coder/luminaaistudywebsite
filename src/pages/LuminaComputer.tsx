@@ -446,12 +446,13 @@ export default function LuminaComputer() {
       const displayFiles = st.files.filter(f => f.path !== "response.md");
       const openFile = st.files.some(f => !f.done);
       const missingFinal = !st.final.trim();
-      const tail = rawAssistantRef.current.trimEnd().slice(-40);
-      const cleanEnd = /<\/lumina:(final|file|plan)>\s*$/.test(tail);
+      const tail = rawAssistantRef.current.trimEnd().slice(-60);
+      const cleanEnd = /<\/(lumina:)?(final|file|plan)>\s*$/.test(tail) || /END FILE\s*$/.test(tail);
       const noFilesShipped = displayFiles.length === 0;
       const planUnclosed = rawAssistantRef.current.includes("<lumina:plan>") && !rawAssistantRef.current.includes("</lumina:plan>");
+      const allFilesComplete = displayFiles.length > 0 && displayFiles.every(f => f.done);
       const enoughOutput = rawAssistantRef.current.length > 40;
-      const looksTruncated = enoughOutput && (openFile || missingFinal || !cleanEnd || noFilesShipped || planUnclosed);
+      const looksTruncated = enoughOutput && !allFilesComplete && (openFile || missingFinal || !cleanEnd || noFilesShipped || planUnclosed);
 
       if (looksTruncated) {
         setCanContinue(true);
