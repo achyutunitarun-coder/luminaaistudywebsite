@@ -21,33 +21,84 @@ function buildSystemPrompt(intent: string, mode: string, effort: string, isCompu
   if (isComputer) {
     return `You are LUMINA COMPUTER. Create stunning, production-grade websites.
 
-For EACH file, output on its own line:
-FILE: path/to/file.ext
-Then the complete file content.
-Then END FILE on its own line.
+OUTPUT FORMAT — Use this EXACT format for EVERY file. You MUST generate MULTIPLE files. Never stop after one file.
 
-Example:
+FILE: path/to/file.ext
+<complete file content>
+END FILE
+
+MANDATORY: Generate ALL of these files for every website project:
+1. FILE: index.html — Complete HTML5 document with structure, content, and semantic markup
+2. FILE: style.css — Complete CSS with variables, layout, animations, and responsive design
+3. FILE: script.js — Complete JavaScript with interactivity, event handlers, and logic
+
+For complex projects ALSO add:
+4. FILE: README.md — Brief description of the project
+5. Additional component files as needed (e.g., FILE: components/navbar.js)
+
+EXAMPLE of correct output (you MUST follow this pattern with 3+ files):
+
 FILE: index.html
 <!DOCTYPE html>
-<html>...</html>
-END FILE
-FILE: style.css
-:root { ... }
-END FILE
-FILE: script.js
-// ...
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><h1>Welcome</h1></header>
+  <main><p>Content here</p></main>
+  <script src="script.js"></script>
+</body>
+</html>
 END FILE
 
-RULES:
-- Create ALL files needed for a complete, working project
-- index.html, style.css, script.js MINIMUM for websites
-- Every file COMPLETE — no placeholders, no TODOs, no truncation
-- Modern HTML5, CSS3 (grid, flexbox, animations), ES6+ JS
-- Three.js from CDN: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
-- Beautiful, cinematic, production-quality
-- Deployable as-is
-- Generate MULTIPLE files — never stop after one file
-- After END FILE, immediately start the next FILE: block
+FILE: style.css
+:root {
+  --primary: #6366f1;
+  --bg: #0f172a;
+  --text: #e2e8f0;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+header {
+  padding: 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+}
+main { padding: 2rem; max-width: 800px; margin: 0 auto; }
+END FILE
+
+FILE: script.js
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('App initialized');
+  // Add interactivity here
+  const header = document.querySelector('header');
+  header.addEventListener('click', () => {
+    document.body.style.background = '#1e293b';
+    setTimeout(() => {
+      document.body.style.background = '';
+    }, 300);
+  });
+});
+END FILE
+
+CRITICAL RULES:
+- You MUST generate at LEAST 3 files: index.html, style.css, script.js
+- Every file must be COMPLETE — no placeholders, no TODOs, no truncation, no "..." or "rest of code here"
+- After writing END FILE for one file, immediately write FILE: for the next file
+- Do NOT stop generating until ALL files are complete
+- Modern HTML5, CSS3 (grid, flexbox, custom properties, animations), ES6+ JavaScript
+- Three.js from CDN if needed: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+- Beautiful, cinematic, production-quality, deployable as-is
+- The project must work when opened directly in a browser
 
 Effort: ${effort}`;
   }
@@ -63,7 +114,7 @@ Effort: ${effort}`;
   return base;
 }
 
-async function callOpenRouter(messages: any[], maxTokens: number, temperature: number) {
+async function callOpenRouter(messages: any[], maxTokens: number, temperature: number, extraParams: Record<string, unknown> = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 180000);
 
@@ -81,8 +132,12 @@ async function callOpenRouter(messages: any[], maxTokens: number, temperature: n
         messages,
         stream: true,
         max_tokens: maxTokens,
+        max_completion_tokens: maxTokens,
         temperature,
         top_p: 0.95,
+        presence_penalty: 0.2,
+        frequency_penalty: 0.1,
+        ...extraParams,
       }),
       signal: controller.signal,
     });
@@ -168,7 +223,7 @@ serve(async (req) => {
       maxTokens = 4096;
     }
 
-    const temperature = isComputer ? 0.15 : intent === "coding" ? 0.3 : 0.7;
+    const temperature = isComputer ? 0.1 : intent === "coding" ? 0.3 : 0.7;
 
     const resBody = await callOpenRouter(
       [{ role: "system", content: systemPrompt }, ...messages],
