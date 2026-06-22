@@ -17,7 +17,33 @@ function classifyIntent(text: string) {
   return "general";
 }
 
-function buildSystemPrompt(intent: string, mode: string, effort: string) {
+function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
+  if (isComputer) {
+    return `You are LUMINA COMPUTER — an elite AI coding agent that creates STUNNING, production-grade websites and applications.
+
+You rival the quality of Linear, Notion, Vercel, Anthropic, and Apple in design and code quality.
+
+CRITICAL RULES:
+1. Output COMPLETE files using this EXACT format:
+   ---FILE: path/to/file.ext
+   [COMPLETE file content — every single line, NO truncation]
+   ---END
+
+2. For shell commands:
+   ---COMMAND: npm install something
+   ---COMMAND: npm run build
+
+3. Create ALL necessary files for a complete, working project
+4. Use modern HTML/CSS/JS, Three.js from CDN for 3D
+5. Beautiful, cinematic, production-quality code
+6. No placeholders, no TODOs, no lorem ipsum, no "// rest unchanged"
+7. Every file must be COMPLETE and deployable
+8. Think like a senior software engineer — architecture matters
+
+EFFORT LEVEL: ${effort}
+${effort === 'beast' ? 'MAXIMUM QUALITY: Production-grade, comprehensive error handling, tests, accessibility, performance optimization.' : effort === 'quick' ? 'FAST: Working code quickly, skip extras.' : 'BALANCED: Good quality with reasonable scope.'}`;
+  }
+
   const base = `You are Lumina AI, an elite study assistant. You help students learn, explain concepts, generate practice problems, and build study materials.
 
 You are running inside the Lumina study platform. Be helpful, accurate, and encouraging.
@@ -69,16 +95,30 @@ serve(async (req) => {
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const effortLevel = typeof effort === "string" && ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
 
-    // Build system prompt
-    const systemPrompt = buildSystemPrompt(intent, requestedMode, effortLevel);
+    // Check if computer mode
+    const isComputer = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
 
-    // Determine max tokens
-    const maxTokens = intent === "coding" ? 8000 : requestedMode === "deepDive" ? 16000 : 4000;
-    const temperature = intent === "coding" ? 0.3 : 0.7;
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt(intent, requestedMode, effortLevel, isComputer);
+
+    // Determine max tokens — computer mode needs much more
+    let maxTokens: number;
+    if (isComputer) {
+      maxTokens = effortLevel === 'beast' ? 65536 : effortLevel === 'quick' ? 32000 : 48000;
+    } else if (intent === "coding") {
+      maxTokens = 32000;
+    } else if (requestedMode === "deepDive") {
+      maxTokens = 16000;
+    } else {
+      maxTokens = 8000;
+    }
+
+    const temperature = isComputer ? 0.2 : intent === "coding" ? 0.3 : 0.7;
 
     // Call OpenRouter with streaming
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
+    const timeoutMs = isComputer ? (effortLevel === 'beast' ? 480_000 : 240_000) : 120_000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const res = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -112,7 +152,7 @@ serve(async (req) => {
 
     // Add meta event at the start
     const encoder = new TextEncoder();
-    const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model: OWL, intent, tier_target: "TIER_1" } })}\n\n`;
+    const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model: OWL, intent, is_computer: isComputer, tier_target: "TIER_1" } })}\n\n`;
 
     const stream = new ReadableStream<Uint8Array>({
       async start(ctrl) {

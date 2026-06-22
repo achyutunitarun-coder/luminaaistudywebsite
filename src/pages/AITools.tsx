@@ -1,118 +1,300 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-  MessageSquare, HelpCircle, FileText, BookOpen, Zap, 
+import {
+  MessageSquare, HelpCircle, FileText, BookOpen, Zap,
   Mic, PenTool, Layers, FlaskConical, Brain, Sparkles,
-  ArrowRight, Search
+  ArrowRight, Search, Code2, Target, Globe, Wand2,
+  ChevronRight, Star, Clock, TrendingUp
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+const categories = [
+  { id: 'all', label: 'All Tools', icon: Sparkles },
+  { id: 'study', label: 'Study', icon: BookOpen },
+  { id: 'create', label: 'Create', icon: Wand2 },
+  { id: 'practice', label: 'Practice', icon: Target },
+  { id: 'ai', label: 'AI Lab', icon: Brain },
+];
+
 const tools = [
-  { title: 'AI Chat', desc: 'Have intelligent conversations with your personal AI tutor. Ask anything, get structured explanations.', icon: MessageSquare, path: '/chat', gradient: 'from-blue-500 to-cyan-400', bgGlow: 'group-hover:shadow-blue-500/20', tag: 'Most Popular' },
-  { title: 'Doubt Solver', desc: 'Paste any question and get crystal-clear step-by-step solutions with explanations.', icon: HelpCircle, path: '/doubt-solver', gradient: 'from-purple-500 to-pink-400', bgGlow: 'group-hover:shadow-purple-500/20' },
-  { title: 'Notes Generator', desc: 'Generate beautifully structured study notes in 8 different styles — exam-ready and comprehensive.', icon: FileText, path: '/notes-generator', gradient: 'from-emerald-500 to-teal-400', bgGlow: 'group-hover:shadow-emerald-500/20', tag: 'Power Tool' },
-  { title: 'Quick Study', desc: 'Rapid topic breakdowns with key concepts and practice questions in seconds.', icon: Zap, path: '/quick-study', gradient: 'from-amber-500 to-orange-400', bgGlow: 'group-hover:shadow-amber-500/20' },
-  
-  { title: 'Lecture AI', desc: 'Record lectures or upload documents → auto-generate notes, flashcards, quizzes, and podcasts.', icon: Mic, path: '/lecture-ai', gradient: 'from-indigo-500 to-violet-400', bgGlow: 'group-hover:shadow-indigo-500/20', tag: 'Full Suite' },
-  { title: 'Smart Notebook', desc: 'AI-powered notebook that generates notes, flowcharts, and overviews from any document.', icon: PenTool, path: '/smart-notebook', gradient: 'from-cyan-500 to-blue-400', bgGlow: 'group-hover:shadow-cyan-500/20' },
-  { title: 'Flashcards', desc: 'AI-generated spaced repetition flashcard decks with difficulty tracking.', icon: Layers, path: '/flashcards', gradient: 'from-fuchsia-500 to-pink-400', bgGlow: 'group-hover:shadow-fuchsia-500/20' },
-  { title: 'Tests', desc: 'Generate challenging MCQ tests on any topic with detailed explanations and scoring.', icon: FlaskConical, path: '/tests', gradient: 'from-green-500 to-emerald-400', bgGlow: 'group-hover:shadow-green-500/20' },
+  {
+    title: 'AI Chat',
+    desc: 'Intelligent conversations with your personal AI tutor. Ask anything, get structured explanations with examples.',
+    icon: MessageSquare,
+    path: '/chat',
+    category: 'study',
+    accent: '#7C5CFC',
+    tag: 'Popular',
+    usage: '12.4k',
+    rating: 4.9,
+  },
+  {
+    title: 'Lumina Computer',
+    desc: 'Build complete websites and apps with AI. Describe what you want, get production-grade code instantly.',
+    icon: Code2,
+    path: '/computer',
+    category: 'create',
+    accent: '#7C5CFC',
+    tag: 'New',
+    usage: '8.2k',
+    rating: 4.8,
+  },
+  {
+    title: 'Doubt Solver',
+    desc: 'Paste any question → get crystal-clear step-by-step solutions with visual explanations.',
+    icon: HelpCircle,
+    path: '/doubt-solver',
+    category: 'study',
+    accent: '#A78BFA',
+    usage: '10.1k',
+    rating: 4.7,
+  },
+  {
+    title: 'Notes Generator',
+    desc: 'Beautifully structured study notes in 8 styles — exam-ready, comprehensive, with diagrams.',
+    icon: FileText,
+    path: '/notes-generator',
+    category: 'create',
+    accent: '#2DD4BF',
+    tag: 'Power',
+    usage: '9.8k',
+    rating: 4.8,
+  },
+  {
+    title: 'Quick Study',
+    desc: 'Rapid topic breakdowns with key concepts, summaries, and practice questions in seconds.',
+    icon: Zap,
+    path: '/quick-study',
+    category: 'study',
+    accent: '#FBBF24',
+    usage: '7.3k',
+    rating: 4.6,
+  },
+  {
+    title: 'Lecture AI',
+    desc: 'Record lectures or upload documents → auto-generate notes, flashcards, quizzes, and podcasts.',
+    icon: Mic,
+    path: '/lecture-ai',
+    category: 'create',
+    accent: '#6366F1',
+    tag: 'Suite',
+    usage: '5.9k',
+    rating: 4.7,
+  },
+  {
+    title: 'Smart Notebook',
+    desc: 'AI-powered notebook that generates notes, flowcharts, and overviews from any document.',
+    icon: PenTool,
+    path: '/smart-notebook',
+    category: 'create',
+    accent: '#38BDF8',
+    usage: '6.1k',
+    rating: 4.5,
+  },
+  {
+    title: 'Flashcards',
+    desc: 'AI-generated spaced repetition decks with difficulty tracking and mastery scores.',
+    icon: Layers,
+    path: '/flashcards',
+    category: 'practice',
+    accent: '#F472B6',
+    usage: '11.2k',
+    rating: 4.8,
+  },
+  {
+    title: 'Tests',
+    desc: 'Generate challenging MCQ tests with detailed explanations, scoring, and analytics.',
+    icon: FlaskConical,
+    path: '/tests',
+    category: 'practice',
+    accent: '#34D399',
+    usage: '8.7k',
+    rating: 4.6,
+  },
+  {
+    title: 'Brain Hub',
+    desc: 'Your intelligence dashboard — memory visualization, agent activity, insights, and context.',
+    icon: Brain,
+    path: '/hub',
+    category: 'ai',
+    accent: '#A78BFA',
+    tag: 'Beta',
+    usage: '4.2k',
+    rating: 4.5,
+  },
+  {
+    title: 'Study Planner',
+    desc: 'AI-optimized study schedules that adapt to your progress, deadlines, and learning pace.',
+    icon: Target,
+    path: '/study-planner',
+    category: 'study',
+    accent: '#FB923C',
+    usage: '6.8k',
+    rating: 4.7,
+  },
+  {
+    title: 'Flashcard AI',
+    desc: 'Import any content and get AI-generated flashcards with smart scheduling algorithms.',
+    icon: Globe,
+    path: '/flashcards',
+    category: 'ai',
+    accent: '#22D3EE',
+    usage: '5.5k',
+    rating: 4.4,
+  },
 ];
 
 const AITools = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
 
-  const filtered = tools.filter(t => 
-    t.title.toLowerCase().includes(search.toLowerCase()) || 
-    t.desc.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = tools.filter(tool => {
+    const matchesSearch = !search || tool.title.toLowerCase().includes(search.toLowerCase()) || tool.desc.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = activeCategory === 'all' || tool.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Hero Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        className="mb-10 text-center"
+    <div className="max-w-[1200px] mx-auto">
+      {/* Hero */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-12 pt-8 text-center"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-primary">9 AI-Powered Tools</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-tint border border-brand/20 mb-5">
+          <Sparkles className="w-3.5 h-3.5 text-brand" />
+          <span className="text-xs font-semibold text-brand tracking-wide">{tools.length} AI-Powered Tools</span>
         </div>
-        <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground tracking-tight mb-3">
-          AI Study Arsenal
+        <h1 className="font-display text-4xl md:text-5xl text-white mb-4 leading-[1.05]">
+          Your Study Arsenal
         </h1>
-        <p className="text-muted-foreground text-base max-w-xl mx-auto">
-          Every tool you need to learn faster, study smarter, and ace your exams — all powered by AI.
+        <p className="text-gray-400 text-base max-w-lg mx-auto leading-relaxed">
+          Every tool you need to learn faster, study smarter, and ace exams — powered by OWL-Alpha.
         </p>
 
         {/* Search */}
-        <div className="relative max-w-md mx-auto mt-6">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative max-w-md mx-auto mt-8">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <Input
             placeholder="Search tools..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-11 rounded-xl bg-card/60 border-border/30 backdrop-blur-sm"
+            className="pl-11 h-12 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-sm text-white placeholder:text-gray-500 focus:border-brand/50 focus:ring-1 focus:ring-brand/25"
           />
         </div>
       </motion.div>
 
-      {/* Tools Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((tool, i) => {
-          const Icon = tool.icon;
+      {/* Categories */}
+      <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
+        {categories.map(cat => {
+          const Icon = cat.icon;
+          const active = activeCategory === cat.id;
           return (
-            <motion.button
-              key={tool.path}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.4 }}
-              whileHover={{ y: -6, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate(tool.path)}
-              className={`group relative text-left rounded-2xl p-6 border border-border/20 bg-card/40 backdrop-blur-xl hover:border-border/40 transition-all duration-300 cursor-pointer hover:shadow-xl ${tool.bgGlow}`}
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`flex items-center gap-2 px-4 h-9 rounded-full text-xs font-medium transition-all ${
+                active
+                  ? 'bg-brand text-white shadow-lg shadow-brand/25'
+                  : 'bg-white/[0.04] text-gray-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+              }`}
             >
-              {/* Tag */}
-              {tool.tag && (
-                <div className="absolute top-4 right-4">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
-                    {tool.tag}
-                  </span>
-                </div>
-              )}
-
-              {/* Icon */}
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tool.gradient} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                <Icon className="w-7 h-7 text-white" />
-              </div>
-
-              {/* Content */}
-              <h3 className="text-lg font-display font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
-                {tool.title}
-              </h3>
-              <p className="text-sm text-muted-foreground/80 leading-relaxed mb-4">
-                {tool.desc}
-              </p>
-
-              {/* CTA */}
-              <div className="flex items-center gap-1.5 text-xs font-medium text-primary/70 group-hover:text-primary transition-colors">
-                <span>Open Tool</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
-
-              {/* Hover glow effect */}
-              <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tool.gradient} opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none`} />
-            </motion.button>
+              <Icon className="w-3.5 h-3.5" />
+              {cat.label}
+            </button>
           );
         })}
       </div>
 
+      {/* Tools Grid */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeCategory + search}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.25 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
+          {filtered.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <motion.button
+                key={tool.path + tool.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.35 }}
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(tool.path)}
+                className="group relative text-left rounded-2xl p-6 bg-white/[0.025] border border-white/[0.06] hover:border-white/[0.12] backdrop-blur-sm transition-all duration-300 cursor-pointer hover:bg-white/[0.04]"
+              >
+                {/* Tag */}
+                {tool.tag && (
+                  <div className="absolute top-4 right-4">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-brand bg-brand/10 border border-brand/20">
+                      {tool.tag}
+                    </span>
+                  </div>
+                )}
+
+                {/* Icon */}
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+                  style={{ background: `${tool.accent}18`, border: `1px solid ${tool.accent}30` }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: tool.accent }} />
+                </div>
+
+                {/* Content */}
+                <h3 className="text-[15px] font-semibold text-white mb-1.5 group-hover:text-brand transition-colors">
+                  {tool.title}
+                </h3>
+                <p className="text-[13px] text-gray-500 leading-relaxed mb-4 line-clamp-2">
+                  {tool.desc}
+                </p>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      {tool.rating}
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-600">
+                      <TrendingUp className="w-3 h-3" />
+                      {tool.usage}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-medium text-brand/60 group-hover:text-brand transition-colors">
+                    Open <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </div>
+
+                {/* Hover glow */}
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{ background: `radial-gradient(400px circle at 50% 0%, ${tool.accent}08, transparent 60%)` }}
+                />
+              </motion.button>
+            );
+          })}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Empty State */}
       {filtered.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-muted-foreground">No tools match your search.</p>
+        <div className="text-center py-20">
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+            <Search className="w-6 h-6 text-gray-600" />
+          </div>
+          <p className="text-gray-400 text-sm">No tools match your search.</p>
+          <button onClick={() => { setSearch(''); setActiveCategory('all'); }} className="mt-3 text-xs text-brand hover:underline">
+            Clear filters
+          </button>
         </div>
       )}
     </div>

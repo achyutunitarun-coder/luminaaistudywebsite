@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // @ts-nocheck
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
-import { join, dirname, resolve, basename } from 'path';
+import { join, dirname, resolve } from 'path';
 import { createInterface } from 'readline';
 import { execSync } from 'child_process';
 
@@ -17,72 +17,32 @@ function saveConfig(config) {
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
-// ── ANSI Colors ─────────────────────────────────────────────────────
+// ── ANSI ────────────────────────────────────────────────────────────
 const c = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  italic: '\x1b[3m',
-  underline: '\x1b[4m',
-  purple: '\x1b[38;5;168;139;250m',
-  purpleBright: '\x1b[38;5;124;92;252m',
-  purpleDark: '\x1b[38;5;88;56;180m',
-  teal: '\x1b[38;5;45;212;191m',
-  tealBright: '\x1b[38;5;94;246;224m',
-  green: '\x1b[38;5;74;222;128m',
-  greenBright: '\x1b[38;5;134;239;172m',
-  red: '\x1b[38;5;248;113;113m',
-  amber: '\x1b[38;5;251;191;36m',
-  blue: '\x1b[38;5;91;143;254m',
-  pink: '\x1b[38;5;244;114;182;251m',
-  white: '\x1b[38;5;250;250;250m',
-  gray: '\x1b[38;5;161;161;170m',
+  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
+  purple: '\x1b[38;5;168;139;250m', purpleBright: '\x1b[38;5;124;92;252m',
+  teal: '\x1b[38;5;45;212;191m', green: '\x1b[38;5;74;222;128m',
+  red: '\x1b[38;5;248;113;113m', amber: '\x1b[38;5;251;191;36m',
+  white: '\x1b[38;5;250;250;250m', gray: '\x1b[38;5;161;161;170m',
   darkGray: '\x1b[38;5;92;92;100m',
-  bgPurple: '\x1b[48;5;30;15;50m',
-  bgDark: '\x1b[48;5;10;10;15m',
 };
-
-function print(...args) { process.stdout.write(args.join('')); }
-function println(...args) { process.stdout.write(args.join('') + '\n'); }
-function clear() { process.stdout.write('\x1b[2J\x1b[H'); }
-function moveTo(line, col) { process.stdout.write(`\x1b[${line};${col}H`); }
-function clearLine() { process.stdout.write('\x1b[2K\r'); }
+const println = (...a) => process.stdout.write(a.join('') + '\n');
+const print = (...a) => process.stdout.write(a.join(''));
+const clearLine = () => process.stdout.write('\x1b[2K\r');
 
 // ── Spinner ─────────────────────────────────────────────────────────
-const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-class Spinner {
-  constructor(label) {
-    this.label = label;
-    this.frame = 0;
-    this.running = false;
-    this.timer = null;
-  }
-  start() {
-    this.running = true;
-    this.render();
-    this.timer = setInterval(() => {
-      this.frame = (this.frame + 1) % spinnerFrames.length;
-      this.render();
-    }, 80);
-  }
-  stop() {
-    this.running = false;
-    if (this.timer) clearInterval(this.timer);
-    clearLine();
-  }
-  render() {
-    clearLine();
-    print(`${c.purple}${spinnerFrames[this.frame]}${c.reset} ${c.gray}${this.label}${c.reset}`);
-  }
+const spin = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+function spinner(label) {
+  let f = 0, t;
+  const r = setInterval(() => { clearLine(); print(`${c.purple}${spin[f]}${c.reset} ${c.gray}${label}${c.reset}`); f = (f+1)%spin.length; }, 80);
+  return () => { clearInterval(r); clearLine(); };
 }
 
 // ── Header ──────────────────────────────────────────────────────────
-function showHeader() {
+function header() {
   println('');
-  print(`${c.bgPurple}  `);
-  print(`${c.purpleBright}${c.bold}⚡ LUMINA CODE${c.reset}`);
-  print(`${c.bgPurple}  ${c.reset}`);
-  println(`  ${c.gray}AI Coding Agent — Better than Claude Code${c.reset}`);
+  print(`  ${c.purpleBright}${c.bold}⚡ LUMINA CODE${c.reset}`);
+  println(`  ${c.gray}Production-Grade AI Coding Agent${c.reset}`);
   println('');
   print(`${'─'.repeat(55)}`);
   println('');
@@ -90,160 +50,117 @@ function showHeader() {
 
 // ── Onboarding ──────────────────────────────────────────────────────
 const rl = createInterface({ input: process.stdin, output: process.stdout });
-function ask(question) { return new Promise(r => rl.question(question, r)); }
+function ask(q) { return new Promise(r => rl.question(q, r)); }
 
 async function onboarding() {
-  clear();
-  showHeader();
+  println('');
+  header();
   println(`  ${c.gray}Welcome! Let's set up your AI coding agent.${c.reset}`);
   println('');
-
-  const apiKey = await ask(`  ${c.purple}▸${c.reset} ${c.gray}OpenRouter API key: ${c.reset}`);
-  if (!apiKey.trim() || apiKey.trim().length < 10) {
-    println(`  ${c.red}Invalid key. Get one at https://openrouter.ai/keys${c.reset}`);
-    process.exit(1);
-  }
-
-  const name = await ask(`  ${c.purple}▸${c.reset} ${c.gray}Your name (optional): ${c.reset}`);
-  saveConfig({ openrouterKey: apiKey.trim(), userName: name.trim() || 'User' });
-  println('');
-  println(`  ${c.green}✓${c.reset} ${c.gray}Setup complete!${c.reset}`);
-  println('');
-  await new Promise(r => setTimeout(r, 800));
+  const key = await ask(`  ${c.purple}▸${c.reset} ${c.gray}OpenRouter API key: ${c.reset}`);
+  if (!key.trim() || key.trim().length < 10) { println(`  ${c.red}Invalid key.${c.reset}`); process.exit(1); }
+  saveConfig({ openrouterKey: key.trim() });
+  println(`  ${c.green}✓${c.reset} ${c.gray}Ready!${c.reset}`);
+  await new Promise(r => setTimeout(r, 600));
 }
 
-// ── File Parser ─────────────────────────────────────────────────────
+// ── Parser ──────────────────────────────────────────────────────────
 function parseFiles(content) {
   const files = [];
-
   // Format 1: ---FILE: path ... ---END
-  const fileRegex = /---FILE:\s*([\w./\-_]+)\n([\s\S]*?)---END/g;
-  let match;
-  while ((match = fileRegex.exec(content)) !== null) {
-    const filePath = match[1].trim();
-    const fileContent = match[2].trim();
-    if (filePath && fileContent) {
-      files.push({ path: filePath, content: fileContent });
-    }
+  const r1 = /---FILE:\s*([\w./\-_]+)\n([\s\S]*?)---END/g;
+  let m;
+  while ((m = r1.exec(content)) !== null) {
+    if (m[1] && m[2]?.trim()) files.push({ path: m[1].trim(), content: m[2].trim() });
   }
-
-  // Format 2: ```language ... ``` code blocks
+  // Format 2: ```lang ... ```
   if (files.length === 0) {
-    const blockRegex = /```(\w+)?\s*\n([\s\S]*?)```/g;
-    let blockMatch;
-    let idx = 0;
-    while ((blockMatch = blockRegex.exec(content)) !== null) {
-      const lang = blockMatch[1] || '';
-      const code = blockMatch[2].trim();
+    const r2 = /```(\w+)?\s*\n([\s\S]*?)```/g;
+    let i = 0;
+    while ((m = r2.exec(content)) !== null) {
+      const lang = m[1] || '', code = m[2].trim();
       if (!code || code.length < 10) continue;
-
-      let filename;
-      if (lang === 'html' || lang === 'htm') filename = idx === 0 ? 'index.html' : `page${idx}.html`;
-      else if (lang === 'css') filename = idx === 0 ? 'style.css' : `styles${idx}.css`;
-      else if (lang === 'javascript' || lang === 'js') filename = idx === 0 ? 'script.js' : `app${idx}.js`;
-      else if (lang === 'typescript' || lang === 'ts') filename = idx === 0 ? 'app.ts' : `module${idx}.ts`;
-      else if (lang === 'json') filename = 'package.json';
-      else if (lang === 'python' || lang === 'py') filename = 'main.py';
-      else if (lang === 'bash' || lang === 'sh') filename = 'run.sh';
-      else filename = `file${idx}.${lang || 'txt'}`;
-
-      files.push({ path: filename, content: code });
-      idx++;
+      let fn;
+      if (lang === 'html') fn = i === 0 ? 'index.html' : `page${i}.html`;
+      else if (lang === 'css') fn = i === 0 ? 'style.css' : `styles${i}.css`;
+      else if (lang === 'javascript' || lang === 'js') fn = i === 0 ? 'script.js' : `app${i}.js`;
+      else if (lang === 'typescript' || lang === 'ts') fn = i === 0 ? 'app.ts' : `module${i}.ts`;
+      else if (lang === 'json') fn = 'package.json';
+      else if (lang === 'python' || lang === 'py') fn = 'main.py';
+      else fn = `file${i}.${lang || 'txt'}`;
+      files.push({ path: fn, content: code }); i++;
     }
   }
-
   return files;
 }
 
 function extractCommands(content) {
-  const commands = [];
-  const cmdRegex = /---COMMAND:\s*(.+)/g;
-  let match;
-  while ((match = cmdRegex.exec(content)) !== null) {
-    commands.push(match[1].trim());
-  }
-  return commands;
+  const cmds = [], r = /---COMMAND:\s*(.+)/g;
+  let m; while ((m = r.exec(content)) !== null) cmds.push(m[1].trim());
+  return cmds;
 }
 
-// ── Chat Loop ───────────────────────────────────────────────────────
+// ── Chat ────────────────────────────────────────────────────────────
 async function chat(config) {
-  clear();
-  showHeader();
-
+  println('');
+  header();
   const cwd = process.cwd();
-  const createdFiles = new Set();
-  let conversationHistory = [];
+  const created = new Set();
+  let history = [];
 
-  println(`  ${c.gray}Working directory: ${c.white}${cwd}${c.reset}`);
-  println(`  ${c.gray}Type what you want to build. Commands: ${c.purple}/files${c.reset} ${c.gray}/${c.reset} ${c.purple}/clear${c.reset} ${c.gray}/${c.reset} ${c.purple}/exit${c.reset}`);
+  println(`  ${c.gray}Working dir: ${c.white}${cwd}${c.reset}`);
+  println(`  ${c.gray}Type what to build. ${c.purple}/files${c.reset} ${c.gray}/${c.reset} ${c.purple}/clear${c.reset} ${c.gray}/${c.reset} ${c.purple}/exit${c.reset}`);
   println('');
 
   while (true) {
     const input = await ask(`  ${c.purpleBright}› ${c.reset}`);
-    const trimmed = input.trim();
-
-    if (!trimmed) continue;
-    if (trimmed === '/exit' || trimmed === '/quit') {
-      println('');
-      println(`  ${c.gray}Goodbye! 👋${c.reset}`);
-      break;
-    }
-    if (trimmed === '/clear') {
-      conversationHistory = [];
-      println(`  ${c.gray}✓ Conversation cleared${c.reset}`);
-      println('');
-      continue;
-    }
-    if (trimmed === '/files') {
-      if (createdFiles.size === 0) {
-        println(`  ${c.gray}No files created yet${c.reset}`);
-      } else {
-        println(`  ${c.gray}Created files:${c.reset}`);
-        for (const f of createdFiles) println(`    ${c.teal}✓${c.reset} ${f}`);
-      }
-      println('');
-      continue;
+    const t = input.trim();
+    if (!t) continue;
+    if (t === '/exit' || t === '/quit') { println(`  ${c.gray}Done.${c.reset}`); break; }
+    if (t === '/clear') { history = []; println(`  ${c.gray}Cleared.${c.reset}`); println(''); continue; }
+    if (t === '/files') {
+      if (created.size === 0) println(`  ${c.gray}No files yet.${c.reset}`);
+      else { println(`  ${c.gray}Files:${c.reset}`); for (const f of created) println(`    ${c.teal}✓${c.reset} ${f}`); }
+      println(''); continue;
     }
 
-    // Show user message
-    println(`  ${c.purple}You:${c.reset} ${trimmed}`);
+    println(`  ${c.purple}You:${c.reset} ${t}`);
     println('');
-
-    const spinner = new Spinner('Thinking...');
-    spinner.start();
+    const stop = spinner('Generating production-grade code...');
 
     try {
-      const systemPrompt = `You are LUMINA CODE — an elite AI coding agent that creates STUNNING, production-grade websites.
+      const sys = `You are LUMINA CODE — a senior software engineer and AI coding agent.
+You create PRODUCTION-GRADE, deployable applications that rival Linear, Notion, Vercel, and Anthropic in quality.
 
-Your websites rival Linear, Notion, Vercel, Anthropic, and Apple in design quality.
+ENGINEERING STANDARDS:
+- Think like a staff engineer: architecture, scalability, security matter
+- Complete TypeScript with strict types (never use 'any')
+- Comprehensive error handling with user-friendly messages
+- Responsive design (mobile-first, 320px to 2560px)
+- Accessibility: semantic HTML, ARIA labels, keyboard navigation
+- Performance: lazy loading, efficient bundling, minimal reflows
+- Security: input sanitization, no hardcoded secrets, CSP headers
+- Clean architecture: separation of concerns, DRY, single responsibility
+- Meaningful variable/function names, JSDoc for public APIs
 
-CRITICAL STANDARDS:
-- Cinematic, premium UI with perfect typography and spacing
-- Smooth CSS animations and micro-interactions
-- Responsive design (mobile to desktop)
-- Accessible (semantic HTML, ARIA labels)
-- Modern CSS (grid, flexbox, custom properties, gradients)
-- Beautiful color palettes — not generic blue/purple
-- No placeholders, no lorem ipsum, no TODO comments
-- Every file must be COMPLETE and production-ready
+UI/UX STANDARDS:
+- Cinematic, premium interface with intentional color palette
+- Smooth CSS animations and micro-interactions (not excessive)
+- Perfect typography hierarchy and whitespace
+- Consistent design system (spacing, radii, shadows)
+- Beautiful on every screen size
 
-OUTPUT FORMAT — For EACH file output exactly:
+OUTPUT FORMAT — For EACH file:
 ---FILE: path/to/file.ext
-[COMPLETE file content]
+[COMPLETE file — every line, production-ready]
 ---END
 
-For shell commands:
+COMMANDS:
 ---COMMAND: npm install something
 ---COMMAND: npm run build
 
-Create ALL necessary files for a complete, working project.
+Create ALL files for a complete, working project. No placeholders. No TODOs.
 Working directory: ${cwd}`;
-
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        ...conversationHistory,
-        { role: 'user', content: trimmed },
-      ];
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -255,131 +172,75 @@ Working directory: ${cwd}`;
         },
         body: JSON.stringify({
           model: 'openrouter/owl-alpha',
-          messages,
+          messages: [{ role: 'system', content: sys }, ...history, { role: 'user', content: t }],
           stream: false,
-          max_tokens: 16000,
-          temperature: 0.2,
+          max_tokens: 32000,
+          temperature: 0.15,
         }),
       });
 
-      if (!res.ok) {
-        const err = await res.text().catch(() => '');
-        throw new Error(`API ${res.status}: ${err.slice(0, 200)}`);
-      }
-
+      if (!res.ok) throw new Error(`API ${res.status}`);
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content || '';
+      if (!content) { stop(); println(`  ${c.red}⚠ Empty response${c.reset}`); println(''); continue; }
+      stop();
 
-      if (!content) {
-        spinner.stop();
-        println(`  ${c.red}⚠ Empty response from model${c.reset}`);
-        println('');
-        continue;
-      }
-
-      spinner.stop();
-
-      // Parse and create files with real-time feedback
       const files = parseFiles(content);
       const commands = extractCommands(content);
 
       if (files.length > 0) {
         println(`  ${c.teal}${c.bold}Creating ${files.length} file(s)...${c.reset}`);
-        println('');
-
         for (const file of files) {
-          const fileSpinner = new Spinner(`  ${file.path}`);
-          fileSpinner.start();
-
+          const s = spinner(`  ${file.path}`);
           try {
-            const fullPath = join(cwd, file.path);
-            const dir = dirname(resolve(fullPath));
-            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-            writeFileSync(fullPath, file.content, 'utf-8');
-            createdFiles.add(file.path);
-
-            fileSpinner.stop();
-            const size = `${(file.content.length / 1024).toFixed(1)}kb`;
-            println(`    ${c.green}✓${c.reset} ${c.white}${file.path}${c.reset} ${c.darkGray}(${size})${c.reset}`);
-          } catch (e) {
-            fileSpinner.stop();
-            println(`    ${c.red}✗${c.reset} ${file.path}: ${e.message}`);
-          }
+            const fp = join(cwd, file.path);
+            const d = dirname(resolve(fp));
+            if (!existsSync(d)) mkdirSync(d, { recursive: true });
+            writeFileSync(fp, file.content, 'utf-8');
+            created.add(file.path);
+            s();
+            println(`    ${c.green}✓${c.reset} ${c.white}${file.path}${c.reset} ${c.darkGray}(${(file.content.length/1024).toFixed(1)}kb)${c.reset}`);
+          } catch (e) { s(); println(`    ${c.red}✗${c.reset} ${file.path}: ${e.message}`); }
         }
         println('');
       }
 
-      // Run commands
       if (commands.length > 0) {
         println(`  ${c.amber}${c.bold}Running ${commands.length} command(s)...${c.reset}`);
-        println('');
-
         for (const cmd of commands) {
-          const cmdSpinner = new Spinner(`  $ ${cmd}`);
-          cmdSpinner.start();
-
+          const s = spinner(`  $ ${cmd}`);
           try {
-            const out = execSync(cmd, { cwd, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 120000 });
-            cmdSpinner.stop();
-            println(`    ${c.green}✓${c.reset} ${c.gray}${cmd}${c.reset}`);
-            if (out.trim()) {
-              const lines = out.trim().split('\n').slice(0, 3);
-              for (const line of lines) {
-                println(`      ${c.darkGray}${line.slice(0, 60)}${c.reset}`);
-              }
-              if (out.trim().split('\n').length > 3) {
-                println(`      ${c.darkGray}...${c.reset}`);
-              }
-            }
-          } catch (e) {
-            cmdSpinner.stop();
-            println(`    ${c.red}✗${c.reset} ${cmd}: ${e.message}`);
-          }
+            execSync(cmd, { cwd, encoding: 'utf-8', maxBuffer: 10*1024*1024, timeout: 120000 });
+            s(); println(`    ${c.green}✓${c.reset} ${c.gray}${cmd}${c.reset}`);
+          } catch (e) { s(); println(`    ${c.red}✗${c.reset} ${cmd}: ${e.message}`); }
         }
         println('');
       }
 
-      // Show AI response text (non-file content)
-      const textOnly = content
-        .replace(/---FILE:[\s\S]*?---END/g, '')
-        .replace(/---COMMAND:.+/g, '')
-        .trim();
-
-      if (textOnly) {
+      const text = content.replace(/---FILE:[\s\S]*?---END/g, '').replace(/---COMMAND:.+/g, '').trim();
+      if (text) {
         println(`  ${c.purpleBright}Lumina:${c.reset}`);
-        const lines = textOnly.split('\n').slice(0, 5);
-        for (const line of lines) {
-          println(`  ${c.gray}${line}${c.reset}`);
-        }
-        if (textOnly.split('\n').length > 5) {
-          println(`  ${c.gray}...${c.reset}`);
-        }
+        const ls = text.split('\n').slice(0, 5);
+        for (const l of ls) println(`  ${c.gray}${l}${c.reset}`);
         println('');
       }
 
-      // Summary
-      println(`  ${c.teal}${c.bold}Done!${c.reset} ${c.gray}Created ${files.length} file(s), ${commands.length} command(s)${c.reset}`);
+      println(`  ${c.teal}${c.bold}Done!${c.reset} ${c.gray}${files.length} file(s), ${commands.length} command(s)${c.reset}`);
       println('');
 
-      // Save conversation
-      conversationHistory.push({ role: 'user', content: trimmed });
-      conversationHistory.push({ role: 'assistant', content });
-      if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
+      history.push({ role: 'user', content: t });
+      history.push({ role: 'assistant', content });
+      if (history.length > 20) history = history.slice(-20);
 
     } catch (e) {
-      spinner.stop();
+      stop();
       println(`  ${c.red}⚠ ${e.message}${c.reset}`);
       println('');
     }
   }
-
   rl.close();
 }
 
-// ── Main ────────────────────────────────────────────────────────────
 const config = loadConfig();
-if (!config?.openrouterKey) {
-  onboarding().then(() => chat(loadConfig()).then(() => process.exit(0)));
-} else {
-  chat(config).then(() => process.exit(0));
-}
+if (!config?.openrouterKey) onboarding().then(() => chat(loadConfig()).then(() => process.exit(0)));
+else chat(config).then(() => process.exit(0));
