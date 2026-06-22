@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { attemptGeneration } from "./utils/generationWrapper";
 import { CanvasPanel } from "@/features/canvas/CanvasPanel";
