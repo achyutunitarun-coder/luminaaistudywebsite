@@ -450,7 +450,12 @@ export default function LuminaComputer() {
 
       if (looksTruncated) {
         setCanContinue(true);
-        log("warn", "Output was cut off - press Continue to resume.");
+        log("warn", `Output was cut off (${rawAssistantRef.current.length} chars) — press Continue to resume.`);
+
+        // Auto-save whatever we got so far
+        if (displayFiles.length > 0) {
+          log("system", `Saved ${displayFiles.length} file(s) from partial output.`);
+        }
       } else {
         // Validate
         parserRef.current!.finish();
