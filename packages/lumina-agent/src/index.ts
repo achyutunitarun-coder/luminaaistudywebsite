@@ -159,7 +159,12 @@ COMMANDS:
 ---COMMAND: npm install something
 ---COMMAND: npm run build
 
-Create ALL files for a complete, working project. No placeholders. No TODOs.
+CRITICAL: Every file must be COMPLETE and production-ready.
+A complete HTML file MUST have: <!DOCTYPE html>, <html>, <head> with meta charset and viewport, <title>, <body>, and </html> at the end.
+A complete CSS file MUST have all styles and end properly.
+A complete JS file MUST have all code and end properly.
+No placeholders. No TODOs. No "// rest unchanged". No abbreviated code.
+Create ALL files for a complete, working project.
 Working directory: ${cwd}`;
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -174,7 +179,7 @@ Working directory: ${cwd}`;
           model: 'openrouter/owl-alpha',
           messages: [{ role: 'system', content: sys }, ...history, { role: 'user', content: t }],
           stream: false,
-          max_tokens: 32000,
+          max_tokens: 16000,
           temperature: 0.15,
         }),
       });
@@ -182,11 +187,31 @@ Working directory: ${cwd}`;
       if (!res.ok) throw new Error(`API ${res.status}`);
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content || '';
+      const finishReason = data.choices?.[0]?.finish_reason;
       if (!content) { stop(); println(`  ${c.red}⚠ Empty response${c.reset}`); println(''); continue; }
       stop();
 
+      // Warn if truncated
+      if (finishReason === 'length') {
+        println(`  ${c.amber}⚠ Output was truncated (hit token limit). Try a more specific prompt.${c.reset}`);
+        println('');
+      }
+
       const files = parseFiles(content);
       const commands = extractCommands(content);
+
+      // Validate HTML files
+      for (const file of files) {
+        if (file.path.endsWith('.html')) {
+          const hasDoctype = /<!doctype html/i.test(file.content);
+          const hasHtml = /<html[\s>]/.test(file.content);
+          const hasBody = /<body[\s>]/.test(file.content);
+          const hasClosingHtml = /<\/html>\s*$/.test(file.content.trim());
+          if (!hasDoctype || !hasHtml || !hasBody || !hasClosingHtml) {
+            println(`  ${c.amber}⚠ ${file.path} appears incomplete (missing ${!hasDoctype ? 'doctype ' : ''}${!hasHtml ? '<html> ' : ''}${!hasBody ? '<body> ' : ''}${!hasClosingHtml ? '</html>' : ''})${c.reset}`);
+          }
+        }
+      }
 
       if (files.length > 0) {
         println(`  ${c.teal}${c.bold}Creating ${files.length} file(s)...${c.reset}`);

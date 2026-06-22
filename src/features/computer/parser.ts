@@ -144,22 +144,30 @@ export class LuminaParser {
         continue;
       }
 
-      // No tags found
+      // No tags found — check if we have usable content
       if (final && !this.state.hasTags && this.buffer.trim().length > 0) {
-        this.state.files.push({ path: "response.md", lang: "md", content: this.buffer, done: true });
+        // Auto-detect file type from content
+        const content = this.buffer.trim();
+        let path = "response.md";
+        let lang = "md";
+        if (/<!DOCTYPE|<html/i.test(content)) { path = "index.html"; lang = "html"; }
+        else if (/<style|@media|@import|:root\s*\{/i.test(content) && !/<html/i.test(content)) { path = "style.css"; lang = "css"; }
+        else if (/<script|document\.|window\.|const\s+\w+\s*=|function\s+\w+/i.test(content) && !/<html/i.test(content)) { path = "script.js"; lang = "javascript"; }
+        else if (/^\s*\{[\s\S]*\}\s*$/.test(content)) { path = "data.json"; lang = "json"; }
+        this.state.files.push({ path, lang, content, done: true });
         this.buffer = "";
         return;
       }
 
-      if (!this.state.hasTags && this.buffer.length > 200) {
-        // Show streaming content as it arrives
-        const existing = this.state.files.find(f => f.path === "response.md");
-        if (!existing) {
+      // If no tags and not final, show streaming content
+      if (!this.state.hasTags && this.buffer.length > 100 && !this.containsPartialTag()) {
+        if (!this.state.files.find(f => f.path === "response.md")) {
           this.state.files.push({ path: "response.md", lang: "md", content: this.buffer, done: false });
         } else {
-          existing.content = this.buffer;
+          const f = this.state.files.find(f => f.path === "response.md");
+          if (f) f.content = this.buffer;
         }
-        if (!this.buffer.includes("FILE:") && !this.buffer.includes("<lumina:")) {
+        if (!this.buffer.includes("FILE:") && !this.buffer.includes("<lumina:") && !this.buffer.includes("<!DOCTYPE") && !this.buffer.includes("<html")) {
           this.buffer = "";
         }
         return;
@@ -167,5 +175,9 @@ export class LuminaParser {
 
       return;
     }
+  }
+
+  private containsPartialTag(): boolean {
+    return /FILE:\s*$/.test(this.buffer) || /<lumina:[\w-]*$/.test(this.buffer) || /<!DOCTYPE\s*$/i.test(this.buffer) || /<html\s*$/i.test(this.buffer);
   }
 }
