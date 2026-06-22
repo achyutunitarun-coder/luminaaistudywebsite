@@ -50,6 +50,7 @@ import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import { MemoryProvider } from "@/contexts/MemoryContext";
 import NotFound from "./pages/NotFound";
+import { ChatErrorBoundary } from "./components/ChatErrorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -121,7 +122,7 @@ const App = () => (
                 <Route path="/artifacts" element={<ArtifactGallery />} />
                 <Route path="/ai-tools" element={<AITools />} />
                 <Route path="/hub" element={<LuminaHub />} />
-                <Route path="/chat" element={<Chat />} />
+                <Route path="/chat" element={<ChatErrorBoundary><Chat /></ChatErrorBoundary>} />
                 <Route path="/computer" element={<LuminaComputer />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
