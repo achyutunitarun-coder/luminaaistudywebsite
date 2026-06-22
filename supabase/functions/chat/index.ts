@@ -19,57 +19,116 @@ function classifyIntent(text: string) {
 
 function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
   if (isComputer) {
-    return `You are LUMINA COMPUTER — an elite AI coding agent that creates STUNNING, production-grade websites and applications.
+    return `You are LUMINA COMPUTER. Create stunning, production-grade websites.
 
-You rival the quality of Linear, Notion, Vercel, Anthropic, and Apple in design and code quality.
+For EACH file, output on its own line:
+FILE: path/to/file.ext
+Then the complete file content.
+Then END FILE on its own line.
 
-CRITICAL RULES:
-1. Output COMPLETE files using this EXACT format:
-   ---FILE: path/to/file.ext
-   [COMPLETE file content — every single line, NO truncation]
-   ---END
+Example:
+FILE: index.html
+<!DOCTYPE html>
+<html>...</html>
+END FILE
+FILE: style.css
+:root { ... }
+END FILE
+FILE: script.js
+// ...
+END FILE
 
-2. For shell commands:
-   ---COMMAND: npm install something
-   ---COMMAND: npm run build
+RULES:
+- Create ALL files needed for a complete, working project
+- index.html, style.css, script.js MINIMUM for websites
+- Every file COMPLETE — no placeholders, no TODOs, no truncation
+- Modern HTML5, CSS3 (grid, flexbox, animations), ES6+ JS
+- Three.js from CDN: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+- Beautiful, cinematic, production-quality
+- Deployable as-is
+- Generate MULTIPLE files — never stop after one file
+- After END FILE, immediately start the next FILE: block
 
-3. Create ALL necessary files for a complete, working project
-4. Use modern HTML/CSS/JS, Three.js from CDN for 3D
-5. Beautiful, cinematic, production-quality code
-6. No placeholders, no TODOs, no lorem ipsum, no "// rest unchanged"
-7. Every file must be COMPLETE and deployable
-8. Think like a senior software engineer — architecture matters
-9. You MUST generate at minimum 3-5 files for any website request
-10. Each file must be COMPLETE — never truncate or abbreviate code
-
-EFFORT LEVEL: ${effort}
-${effort === 'beast' ? 'MAXIMUM QUALITY: Production-grade, comprehensive error handling, tests, accessibility, performance optimization.' : effort === 'quick' ? 'FAST: Working code quickly, skip extras.' : 'BALANCED: Good quality with reasonable scope.'}`;
+Effort: ${effort}`;
   }
 
-  const base = `You are Lumina AI, an elite study assistant. You help students learn, explain concepts, generate practice problems, and build study materials.
+  const base = `You are Lumina AI, an elite study assistant. Help students learn, explain concepts, generate practice problems, and build study materials.
 
-You are running inside the Lumina study platform. Be helpful, accurate, and encouraging.
+Mode: ${mode}
+Effort: ${effort}`;
 
-Current mode: ${mode}
-Effort level: ${effort}`;
-
-  if (intent === "coding") {
-    return base + "\n\nThe user wants coding help. Provide clear, well-commented code examples.";
-  }
-  if (intent === "study") {
-    return base + "\n\nThe user wants to learn. Explain concepts clearly with examples.";
-  }
-  if (intent === "greeting") {
-    return base + "\n\nThe user is greeting you. Respond warmly and ask how you can help them study.";
-  }
+  if (intent === "coding") return base + "\n\nProvide clear, well-commented code examples.";
+  if (intent === "study") return base + "\n\nExplain concepts clearly with examples.";
+  if (intent === "greeting") return base + "\n\nRespond warmly and ask how you can help.";
   return base;
+}
+
+async function callOpenRouter(messages: any[], maxTokens: number, temperature: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180000);
+
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+        "HTTP-Referer": "https://luminaai.co.in",
+        "X-Title": "Lumina AI",
+      },
+      body: JSON.stringify({
+        model: OWL,
+        messages,
+        stream: true,
+        max_tokens: maxTokens,
+        temperature,
+        top_p: 0.95,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
+    }
+
+    if (!res.body) throw new Error("No response body");
+    return res.body;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+function pipeStreamWithMeta(resBody: ReadableStream, meta: Record<string, unknown>): ReadableStream {
+  const encoder = new TextEncoder();
+  const metaEvent = `data: ${JSON.stringify({ lumina_meta: { ...meta, tier_target: "TIER_1" } })}\n\n`;
+
+  return new ReadableStream<Uint8Array>({
+    async start(ctrl) {
+      ctrl.enqueue(encoder.encode(metaEvent));
+      try {
+        const reader = resBody.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          ctrl.enqueue(value);
+        }
+        ctrl.close();
+      } catch (e) {
+        console.error("[chat] stream error:", e);
+        ctrl.close();
+      }
+    },
+  });
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -80,7 +139,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Parse body
     const body = await req.text();
     if (body.length > 5_000_000) {
       return new Response(JSON.stringify({ error: "Payload too large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -90,20 +148,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid messages" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Classify intent
     const lastMsg = [...messages].reverse().find((m: any) => m.role === "user");
     const queryText = typeof lastMsg?.content === "string" ? lastMsg.content : "";
     const intent = classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const effortLevel = typeof effort === "string" && ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
-
-    // Check if computer mode
     const isComputer = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
 
-    // Build system prompt
     const systemPrompt = buildSystemPrompt(intent, requestedMode, effortLevel, isComputer);
 
-    // Determine max tokens — use reasonable limits for OpenRouter
     let maxTokens: number;
     if (isComputer) {
       maxTokens = effortLevel === 'beast' ? 16384 : effortLevel === 'quick' ? 8192 : 12288;
@@ -115,66 +168,15 @@ serve(async (req) => {
       maxTokens = 4096;
     }
 
-    const temperature = isComputer ? 0.2 : intent === "coding" ? 0.3 : 0.7;
+    const temperature = isComputer ? 0.15 : intent === "coding" ? 0.3 : 0.7;
 
-    // Call OpenRouter with streaming
-    const controller = new AbortController();
-    const timeoutMs = isComputer ? (effortLevel === 'beast' ? 480_000 : 240_000) : 120_000;
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const resBody = await callOpenRouter(
+      [{ role: "system", content: systemPrompt }, ...messages],
+      maxTokens,
+      temperature
+    );
 
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
-        "HTTP-Referer": "https://luminaai.co.in",
-        "X-Title": "Lumina AI",
-      },
-      body: JSON.stringify({
-        model: OWL,
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
-        max_tokens: maxTokens,
-        max_completion_tokens: maxTokens,
-        temperature,
-        top_p: 0.95,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      const err = await res.text().catch(() => "");
-      console.error(`[chat] API error ${res.status}: ${err.slice(0, 200)}`);
-      return new Response(JSON.stringify({ error: `API error ${res.status}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    if (!res.body) {
-      return new Response(JSON.stringify({ error: "No response body" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Add meta event at the start
-    const encoder = new TextEncoder();
-    const metaEvent = `data: ${JSON.stringify({ lumina_meta: { model: OWL, intent, is_computer: isComputer, tier_target: "TIER_1" } })}\n\n`;
-
-    const stream = new ReadableStream<Uint8Array>({
-      async start(ctrl) {
-        ctrl.enqueue(encoder.encode(metaEvent));
-        try {
-          const reader = res.body!.getReader();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            ctrl.enqueue(value);
-          }
-          ctrl.close();
-        } catch (e) {
-          console.error("[chat] stream error:", e);
-          ctrl.close();
-        }
-      },
-    });
+    const stream = pipeStreamWithMeta(resBody, { model: OWL, intent, is_computer: isComputer });
 
     return new Response(stream, {
       headers: {
