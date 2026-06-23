@@ -89,17 +89,19 @@ export class LuminaParser {
           this.activeFile = null;
           continue;
         } else {
-          if (!this.activeFile || this.activeFile.path !== path) {
-            if (this.activeFile) this.activeFile.done = true;
-            this.activeFile = { path, lang: guessLang(path), content: "", done: false };
-            this.state.files.push(this.activeFile);
+          // Streaming partial file. Reuse same-path file if already present
+          // (e.g. from auto-detected streaming HTML before FILE: marker arrived).
+          let target = this.state.files.find((f) => f.path === path) ?? null;
+          if (!target) {
+            target = { path, lang: guessLang(path), content: "", done: false };
+            this.state.files.push(target);
           }
+          if (this.activeFile && this.activeFile.path !== path) this.activeFile.done = true;
+          this.activeFile = target;
           let partialContent = afterMarker;
-          // Strip code block fences from partial content
           partialContent = partialContent.replace(/^```[a-z]*\n/, "").replace(/\n```$/, "");
-          this.activeFile.content = partialContent;
-          const f = this.state.files.find(x => x.path === path);
-          if (f) f.content = partialContent;
+          target.content = partialContent;
+          target.done = false;
           this.buffer = "";
           return;
         }
