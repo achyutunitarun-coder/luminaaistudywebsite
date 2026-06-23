@@ -441,24 +441,19 @@ export default function LuminaComputer() {
       await streamMessages(messages);
       applyState();
 
-      // Detect truncation
+      // Detect truncation (server now auto-continues up to 4 passes, so this is rare)
       let st = parserRef.current!.state;
       const displayFiles = st.files.filter(f => f.path !== "response.md");
       const openFile = st.files.some(f => !f.done);
-      const missingFinal = !st.final.trim();
-      const tail = rawAssistantRef.current.trimEnd().slice(-60);
-      const cleanEnd = /<\/(lumina:)?(final|file|plan)>\s*$/.test(tail) || /END FILE\s*$/.test(tail);
+      const tail = rawAssistantRef.current.trimEnd().slice(-80);
+      const cleanEnd = /END FILE\s*$/.test(tail) || /<\/html>\s*$/i.test(tail) || /<\/(lumina:)?(final|file|plan)>\s*$/.test(tail);
       const noFilesShipped = displayFiles.length === 0;
-      const planUnclosed = rawAssistantRef.current.includes("<lumina:plan>") && !rawAssistantRef.current.includes("</lumina:plan>");
-      const allFilesComplete = displayFiles.length > 0 && displayFiles.every(f => f.done);
       const enoughOutput = rawAssistantRef.current.length > 40;
-      const looksTruncated = enoughOutput && !allFilesComplete && (openFile || missingFinal || !cleanEnd || noFilesShipped || planUnclosed);
+      const looksTruncated = enoughOutput && (openFile || noFilesShipped || !cleanEnd);
 
       if (looksTruncated) {
         setCanContinue(true);
-        log("warn", `Output was cut off (${rawAssistantRef.current.length} chars) — press Continue to resume.`);
-
-        // Auto-save whatever we got so far
+        log("warn", `Output looks incomplete (${rawAssistantRef.current.length} chars) — press Continue to resume.`);
         if (displayFiles.length > 0) {
           log("system", `Saved ${displayFiles.length} file(s) from partial output.`);
         }
