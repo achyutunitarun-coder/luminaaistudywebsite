@@ -176,12 +176,29 @@ export class LuminaParser {
         return;
       }
 
-      // If no tags and not final, show streaming content
+      // If no FILE: tag yet but the stream clearly looks like raw HTML,
+      // treat the buffer as a streaming index.html so the user sees it live
+      // instead of it being dumped into a fallback "response.md".
+      if (!this.state.hasTags && /<!DOCTYPE\s+html|<html[\s>]/i.test(this.buffer)) {
+        const existing = this.state.files.find((f) => f.path === "index.html");
+        if (!existing) {
+          const file: LuminaFile = { path: "index.html", lang: "html", content: this.buffer, done: false };
+          this.state.files.push(file);
+          this.activeFile = file;
+        } else {
+          existing.content = this.buffer;
+          existing.done = false;
+          this.activeFile = existing;
+        }
+        return;
+      }
+
+      // Otherwise, show streaming raw text as a transient response.md preview.
       if (!this.state.hasTags && this.buffer.length > 100 && !this.containsPartialTag()) {
-        if (!this.state.files.find(f => f.path === "response.md")) {
+        if (!this.state.files.find((f) => f.path === "response.md")) {
           this.state.files.push({ path: "response.md", lang: "md", content: this.buffer, done: false });
         } else {
-          const f = this.state.files.find(f => f.path === "response.md");
+          const f = this.state.files.find((f) => f.path === "response.md");
           if (f) f.content = this.buffer;
         }
         if (!this.buffer.includes("FILE:") && !this.buffer.includes("<lumina:") && !this.buffer.includes("<!DOCTYPE") && !this.buffer.includes("<html")) {
