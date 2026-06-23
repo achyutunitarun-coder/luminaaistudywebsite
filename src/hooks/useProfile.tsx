@@ -38,7 +38,7 @@ export const useProfile = () => {
       if (Object.keys(safeUpdates).length === 0) throw new Error('No valid fields to update');
       const { error } = await supabase
         .from('profiles')
-        .update(safeUpdates)
+        .update(safeUpdates as never)
         .eq('user_id', user.id);
       if (error) throw error;
     },

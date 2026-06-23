@@ -89,17 +89,19 @@ export class LuminaParser {
           this.activeFile = null;
           continue;
         } else {
-          if (!this.activeFile || this.activeFile.path !== path) {
-            if (this.activeFile) this.activeFile.done = true;
-            this.activeFile = { path, lang: guessLang(path), content: "", done: false };
-            this.state.files.push(this.activeFile);
+          // Streaming partial file. Reuse same-path file if already present
+          // (e.g. from auto-detected streaming HTML before FILE: marker arrived).
+          let target = this.state.files.find((f) => f.path === path) ?? null;
+          if (!target) {
+            target = { path, lang: guessLang(path), content: "", done: false };
+            this.state.files.push(target);
           }
+          if (this.activeFile && this.activeFile.path !== path) this.activeFile.done = true;
+          this.activeFile = target;
           let partialContent = afterMarker;
-          // Strip code block fences from partial content
           partialContent = partialContent.replace(/^```[a-z]*\n/, "").replace(/\n```$/, "");
-          this.activeFile.content = partialContent;
-          const f = this.state.files.find(x => x.path === path);
-          if (f) f.content = partialContent;
+          target.content = partialContent;
+          target.done = false;
           this.buffer = "";
           return;
         }
@@ -176,12 +178,29 @@ export class LuminaParser {
         return;
       }
 
-      // If no tags and not final, show streaming content
+      // If no FILE: tag yet but the stream clearly looks like raw HTML,
+      // treat the buffer as a streaming index.html so the user sees it live
+      // instead of it being dumped into a fallback "response.md".
+      if (!this.state.hasTags && /<!DOCTYPE\s+html|<html[\s>]/i.test(this.buffer)) {
+        const existing = this.state.files.find((f) => f.path === "index.html");
+        if (!existing) {
+          const file: LuminaFile = { path: "index.html", lang: "html", content: this.buffer, done: false };
+          this.state.files.push(file);
+          this.activeFile = file;
+        } else {
+          existing.content = this.buffer;
+          existing.done = false;
+          this.activeFile = existing;
+        }
+        return;
+      }
+
+      // Otherwise, show streaming raw text as a transient response.md preview.
       if (!this.state.hasTags && this.buffer.length > 100 && !this.containsPartialTag()) {
-        if (!this.state.files.find(f => f.path === "response.md")) {
+        if (!this.state.files.find((f) => f.path === "response.md")) {
           this.state.files.push({ path: "response.md", lang: "md", content: this.buffer, done: false });
         } else {
-          const f = this.state.files.find(f => f.path === "response.md");
+          const f = this.state.files.find((f) => f.path === "response.md");
           if (f) f.content = this.buffer;
         }
         if (!this.buffer.includes("FILE:") && !this.buffer.includes("<lumina:") && !this.buffer.includes("<!DOCTYPE") && !this.buffer.includes("<html")) {

@@ -17,84 +17,159 @@ function classifyIntent(text: string) {
   return "general";
 }
 
+// ── PREMIUM SYSTEM PROMPT FOR LUMINA COMPUTER ──
+// Single-file, museum-grade, minimalist output.
+const COMPUTER_SYSTEM = `You are LUMINA COMPUTER — an elite product designer + senior front-end engineer hybrid. You ship ONE single, self-contained, production-ready \`index.html\` for every request. Nothing else.
+
+══ NON-NEGOTIABLE OUTPUT CONTRACT ══
+Your entire reply MUST be exactly this shape, with no prose before or after:
+
+FILE: index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{specific, descriptive title}</title>
+  <style>
+    /* all CSS inline here — design tokens, layout, components, motion */
+  </style>
+</head>
+<body>
+  <!-- semantic, accessible markup -->
+  <script>
+    // all JS inline here — vanilla ES2022, no build step
+  </script>
+</body>
+</html>
+END FILE
+
+Rules:
+• No code fences. No backticks. No \`\`\`html. No commentary, no preamble, no postscript.
+• Exactly ONE file. Everything inline. No external CSS, no external JS, no <link rel="stylesheet">, no <script src="...">.
+• External assets allowed ONLY when essential: Google Fonts <link>, Unsplash/Picsum images, public CDN libs (Three.js, Chart.js, GSAP) via <script src>. Prefer pure CSS/SVG/Canvas when possible.
+• Always close every tag. Always write \`END FILE\` on its own line at the very end.
+
+══ DESIGN BAR — "STUNNING & MINIMALIST" ══
+Every output must look like it shipped from a top design studio (Linear / Vercel / Apple / Stripe / Rauno / Arc). If it looks generic, you have failed.
+
+Aesthetic principles you ALWAYS follow:
+1. Restraint. One accent color max. Massive whitespace. Calm, confident typography.
+2. Typography: import a real typeface (Inter, Geist, Manrope, Instrument Serif, Fraunces, JetBrains Mono). Set tracking, line-height, optical sizes. Use type scale 12 / 14 / 16 / 20 / 28 / 40 / 64 / 96.
+3. Color: deep neutrals + ONE signal color. Avoid candy/pastel default palettes. Use OKLCH or carefully tuned HSL. Examples of good directions: ink-black on warm bone; graphite on porcelain; near-black on cream with single ember accent.
+4. Layout: generous padding (clamp), max-width 1200px, 8px spatial grid, hairline 1px borders at 8% opacity.
+5. Motion: tasteful only. Subtle fades, 200–400ms ease-out, spring physics for drag, intersection-observer reveals. Never bouncy/playful unless requested.
+6. Detail: focus rings, hover states, disabled states, empty states, loading states, micro-copy. Real content, never lorem ipsum.
+7. Light AND dark mode via \`prefers-color-scheme\` unless one is clearly correct for the brief.
+8. Responsive from 360px to 1920px. Touch targets ≥ 44px. Use \`clamp()\`, container queries where useful.
+9. Accessibility: semantic HTML, alt text, aria-labels, keyboard nav, visible focus, color contrast ≥ 4.5:1.
+10. Performance: no jank. Use transform/opacity for animation. Lazy-load heavy work.
+
+ANTI-PATTERNS — never ship these:
+✗ Purple-to-pink gradients on white. ✗ Generic "AI startup" hero. ✗ Three feature cards with emoji icons. ✗ Drop shadows like \`0 4px 6px rgba(0,0,0,0.1)\`. ✗ Default system-ui without weight/spacing care. ✗ Lorem ipsum. ✗ Placeholder.com images. ✗ Bootstrap-feel buttons. ✗ Tailwind-default-spaced layouts. ✗ Emoji as decoration.
+
+══ EXECUTION ══
+• Read the user prompt carefully. Identify what kind of artifact best serves it (landing page, dashboard, tool, game, simulation, editor, visualization, learning lab, etc.).
+• Write a brief mental plan, then execute fully. Do NOT output the plan as prose.
+• Make it FEEL like the subject. A calculus lab should feel scholarly + precise. A pomodoro should feel calm + focused. A finance dashboard should feel sharp + data-dense. Match form to content.
+• Include real interactivity: state, animation, useful behaviour. Not a static mockup.
+• Aim for 400–1500 lines of dense, intentional code. Never pad. Never abandon halfway.
+• If you reach the end of available tokens mid-file, KEEP GOING — your output will be auto-continued. Do not announce stopping. Just continue writing the file where you left off when prompted.
+
+Begin now. Output ONLY the FILE: index.html block.`;
+
 function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
-  if (isComputer) {
-    // CRITICAL: Tell the AI to output ONLY files, no narrative, no preamble
-    return 'You are LUMINA COMPUTER. Output ONLY files in this exact format. Do NOT output any text before, between, or after files. Do NOT explain. Do NOT narrate. Output ONLY:\n\nFILE: index.html\n<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>App</title><link rel="stylesheet" href="style.css"></head>\n<body><h1>Content</h1><script src="script.js"></script></body>\n</html>\nEND FILE\nFILE: style.css\n:root{--p:#6366f1;--bg:#0f172a;--t:#e2e8f0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:var(--bg);color:var(--t);min-height:100vh}\nEND FILE\nFILE: script.js\ndocument.addEventListener(\'DOMContentLoaded\',()=>{console.log(\'ready\')})\nEND FILE\n\nReplace ALL placeholder content with REAL code for the user\'s request. Output EXACTLY 3 files. NO other text. NO narration. NO explanations.\n\nEffort: ' + effort;
-  }
+  if (isComputer) return COMPUTER_SYSTEM + `\n\nEffort tier: ${effort.toUpperCase()}`;
 
   const base = `You are Lumina AI, an elite study assistant. Help students learn, explain concepts, generate practice problems, and build study materials.\n\nMode: ${mode}\nEffort: ${effort}`;
-
   if (intent === "coding") return base + "\n\nProvide clear, well-commented code examples.";
   if (intent === "study") return base + "\n\nExplain concepts clearly with examples.";
   if (intent === "greeting") return base + "\n\nRespond warmly and ask how you can help.";
   return base;
 }
 
-async function callOpenRouter(messages: any[], maxTokens: number, temperature: number, extraParams: Record<string, unknown> = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180000);
-
-  try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
-        "HTTP-Referer": "https://luminaai.co.in",
-        "X-Title": "Lumina AI",
-      },
-      body: JSON.stringify({
-        model: OWL,
-        messages,
-        stream: true,
-        max_tokens: maxTokens,
-        max_completion_tokens: maxTokens,
-        temperature,
-        top_p: 0.95,
-        presence_penalty: 0.2,
-        frequency_penalty: 0.1,
-        ...extraParams,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      const err = await res.text().catch(() => "");
-      throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
-    }
-
-    if (!res.body) throw new Error("No response body");
-    return res.body;
-  } catch (e) {
-    clearTimeout(timeout);
-    throw e;
-  }
+interface StreamCallResult {
+  text: string;
+  finishReason: string | null;
 }
 
-function pipeStreamWithMeta(resBody: ReadableStream, meta: Record<string, unknown>): ReadableStream {
-  const encoder = new TextEncoder();
-  const metaEvent = `data: ${JSON.stringify({ lumina_meta: { ...meta, tier_target: "TIER_1" } })}\n\n`;
-
-  return new ReadableStream<Uint8Array>({
-    async start(ctrl) {
-      ctrl.enqueue(encoder.encode(metaEvent));
-      try {
-        const reader = resBody.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          ctrl.enqueue(value);
-        }
-        ctrl.close();
-      } catch (e) {
-        console.error("[chat] stream error:", e);
-        ctrl.close();
-      }
+async function callOpenRouterCollect(
+  messages: any[],
+  maxTokens: number,
+  temperature: number,
+  signal: AbortSignal,
+  onDelta: (chunk: string) => void,
+): Promise<StreamCallResult> {
+  const res = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+      "HTTP-Referer": "https://luminaai.co.in",
+      "X-Title": "Lumina AI",
     },
+    body: JSON.stringify({
+      model: OWL,
+      messages,
+      stream: true,
+      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
+      temperature,
+      top_p: 0.95,
+    }),
+    signal,
   });
+
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
+  }
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let collected = "";
+  let finishReason: string | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buf.indexOf("\n")) !== -1) {
+      let line = buf.slice(0, nl);
+      buf = buf.slice(nl + 1);
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+      if (!line.startsWith("data: ")) continue;
+      const json = line.slice(6).trim();
+      if (!json || json === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(json);
+        const delta = parsed?.choices?.[0]?.delta?.content;
+        if (typeof delta === "string" && delta.length > 0) {
+          collected += delta;
+          onDelta(delta);
+        }
+        const fr = parsed?.choices?.[0]?.finish_reason;
+        if (fr) finishReason = fr;
+      } catch {
+        // partial JSON — push back and wait for more
+        buf = line + "\n" + buf;
+        break;
+      }
+    }
+  }
+
+  return { text: collected, finishReason };
+}
+
+/** Detect if computer-mode output is complete (single index.html ending with END FILE). */
+function isComputerOutputComplete(text: string): boolean {
+  const t = text.trimEnd();
+  if (!/FILE:\s*index\.html/i.test(t)) return false;
+  if (/\nEND FILE\s*$/.test(t)) return true;
+  return /<\/html>\s*$/i.test(t);
 }
 
 serve(async (req) => {
@@ -125,30 +200,83 @@ serve(async (req) => {
     const intent = classifyIntent(queryText);
     const requestedMode = typeof mode === "string" ? mode : "auto";
     const effortLevel = typeof effort === "string" && ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
-    const isComputer = requestedMode === "computer" || requestedMode === "mun" || intent === "computer" || intent === "mun";
+    const isComputer = requestedMode === "computer" || requestedMode === "mun";
 
     const systemPrompt = buildSystemPrompt(intent, requestedMode, effortLevel, isComputer);
 
-    let maxTokens: number;
-    if (isComputer) {
-      maxTokens = effortLevel === 'beast' ? 65536 : effortLevel === 'quick' ? 16384 : 32768;
-    } else if (intent === "coding") {
-      maxTokens = 8192;
-    } else if (requestedMode === "deepDive") {
-      maxTokens = 8192;
-    } else {
-      maxTokens = 4096;
-    }
+    const maxTokens = isComputer
+      ? (effortLevel === "beast" ? 65536 : effortLevel === "quick" ? 16384 : 32768)
+      : (intent === "coding" ? 8192 : requestedMode === "deepDive" ? 8192 : 4096);
+    const temperature = isComputer ? 0.25 : intent === "coding" ? 0.3 : 0.7;
 
-    const temperature = isComputer ? 0.1 : intent === "coding" ? 0.3 : 0.7;
+    const encoder = new TextEncoder();
 
-    const resBody = await callOpenRouter(
-      [{ role: "system", content: systemPrompt }, ...messages],
-      maxTokens,
-      temperature
-    );
+    const stream = new ReadableStream<Uint8Array>({
+      async start(ctrl) {
+        const send = (obj: any) => ctrl.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+        const sendDelta = (text: string) => send({ choices: [{ delta: { content: text } }] });
 
-    const stream = pipeStreamWithMeta(resBody, { model: OWL, intent, is_computer: isComputer });
+        // Lumina meta
+        send({ lumina_meta: { model: OWL, intent, is_computer: isComputer, tier_target: "TIER_1" } });
+
+        const abortCtrl = new AbortController();
+        req.signal.addEventListener("abort", () => abortCtrl.abort());
+
+        try {
+          let convo: any[] = [{ role: "system", content: systemPrompt }, ...messages];
+          let totalText = "";
+          // Server-side auto-continue: up to 4 passes for computer mode, 1 otherwise.
+          const maxPasses = isComputer ? 4 : 1;
+
+          for (let pass = 0; pass < maxPasses; pass++) {
+            const { text, finishReason } = await callOpenRouterCollect(
+              convo,
+              maxTokens,
+              temperature,
+              abortCtrl.signal,
+              (delta) => sendDelta(delta),
+            );
+            totalText += text;
+
+            if (!isComputer) break;
+            const truncated = finishReason === "length" || !isComputerOutputComplete(totalText);
+            if (!truncated) break;
+            if (pass === maxPasses - 1) {
+              // last pass — surface a clean tail close if the model didn't.
+              if (!/\nEND FILE\s*$/.test(totalText.trimEnd())) {
+                const closer = /<\/html>\s*$/i.test(totalText.trimEnd()) ? "\nEND FILE\n" : "\n</body>\n</html>\nEND FILE\n";
+                sendDelta(closer);
+                totalText += closer;
+              }
+              break;
+            }
+
+            // Build continuation turn: feed the model its own partial output and ask it to keep writing.
+            send({ choices: [{ delta: { content: "" } }], lumina_meta: { auto_continue: pass + 1 } });
+            const tailHint = totalText.slice(-1800);
+            convo = [
+              { role: "system", content: systemPrompt },
+              ...messages,
+              { role: "assistant", content: totalText },
+              {
+                role: "user",
+                content:
+                  "Your previous reply was cut off by the token limit. CONTINUE writing the same index.html EXACTLY where you stopped — do not repeat any character you already wrote, do not restart, do not apologise. Just emit the next characters of the file. When the file is complete, close </body></html> and write a final line containing only: END FILE\n\nTAIL OF YOUR LAST OUTPUT (for context — do not repeat):\n" +
+                  tailHint,
+              },
+            ];
+          }
+
+          send({ choices: [{ finish_reason: "stop", delta: {} }] });
+          ctrl.enqueue(encoder.encode("data: [DONE]\n\n"));
+          ctrl.close();
+        } catch (e) {
+          console.error("[chat] stream error:", e);
+          try { send({ error: e instanceof Error ? e.message : "stream_error" }); } catch (_) { /* noop */ }
+          try { ctrl.close(); } catch (_) { /* noop */ }
+        }
+      },
+    });
 
     return new Response(stream, {
       headers: {

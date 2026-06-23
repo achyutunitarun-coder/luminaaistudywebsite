@@ -3,18 +3,26 @@ import { useState, useCallback } from "react";
 export type StageStatus = "idle" | "working" | "done" | "error";
 
 export type PipelineStage =
-  | "planning"
-  | "generating"
-  | "validating"
-  | "repairing"
-  | "finalizing";
+  | "planner"
+  | "router"
+  | "research"
+  | "architect"
+  | "builder"
+  | "validator"
+  | "debugger"
+  | "runner"
+  | "assembler";
 
 export const idleFactoryStates: Record<PipelineStage, StageStatus> = {
-  planning: "idle",
-  generating: "idle",
-  validating: "idle",
-  repairing: "idle",
-  finalizing: "idle",
+  planner: "idle",
+  router: "idle",
+  research: "idle",
+  architect: "idle",
+  builder: "idle",
+  validator: "idle",
+  debugger: "idle",
+  runner: "idle",
+  assembler: "idle",
 };
 
 export function useLuminaPipeline() {
