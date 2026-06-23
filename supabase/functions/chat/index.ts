@@ -21,84 +21,23 @@ function buildSystemPrompt(intent: string, mode: string, effort: string, isCompu
   if (isComputer) {
     return `You are LUMINA COMPUTER. Create stunning, production-grade websites.
 
-OUTPUT FORMAT — Use this EXACT format for EVERY file. You MUST generate MULTIPLE files. Never stop after one file.
+OUTPUT FORMAT — You MUST use this EXACT format for EVERY file. Generate MULTIPLE files (3+).
 
 FILE: path/to/file.ext
-<complete file content>
+<complete file content — NO code blocks, NO markdown fences, just raw code>
 END FILE
 
-MANDATORY: Generate ALL of these files for every website project:
-1. FILE: index.html — Complete HTML5 document with structure, content, and semantic markup
-2. FILE: style.css — Complete CSS with variables, layout, animations, and responsive design
-3. FILE: script.js — Complete JavaScript with interactivity, event handlers, and logic
+MANDATORY FILES (generate ALL of these):
+1. FILE: index.html — Complete HTML5 document
+2. FILE: style.css — Complete CSS
+3. FILE: script.js — Complete JavaScript
 
-For complex projects ALSO add:
-4. FILE: README.md — Brief description of the project
-5. Additional component files as needed (e.g., FILE: components/navbar.js)
-
-EXAMPLE of correct output (you MUST follow this pattern with 3+ files):
-
-FILE: index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My App</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header><h1>Welcome</h1></header>
-  <main><p>Content here</p></main>
-  <script src="script.js"></script>
-</body>
-</html>
-END FILE
-
-FILE: style.css
-:root {
-  --primary: #6366f1;
-  --bg: #0f172a;
-  --text: #e2e8f0;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-}
-header {
-  padding: 2rem;
-  text-align: center;
-  background: linear-gradient(135deg, var(--primary), #8b5cf6);
-}
-main { padding: 2rem; max-width: 800px; margin: 0 auto; }
-END FILE
-
-FILE: script.js
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('App initialized');
-  // Add interactivity here
-  const header = document.querySelector('header');
-  header.addEventListener('click', () => {
-    document.body.style.background = '#1e293b';
-    setTimeout(() => {
-      document.body.style.background = '';
-    }, 300);
-  });
-});
-END FILE
-
-CRITICAL RULES:
-- You MUST generate at LEAST 3 files: index.html, style.css, script.js
-- Every file must be COMPLETE — no placeholders, no TODOs, no truncation, no "..." or "rest of code here"
-- After writing END FILE for one file, immediately write FILE: for the next file
-- Do NOT stop generating until ALL files are complete
-- Modern HTML5, CSS3 (grid, flexbox, custom properties, animations), ES6+ JavaScript
-- Three.js from CDN if needed: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
-- Beautiful, cinematic, production-quality, deployable as-is
-- The project must work when opened directly in a browser
+CRITICAL:
+- NEVER use markdown code fences
+- NEVER wrap code in backticks
+- Output RAW code content between FILE: and END FILE
+- Each file must be COMPLETE — no TODOs, no placeholders, no truncation
+- Generate ALL files without stopping
 
 Effort: ${effort}`;
   }
