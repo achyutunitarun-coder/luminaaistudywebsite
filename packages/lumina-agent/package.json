@@ -1,6 +1,6 @@
 {
   "name": "lumina-code-agent",
-  "version": "1.6.15",
+  "version": "1.6.16",
   "description": "Lumina Code - AI coding agent",
   "license": "MIT",
   "type": "module",

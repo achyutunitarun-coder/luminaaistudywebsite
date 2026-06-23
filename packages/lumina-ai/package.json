@@ -1,0 +1,18 @@
+{
+  "name": "@lumina/ai",
+  "version": "1.0.0",
+  "description": "AI provider abstraction for Lumina — streaming, retry, rate limiting, caching",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@lumina/types": "workspace:*"
+  },
+  "license": "MIT"
+}
