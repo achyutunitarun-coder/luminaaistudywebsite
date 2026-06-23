@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   MessageSquare, HelpCircle, FileText, Zap,
   Mic, PenTool, Layers, FlaskConical, Brain, Sparkles,
-  Code2, Target, ChevronRight, Plus
+  Code2, Target, ChevronRight, Plus, Search
 } from 'lucide-react';
 
 const categories = [
