@@ -2,15 +2,15 @@
   "name": "lumina",
   "version": "1.0.0",
   "private": true,
-  "description": "Lumina — AI-powered website generation CLI",
   "type": "module",
-  "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
     "dev": "vite",
     "preview": "vite preview"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "turbo": "^2.0.0",
     "typescript": "^5.7.0"
