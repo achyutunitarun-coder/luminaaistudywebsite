@@ -798,69 +798,6 @@ async function chat(config) {
       if (!content) { stop(); println(`  ${c.red}⚠ Empty response${c.reset}`); println(''); continue; }
       stop();
 
-      // Check for truncation and auto-retry once
-      if (finishReason === 'length') {
-        println(`  ${c.amber}⚠ Output was truncated. Retrying...${c.reset}`);
-        println('');
-
-        // Retry with a continuation prompt
-        const retryRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.openrouterKey}`,
-            'HTTP-Referer': 'https://luminaai.co.in',
-            'X-Title': 'Lumina Code',
-          },
-          body: JSON.stringify({
-            model: 'openrouter/owl-alpha',
-            messages: [
-              { role: 'system', content: sys },
-              ...history,
-              { role: 'user', content: t },
-              { role: 'assistant', content: fullContent },
-              { role: 'user', content: 'You stopped mid-generation. Please continue from where you left off. Output ONLY the remaining files using the same ---FILE: ... ---END format. Do NOT repeat files already created.' },
-            ],
-            stream: true,
-            max_tokens: 16000,
-            temperature: 0.15,
-          }),
-        });
-
-        if (retryRes.ok) {
-          const retryReader = retryRes.body.getReader();
-          const retryDecoder = new TextDecoder();
-          let retryContent = '';
-          let retryBuffer = '';
-
-          while (true) {
-            const { done, value } = await retryReader.read();
-            if (done) break;
-            retryBuffer += retryDecoder.decode(value, { stream: true });
-            const lines = retryBuffer.split('\n');
-            retryBuffer = lines.pop();
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed || !trimmed.startsWith('data: ')) continue;
-              const data = trimmed.slice(6);
-              if (data === '[DONE]') continue;
-              try {
-                const parsed = JSON.parse(data);
-                const delta = parsed.choices?.[0]?.delta?.content;
-                if (delta) retryContent += delta;
-              } catch { /* skip */ }
-            }
-          }
-
-          if (retryContent) {
-            fullContent += retryContent;
-            content = fullContent;
-            println(`  ${c.green}✓ Continuation successful${c.reset}`);
-          }
-        }
-      }
-
       // Warn if truncated
       if (finishReason === 'length') {
         println(`  ${c.amber}⚠ Output was truncated (hit token limit). Try a more specific prompt or break the task into smaller pieces.${c.reset}`);
@@ -916,10 +853,7 @@ async function chat(config) {
         println('');
       }
 
-      // Summary
-      const totalChars = files.reduce((sum, f) => sum + f.content.length, 0);
-      const totalKB = (totalChars / 1024).toFixed(1);
-      println(`  ${c.green}${c.bold}Done!${c.reset} ${c.gray}${files.length} file(s) · ${totalKB}kb${c.reset}`);
+      println(`  ${c.teal}${c.bold}Done!${c.reset} ${c.gray}${files.length} file(s), ${commands.length} command(s)${c.reset}`);
       println('');
 
       history.push({ role: 'user', content: t });
