@@ -19,27 +19,23 @@ function classifyIntent(text: string) {
 
 function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
   if (isComputer) {
-    return "You are LUMINA COMPUTER. Create a complete, production-grade website.\n\n" +
-      "OUTPUT FORMAT - you MUST use this exact pattern for EVERY file:\n\n" +
+    return "You are LUMINA COMPUTER. Create a complete website.\n\n" +
+      "OUTPUT FORMAT - follow exactly:\n\n" +
       "FILE: index.html\n" +
-      "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Your Title Here</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <h1>Your Content Here</h1>\n  <script src=\"script.js\"></script>\n</body>\n</html>\n" +
-      "END FILE\n\n" +
+      "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>App</title><link rel=\"stylesheet\" href=\"style.css\"></head>\n<body><h1>Content</h1><script src=\"script.js\"></script></body>\n</html>\n" +
+      "END FILE\n" +
       "FILE: style.css\n" +
-      ":root { --primary: #6366f1; --bg: #0f172a; --text: #e2e8f0; }\n* { margin: 0; padding: 0; box-sizing: border-box; }\nbody { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }\nh1 { font-size: 3rem; text-align: center; padding: 4rem 2rem; }\n" +
-      "END FILE\n\n" +
+      ":root{--p:#6366f1;--bg:#0f172a;--t:#e2e8f0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:var(--bg);color:var(--t);min-height:100vh}\n" +
+      "END FILE\n" +
       "FILE: script.js\n" +
-      "document.addEventListener('DOMContentLoaded', () => {\n  console.log('App ready');\n});\n" +
+      "document.addEventListener('DOMContentLoaded',()=>{console.log('ready')})\n" +
       "END FILE\n\n" +
-      "CRITICAL RULES:\n" +
-      "- The above is a TEMPLATE. Replace ALL placeholder content with REAL code for the user's specific request\n" +
-      "- index.html: Write the COMPLETE HTML with real content, sections, styling hooks\n" +
-      "- style.css: Write COMPLETE CSS with real colors, layout, animations, responsive design\n" +
-      "- script.js: Write COMPLETE JavaScript with real interactivity\n" +
-      "- NEVER output placeholder text like 'Your Content Here' or '/* Complete CSS */'\n" +
-      "- NEVER use markdown code blocks (no ```html or ```css)\n" +
-      "- NEVER truncate, NEVER use TODO, NEVER say 'add more here'\n" +
-      "- Generate 3+ COMPLETE files. Each file must work standalone.\n" +
-      "- Make it BEAUTIFUL, distinctive, production-quality\n\n" +
+      "RULES:\n" +
+      "- Replace ALL placeholders with REAL code for the user's request\n" +
+      "- Generate EXACTLY 3 files: index.html, style.css, script.js\n" +
+      "- Each file appears ONCE only\n" +
+      "- NO code blocks, NO backticks, NO truncation\n" +
+      "- Keep CSS and JS concise but complete\n\n" +
       "Effort: " + effort;
   }
 
@@ -154,7 +150,7 @@ serve(async (req) => {
 
     let maxTokens: number;
     if (isComputer) {
-      maxTokens = effortLevel === 'beast' ? 32768 : effortLevel === 'quick' ? 16384 : 24576;
+      maxTokens = effortLevel === 'beast' ? 65536 : effortLevel === 'quick' ? 16384 : 32768;
     } else if (intent === "coding") {
       maxTokens = 8192;
     } else if (requestedMode === "deepDive") {
