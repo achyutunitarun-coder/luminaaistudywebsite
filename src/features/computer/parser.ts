@@ -78,7 +78,13 @@ export class LuminaParser {
           // Strip code block fences if AI wrapped content
           content = content.replace(/^```[a-z]*\n/, "").replace(/\n```$/, "").trim();
           const file: LuminaFile = { path, lang: guessLang(path), content, done: true };
-          this.state.files.push(file);
+          // Replace existing file with same path (dedup for continuations)
+          const existingIdx = this.state.files.findIndex(f => f.path === path);
+          if (existingIdx >= 0) {
+            this.state.files[existingIdx] = file;
+          } else {
+            this.state.files.push(file);
+          }
           this.buffer = endIdx !== -1 ? afterMarker.slice(endIdx + "\nEND FILE\n".length) : "";
           this.activeFile = null;
           continue;
