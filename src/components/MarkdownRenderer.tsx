@@ -37,15 +37,19 @@ function buildRunnableDoc(lang: string, code: string): string {
   </script></body></html>`;
 }
 
-function RunModal({ lang, code, onClose }: { lang: string; code: string; onClose: () => void }) {
+function RunModal({ lang, code, visible, onClose }: { lang: string; code: string; visible: boolean; onClose: () => void }) {
   const doc = useMemo(() => buildRunnableDoc(lang, code), [lang, code]);
   const srcDoc = doc;
   useEffect(() => {
+    if (!visible) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, [onClose]);
+  }, [onClose, visible]);
+
+  if (!visible) return null;
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col" onClick={onClose}>
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-[#0a0c12]" onClick={(e) => e.stopPropagation()}>
@@ -119,7 +123,7 @@ function CodeBlock({ className, children }: { className?: string; children: stri
           <code className={`${className || ''} text-[12px] md:text-[13px] leading-relaxed`}>{children}</code>
         </pre>
       </div>
-      {running && <RunModal lang={lang} code={children.replace(/\n$/, '')} onClose={() => setRunning(false)} />}
+      <RunModal lang={lang} code={children.replace(/\n$/, '')} visible={running} onClose={() => setRunning(false)} />
     </>
   );
 }

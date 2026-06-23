@@ -641,7 +641,9 @@ export default function LuminaComputer() {
             </div>
 
             {/* Preview (slide-over when not split) */}
-            {!previewOpen && <PreviewPanel open={false} onClose={() => {}} files={files} activeFile={activeFile} />}
+            {previewOpen && (
+              <PreviewPanel open={previewOpen} onClose={() => setPreviewOpen(false)} files={files} activeFile={activeFile} />
+            )}
           </div>
 
           {/* Activity / Terminal */}
