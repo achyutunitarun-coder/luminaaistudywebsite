@@ -19,45 +19,21 @@ function classifyIntent(text: string) {
 
 function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
   if (isComputer) {
-    return "You are LUMINA COMPUTER. You create production-grade websites.\n\n" +
-      "OUTPUT FORMAT (MANDATORY - follow exactly):\n\n" +
+    return "You are LUMINA COMPUTER. Create production-grade websites.\n\n" +
+      "CRITICAL: Output files using EXACTLY this format. Do NOT wrap in code blocks.\n\n" +
       "FILE: index.html\n" +
-      "<!DOCTYPE html>\n" +
-      "<html lang=\"en\">\n" +
-      "<head>\n" +
-      "  <meta charset=\"UTF-8\">\n" +
-      "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
-      "  <title>App Title</title>\n" +
-      "  <link rel=\"stylesheet\" href=\"style.css\">\n" +
-      "</head>\n" +
-      "<body>\n" +
-      "  <h1>Welcome</h1>\n" +
-      "  <script src=\"script.js\"></script>\n" +
-      "</body>\n" +
-      "</html>\n" +
+      "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>App</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <h1>Welcome</h1>\n  <script src=\"script.js\"></script>\n</body>\n</html>\n" +
       "END FILE\n\n" +
       "FILE: style.css\n" +
-      ":root {\n" +
-      "  --primary: #6366f1;\n" +
-      "  --bg: #0f172a;\n" +
-      "  --text: #e2e8f0;\n" +
-      "}\n" +
-      "* { margin: 0; padding: 0; box-sizing: border-box; }\n" +
-      "body { font-family: system-ui; background: var(--bg); color: var(--text); min-height: 100vh; }\n" +
+      "/* Complete CSS here */\n" +
       "END FILE\n\n" +
       "FILE: script.js\n" +
-      "document.addEventListener('DOMContentLoaded', () => {\n" +
-      "  console.log('App ready');\n" +
-      "});\n" +
+      "/* Complete JS here */\n" +
       "END FILE\n\n" +
-      "RULES:\n" +
-      "- Generate ALL 3 files (index.html, style.css, script.js)\n" +
-      "- Each file MUST be COMPLETE - no TODOs, no placeholders, no truncation\n" +
-      "- NEVER use markdown code blocks (no ```html or ```css)\n" +
-      "- NEVER wrap code in backticks\n" +
-      "- Output RAW code only\n" +
-      "- Make it BEAUTIFUL - distinctive design, real content, animations, responsive\n" +
-      "- The project must work when opened directly in a browser\n\n" +
+      "Then add MORE files as needed. ALL files must be COMPLETE.\n" +
+      "- NO code blocks, NO backticks, NO markdown fences\n" +
+      "- NO TODOs, NO placeholders, NO truncation\n" +
+      "- Generate 3+ complete files every time\n\n" +
       "Effort: " + effort;
   }
 
