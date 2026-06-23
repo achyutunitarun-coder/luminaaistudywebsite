@@ -71,28 +71,29 @@ export class LuminaParser {
       if (fileMatch) {
         this.state.hasTags = true;
         const path = fileMatch[1];
-        // Check if there's an END FILE marker
         const afterMarker = this.buffer.slice(fileMatch[0].length);
         const endIdx = afterMarker.indexOf("\nEND FILE\n");
         if (endIdx !== -1 || (final && afterMarker.includes("END FILE"))) {
-          // Complete file
-          const content = endIdx !== -1 ? afterMarker.slice(0, endIdx) : afterMarker.replace(/\nEND FILE\s*$/, "");
+          let content = endIdx !== -1 ? afterMarker.slice(0, endIdx) : afterMarker.replace(/\nEND FILE\s*$/, "");
+          // Strip code block fences if AI wrapped content
+          content = content.replace(/^```[a-z]*\n/, "").replace(/\n```$/, "").trim();
           const file: LuminaFile = { path, lang: guessLang(path), content, done: true };
           this.state.files.push(file);
           this.buffer = endIdx !== -1 ? afterMarker.slice(endIdx + "\nEND FILE\n".length) : "";
           this.activeFile = null;
           continue;
         } else {
-          // File still streaming — show partial content
           if (!this.activeFile || this.activeFile.path !== path) {
             if (this.activeFile) this.activeFile.done = true;
             this.activeFile = { path, lang: guessLang(path), content: "", done: false };
             this.state.files.push(this.activeFile);
           }
-          this.activeFile.content = afterMarker;
-          // Also update in state.files array
+          let partialContent = afterMarker;
+          // Strip code block fences from partial content
+          partialContent = partialContent.replace(/^```[a-z]*\n/, "").replace(/\n```$/, "");
+          this.activeFile.content = partialContent;
           const f = this.state.files.find(x => x.path === path);
-          if (f) f.content = afterMarker;
+          if (f) f.content = partialContent;
           this.buffer = "";
           return;
         }
