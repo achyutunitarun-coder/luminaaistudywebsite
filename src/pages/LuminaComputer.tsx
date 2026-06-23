@@ -359,11 +359,12 @@ export default function LuminaComputer() {
 
       let messages: any[];
       if (isCont) {
-        const tail = rawAssistantRef.current.slice(-2500);
-        const contPrompt = `CONTINUE_LUMINA\n\nORIGINAL_REQUEST:\n${lastUserPromptRef.current}\n\nYour previous reply was cut off. Resume EXACTLY where you stopped. Do NOT repeat, do NOT restart the plan. If inside <lumina:file>, finish the body and close </lumina:file>, continue with remaining files, then <lumina:final>.\n\nLAST_${tail.length}_CHARS:\n${tail}`;
+        // Only send the last 500 chars of the previous response, not the whole thing
+        // This prevents the AI from regenerating everything from scratch
+        const tail = rawAssistantRef.current.slice(-500);
+        const contPrompt = `Continue writing the file from where you left off. Output ONLY the remaining content. Do NOT repeat what you already wrote.\n\nLast chars:\n${tail}`;
         messages = [
           { role: "user", content: lastUserPromptRef.current },
-          { role: "assistant", content: rawAssistantRef.current },
           { role: "user", content: contPrompt },
         ];
       } else {
