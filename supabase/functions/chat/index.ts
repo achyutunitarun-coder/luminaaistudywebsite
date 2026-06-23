@@ -19,30 +19,11 @@ function classifyIntent(text: string) {
 
 function buildSystemPrompt(intent: string, mode: string, effort: string, isComputer: boolean) {
   if (isComputer) {
-    return "You are LUMINA COMPUTER. Create a complete website.\n\n" +
-      "OUTPUT FORMAT - follow exactly:\n\n" +
-      "FILE: index.html\n" +
-      "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>App</title><link rel=\"stylesheet\" href=\"style.css\"></head>\n<body><h1>Content</h1><script src=\"script.js\"></script></body>\n</html>\n" +
-      "END FILE\n" +
-      "FILE: style.css\n" +
-      ":root{--p:#6366f1;--bg:#0f172a;--t:#e2e8f0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:var(--bg);color:var(--t);min-height:100vh}\n" +
-      "END FILE\n" +
-      "FILE: script.js\n" +
-      "document.addEventListener('DOMContentLoaded',()=>{console.log('ready')})\n" +
-      "END FILE\n\n" +
-      "RULES:\n" +
-      "- Replace ALL placeholders with REAL code for the user's request\n" +
-      "- Generate EXACTLY 3 files: index.html, style.css, script.js\n" +
-      "- Each file appears ONCE only\n" +
-      "- NO code blocks, NO backticks, NO truncation\n" +
-      "- Keep CSS and JS concise but complete\n\n" +
-      "Effort: " + effort;
+    // CRITICAL: Tell the AI to output ONLY files, no narrative, no preamble
+    return 'You are LUMINA COMPUTER. Output ONLY files in this exact format. Do NOT output any text before, between, or after files. Do NOT explain. Do NOT narrate. Output ONLY:\n\nFILE: index.html\n<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>App</title><link rel="stylesheet" href="style.css"></head>\n<body><h1>Content</h1><script src="script.js"></script></body>\n</html>\nEND FILE\nFILE: style.css\n:root{--p:#6366f1;--bg:#0f172a;--t:#e2e8f0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:var(--bg);color:var(--t);min-height:100vh}\nEND FILE\nFILE: script.js\ndocument.addEventListener(\'DOMContentLoaded\',()=>{console.log(\'ready\')})\nEND FILE\n\nReplace ALL placeholder content with REAL code for the user\'s request. Output EXACTLY 3 files. NO other text. NO narration. NO explanations.\n\nEffort: ' + effort;
   }
 
-  const base = `You are Lumina AI, an elite study assistant. Help students learn, explain concepts, generate practice problems, and build study materials.
-
-Mode: ${mode}
-Effort: ${effort}`;
+  const base = `You are Lumina AI, an elite study assistant. Help students learn, explain concepts, generate practice problems, and build study materials.\n\nMode: ${mode}\nEffort: ${effort}`;
 
   if (intent === "coding") return base + "\n\nProvide clear, well-commented code examples.";
   if (intent === "study") return base + "\n\nExplain concepts clearly with examples.";
