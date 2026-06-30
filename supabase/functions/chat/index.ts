@@ -1,13 +1,50 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { OWL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const OWL = "openrouter/owl-alpha";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const FALLBACK_CHAIN = [OWL, MODEL_FREE_ROUTER, "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free"];
+
+const CHAT_KEYS: string[] = [
+  Deno.env.get("OPENROUTER_API_KEY"),
+  Deno.env.get("OPENROUTER_KEY_2"),
+  Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
+  Deno.env.get("OPENROUTER_KEY_5"),
+  Deno.env.get("OPENROUTER_KEY_6"),
+  Deno.env.get("OPENROUTER_KEY_7"),
+].filter(Boolean) as string[];
+
+const KEY_COOLDOWN_MS = 45_000;
+const KEY_BAD_COOLDOWN_MS = 10 * 60_000;
+const _cooledUntil: number[] = CHAT_KEYS.map(() => 0);
+let _cursor = 0;
+
+function nextKey(): number {
+  for (let step = 0; step < CHAT_KEYS.length; step++) {
+    const i = (_cursor + step) % CHAT_KEYS.length;
+    if (_cooledUntil[i] <= Date.now()) {
+      _cursor = (i + 1) % CHAT_KEYS.length;
+      return i;
+    }
+  }
+  let best = 0, bestUntil = Infinity;
+  for (let i = 0; i < CHAT_KEYS.length; i++) {
+    if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
+  }
+  _cursor = (best + 1) % CHAT_KEYS.length;
+  return best;
+}
+
+function coolKey(i: number, ms: number) {
+  const until = Date.now() + ms;
+  if (until > _cooledUntil[i]) _cooledUntil[i] = until;
+}
 
 function classifyIntent(text: string) {
   const t = text.toLowerCase();
@@ -99,69 +136,84 @@ async function callOpenRouterCollect(
   temperature: number,
   signal: AbortSignal,
   onDelta: (chunk: string) => void,
-): Promise<StreamCallResult> {
-  const res = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
-      "HTTP-Referer": "https://luminaai.co.in",
-      "X-Title": "Lumina AI",
-    },
-    body: JSON.stringify({
-      model: OWL,
-      messages,
-      stream: true,
-      max_tokens: maxTokens,
-      max_completion_tokens: maxTokens,
-      temperature,
-      top_p: 0.95,
-    }),
-    signal,
-  });
+  modelOverride?: string,
+): Promise<StreamCallResult & { usedModel: string }> {
+  const chain = modelOverride ? [modelOverride, ...FALLBACK_CHAIN.filter((m) => m !== modelOverride)] : FALLBACK_CHAIN;
+  let lastErr = "";
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${err.slice(0, 200)}`);
-  }
-  if (!res.body) throw new Error("No response body");
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  let collected = "";
-  let finishReason: string | null = null;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf("\n")) !== -1) {
-      let line = buf.slice(0, nl);
-      buf = buf.slice(nl + 1);
-      if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (!line.startsWith("data: ")) continue;
-      const json = line.slice(6).trim();
-      if (!json || json === "[DONE]") continue;
+  for (const model of chain) {
+    const maxKeyAttempts = Math.min(CHAT_KEYS.length, 3);
+    for (let k = 0; k < maxKeyAttempts; k++) {
+      const keyIdx = nextKey();
       try {
-        const parsed = JSON.parse(json);
-        const delta = parsed?.choices?.[0]?.delta?.content;
-        if (typeof delta === "string" && delta.length > 0) {
-          collected += delta;
-          onDelta(delta);
+        const res = await fetch(OPENROUTER_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${CHAT_KEYS[keyIdx]}`,
+            "HTTP-Referer": "https://luminaai.co.in",
+            "X-Title": "Lumina AI",
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            stream: true,
+            max_tokens: maxTokens,
+            max_completion_tokens: maxTokens,
+            temperature,
+            top_p: 0.95,
+          }),
+          signal,
+        });
+
+        if (res.ok && res.body) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          let collected = "";
+          let finishReason: string | null = null;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let nl: number;
+            while ((nl = buf.indexOf("\n")) !== -1) {
+              let line = buf.slice(0, nl);
+              buf = buf.slice(nl + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (!line.startsWith("data: ")) continue;
+              const json = line.slice(6).trim();
+              if (!json || json === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(json);
+                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (typeof delta === "string" && delta.length > 0) {
+                  collected += delta;
+                  onDelta(delta);
+                }
+                const fr = parsed?.choices?.[0]?.finish_reason;
+                if (fr) finishReason = fr;
+              } catch {
+                buf = line + "\n" + buf;
+                break;
+              }
+            }
+          }
+
+          return { text: collected, finishReason, usedModel: model };
         }
-        const fr = parsed?.choices?.[0]?.finish_reason;
-        if (fr) finishReason = fr;
-      } catch {
-        // partial JSON — push back and wait for more
-        buf = line + "\n" + buf;
-        break;
+
+        if (res.status === 429) { coolKey(keyIdx, KEY_COOLDOWN_MS); continue; }
+        if (res.status === 401 || res.status === 403) { coolKey(keyIdx, KEY_BAD_COOLDOWN_MS); continue; }
+        lastErr = `${res.status} ${await res.text().catch(() => "")}`.slice(0, 200);
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
       }
     }
   }
 
-  return { text: collected, finishReason };
+  throw new Error(`All models failed. Last error: ${lastErr}`);
 }
 
 /** Detect if computer-mode output is complete (single index.html ending with END FILE). */
@@ -216,26 +268,26 @@ serve(async (req) => {
         const send = (obj: any) => ctrl.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
         const sendDelta = (text: string) => send({ choices: [{ delta: { content: text } }] });
 
-        // Lumina meta
-        send({ lumina_meta: { model: OWL, intent, is_computer: isComputer, tier_target: "TIER_1" } });
-
         const abortCtrl = new AbortController();
         req.signal.addEventListener("abort", () => abortCtrl.abort());
 
         try {
           let convo: any[] = [{ role: "system", content: systemPrompt }, ...messages];
           let totalText = "";
+          let activeModel = OWL;
           // Server-side auto-continue: up to 4 passes for computer mode, 1 otherwise.
           const maxPasses = isComputer ? 4 : 1;
 
           for (let pass = 0; pass < maxPasses; pass++) {
-            const { text, finishReason } = await callOpenRouterCollect(
+            const { text, finishReason, usedModel } = await callOpenRouterCollect(
               convo,
               maxTokens,
               temperature,
               abortCtrl.signal,
               (delta) => sendDelta(delta),
             );
+            activeModel = usedModel;
+            if (pass === 0) send({ lumina_meta: { model: activeModel, intent, is_computer: isComputer, tier_target: "TIER_1" } });
             totalText += text;
 
             if (!isComputer) break;

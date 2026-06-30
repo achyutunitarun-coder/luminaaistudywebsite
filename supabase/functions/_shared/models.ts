@@ -6,121 +6,110 @@
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ═══════════════════════════════════════════════════════════════════
-// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-05).
-// Every id below was confirmed against https://openrouter.ai/api/v1/models.
-// Dead ids (deepseek :free, qwen3-4b :free, mistral-small :free, vl-72b :free)
-// were removed because every call to them returns 404 and burns the wall-clock
-// budget — that was the root cause of artifact timeouts.
+// MODEL ROSTER — verified live OpenRouter :free endpoints (2026-06).
+// Categorized per launch-day routing spec:
+//
+//   High-Reasoning & Frontier    → MODELS_QUALITY
+//   Software Engineering & Code  → MODELS_CODE
+//   Multimodal, Vision & Video   → MODELS_VISION
+//   Generalists & Efficiency     → MODELS_BALANCED / MODELS_FAST
+//   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
-// Per user direction: openrouter/owl-alpha is the PRIMARY model for
-// every surface (chat, computer, artifacts, vision, writing). It has a
-// 1M+ context window and fast streaming. Existing free fallbacks stay
-// behind it so a single provider hiccup never kills a request.
 
 export const OWL = "openrouter/owl-alpha";
 
-// FAST chain — OWL first. No racing. Tiny models are sequential fallbacks
-// only if owl-alpha actually errors out.
+// FAST — Generalists & Efficiency (low-latency)
 export const MODELS_FAST = [
   OWL,
   "liquid/lfm-2.5-1.2b-instruct:free",
+  "liquid/lfm-2.5-1.2b-thinking:free",
   "meta-llama/llama-3.2-3b-instruct:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "openai/gpt-oss-20b:free",
+  "poolside/laguna-xs.2:free",
+  "cohere/north-mini-code:free",
+];
+
+// BALANCED — Generalists & Efficiency for daily tasks
+export const MODELS_BALANCED = [
+  OWL,
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-instruct:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "openai/gpt-oss-20b:free",
 ];
 
-export const MODELS_BALANCED = [
-  OWL,
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "z-ai/glm-4.5-air:free",
-  "moonshotai/kimi-k2.6",
-];
-
+// QUALITY — High-Reasoning & Frontier Models
 export const MODELS_QUALITY = [
   OWL,
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "google/gemma-4-31b-it:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
 
-// ── CODING POWERHOUSE ──────────────────────────────────────────────
-// Order = priority. Owl-alpha first per user direction; specialist
-// coders stay behind it so we don't lose the safety net.
+// ── CODING — Software Engineering Specialists ──────────────────────
 export const MODELS_CODE = [
   OWL,
   "qwen/qwen3-coder:free",
   "poolside/laguna-m.1:free",
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "poolside/laguna-xs.2:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "z-ai/glm-4.5-air:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "cohere/north-mini-code:free",
+  "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
-  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
+// ── LONG CONTEXT — deep research, reports, artifacts ──────────────
 export const MODELS_LONG_CTX = [
   OWL,                                                    // 1M+ ctx
   "qwen/qwen3-coder:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "moonshotai/kimi-k2.6",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-instruct:free",
+  "google/gemma-4-26b-a4b-it:free",
 ];
 
+// ── VISION — Multimodal, Vision & Video Specialists ───────────────
 export const MODELS_VISION = [
-  // Owl-alpha is text-first. For image inputs we keep vision-capable
-  // models in front so multimodal requests don't degrade.
-  "moonshotai/kimi-k2.6",
   OWL,
-  "google/gemma-4-31b-it:free",
+  "google/gemma-4-31b-instruct:free",
   "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
-  "nvidia/nemotron-3.5-content-safety:free",
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ];
 
 // ── WRITING / NOTES (long-form prose) ──────────────────────────────
 export const MODELS_WRITING = [
   OWL,
-  "meta-llama/llama-3.3-70b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "z-ai/glm-4.5-air:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-it:free",
-  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "google/gemma-4-31b-instruct:free",
+];
+
+// ── SAFETY — content moderation / guardrail filtering ─────────────
+export const MODELS_SAFETY = [
+  "nvidia/nemotron-3.5-content-safety:free",
 ];
 
 export const MODELS_EXTRA = [
   OWL,
   "openai/gpt-oss-20b:free",
-  "z-ai/glm-4.5-air:free",
-  "nvidia/nemotron-3-nano-30b-a3b:free",
-  "moonshotai/kimi-k2.6",
-  "google/gemma-4-26b-a4b-it:free",
   "nvidia/nemotron-nano-9b-v2:free",
   "meta-llama/llama-3.2-3b-instruct:free",
+  "google/gemma-4-26b-a4b-it:free",
 ];
-
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
 
@@ -1085,11 +1074,11 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
     case "python":
       return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
     case "javascript":
-      return [OWL, "poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "z-ai/glm-4.5-air:free", ...MODELS_CODE];
+      return [OWL, "poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "cohere/north-mini-code:free", ...MODELS_CODE];
     case "code":
-      return [OWL, "openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_CODE];
+      return [OWL, "openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "qwen/qwen3-coder:free", ...MODELS_CODE];
     case "svg":
-      return [OWL, "qwen/qwen3-coder:free", "google/gemma-4-31b-it:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
+      return [OWL, "qwen/qwen3-coder:free", "google/gemma-4-31b-instruct:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
     case "mermaid":
       return [OWL, "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
     case "slides":
@@ -1097,7 +1086,7 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
     case "notes":
       return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
     case "flashcards":
-      return [OWL, "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-it:free", ...MODELS_BALANCED];
+      return [OWL, "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-instruct:free", ...MODELS_BALANCED];
     case "math":
       return [OWL, "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
     case "exam":

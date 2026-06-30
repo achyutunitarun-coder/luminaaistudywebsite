@@ -16,11 +16,13 @@ const HTML_MODELS = [
   "openrouter/owl-alpha",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "qwen/qwen3-coder:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-it:free",
+  "poolside/laguna-m.1:free",
+  "google/gemma-4-31b-instruct:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
   "openai/gpt-oss-20b:free",
-  "moonshotai/kimi-k2.6",
 ];
 
 // Each theme spec ends with STRUCTURE: which forces a distinct LAYOUT (not just colors).

@@ -12,32 +12,33 @@ export type ModelClass =
 export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
   fast: [
     "openai/gpt-oss-20b:free",
-    "z-ai/glm-4.5-air:free",
     "meta-llama/llama-3.2-3b-instruct:free",
+    "nvidia/nemotron-nano-9b-v2:free",
   ],
   balanced: [
-    "openai/gpt-oss-120b:free",
-    "z-ai/glm-4.5-air:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
     "openai/gpt-oss-20b:free",
   ],
   reasoning: [
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     "openai/gpt-oss-120b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
   ],
   coding: [
     "qwen/qwen3-coder:free",
-    "moonshotai/kimi-k2.6",
-    "openai/gpt-oss-120b:free",
+    "poolside/laguna-m.1:free",
+    "poolside/laguna-xs.2:free",
   ],
   long_ctx: [
-    "moonshotai/kimi-k2.6",
+    "qwen/qwen3-coder:free",
     "openai/gpt-oss-120b:free",
-    "z-ai/glm-4.5-air:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
   ],
   vision: [
-    "moonshotai/kimi-k2.6",
-    "openai/gpt-oss-120b:free",
+    "google/gemma-4-31b-instruct:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-nano-12b-v2-vl:free",
   ],
 };
 

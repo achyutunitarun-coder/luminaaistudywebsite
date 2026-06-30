@@ -17,26 +17,26 @@ export type ModeChip =
 
 const ROUTING: Record<string, string> = {
   "chat-low": "openai/gpt-oss-20b:free",
-  "chat-medium": "z-ai/glm-4.5-air:free",
+  "chat-medium": "meta-llama/llama-3.3-70b-instruct:free",
   "chat-high": "nvidia/nemotron-3-super-120b-a12b:free",
   "code": "qwen/qwen3-coder:free",
   "build": "qwen/qwen3-coder:free",
-  "reason": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  "reason": "openai/gpt-oss-120b:free",
   "research": "nvidia/nemotron-3-super-120b-a12b:free",
   "plan": "openai/gpt-oss-120b:free",
-  "creative": "moonshotai/kimi-k2.6",
-  "vision": "nvidia/nemotron-nano-12b-v2-vl:free",
+  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
+  "vision": "google/gemma-4-31b-instruct:free",
   "data": "qwen/qwen3-next-80b-a3b-instruct:free",
   "agent": "openrouter/owl-alpha",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
-  study: "z-ai/glm-4.5-air:free",
+  study: "meta-llama/llama-3.3-70b-instruct:free",
   coding: "qwen/qwen3-coder:free",
-  reasoning: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+  reasoning: "openai/gpt-oss-120b:free",
   deepDive: "nvidia/nemotron-3-super-120b-a12b:free",
-  creative: "moonshotai/kimi-k2.6",
+  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
   fast: "openai/gpt-oss-20b:free",
   general: "meta-llama/llama-3.3-70b-instruct:free",
 };
