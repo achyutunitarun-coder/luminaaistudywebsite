@@ -32,7 +32,7 @@ class OpenRouterProvider {
 
   async *stream(request: AIRequest): AsyncIterableIterator<AIChunk> {
     const body: any = {
-      model: request.model || 'openrouter/owl-alpha',
+      model: request.model || 'meta-llama/llama-3.3-70b-instruct:free',
       messages: [{ role: 'system', content: request.system }, ...request.messages],
       max_tokens: request.maxTokens || 16000,
       temperature: request.temperature ?? 0.1,
@@ -408,7 +408,7 @@ function App() {
       const aiRequest = {
         system: sys,
         messages: aiMessages,
-        model: 'openrouter/owl-alpha',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         maxTokens: 16000,
         temperature: 0.1,
         topP: 0.95,

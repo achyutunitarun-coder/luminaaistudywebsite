@@ -270,7 +270,7 @@ UNIQUENESS: This artifact must feel like a custom-designed product, not a templa
                     { role: "user", content: userPrompt },
                   ],
                   // Bumped from 12k -> 24k so notes/exams/slides have headroom to
-                  // emit the full document; owl-alpha supports it natively. Timeout
+                  // emit the full document; the primary model supports it natively. Timeout
                   // bumped from 90s -> 180s for the same reason.
                   [model], 24000, 0.5, 180_000, `html-artifact-${type}`
                 );

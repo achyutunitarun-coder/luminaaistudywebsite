@@ -75,7 +75,7 @@ const SettingsPage = () => {
   const save = async () => {
     await updateProfile.mutateAsync(settings);
     await updatePreferences({
-      preferred_model: settings.study_mode === 'concept_mastery' ? 'openrouter/owl-alpha' : undefined,
+      preferred_model: settings.study_mode === 'concept_mastery' ? 'meta-llama/llama-3.3-70b-instruct:free' : undefined,
       metadata: { study_mode: settings.study_mode, difficulty: settings.difficulty, learning_style: settings.learning_style },
     });
     logActivity('settings_changed', 'settings', 'Updated settings', settings as any);

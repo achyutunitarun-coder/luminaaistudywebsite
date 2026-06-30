@@ -102,7 +102,7 @@ export class OpenRouterProvider implements AIProvider {
 
   private async fetchChat(request: AIRequest, stream: boolean): Promise<Response> {
     const body: any = {
-      model: request.model || 'openrouter/owl-alpha',
+      model: request.model || 'meta-llama/llama-3.3-70b-instruct:free',
       messages: [{ role: 'system', content: request.system }, ...request.messages],
       max_tokens: request.maxTokens || 16000,
       temperature: request.temperature ?? 0.15,

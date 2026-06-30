@@ -27,7 +27,7 @@ const ROUTING: Record<string, string> = {
   "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
   "vision": "google/gemma-4-31b-instruct:free",
   "data": "qwen/qwen3-next-80b-a3b-instruct:free",
-  "agent": "openrouter/owl-alpha",
+  "agent": "meta-llama/llama-3.3-70b-instruct:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {

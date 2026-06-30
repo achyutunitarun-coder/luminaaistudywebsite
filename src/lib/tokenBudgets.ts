@@ -2,7 +2,7 @@
 // Pure constants, no logic.
 
 export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
-  "openrouter/owl-alpha": 200000,
+  "meta-llama/llama-3.3-70b-instruct:free": 128000,
   "openai/gpt-oss-120b:free": 128000,
   "openai/gpt-oss-20b:free": 128000,
   "meta-llama/llama-3.3-70b-instruct:free": 128000,
@@ -27,7 +27,7 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 };
 
 export const MODEL_OUTPUT_CAPS: Record<string, number> = {
-  "openrouter/owl-alpha": 65000,
+  "meta-llama/llama-3.3-70b-instruct:free": 16000,
   "openai/gpt-oss-120b:free": 16000,
   "openai/gpt-oss-20b:free": 8000,
   "meta-llama/llama-3.3-70b-instruct:free": 16000,

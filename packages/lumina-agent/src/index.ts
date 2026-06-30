@@ -731,7 +731,7 @@ async function chat(config) {
           'X-Title': 'Lumina Code',
         },
         body: JSON.stringify({
-          model: 'openrouter/owl-alpha',
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
           messages: [{ role: 'system', content: sys }, ...history, { role: 'user', content: t }],
           stream: true,
           max_tokens: 16000,
