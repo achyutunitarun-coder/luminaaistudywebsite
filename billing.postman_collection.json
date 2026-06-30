@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "Lumina Billing API",
+    "description": "Subscription-like billing via Dodo one-time payment links. No autopay, no mandates.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://your-project.supabase.co/functions/v1" },
+    { "key": "auth_token", "value": "Bearer your-supabase-jwt-token" }
+  ],
+  "item": [
+    {
+      "name": "Get My Membership",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/billing-manage/my-membership",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ]
+      }
+    },
+    {
+      "name": "Start Membership (Create Payment Link)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/billing-manage/memberships/MEMBERSHIP_ID/start",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "Get Membership Details",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/billing-manage/memberships/MEMBERSHIP_ID",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ]
+      }
+    },
+    {
+      "name": "Cancel Membership",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/billing-manage/memberships/MEMBERSHIP_ID/cancel",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "Resend Invoice Link",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/billing-manage/invoices/INVOICE_ID/resend-link",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "Webhook (simulate payment.succeeded)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/billing-webhook",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-dodo-signature", "value": "test-signature-not-verified-in-test-mode" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"evt_test_{{$randomUUID}}\",\n  \"type\": \"payment.succeeded\",\n  \"data\": {\n    \"id\": \"pay_test_{{$randomUUID}}\",\n    \"customer\": { \"email\": \"test@example.com\" },\n    \"product_cart\": [{ \"product_id\": \"pdt_0NbKNHJ5nK556qajM5MKa\" }]\n  },\n  \"created\": {{$timestamp}}\n}"
+        }
+      }
+    },
+    {
+      "name": "Trigger Scheduler",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/billing-scheduler",
+        "header": [
+          { "key": "Authorization", "value": "Bearer your-cron-secret" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "Seed Billing Plans (SQL via Supabase API)",
+      "request": {
+        "method": "POST",
+        "url": "https://your-project.supabase.co/rest/v1/rpc/seed_billing_plans",
+        "header": [
+          { "key": "Authorization", "value": "{{auth_token}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "params=single-object" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    }
+  ]
+}

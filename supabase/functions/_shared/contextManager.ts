@@ -23,7 +23,7 @@ export interface ChatMsg {
 const SUMMARIZE_THRESHOLD = 30;
 const KEEP_RECENT = 10;
 const SUMMARY_MODELS = [
-  "openrouter/owl-alpha",
+  "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-20b:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "nvidia/nemotron-nano-9b-v2:free",

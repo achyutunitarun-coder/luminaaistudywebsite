@@ -2,7 +2,7 @@
 // POST returns { jobId, status: "queued" } immediately; the client polls artifact_jobs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAIText, getModelsForArtifact, type ArtifactType } from "../_shared/models.ts";
+import { callAIText, getModelsForArtifact, OWL, type ArtifactType } from "../_shared/models.ts";
 
 declare const EdgeRuntime:
   | { waitUntil: (promise: Promise<unknown>) => void }
@@ -16,8 +16,6 @@ const corsHeaders = {
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const JOB_BUDGET_MS = 200_000;  // increased from 142s — edge functions can run up to 250s
-const OWL = "openrouter/owl-alpha";
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ── HTML cleanup ────────────────────────────────────────────────────

@@ -16,7 +16,10 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 //   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
 
-export const OWL = "openrouter/owl-alpha";
+export const OWL = "meta-llama/llama-3.3-70b-instruct:free";
+// NOTE: openrouter/owl-alpha returns 404 "No endpoints found" as of June 2026.
+// Switch back when OpenRouter resolves the routing:
+// export const OWL = "openrouter/owl-alpha";
 
 // FAST — Generalists & Efficiency (low-latency)
 export const MODELS_FAST = [
@@ -164,7 +167,7 @@ function _healthyCount(model?: string): number {
 }
 
 export function getNextKeyIndex(model?: string): number {
-  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter API keys configured");
+  if (ALL_KEYS.length === 0) throw new Error("OPENROUTER_API_KEY not configured — set it in your Supabase project env vars");
   for (let step = 0; step < ALL_KEYS.length; step++) {
     const i = (_keyCursor + step) % ALL_KEYS.length;
     if (_isHealthy(i, model)) {
@@ -269,7 +272,7 @@ const OWL_KEY_FANOUT = 3;               // fire OWL on this many keys in paralle
 const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
 const TEXT_TOTAL_BUDGET_MS = 90_000;    // keep JSON tools responsive
 const OCR_TOTAL_BUDGET_MS = 120_000;
-const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // give owl-alpha real TTFB headroom; tiny models still win earlier
+const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // give primary model TTFB headroom; tiny models still win earlier
 
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
@@ -336,8 +339,9 @@ async function callModel(
   timeoutMs: number,
   tag: string,
 ): Promise<Response | null> {
-  if (_deadModels.has(model)) {
-    // Already proven 404 — don't waste budget.
+  if (_deadModels.has(model)) return null;
+  if (ALL_KEYS.length === 0) {
+    console.warn(`[${tag}] no API keys — skipping ${model}`);
     return null;
   }
   // Prefer Moonshot direct API when the caller asked for a kimi model.
@@ -405,8 +409,7 @@ async function callModel(
 }
 
 // Fire the SAME model on N different keys in parallel — first responder wins.
-// This is critical for owl-alpha where per-key TTFB is high but variable; racing
-// keys cuts effective latency dramatically.
+// Racing keys cuts effective latency dramatically for high-TTFB models.
 async function callModelKeyFanout(
   model: string,
   body: Record<string, unknown>,
@@ -542,12 +545,11 @@ export async function callWithFallback(
   const isComputer = /computer|mun|lumina/i.test(tag);
   const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
 
-  // ── STRATEGY: OWL-ALPHA PRIMARY + FREE ROUTER FALLBACK ──
-  // No more sequential multi-model chains. OWL-alpha is fast (1M+ context).
-  // If it fails within 8s, fall back to openrouter/free.
+  // ── STRATEGY: PRIMARY MODEL + FREE ROUTER FALLBACK ──
+  // Primary uses key-fanout for low latency. Falls back to openrouter/free.
   // This guarantees <4s TTFB for 95%+ of requests.
 
-  // Primary: OWL-alpha with 3-key fanout. For artifacts, use longer timeout.
+  // Primary with 3-key fanout. For artifacts, use longer timeout.
   // Artifact generation needs 60-90s; chat needs <8s. Scale by tag type.
   const isArtifactCall = /artifact|html-artifact|generate-html/i.test(tag);
   const primaryRawMs = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(8_000, timeoutMs);
@@ -588,7 +590,10 @@ export async function callWithFallback(
     }
   }
 
-  throw new Error("Lumina is experiencing high demand. Please try again in a moment.");
+  const helpMsg = ALL_KEYS.length === 0
+    ? "OPENROUTER_API_KEY not configured — set it in your Supabase project env vars or .env file"
+    : "Lumina is experiencing high demand. Please try again in a moment.";
+  throw new Error(helpMsg);
 }
 
 // ── Auto-continuation config ───────────────────────────────────────

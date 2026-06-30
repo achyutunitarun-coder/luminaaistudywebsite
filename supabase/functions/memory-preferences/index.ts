@@ -35,7 +35,7 @@ serve(async (req) => {
         theme: "dark",
         language: "en",
         notifications_enabled: true,
-        preferred_model: "openrouter/owl-alpha",
+        preferred_model: "meta-llama/llama-3.3-70b-instruct:free",
         metadata: {},
       };
       const { data: created, error: createErr } = await sb

@@ -12,7 +12,7 @@ const cors = {
 };
 
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FALLBACK_CHAIN = ["openrouter/owl-alpha", "openrouter/free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free"];
+const FALLBACK_CHAIN = ["meta-llama/llama-3.3-70b-instruct:free", "openrouter/free", "openai/gpt-oss-20b:free"];
 
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
@@ -33,7 +33,7 @@ const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
 let _cursor = 0;
 
 function nextHealthyKeyIndex(skip: Set<number> = new Set()): number {
-  if (ALL_KEYS.length === 0) throw new Error("No OpenRouter key configured");
+  if (ALL_KEYS.length === 0) return -1;
   for (let step = 0; step < ALL_KEYS.length; step++) {
     const i = (_cursor + step) % ALL_KEYS.length;
     if (skip.has(i)) continue;
@@ -103,6 +103,7 @@ serve(async (req) => {
       let keyIdx = -1;
       for (let k = 0; k < maxKeyAttempts; k++) {
         keyIdx = nextHealthyKeyIndex(triedKeys);
+        if (keyIdx < 0) { lastErr = "API key not configured"; break; }
         triedKeys.add(keyIdx);
         res = await callOR(m, payload, stream, keyIdx);
         if (res.ok) break;

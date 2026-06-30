@@ -13,7 +13,7 @@ const corsHeaders = {
 // entire notes/exam/slides document without truncating). Free heavy hitters
 // stay behind it as fallback if the primary is rate-limited.
 const HTML_MODELS = [
-  "openrouter/owl-alpha",
+  "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "qwen/qwen3-coder:free",

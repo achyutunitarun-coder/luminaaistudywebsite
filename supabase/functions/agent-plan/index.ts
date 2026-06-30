@@ -166,7 +166,7 @@ serve(async (req) => {
         "X-Title": "Lumina AI",
       },
       body: JSON.stringify({
-        model: "openrouter/owl-alpha",
+        model: "meta-llama/llama-3.3-70b-instruct:free",
         messages: [
           { role: "system", content: SYSTEM },
           ...ctxHistory,

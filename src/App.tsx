@@ -28,6 +28,7 @@ import NotesGenerator from "@/pages/NotesGenerator";
 import LectureAI from "@/pages/LectureAI";
 import SmartNotebook from "@/pages/SmartNotebook";
 import Upgrade from "@/pages/Upgrade";
+import Billing from "@/pages/Billing";
 import Resources from "@/pages/Resources";
 import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
@@ -141,6 +142,8 @@ const App = () => (
                 <Route path="/lecture-ai" element={<LectureAI />} />
                 <Route path="/smart-notebook" element={<SmartNotebook />} />
                 <Route path="/upgrade" element={<Upgrade />} />
+                <Route path="/billing" element={<Billing />} />
+                <Route path="/billing/return" element={<Billing />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/game-modes" element={<GameModes />} />

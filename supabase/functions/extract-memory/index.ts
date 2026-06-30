@@ -41,7 +41,7 @@ serve(async (req) => {
 
     const raw = await callAIText(
       [{ role: "system", content: SYS }, { role: "user", content: prompt }],
-      ["openrouter/owl-alpha", "openai/gpt-oss-20b:free", "meta-llama/llama-3.2-3b-instruct:free", "nvidia/nemotron-nano-9b-v2:free"],
+      ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.2-3b-instruct:free", "nvidia/nemotron-nano-9b-v2:free"],
       400, 0.2, 20000, "extract-memory",
     ).catch(() => "{}");
 

@@ -141,6 +141,9 @@ async function callOpenRouterCollect(
   const chain = modelOverride ? [modelOverride, ...FALLBACK_CHAIN.filter((m) => m !== modelOverride)] : FALLBACK_CHAIN;
   let lastErr = "";
 
+  if (CHAT_KEYS.length === 0) {
+    throw new Error("OPENROUTER_API_KEY not configured — add it to your Supabase project env vars");
+  }
   for (const model of chain) {
     const maxKeyAttempts = Math.min(CHAT_KEYS.length, 3);
     for (let k = 0; k < maxKeyAttempts; k++) {

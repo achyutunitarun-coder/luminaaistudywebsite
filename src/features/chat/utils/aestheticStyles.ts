@@ -106,6 +106,61 @@ export const AESTHETIC_STYLES: AestheticStyle[] = [
     motif: "Conic-gradient borders, holographic chrome text, aurora-orb backgrounds, 1px iridescent rule.",
     motion: "Aurora drift, conic-gradient rotation on hover, soft chromatic aberration on focus.",
   },
+  {
+    id: "warm-library",
+    name: "Warm Library",
+    anchor: "Vintage study — worn leather, amber lamps, wooden shelves, warm paper, classic scholarship",
+    palette: "--bg:#e8ddd0; --paper:#f5efe6; --ink:#2c1810; --leather:#8b4513; --amber:#d4a043; --wine:#722f37;",
+    fonts: "Display: 'Playfair Display' 700 italic. Body: 'EB Garamond' 400/500. Mono: 'JetBrains Mono'.",
+    fontImport:
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@500&display=swap",
+    motif: "Warm vignette border, ornamental drop caps, decorative section dividers, simulated book-page curve at spine.",
+    motion: "Page curl on section transitions, candlelight flicker on hover, slow amber glow pulse on hero.",
+  },
+  {
+    id: "minimal-slate",
+    name: "Minimal Slate",
+    anchor: "Contemporary clean — cool gray scale, single accent for emphasis, maximum whitespace, editorial photography feel",
+    palette: "--bg:#f8f9fa; --card:#ffffff; --ink:#1e293b; --accent:#3b82f6; --muted:#64748b; --border:#e2e8f0;",
+    fonts: "Display: 'Plus Jakarta Sans' 700. Body: 'Plus Jakarta Sans' 400/500. Mono: 'JetBrains Mono'.",
+    fontImport:
+      "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap",
+    motif: "Hairline borders everywhere, large hero numeral/counter, monochrome with single blue accent, clean data tables.",
+    motion: "Only opacity + translateY entrances, subtle shadow on hover, no decorative motion.",
+  },
+  {
+    id: "neon-midnight",
+    name: "Neon Midnight",
+    anchor: "Cyberpunk study — dark indigo base, electric cyan + magenta highlights, scanner/glitch aesthetic",
+    palette: "--bg:#0a0a1a; --surface:#12122a; --ink:#e0e0ff; --cyan:#22d3ee; --magenta:#e879f9; --amber:#fbbf24;",
+    fonts: "Display: 'Orbitron' 700. Body: 'DM Sans' 400/500. Mono: 'JetBrains Mono'.",
+    fontImport:
+      "https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap",
+    motif: "Scanline overlay (CSS only), neon glow text-shadow, grid background pattern, corner brackets on cards.",
+    motion: "Glow pulse on accent elements (3s), scanning line sweep, glitch transition on section change.",
+  },
+  {
+    id: "studio-notebook",
+    name: "Studio Notebook",
+    anchor: "Sketchbook aesthetic — cream pages, margin notes, hand-drawn underlines, polaroid-style media blocks",
+    palette: "--bg:#f8f5f0; --paper:#fffbeb; --ink:#292524; --red:#dc2626; --blue:#2563eb; --tape:#e5e7eb;",
+    fonts: "Display: 'Nanum Pen Script' or 'Patrick Hand'. Body: 'Source Serif 4' 400/500. Mono: 'JetBrains Mono'.",
+    fontImport:
+      "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Nanum+Pen+Script&family=JetBrains+Mono:wght@500&display=swap",
+    motif: "Margin-lined paper background, taped-down media blocks, handwritten-style annotations, red ink corrections.",
+    motion: "Sketch appear (draw-on effect), sticky-note drop in, pencil underline draw from left.",
+  },
+  {
+    id: "glass-morphism",
+    name: "Glass Morphism",
+    anchor: "Frosted glass futuristic — deep blur backdrops, translucent cards, light borders, floating depth layers",
+    palette: "--bg:#0c0e1a; --glass:rgba(255,255,255,0.05); --border:rgba(255,255,255,0.1); --ink:#f0f0f5; --accent:#60a5fa; --accent2:#a78bfa;",
+    fonts: "Display: 'Clash Display' 600. Body: 'Satoshi' 300/400/500. Mono: 'JetBrains Mono'.",
+    fontImport:
+      "https://fonts.googleapis.com/css2?family=Clash+Display:wght@500;600;700&family=Satoshi:wght@300;400;500;700&family=JetBrains+Mono:wght@500&display=swap",
+    motif: "Backdrop blur glass cards, floating layer positioning with z-index, subtle gradient orb accents, frosted button styles.",
+    motion: "Depth shift on hover (z-translate), shimmer sweep across glass surfaces, gentle float animation on hero.",
+  },
 ];
 
 /** Deterministic-ish hash so same topic gets the same style. */
