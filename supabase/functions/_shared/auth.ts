@@ -26,7 +26,7 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
   let userId: string | null = null;
   let email: string | null = null;
   try {
-    // @ts-ignore - getClaims exists in supabase-js v2.45+
+    // @ts-expect-error - getClaims exists in supabase-js v2.45+
     const { data: claimsData, error: claimsErr } = await sb.auth.getClaims(token);
     if (!claimsErr && claimsData?.claims?.sub) {
       userId = claimsData.claims.sub as string;

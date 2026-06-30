@@ -55,6 +55,10 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const openArtifact = useArtifactStore((s) => s.openArtifact);
+  const { thinking, main } = useMemo(
+    () => (message.role === 'user' ? { thinking: null, main: message.content } : extractThinking(message.content)),
+    [message.content, message.role],
+  );
 
   if (message.type === 'action_confirm' && message.pendingAction) {
     return (
@@ -145,10 +149,6 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
 
   const isUser = message.role === 'user';
   const isStreaming = !!(message as any).isStreaming;
-  const { thinking, main } = useMemo(
-    () => (isUser ? { thinking: null, main: message.content } : extractThinking(message.content)),
-    [message.content, isUser],
-  );
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);

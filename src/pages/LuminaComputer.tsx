@@ -108,6 +108,7 @@ function highlightCode(code: string, lang: string): string {
 // ── Syntax Highlighted Editor ──
 function CodeEditor({ file, allFiles }: { file: LuminaFile | null; allFiles: LuminaFile[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const highlighted = useMemo(() => file ? highlightCode(file.content, file.lang) : '', [file?.content, file?.lang]);
 
   useEffect(() => {
     if (!file || file.done) return;
@@ -123,7 +124,6 @@ function CodeEditor({ file, allFiles }: { file: LuminaFile | null; allFiles: Lum
     );
   }
 
-  const highlighted = useMemo(() => highlightCode(file.content, file.lang), [file.content, file.lang]);
   const lines = file.content.split("\n");
 
   return (

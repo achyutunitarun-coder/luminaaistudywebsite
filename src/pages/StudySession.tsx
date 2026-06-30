@@ -79,7 +79,7 @@ const StudySession = () => {
     }
   };
 
-  const useTool = (tool: string) => {
+  const launchTool = (tool: string) => {
     if (!toolsUsed.includes(tool)) {
       setToolsUsed(prev => [...prev, tool]);
     }
@@ -330,7 +330,7 @@ const StudySession = () => {
               ].map(tool => (
                 <button
                   key={tool.name}
-                  onClick={() => useTool(tool.name)}
+                  onClick={() => launchTool(tool.name)}
                   className={`glass rounded-xl p-4 text-left hover:border-primary/30 transition-all ${toolsUsed.includes(tool.name) ? 'border-primary/30' : ''}`}
                 >
                   <div className={`w-8 h-8 rounded-lg ${tool.bg} flex items-center justify-center mb-2`}>
