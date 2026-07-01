@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -24,10 +24,5 @@ jobs:
         with:
           version: latest
 
-      - name: Link project
-        run: supabase link --project-id ${{ env.PROJECT_ID }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
       - name: Deploy all functions
-        run: supabase functions deploy --project-id ${{ env.PROJECT_ID }}
+        run: supabase functions deploy --project-ref ${{ env.PROJECT_REF }}
