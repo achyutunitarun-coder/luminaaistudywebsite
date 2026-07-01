@@ -116,6 +116,36 @@ async function streamModel(
   throw new Error(`All models failed: ${lastErr}`);
 }
 
+// ── URL Fetcher ────────────────────────────────────────────────────
+
+async function fetchUrlContent(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "LuminaComputer/1.0" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return `Error: HTTP ${res.status}`;
+    const html = await res.text();
+    // Strip tags for a clean text view
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "\n")
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+    return text.slice(0, 8000);
+  } catch (e) {
+    return `Error fetching: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 // ── Prompts ─────────────────────────────────────────────────────────
 
 const COMPUTER_PROMPT = `You are Lumina Computer — an assistant that helps with research, code, documents, and multi-step tasks.
@@ -129,9 +159,7 @@ Output rules:
 - For reports, use markdown with headings
 - For actions, say what you're doing plainly
 - Never truncate with "..." or "rest unchanged"
-- Close all tags, complete all functions
-
-When asked to research a website, fetch it, read the content, and summarize what you find. Say what you're doing at each step.`;
+- Close all tags, complete all functions`;
 
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
   if (isComputer) return `${COMPUTER_PROMPT}\n\nEffort: ${effort.toUpperCase()}`;
@@ -148,7 +176,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
   try {
-    // ── Auth ──
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
 
@@ -156,7 +183,6 @@ serve(async (req) => {
     const { data: { user }, error: ue } = await sb.auth.getUser();
     if (ue || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
 
-    // ── Parse ──
     const body = await req.text();
     if (body.length > 5_000_000) return new Response(JSON.stringify({ error: "Too large" }), { status: 413, headers: { ...CORS, "Content-Type": "application/json" } });
 
@@ -170,12 +196,11 @@ serve(async (req) => {
     const effortLvl = ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
 
     const system = buildSystem(intent, mode, effortLvl, isComputer);
-    const maxTokens = isComputer ? (effortLvl === "beast" ? 65536 : effortLvl === "quick" ? 16384 : 32768) : (intent === "coding" ? 8192 : mode === "deepDive" ? 8192 : 4096);
-    const temperature = isComputer ? 0.25 : intent === "coding" ? 0.3 : 0.7;
+    const maxTokens = isComputer ? (effortLvl === "quick" ? 4096 : 8192) : (intent === "coding" ? 4096 : mode === "deepDive" ? 4096 : 2048);
+    const temperature = 0.7;
 
     const enc = new TextEncoder();
 
-    // ── SSE Stream ──
     const stream = new ReadableStream<Uint8Array>({
       async start(ctrl) {
         const send = (o: any) => ctrl.enqueue(enc.encode(`data: ${JSON.stringify(o)}\n\n`));
@@ -185,12 +210,38 @@ serve(async (req) => {
         req.signal.addEventListener("abort", () => abort.abort());
 
         try {
-          const convo = [{ role: "system", content: system }, ...messages];
+          if (OR_KEYS.length === 0) {
+            delta("**Error:** No API keys found. Set OPENROUTER_API_KEY in Supabase project settings.\n");
+            send({ choices: [{ finish_reason: "stop", delta: {} }] });
+            ctrl.enqueue(enc.encode("data: [DONE]\n\n"));
+            ctrl.close();
+            return;
+          }
+
+          let convo = [{ role: "system", content: system }, ...messages];
+
+          // ── Pre-fetch URL if user asked to visit a site ──
+          let fetched = "";
+          const urlMatch = query.match(/https?:\/\/[^\s]+/);
+          if (isComputer && urlMatch) {
+            delta(`Fetching ${urlMatch[0]}...\n\n`);
+            fetched = await fetchUrlContent(urlMatch[0]);
+            if (fetched.startsWith("Error")) {
+              delta(`Could not fetch: ${fetched}\n\n`);
+            } else {
+              delta(`Got ${fetched.length} chars. Analyzing...\n\n`);
+              convo = [
+                { role: "system", content: system + "\n\nHere is the content from the URL the user asked about. Read it and respond based on what you find.\n\n--- PAGE CONTENT ---\n" + fetched + "\n--- END PAGE ---" },
+                ...messages,
+              ];
+            }
+          }
+
+          delta(isComputer && !urlMatch ? "**Lumina Computer**\n\n" : "");
           send({ lumina_meta: { model: isComputer ? "computer" : "chat", intent, is_computer: isComputer, tier_target: "TIER_1" } });
 
           const { full: fullText } = await streamModel(convo, maxTokens, temperature, abort.signal, (chunk) => delta(chunk));
 
-          // Auto-close unclosed FILE: blocks in computer mode
           if (isComputer && /FILE:/i.test(fullText) && !/\nEND FILE\s*$/.test(fullText.trimEnd())) {
             const closer = /<\/html>\s*$/i.test(fullText.trimEnd()) ? "\nEND FILE\n" : "\n</body>\n</html>\nEND FILE\n";
             delta(closer);
@@ -202,9 +253,14 @@ serve(async (req) => {
 
         } catch (e) {
           if (abort.signal.aborted) { try { ctrl.close(); } catch {} return; }
-          console.error("[chat] err:", e);
-          try { send({ error: e instanceof Error ? e.message : "stream_error" }); } catch {}
-          try { ctrl.close(); } catch {}
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[chat]", msg);
+          try { delta(`\n**Error:** ${msg}\n`); } catch {}
+          try {
+            send({ choices: [{ finish_reason: "stop", delta: {} }] });
+            ctrl.enqueue(enc.encode("data: [DONE]\n\n"));
+            ctrl.close();
+          } catch {}
         }
       },
     });
