@@ -875,7 +875,7 @@ export async function callWithFallback(
     return res;
   };
 
-  const scaledTimeout = (base: number) => isArtifactCall || isComputer ? Math.min(120_000, base) : Math.min(8_000, base);
+  const scaledTimeout = (base: number) => Math.min(90_000, Math.max(25_000, base ?? 30_000));
 
   // Phase 1: Try model list in order
   for (const model of models) {
@@ -886,7 +886,7 @@ export async function callWithFallback(
   }
 
   // Phase 2: Try openrouter/free router
-  const routerTimeout = isArtifactCall ? Math.min(90_000, timeoutMs) : Math.min(6_000, timeoutMs);
+  const routerTimeout = Math.min(90_000, Math.max(20_000, timeoutMs ?? 30_000));
   if (routerTimeout >= 1000) {
     const res = await callModel(MODEL_FREE_ROUTER, baseBody, routerTimeout, `${tag}/free`);
     if (res) return { response: res, model: MODEL_FREE_ROUTER };
@@ -896,7 +896,7 @@ export async function callWithFallback(
   if (GOOGLE_KEYS.length > 0) {
     // Resolve best Gemini model for this task type
     const geminiModel = isArtifact || isComputer ? "gemini-2.0-flash-thinking-exp" : "gemini-2.0-flash-exp";
-    const geminiTimeout = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(15_000, timeoutMs);
+    const geminiTimeout = Math.min(120_000, Math.max(20_000, timeoutMs ?? 30_000));
     const res = await callGoogleGemini(geminiModel, baseBody, geminiTimeout, tag);
     if (res) return { response: res, model: `google/${geminiModel}` };
   }
@@ -912,7 +912,7 @@ export async function callWithFallback(
     }
   }
   for (const model of models) {
-    const timeout = isArtifactCall ? Math.min(120_000, timeoutMs) : 15_000;
+    const timeout = Math.min(120_000, Math.max(25_000, timeoutMs ?? 30_000));
     const res = await tryModel(model, timeout);
     if (res) return { response: res, model };
   }
