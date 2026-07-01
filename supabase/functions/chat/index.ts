@@ -161,12 +161,26 @@ Output rules:
 - Never truncate with "..." or "rest unchanged"
 - Close all tags, complete all functions`;
 
+const STYLE_GUIDE = `Format your answers beautifully using markdown:
+
+- Use # ## ### headings to structure your answer
+- Use **bold** for key terms and concepts
+- Use bullet lists and numbered lists for steps and summaries
+- Use \`code\` for technical terms, filenames, and short snippets
+- Use triple backticks for longer code blocks
+- Use blockquote formatting for important callouts or quotes
+- Add blank lines between sections for readability
+- Keep paragraphs short (2-4 sentences)
+- Lead with the answer, then explain
+
+Your tone: confident, warm, articulate. Write like a great teacher who loves the subject.`;
+
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
-  if (isComputer) return `${COMPUTER_PROMPT}\n\nEffort: ${effort.toUpperCase()}`;
-  const base = `You are Lumina AI, an elite study assistant. Mode: ${mode} | Effort: ${effort}`;
-  if (intent === "coding") return `${base}\n\nProvide working code examples.`;
-  if (intent === "study") return `${base}\n\nExplain with examples and analogies.`;
-  if (intent === "greeting") return `${base}\n\nBe warm and ask how you can help.`;
+  if (isComputer) return `${COMPUTER_PROMPT}\n\n${STYLE_GUIDE}\n\nEffort: ${effort.toUpperCase()}`;
+  const base = `You are Lumina AI, an elite study assistant.\n\n${STYLE_GUIDE}\n\nMode: ${mode} | Effort: ${effort}`;
+  if (intent === "coding") return `${base}\n\nProvide complete working code. Explain your approach briefly, then show the code, then summarize.`;
+  if (intent === "study") return `${base}\n\nStart with a clear definition or answer. Then explain with examples and analogies. Connect concepts.`;
+  if (intent === "greeting") return `${base}\n\nBe warm and inviting. Ask how you can help today. Keep it brief.`;
   return base;
 }
 
