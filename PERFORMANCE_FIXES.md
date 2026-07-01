@@ -1,7 +1,7 @@
 # Lumina AI Performance & Bug Fixes
 
 ## Executive Summary
-Your AI is slower than owl-alpha can be, and artifacts are failing due to:
+Your AI is slower than it can be, and artifacts are failing due to:
 1. **Sequential model fallbacks** instead of racing (artifacts timeout)
 2. **Excessive polling delays** in frontend (UI unresponsive)
 3. **HTML validation too strict** (rejects valid artifacts)
@@ -15,7 +15,7 @@ Your AI is slower than owl-alpha can be, and artifacts are failing due to:
 ### 1. **Artifact Generation Timeouts (PRIMARY)**
 **File**: `supabase/functions/chat-artifact-v2/index.ts:186-227`
 **Issue**: 
-- First tries `openrouter/owl-alpha` sequentially (45s timeout)
+- First tries `openrouter/primary-model` sequentially (45s timeout)
 - If that fails, tries fallback models **one at a time**
 - By the time 2nd model tries, 15+ seconds wasted
 - `JOB_BUDGET_MS = 142_000` (142s edge function timeout) is eaten by overhead
@@ -25,7 +25,7 @@ Your AI is slower than owl-alpha can be, and artifacts are failing due to:
 // Line 195-196: Uses orKey directly, not key rotation
 const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
 
-// Line 199-216: Sequential fetch to owl-alpha
+// Line 199-216: Sequential fetch to primary-model
 const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
   ...
   signal: AbortSignal.timeout(45_000),
@@ -34,7 +34,7 @@ const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
 ```
 
 **Fix**: 
-- Remove the separate owl-alpha attempt; let the normal fallback chain handle it
+- Remove the separate primary-model attempt; let the normal fallback chain handle it
 - Use `callAIText()` which does proper key rotation & retry
 
 ---
@@ -90,7 +90,7 @@ if (trimmed.length < 500) return { ok: false, reason: "too_short" };
 **Issue**:
 ```typescript
 const cleaned = cleanHtml(data?.choices?.[0]?.message?.content ?? "");
-if (validHtml(cleaned)) return { html: cleaned, model: "openrouter/owl-alpha" };
+if (validHtml(cleaned)) return { html: cleaned, model: "openrouter/primary-model" };
 lastErr = cleaned ? "invalid_html_from_owl" : "empty_from_owl";
 // If invalid, goes to fallback chain — but never comes BACK to owl with tweaked prompt
 ```
@@ -101,7 +101,7 @@ lastErr = cleaned ? "invalid_html_from_owl" : "empty_from_owl";
 
 ## ⚡ Performance Optimizations
 
-### 1. **Use owl-alpha Properly (Sequential, Not Parallel)**
+### 1. **Use primary-model Properly (Sequential, Not Parallel)**
 The code currently races 4 models in parallel for streaming. For artifacts, this wastes tokens.
 
 **Current** (`models.ts:483-500`):
@@ -115,7 +115,7 @@ const racers = selected.map(async (model) => {
 return Promise.any(racers);
 ```
 
-**Problem**: All 4 models generate in parallel; whichever finishes first wins. But owl-alpha takes 5-10s TTFB, tiny models win, produce trash.
+**Problem**: All 4 models generate in parallel; whichever finishes first wins. But primary-model takes 5-10s TTFB, tiny models win, produce trash.
 
 **Fix**:
 - For artifacts: OWL-ONLY on first attempt (no racing)
@@ -139,7 +139,7 @@ Currently waits for ENTIRE artifact to generate, then validates.
 
 **Better**:
 ```typescript
-1. Try owl-alpha (45s timeout)
+1. Try primary-model (45s timeout)
    ├─ Success? Return.
    ├─ Empty? Try fallback model (30s).
    │  ├─ Success? Return.
@@ -155,7 +155,7 @@ Current code doesn't distinguish between "model timed out" vs "model returned ju
 ## 🔧 Implementation Roadmap
 
 ### Priority 1: Artifacts (Fixes Timeout Issue)
-1. **Remove sequential owl-alpha attempt** in `chat-artifact-v2/index.ts:195-227`
+1. **Remove sequential primary-model attempt** in `chat-artifact-v2/index.ts:195-227`
    - Delete lines 196-227 (the separate owl call)
    - Let `callAIText()` handle routing with key fanout
 
@@ -197,7 +197,7 @@ Current code doesn't distinguish between "model timed out" vs "model returned ju
 **Lines 195-227** → Simplify to use `callAIText`:
 
 ```typescript
-// BEFORE: sequential owl-alpha call (wastes time)
+// BEFORE: sequential primary-model call (wastes time)
 const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
 if (orKey) {
   try {

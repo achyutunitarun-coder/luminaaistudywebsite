@@ -282,12 +282,12 @@ serve(async (req) => {
           if (isComputer) {
             let agentOk = false;
             try {
-              sendDelta("**Lumina Computer** — working through this step by step.\n\n");
+              sendDelta("**Lumina Computer**\n\n");
 
               // Build tool registry
               const registry = new ToolRegistry();
 
-              // Browser tools (navigation, click, type, screenshot, extract)
+              // Browser tool (fetch, extract text, navigate)
               registry.register(createBrowserTool());
 
               // Document generation tools (slides, docs, spreadsheet)
@@ -322,7 +322,7 @@ serve(async (req) => {
               try {
                 const skillBlocks = await detectSkills(queryText);
                 if (skillBlocks.length > 0) {
-                  sendDelta(`*Loaded ${skillBlocks.length} matching skills.*\n\n`);
+                  sendDelta(`Found ${skillBlocks.length} matching skills.\n\n`);
                 }
               } catch { /* best-effort */ }
 
@@ -331,9 +331,14 @@ serve(async (req) => {
 
               send({ lumina_meta: { model: "computer-agent", intent, is_computer: true, tier_target: "TIER_1" } });
 
+              // Stream real text as steps complete — frontend shows delta.content
+              let stepCount = 0;
               const result = await agent.run(queryText, (status) => {
-                send({ choices: [{ delta: { content: "" } }], lumina_status: status });
+                stepCount++;
+                sendDelta(`▸ ${status}\n`);
               });
+
+              sendDelta(`\n**Done** — ${stepCount} steps completed.\n\n`);
 
               // Stream the full result in chunks
               const CHUNK = 4000;

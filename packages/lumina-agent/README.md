@@ -51,7 +51,7 @@ lumina code
 
 | Model | Use Case |
 |-------|----------|
-| `openrouter/owl-alpha` | Planning & reasoning (default) |
+| `meta-llama/llama-3.3-70b-instruct:free` | Planning & reasoning (default) |
 | `moonshotai/kimi-k2.6` | Code generation |
 | `openai/gpt-oss-20b:free` | Fast tasks |
 
@@ -76,7 +76,7 @@ Config stored at `~/.lumina/config.json`:
 ```json
 {
   "openrouterKey": "sk-or-...",
-  "defaultModel": "openrouter/owl-alpha",
+  "defaultModel": "meta-llama/llama-3.3-70b-instruct:free",
   "codingModel": "moonshotai/kimi-k2.6",
   "fastModel": "openai/gpt-oss-20b:free"
 }
