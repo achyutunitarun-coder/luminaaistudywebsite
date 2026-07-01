@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ComputerAgent, ToolRegistry } from "../_shared/computer-agent.ts";
+import { createBrowserTool } from "../_shared/browser-tool.ts";
+import { createDocumentGenTools } from "../_shared/document-gen.ts";
+import { createSlidesTool, createDocumentTool, createSpreadsheetTool } from "../_shared/document-gen.ts";
+import { MCPClient } from "../_shared/mcp-client.ts";
+import { detectSkills } from "../_shared/skills.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -272,11 +278,88 @@ serve(async (req) => {
         req.signal.addEventListener("abort", () => abortCtrl.abort());
 
         try {
+          // ── AGENT PATH (computer mode only) ──
+          if (isComputer) {
+            let agentOk = false;
+            try {
+              sendDelta("**Lumina Computer** — working through this step by step.\n\n");
+
+              // Build tool registry
+              const registry = new ToolRegistry();
+
+              // Browser tools (navigation, click, type, screenshot, extract)
+              registry.register(createBrowserTool());
+
+              // Document generation tools (slides, docs, spreadsheet)
+              for (const tool of [createSlidesTool(), createDocumentTool(), createSpreadsheetTool()]) registry.register(tool);
+
+              // MCP integration — wire external MCP servers if configured
+              const mcpServerUrl = Deno.env.get("MCP_SERVER_URL");
+              if (mcpServerUrl) {
+                try {
+                  const mcp = new MCPClient();
+                  mcp.registerServer({ name: "external", url: mcpServerUrl });
+                  const mcpTools = await mcp.listTools("external");
+                  for (const def of mcpTools) {
+                    registry.register({
+                      schema: {
+                        name: `mcp_${def.name}`,
+                        description: `[MCP] ${def.description ?? def.name}`,
+                        inputSchema: def.inputSchema ?? { type: "object", properties: {} },
+                      },
+                      async execute(args: Record<string, any>): Promise<string> {
+                        const result = await mcp.callTool("external", { name: def.name, arguments: args });
+                        return result.content.map((c: any) => c.text ?? "[binary]").join("\n");
+                      },
+                    });
+                  }
+                } catch (mcpErr) {
+                  console.warn("[chat] MCP setup failed:", mcpErr);
+                }
+              }
+
+              // Detect matching skills
+              try {
+                const skillBlocks = await detectSkills(queryText);
+                if (skillBlocks.length > 0) {
+                  sendDelta(`*Loaded ${skillBlocks.length} matching skills.*\n\n`);
+                }
+              } catch { /* best-effort */ }
+
+              const maxSteps = effortLevel === "beast" ? 25 : effortLevel === "quick" ? 6 : 12;
+              const agent = new ComputerAgent({ toolRegistry: registry, maxSteps });
+
+              send({ lumina_meta: { model: "computer-agent", intent, is_computer: true, tier_target: "TIER_1" } });
+
+              const result = await agent.run(queryText, (status) => {
+                send({ choices: [{ delta: { content: "" } }], lumina_status: status });
+              });
+
+              // Stream the full result in chunks
+              const CHUNK = 4000;
+              for (let i = 0; i < result.length; i += CHUNK) {
+                sendDelta(result.slice(i, i + CHUNK));
+              }
+              agentOk = true;
+            } catch (agentErr) {
+              console.error("[chat] agent error:", agentErr);
+              sendDelta(`\n\n**Agent error:** ${agentErr instanceof Error ? agentErr.message : String(agentErr)}\n\nFalling back to standard mode.\n\n`);
+            }
+
+            if (agentOk) {
+              send({ choices: [{ finish_reason: "stop", delta: {} }] });
+              ctrl.enqueue(encoder.encode("data: [DONE]\n\n"));
+              ctrl.close();
+              return;
+            }
+            // Agent failed — fall through to standard streaming path
+          }
+
+          // ── STANDARD STREAMING PATH (non-computer modes) ──
           let convo: any[] = [{ role: "system", content: systemPrompt }, ...messages];
           let totalText = "";
           let activeModel = "meta-llama/llama-3.3-70b-instruct:free";
-          // Server-side auto-continue: up to 4 passes for computer mode, 1 otherwise.
-          const maxPasses = isComputer ? 4 : 1;
+          const maxPasses = 1;
 
           for (let pass = 0; pass < maxPasses; pass++) {
             const { text, finishReason, usedModel } = await callOpenRouterCollect(
