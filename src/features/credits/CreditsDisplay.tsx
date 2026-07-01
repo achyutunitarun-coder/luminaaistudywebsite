@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { Zap } from 'lucide-react';
+import { Zap, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreditsStore } from './useCreditsStore';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface Props {
   onClick: () => void;
@@ -9,8 +10,10 @@ interface Props {
 }
 
 export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
-  const { balance, setBalance } = useCreditsStore();
-  const isLow = balance < 3;
+  const { balance, setBalance, plan } = useCreditsStore();
+  const { isPro, plan: subPlan } = useSubscription();
+  const isLow = balance < 3 && !isPro;
+  const isPremium = isPro;
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +29,23 @@ export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
     });
     return () => { cancelled = true; };
   }, [setBalance]);
+
+  if (isPremium) {
+    const planLabel = subPlan === 'power_plus' ? 'POWER+' : subPlan === 'mega' ? 'MEGA' : subPlan === 'pro_plus' ? 'PRO+' : 'Ultimate';
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 ${className}`}
+        title={`${planLabel} plan · ${balance} credits`}
+      >
+        <Crown className="w-3.5 h-3.5 shrink-0" fill="currentColor" />
+        <span className="tabular-nums">{balance.toFixed(1)}</span>
+        <span className="opacity-70">cr</span>
+        <span className="ml-0.5 text-[10px] uppercase tracking-wider font-bold text-amber-200">{planLabel}</span>
+      </button>
+    );
+  }
 
   return (
     <button

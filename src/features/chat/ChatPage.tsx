@@ -367,21 +367,65 @@ const ChatPage = () => {
     }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
     const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
-      try {
-      const t = (text || input).trim(); if (!t || loading) return;
-      if (artifactType) { setShowArtifactPicker(false); const cid = await ensureChat(t); if (cid) { await runArtifact(artifactType, t, t, cid); setInput(""); } return; }
-      const isArt = /\b(create|generate|make|build|write|draft)\b.*\b(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\b/i.test(t) || /\b(notes?|exam|test|quiz|slides?|presentation|deck)\b.*\b(on|for|about)\b/i.test(t);
-      const dt = isArt ? (/\b(exam|test|quiz)\b/i.test(t) ? "exam" : /\b(slides?|presentation|deck)\b/i.test(t) ? "slides" : /\b(code|app|game|website|build)\b/i.test(t) ? "code" : "notes") : undefined;
-      if (dt) { const cid = await ensureChat(t); if (cid) { await runArtifact(dt, t, t, cid); setInput(""); } return; }
-      const cid = await ensureChat(t); if (!cid) return;
+      const t = (text || input).trim();
+      if (!t || loading) return;
+
+      // Explicit artifact generation (via artifact picker or quick buttons)
+      if (artifactType) {
+        setShowArtifactPicker(false);
+        const cid = await ensureChat(t);
+        if (cid) {
+          await runArtifact(artifactType, t, t, cid);
+          setInput("");
+        }
+        return;
+      }
+
+      // Check if user explicitly requested artifact generation
+      const artMatch = t.match(/^(create|generate|make|build|write|draft)\s+(a|an|me|some)?\s*(notes?|exam|test|quiz|slides?|presentation|deck|code|app|game|website)\s+(on|for|about)\s+(.+)/i);
+      if (artMatch) {
+        const artTypeRaw = artMatch[3].toLowerCase();
+        const artTopic = artMatch[5].trim();
+        const artType = /\b(exam|test|quiz)\b/.test(artTypeRaw) ? "exam"
+          : /\b(slides?|presentation|deck)\b/.test(artTypeRaw) ? "slides"
+          : /\b(code|app|game|website)\b/.test(artTypeRaw) ? "code"
+          : "notes";
+        const cid = await ensureChat(artTopic);
+        if (cid) {
+          await runArtifact(artType, artTopic, t, cid);
+          setInput("");
+        }
+        return;
+      }
+
+      // Normal chat flow
+      const cid = await ensureChat(t);
+      if (!cid) return;
+
       const um: Message = { id: uid(), role: "user", content: t, type: "text", timestamp: Date.now() };
-      const nm = [...messages, um]; setMessages(nm); setInput(""); setLoading(true); setLoadingStage("Thinking…");
+      const updatedMessages = [...messages, um];
+      setMessages(updatedMessages);
+      setInput("");
+      setLoading(true);
+      setLoadingStage("Thinking…");
+
       await persistMessage(cid, um);
       logActivity("chat_sent", "chat", t.slice(0, 80), { page: "/chat" });
-      try { await streamChat(nm, cid); }
-      catch (e: any) { if (e?.name !== "AbortError") setMessages(p => p.filter(m => m.type !== "loading").concat({ id: uid(), role: "assistant", type: "error", content: e?.message ?? "Something went wrong.", timestamp: Date.now() })); }
-      finally { setLoading(false); setLoadingStage(""); }
-      } catch (e: any) { console.error("handleSend error:", e); toast.error(e?.message ?? "Something went wrong"); }
+
+      try {
+        await streamChat(updatedMessages, cid);
+      } catch (e: any) {
+        if (e?.name !== "AbortError") {
+          setMessages(current => current.filter(m => m.type !== "loading").concat({
+            id: uid(), role: "assistant", type: "error" as const,
+            content: e?.message ?? "Something went wrong. Please try again.",
+            timestamp: Date.now(),
+          }));
+        }
+      } finally {
+        setLoading(false);
+        setLoadingStage("");
+      }
     }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
     const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
