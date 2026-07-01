@@ -210,8 +210,10 @@ serve(async (req) => {
     const effortLvl = ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
 
     const system = buildSystem(intent, mode, effortLvl, isComputer);
-    const maxTokens = isComputer ? (effortLvl === "quick" ? 4096 : 8192) : (intent === "coding" ? 4096 : mode === "deepDive" ? 4096 : 2048);
-    const temperature = 0.7;
+    const maxTokens = isComputer
+      ? (effortLvl === "beast" ? 32768 : effortLvl === "quick" ? 8192 : 16384)
+      : (intent === "coding" ? 8192 : mode === "deepDive" ? 8192 : 4096);
+    const temperature = intent === "coding" ? 0.3 : 0.7;
 
     const enc = new TextEncoder();
 
