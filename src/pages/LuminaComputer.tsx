@@ -3,7 +3,7 @@
  * 
  * Features:
  * - Effort picker: Quick / Normal / Beast
- * - OWL-alpha model (hidden, always best)
+ * - OpenRouter free models (auto-fallback chain)
  * - Plan shown in separate panel
  * - File tabs with syntax highlighting
  * - Split view: code + preview
@@ -265,6 +265,17 @@ export default function LuminaComputer() {
     if (!previewOpen && files.some(f => f.lang === "html") && busy) setPreviewOpen(true);
   }, [files, busy, previewOpen]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const isMeta = e.metaKey || e.ctrlKey;
+      if (isMeta && e.key === "k") { e.preventDefault(); taRef.current?.focus(); }
+      if (isMeta && e.key === "Enter" && !busy && prompt.trim()) { e.preventDefault(); onSubmit(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, prompt]);
+
   const autoResize = (el: HTMLTextAreaElement) => { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 200) + "px"; };
 
   const runAction = useCallback((act: LuminaAction) => {
@@ -359,13 +370,13 @@ export default function LuminaComputer() {
 
       let messages: any[];
       if (isCont) {
-        // Only send the last 500 chars of the previous response, not the whole thing
-        // This prevents the AI from regenerating everything from scratch
-        const tail = rawAssistantRef.current.slice(-500);
-        const contPrompt = `Continue writing the file from where you left off. Output ONLY the remaining content. Do NOT repeat what you already wrote.\n\nLast chars:\n${tail}`;
+        // Pass full assistant context so model knows exactly what was written so far.
+        // Truncate to last 16000 chars to stay within context window.
+        const assistantContext = rawAssistantRef.current.slice(-16000);
         messages = [
           { role: "user", content: lastUserPromptRef.current },
-          { role: "user", content: contPrompt },
+          { role: "assistant", content: assistantContext },
+          { role: "user", content: "CONTINUE EXACTLY from where you left off. Do NOT repeat anything already written. Do NOT restart. Do NOT add commentary. Output ONLY the remaining content so the document is complete and properly closed." },
         ];
       } else {
         const content = buildMessageContent(trimmed);
@@ -422,7 +433,7 @@ export default function LuminaComputer() {
             if (!json || json === "[DONE]") continue;
             try {
               const parsed = JSON.parse(json);
-              if (parsed?.lumina_meta?.model) { log("model", "Using OWL-Alpha"); }
+              if (parsed?.lumina_meta?.model) { log("model", `Model: ${parsed.lumina_meta.model}`); }
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
                 rawAssistantRef.current += delta;
@@ -446,8 +457,8 @@ export default function LuminaComputer() {
       let st = parserRef.current!.state;
       const displayFiles = st.files.filter(f => f.path !== "response.md");
       const openFile = st.files.some(f => !f.done);
-      const tail = rawAssistantRef.current.trimEnd().slice(-80);
-      const cleanEnd = /END FILE\s*$/.test(tail) || /<\/html>\s*$/i.test(tail) || /<\/(lumina:)?(final|file|plan)>\s*$/.test(tail);
+      const tail = rawAssistantRef.current.trimEnd().slice(-120);
+      const cleanEnd = /END FILE\s*$/.test(tail) || /<\/html>\s*$/i.test(tail) || /<\/(lumina:)?(final|file|plan)>\s*$/.test(tail) || /```\s*$/.test(tail);
       const noFilesShipped = displayFiles.length === 0;
       const enoughOutput = rawAssistantRef.current.length > 40;
       const looksTruncated = enoughOutput && (openFile || noFilesShipped || !cleanEnd);
@@ -466,6 +477,62 @@ export default function LuminaComputer() {
         const issues = validateLuminaProject(st.files, lastUserPromptRef.current);
         setValidationSummary(summarizeValidation(issues));
         log("done", `Done - ${displayFiles.length} file(s). ${summarizeValidation(issues)}`);
+
+        // Auto-repair: if there are blocking errors and at least one file was produced, ask model to fix
+        const errors = issues.filter(i => i.severity === "error");
+        if (errors.length > 0 && displayFiles.length > 0 && !isCont && rawAssistantRef.current.length > 200) {
+          log("system", `Auto-repairing ${errors.length} validation error(s)...`);
+          const repairPrompt = buildRepairPrompt(lastUserPromptRef.current, st.files, issues);
+          try {
+            const repairMessages = [
+              { role: "user", content: lastUserPromptRef.current },
+              { role: "assistant", content: rawAssistantRef.current.slice(-12000) },
+              { role: "user", content: repairPrompt + "\n\nFix ALL issues listed above. Return COMPLETE corrected files using the FILE: format. Do NOT truncate." },
+            ];
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) throw new Error("Please sign in.");
+            const repairRes = await fetch(CHAT_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ messages: repairMessages, mode: "computer", effort }),
+              signal: ctrl.signal,
+            });
+            if (repairRes.ok && repairRes.body) {
+              const repairReader = repairRes.body.getReader();
+              const repairDecoder = new TextDecoder();
+              let repairBuf = "";
+              while (true) {
+                const { done, value } = await repairReader.read();
+                if (done) break;
+                repairBuf += repairDecoder.decode(value, { stream: true });
+                let nl: number;
+                while ((nl = repairBuf.indexOf("\n")) !== -1) {
+                  const rLine = repairBuf.slice(0, nl);
+                  repairBuf = repairBuf.slice(nl + 1);
+                  if (!rLine.startsWith("data: ")) continue;
+                  const rJson = rLine.slice(6).trim();
+                  if (!rJson || rJson === "[DONE]") continue;
+                  try {
+                    const rParsed = JSON.parse(rJson);
+                    const rDelta = rParsed?.choices?.[0]?.delta?.content;
+                    if (typeof rDelta === "string" && rDelta.length > 0) {
+                      rawAssistantRef.current += rDelta;
+                      parserRef.current!.push(rDelta);
+                      applyState();
+                    }
+                  } catch { repairBuf = rLine + "\n" + repairBuf; break; }
+                }
+              }
+              parserRef.current!.finish();
+              applyState();
+              const repairedIssues = validateLuminaProject(parserRef.current!.state.files, lastUserPromptRef.current);
+              setValidationSummary(summarizeValidation(repairedIssues));
+              log("done", `Repair complete — ${summarizeValidation(repairedIssues)}`);
+            }
+          } catch (e: any) {
+            log("warn", `Auto-repair failed: ${e?.message ?? "unknown"}`);
+          }
+        }
       }
 
       if (!isCont && rawAssistantRef.current) {
@@ -622,6 +689,10 @@ export default function LuminaComputer() {
                 <div className="flex-1 flex items-center justify-center" style={{ color: "var(--text-muted)", fontSize: 14 }}>
                   Ready when you are.
                 </div>
+              ) : finalMd && !activeFile && !files.length ? (
+                <div className="flex-1 overflow-auto px-6 py-5" style={{ background: "var(--bg-surface)" }}>
+                  <MarkdownRenderer>{finalMd}</MarkdownRenderer>
+                </div>
               ) : activeFile?.lang === "html" && previewOpen ? (
                 <div className="flex-1 flex min-h-0">
                   <div className="flex-1 min-w-0">
@@ -636,10 +707,6 @@ export default function LuminaComputer() {
               )}
             </div>
 
-            {/* Preview (slide-over when not split) */}
-            {previewOpen && (
-              <PreviewPanel open={previewOpen} onClose={() => setPreviewOpen(false)} files={files} activeFile={activeFile} />
-            )}
           </div>
 
           {/* Activity / Terminal */}
@@ -711,8 +778,18 @@ export default function LuminaComputer() {
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
                 </button>
               </div>
-              <div className="text-[10px] text-center mt-2" style={{ color: "var(--text-muted)" }}>
-                Effort: {effort} | {files.length} file(s)
+              <div className="flex items-center justify-center gap-2 text-[10px] mt-2" style={{ color: "var(--text-muted)" }}>
+                <span>Effort: {effort}</span>
+                <span>|</span>
+                <span>{files.length} file(s)</span>
+                {validationSummary && (
+                  <>
+                    <span>|</span>
+                    <span style={{ color: validationSummary.includes("error") ? "var(--red)" : "var(--green)" }}>
+                      {validationSummary}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>

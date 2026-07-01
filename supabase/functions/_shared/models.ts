@@ -16,10 +16,11 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 //   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
 
+// Primary model — the best all-round free model as of current OpenRouter availability.
+// Replaced by dynamic model catalog sync at startup (see `syncModelCatalog()` below).
 export const OWL = "meta-llama/llama-3.3-70b-instruct:free";
-// NOTE: openrouter/owl-alpha returns 404 "No endpoints found" as of June 2026.
-// Switch back when OpenRouter resolves the routing:
-// export const OWL = "openrouter/owl-alpha";
+/** @deprecated Use OWL directly or resolveModelForRole() for dynamic routing */
+export const PRIMARY_MODEL = OWL;
 
 // FAST — Generalists & Efficiency (low-latency)
 export const MODELS_FAST = [
@@ -139,6 +140,33 @@ if (ALL_KEYS.length === 0) {
 }
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
+// ── Google AI Studio key pool (Gemini models, fallback when OpenRouter exhausted) ──
+const GOOGLE_KEYS: string[] = [
+  Deno.env.get("GOOGLE_AI_STUDIO_API_KEY"),
+  Deno.env.get("GOOGLE_AI_STUDIO_KEY_2"),
+  Deno.env.get("GOOGLE_AI_STUDIO_KEY_3"),
+  Deno.env.get("GOOGLE_AI_STUDIO_KEY_4"),
+].filter(Boolean) as string[];
+const GOOGLE_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+if (GOOGLE_KEYS.length > 0) {
+  console.log(`[keys] ${GOOGLE_KEYS.length} Google AI Studio key(s) loaded`);
+} else {
+  console.log("[keys] No Google AI Studio keys configured (optional)");
+}
+
+// ── Per-key LRU tracking for OpenRouter pool ──
+// Tracks last-used timestamp so we pick the least-recently-used healthy key.
+const _keyLastUsed: number[] = ALL_KEYS.map(() => 0);
+// Per-key request counts for rate-limit awareness
+const _keyRequestsMinute: number[] = ALL_KEYS.map(() => 0);
+const _keyMinuteWindow: number[] = ALL_KEYS.map(() => 0);
+// Map of provider name to key arrays, used for cross-provider fallback
+type KeyPool = { keys: string[]; cooledUntil: number[]; lastUsed: number[]; requestsMinute: number[]; minuteWindow: number[] };
+const KEY_POOLS: Record<string, KeyPool> = {
+  openrouter: { keys: ALL_KEYS, cooledUntil: ALL_KEYS.map(() => 0), lastUsed: _keyLastUsed, requestsMinute: _keyRequestsMinute, minuteWindow: _keyMinuteWindow },
+  google: { keys: GOOGLE_KEYS, cooledUntil: GOOGLE_KEYS.map(() => 0), lastUsed: GOOGLE_KEYS.map(() => 0), requestsMinute: GOOGLE_KEYS.map(() => 0), minuteWindow: GOOGLE_KEYS.map(() => 0) },
+};
+
 const KEY_COOLDOWN_MS = 45_000;          // generic 429
 const KEY_MODEL_COOLDOWN_MS = 90_000;    // 429 specifically on (key,model) — model-level RL
 const KEY_BAD_COOLDOWN_MS = 10 * 60_000; // 401/403 / invalid
@@ -148,6 +176,224 @@ const _cooledUntil: number[] = ALL_KEYS.map(() => 0);
 // per-(key,model) cooldown — a 429 on model X doesn't ban the key from model Y
 const _modelCooledUntil: Map<string, number> = new Map();
 let _keyCursor = 0;
+
+// ── Model Catalog Sync ──────────────────────────────────────────────
+// Periodically fetches available free models from OpenRouter API
+// so we never hardcode model slugs that may go stale.
+const MODEL_CATALOG_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+let _modelCatalog: { id: string; context_length: number; pricing: any; capabilities: any }[] = [];
+let _modelCatalogLastSync = 0;
+let _modelCatalogPromise: Promise<void> | null = null;
+
+async function syncModelCatalog(): Promise<void> {
+  if (_modelCatalogPromise) return _modelCatalogPromise;
+  if (Date.now() - _modelCatalogLastSync < MODEL_CATALOG_TTL_MS && _modelCatalog.length > 0) return;
+  
+  _modelCatalogPromise = (async () => {
+    try {
+      if (ALL_KEYS.length === 0) return;
+      const res = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { Authorization: `Bearer ${ALL_KEYS[0]}` },
+      });
+      if (!res.ok) throw new Error(`catalog sync HTTP ${res.status}`);
+      const data = await res.json();
+      const allModels: any[] = data?.data ?? [];
+      // Filter to only free models (both prompt and completion cost = 0)
+      _modelCatalog = allModels.filter((m: any) => {
+        const p = m.pricing;
+        return p && parseFloat(p.prompt ?? "0") === 0 && parseFloat(p.completion ?? "0") === 0;
+      }).map((m: any) => ({
+        id: m.id,
+        context_length: m.context_length ?? 0,
+        pricing: m.pricing,
+        capabilities: m.capabilities ?? {},
+      }));
+      _modelCatalogLastSync = Date.now();
+      console.log(`[catalog] synced ${_modelCatalog.length} free models`);
+    } catch (e) {
+      console.warn("[catalog] sync failed, using cached/fallback models:", e);
+    } finally {
+      _modelCatalogPromise = null;
+    }
+  })();
+  
+  return _modelCatalogPromise;
+}
+
+// Call sync immediately on startup (fire-and-forget)
+syncModelCatalog();
+
+// ── ModelClient Interface ──────────────────────────────────────────
+// Unified abstraction over all providers. Agent core never talks to a
+// provider directly — always through this interface.
+export interface ModelClient {
+  complete(messages: any[], opts?: { maxTokens?: number; temperature?: number; tag?: string }): Promise<string>;
+  completeWithTools(messages: any[], tools: any[], opts?: { maxTokens?: number; temperature?: number; tag?: string }): Promise<{ content: string; toolCalls?: any[] }>;
+  completeVision(messages: any[], opts?: { maxTokens?: number; temperature?: number; tag?: string }): Promise<string>;
+}
+
+/** Default ModelClient implementation using the shared key pool and routing */
+export function createModelClient(models: string[] = [OWL, ...MODELS_CODE]): ModelClient {
+  return {
+    async complete(messages, opts = {}) {
+      const { maxTokens = 8192, temperature = 0.3, tag = "client" } = opts;
+      return callAIText(messages, models, maxTokens, temperature, TEXT_TOTAL_BUDGET_MS, tag);
+    },
+
+    async completeWithTools(messages, tools, opts = {}) {
+      const { maxTokens = 8192, temperature = 0.3, tag = "client" } = opts;
+      const { response, model } = await callWithFallback(
+        messages, models, maxTokens, temperature, TEXT_TOTAL_BUDGET_MS, tag,
+        { tools, tool_choice: "auto" },
+      );
+      const data = await response.json();
+      const choice = data?.choices?.[0]?.message;
+      if (!choice) throw new Error(`[${tag}] empty response from ${model}`);
+      return {
+        content: choice.content ?? "",
+        toolCalls: choice.tool_calls?.map((tc: any) => ({
+          id: tc.id,
+          type: tc.type,
+          function: { name: tc.function?.name, arguments: tc.function?.arguments },
+        })) ?? [],
+      };
+    },
+
+    async completeVision(messages, opts = {}) {
+      return this.complete(messages, opts);
+    },
+  };
+}
+
+// ── Role-based model resolution against live catalog ────────────────
+// Each role slot selects the best model from the synced free pool by capability.
+type ModelRole = 
+  | "primary_planner" | "fast_planner" | "coding_primary" | "coding_fast"
+  | "vision_grounding_primary" | "vision_grounding_fast"
+  | "reasoning_heavy" | "summarization" | "extraction_structured"
+  | "tool_call_verification" | "document_qa" | "classification_router"
+  | "general_chat_fallback" | "long_context_specialist" | "multilingual"
+  | "code_review" | "content_generation" | "skill_library_matcher"
+  | "gemini_vision_primary" | "gemini_fallback_general";
+
+const ROLE_PREFERENCES: Record<ModelRole, (m: typeof _modelCatalog[0]) => number> = {
+  // Score functions: higher = better match for this role
+  primary_planner: (m) => (m.context_length >= 64000 ? 2 : 0) + (m.capabilities?.tools ? 1 : 0) + (m.context_length >= 128000 ? 2 : 0),
+  fast_planner: (m) => (m.capabilities?.tools ? 2 : 0) - (m.context_length > 128000 ? 1 : 0),
+  coding_primary: (m) => (m.id.includes("coder") ? 3 : 0) + Math.min(5, Math.floor(m.context_length / 32000)),
+  coding_fast: (m) => (m.id.includes("coder") ? 2 : 0) - Math.max(0, Math.floor(m.context_length / 64000)),
+  vision_grounding_primary: (m) => (m.capabilities?.image_input ?? m.capabilities?.vision ? 3 : 0) + Math.min(3, Math.floor(m.context_length / 32000)),
+  vision_grounding_fast: (m) => (m.capabilities?.image_input ?? m.capabilities?.vision ? 2 : 0) - Math.max(0, Math.floor(m.context_length / 64000)),
+  reasoning_heavy: (m) => (m.capabilities?.reasoning ?? m.id.includes("thinking") ? 2 : 0) + Math.min(3, Math.floor(m.context_length / 64000)),
+  summarization: (m) => Math.max(0, 3 - Math.floor(m.context_length / 64000)),
+  extraction_structured: (m) => (m.capabilities?.structured_outputs ?? m.capabilities?.json_mode ? 2 : 0) + Math.min(2, Math.floor(m.context_length / 32000)),
+  tool_call_verification: (m) => (m.capabilities?.tools ? 3 : 0) + Math.min(2, Math.floor(m.context_length / 32000)),
+  document_qa: (m) => (m.capabilities?.document_input ? 2 : 0) + Math.min(3, Math.floor(m.context_length / 64000)),
+  classification_router: (m) => -Math.min(5, Math.floor(m.context_length / 32000)),
+  general_chat_fallback: (m) => Math.min(3, Math.floor(m.context_length / 32000)),
+  long_context_specialist: (m) => Math.min(10, Math.floor(m.context_length / 32000)),
+  multilingual: (m) => (m.id.includes("multilingual") || m.id.includes("qwen") ? 1 : 0) + Math.min(2, Math.floor(m.context_length / 32000)),
+  code_review: (m) => (m.id.includes("coder") ? 2 : 0) + (m.capabilities?.tools ? 1 : 0) + Math.min(2, Math.floor(m.context_length / 32000)),
+  content_generation: (m) => (m.capabilities?.structured_outputs ? 1 : 0) + Math.min(3, Math.floor(m.context_length / 32000)),
+  skill_library_matcher: (m) => -Math.min(5, Math.floor(m.context_length / 32000)),
+  gemini_vision_primary: () => -1, // resolved separately from Google AI Studio pool
+  gemini_fallback_general: () => -1, // resolved separately from Google AI Studio pool
+};
+
+export function resolveModelForRole(role: ModelRole): string {
+  const catalog = _modelCatalog;
+  if (catalog.length === 0) return OWL; // fallback to static default
+  const scorer = ROLE_PREFERENCES[role];
+  if (!scorer) return OWL;
+  let best = catalog[0]?.id ?? OWL;
+  let bestScore = -Infinity;
+  for (const m of catalog) {
+    const s = scorer(m);
+    if (s > bestScore) { bestScore = s; best = m.id; }
+  }
+  return best;
+}
+
+// ── LRU key selection with rate-limit awareness ──
+// Instead of round-robin, picks the least-recently-used healthy key.
+// Tracks requests-per-minute so we don't overload a key that's near its limit.
+function getLeastRecentlyUsedKey(pool: KeyPool): number | null {
+  const now = Date.now();
+  let bestIdx = -1;
+  let bestScore = Infinity;
+  for (let i = 0; i < pool.keys.length; i++) {
+    if (pool.cooledUntil[i] > now) continue;
+    // Reset minute counter if window expired
+    if (now - pool.minuteWindow[i] > 60_000) {
+      pool.requestsMinute[i] = 0;
+      pool.minuteWindow[i] = now;
+    }
+    // Score: LRU time + request count penalty (prefer keys with fewer requests this minute)
+    const score = pool.lastUsed[i] + (pool.requestsMinute[i] * 1000);
+    if (score < bestScore) { bestScore = score; bestIdx = i; }
+  }
+  if (bestIdx >= 0) {
+    pool.lastUsed[bestIdx] = now;
+    pool.requestsMinute[bestIdx]++;
+  }
+  return bestIdx >= 0 ? bestIdx : null;
+}
+
+function getBestAvailableProvider(): { name: string; pool: KeyPool; idx: number } {
+  const now = Date.now();
+  // Prefer OpenRouter, fall back to Google
+  for (const provider of ["openrouter", "google"] as const) {
+    const pool = KEY_POOLS[provider];
+    if (pool.keys.length === 0) continue;
+    const idx = getLeastRecentlyUsedKey(pool);
+    if (idx !== null) {
+      return { name: provider, pool, idx };
+    }
+  }
+  // All exhausted — force-return the soonest-to-recover key from either pool
+  let bestName = "openrouter";
+  let bestPool = KEY_POOLS.openrouter;
+  let bestIdx = -1;
+  let bestUntil = Infinity;
+  for (const provider of ["openrouter", "google"] as const) {
+    const pool = KEY_POOLS[provider];
+    for (let i = 0; i < pool.keys.length; i++) {
+      if (pool.cooledUntil[i] < bestUntil) {
+        bestUntil = pool.cooledUntil[i];
+        bestName = provider; bestPool = pool; bestIdx = i;
+      }
+    }
+  }
+  return bestIdx >= 0 ? { name: bestName, pool: bestPool, idx: bestIdx } : { name: "openrouter", pool: KEY_POOLS.openrouter, idx: 0 };
+}
+
+/** Mask a key for safe logging — show only last 4 chars */
+export function maskKey(key: string): string {
+  if (key.length <= 4) return "****";
+  return `...${key.slice(-4)}`;
+}
+
+/** Get pool status summary for /pool-status endpoint */
+export function getPoolStatus(): Record<string, any> {
+  const now = Date.now();
+  const status: Record<string, any> = {};
+  for (const [name, pool] of Object.entries(KEY_POOLS)) {
+    if (pool.keys.length === 0) continue;
+    status[name] = pool.keys.map((key, i) => ({
+      id: `${name}-key-${i + 1}`,
+      masked: maskKey(key),
+      healthy: pool.cooledUntil[i] <= now,
+      cooldown_remaining_s: pool.cooledUntil[i] > now ? Math.round((pool.cooledUntil[i] - now) / 1000) : 0,
+      requests_this_minute: now - pool.minuteWindow[i] > 60_000 ? 0 : pool.requestsMinute[i],
+      last_used_ago_s: pool.lastUsed[i] > 0 ? Math.round((now - pool.lastUsed[i]) / 1000) : -1,
+    }));
+  }
+  return {
+    model_catalog: { synced: _modelCatalog.length, last_sync: _modelCatalogLastSync ? new Date(_modelCatalogLastSync).toISOString() : null },
+    pools: status,
+    static_primary: OWL,
+  };
+}
 
 function _mkKey(i: number, model: string) { return `${i}::${model}`; }
 
@@ -481,8 +727,8 @@ async function raceModels(
   const live = models.filter((m) => !_deadModels.has(m));
   const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
-    const res = model === OWL
-      ? await callModelKeyFanout(model, body, timeoutMs, tag, OWL_KEY_FANOUT)
+    const res = model === models[0] || model === OWL
+      ? await callModelKeyFanout(model, body, timeoutMs, tag, 3)
       : await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
     return { response: res, model };
@@ -525,6 +771,74 @@ function withMetaStream(response: Response, meta: RouteMeta): Response {
   });
 }
 
+async function callGoogleGemini(
+  model: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+  tag: string,
+): Promise<Response | null> {
+  if (GOOGLE_KEYS.length === 0) return null;
+  const pool = KEY_POOLS.google;
+  const idx = getLeastRecentlyUsedKey(pool);
+  if (idx === null) return null;
+  const key = pool.keys[idx];
+  
+  // Translate OpenAI-format body to Gemini format
+  const geminiUrl = `${GOOGLE_GEMINI_URL}/${model}:generateContent?key=${key}`;
+  const geminiBody = {
+    contents: (body.messages as any[])?.map((m: any) => ({
+      role: m.role === "system" ? "user" : m.role,
+      parts: typeof m.content === "string" ? [{ text: m.content }] : m.content,
+    })) ?? [],
+    generationConfig: {
+      maxOutputTokens: (body.max_tokens as number) ?? 4096,
+      temperature: (body.temperature as number) ?? 0.7,
+    },
+  };
+  
+  try {
+    const res = await fetchWithTimeout(geminiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(geminiBody),
+    }, timeoutMs);
+    
+    if (res.ok) {
+      console.log(`[${tag}] ✓ gemini ${model} (google-key-${idx + 1})`);
+      // Convert Gemini response back to OpenAI format
+      const geminiData = await res.json();
+      const candidate = geminiData?.candidates?.[0];
+      const openaiFormat = {
+        id: "gemini-" + Date.now(),
+        choices: [{
+          index: 0,
+          message: {
+            role: "assistant",
+            content: candidate?.content?.parts?.map((p: any) => p.text).join("") ?? "",
+          },
+          finish_reason: candidate?.finishReason ?? "stop",
+        }],
+        usage: { total_tokens: 0 },
+      };
+      return new Response(JSON.stringify(openaiFormat), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    
+    if (res.status === 429) {
+      pool.cooledUntil[idx] = Date.now() + KEY_COOLDOWN_MS;
+      console.warn(`[${tag}] gemini key ${idx + 1} rate-limited`);
+    } else {
+      console.warn(`[${tag}] gemini ${model} -> ${res.status}`);
+    }
+    try { await res.body?.cancel(); } catch { /* ignore */ }
+    return null;
+  } catch (e) {
+    console.warn(`[${tag}] gemini ${model} error:`, e);
+    return null;
+  }
+}
+
 export async function callWithFallback(
   messages: any[],
   models: string[],
@@ -544,55 +858,68 @@ export async function callWithFallback(
   const isStreaming = extraOpts.stream === true;
   const isComputer = /computer|mun|lumina/i.test(tag);
   const isArtifact = /artifact|html|generate-html|slides|code/i.test(tag) || isComputer;
-
-  // ── STRATEGY: PRIMARY MODEL + FREE ROUTER FALLBACK ──
-  // Primary uses key-fanout for low latency. Falls back to openrouter/free.
-  // This guarantees <4s TTFB for 95%+ of requests.
-
-  // Primary with 3-key fanout. For artifacts, use longer timeout.
-  // Artifact generation needs 60-90s; chat needs <8s. Scale by tag type.
   const isArtifactCall = /artifact|html-artifact|generate-html/i.test(tag);
-  const primaryRawMs = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(8_000, timeoutMs);
-  const primaryTimeout = primaryRawMs;
-  if (primaryTimeout > 1000) {
-    try {
-      const res = await callModelKeyFanout(OWL, baseBody, primaryTimeout, tag, OWL_KEY_FANOUT);
-      if (res) return { response: res, model: OWL };
-    } catch {
-      console.warn(`[${tag}] OWL-alpha failed, trying free router`);
-    }
+
+  // ── STRATEGY: MODEL LIST → FREE ROUTER → CROSS-PROVIDER FALLBACK ──
+  // 1. Try each model from the provided list in order (with key fanout for primary)
+  // 2. Fall back to openrouter/free
+  // 3. Fall back to Google AI Studio (if configured)
+  // 4. Force-reset cooldowns and try once more
+
+  const tryModel = async (model: string, timeout: number): Promise<Response | null> => {
+    if (_deadModels.has(model)) return null;
+    const isPrimary = model === models[0] || model === OWL;
+    const res = isPrimary
+      ? await callModelKeyFanout(model, baseBody, timeout, tag, 3)
+      : await callModel(model, baseBody, timeout, tag);
+    return res;
+  };
+
+  const scaledTimeout = (base: number) => isArtifactCall || isComputer ? Math.min(120_000, base) : Math.min(8_000, base);
+
+  // Phase 1: Try model list in order
+  for (const model of models) {
+    const timeout = scaledTimeout(timeoutMs);
+    if (timeout < 1000) continue;
+    const res = await tryModel(model, timeout);
+    if (res) return { response: res, model };
   }
 
-  // Fallback: openrouter/free. For artifacts, use longer timeout.
-  const fallbackRawMs = isArtifactCall ? Math.min(90_000, timeoutMs) : Math.min(6_000, timeoutMs);
-  const fallbackTimeout = fallbackRawMs;
-  if (fallbackTimeout > 1000) {
-    try {
-      const res = await callModel(MODEL_FREE_ROUTER, baseBody, fallbackTimeout, `${tag}/free`);
-      if (res) return { response: res, model: MODEL_FREE_ROUTER };
-    } catch {
-      console.warn(`[${tag}] free router also failed`);
-    }
+  // Phase 2: Try openrouter/free router
+  const routerTimeout = isArtifactCall ? Math.min(90_000, timeoutMs) : Math.min(6_000, timeoutMs);
+  if (routerTimeout >= 1000) {
+    const res = await callModel(MODEL_FREE_ROUTER, baseBody, routerTimeout, `${tag}/free`);
+    if (res) return { response: res, model: MODEL_FREE_ROUTER };
   }
 
-  // Last resort: try the original model list sequentially
-  // For artifacts, use longer timeout; for chat, keep it short
-  if (isArtifact || !isStreaming) {
-    const shortTimeout = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(15_000, timeoutMs);
-    for (const model of models) {
-      if (_deadModels.has(model)) continue;
-      try {
-        const res = model === OWL
-          ? await callModelKeyFanout(model, baseBody, shortTimeout, tag, 1)
-          : await callModel(model, baseBody, shortTimeout, tag);
-        if (res) return { response: res, model };
-      } catch { continue; }
-    }
+  // Phase 3: Cross-provider fallback — try Google AI Studio Gemini
+  if (GOOGLE_KEYS.length > 0) {
+    // Resolve best Gemini model for this task type
+    const geminiModel = isArtifact || isComputer ? "gemini-2.0-flash-thinking-exp" : "gemini-2.0-flash-exp";
+    const geminiTimeout = isArtifactCall ? Math.min(120_000, timeoutMs) : Math.min(15_000, timeoutMs);
+    const res = await callGoogleGemini(geminiModel, baseBody, geminiTimeout, tag);
+    if (res) return { response: res, model: `google/${geminiModel}` };
   }
 
-  const helpMsg = ALL_KEYS.length === 0
-    ? "OPENROUTER_API_KEY not configured — set it in your Supabase project env vars or .env file"
-    : "Lumina is experiencing high demand. Please try again in a moment.";
+  // Phase 4: Force-try — reset cooldowns and attempt each model one more time
+  console.warn(`[${tag}] all pools exhausted, force-retrying with reset cooldowns`);
+  for (const provider of ["openrouter", "google"] as const) {
+    const pool = KEY_POOLS[provider];
+    for (let i = 0; i < pool.keys.length; i++) {
+      pool.cooledUntil[i] = 0;
+      pool.lastUsed[i] = 0;
+      pool.requestsMinute[i] = 0;
+    }
+  }
+  for (const model of models) {
+    const timeout = isArtifactCall ? Math.min(120_000, timeoutMs) : 15_000;
+    const res = await tryModel(model, timeout);
+    if (res) return { response: res, model };
+  }
+
+  const helpMsg = ALL_KEYS.length === 0 && GOOGLE_KEYS.length === 0
+    ? "No API keys configured — set OPENROUTER_API_KEY or GOOGLE_AI_STUDIO_API_KEY in your project env vars"
+    : "Lumina is experiencing high demand. All key pools are exhausted. Please try again in a moment.";
   throw new Error(helpMsg);
 }
 

@@ -111,3 +111,9 @@ verify_jwt = false
 
 [functions.billing-scheduler]
 verify_jwt = false
+
+[functions.task-history]
+verify_jwt = false
+
+[functions.skill-library]
+verify_jwt = false

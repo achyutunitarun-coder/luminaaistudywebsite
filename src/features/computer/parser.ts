@@ -16,12 +16,20 @@ export interface LuminaFile {
   done: boolean;
 }
 
+export type ActionType = "run" | "open" | "navigate" | "click" | "type" | "scroll" | "wait" | "submit";
+
 export interface LuminaAction {
   id: string;
-  type: "run" | "open" | "navigate";
+  type: ActionType;
   target: string;
+  value?: string;
   reason?: string;
   status: "proposed" | "confirmed" | "dismissed" | "done";
+}
+
+export interface LuminaStatus {
+  text: string;
+  severity: "info" | "blocked" | "working" | "done";
 }
 
 export interface ParsedState {
@@ -29,6 +37,7 @@ export interface ParsedState {
   files: LuminaFile[];
   navigate?: { to: string; reason?: string };
   actions: LuminaAction[];
+  statuses: LuminaStatus[];
   final: string;
   hasTags: boolean;
 }
@@ -46,7 +55,7 @@ function guessLang(path: string): string {
 export class LuminaParser {
   private buffer = "";
   private activeFile: LuminaFile | null = null;
-  public state: ParsedState = { plan: "", files: [], final: "", actions: [], hasTags: false };
+  public state: ParsedState = { plan: "", files: [], final: "", actions: [], statuses: [], hasTags: false };
 
   push(chunk: string): ParsedState {
     if (!chunk) return this.state;
@@ -66,6 +75,35 @@ export class LuminaParser {
 
   private drain(final = false) {
     while (true) {
+      // Try ACTION: block
+      const actionMatch = this.buffer.match(/^ACTION:\s*(\w+)\s+(.+?)(?:\s+reason:\s*(.+?))?\s*$/m);
+      if (actionMatch && actionMatch.index !== undefined && actionMatch.index === 0) {
+        const actionType = actionMatch[1] as ActionType;
+        const target = actionMatch[2].trim();
+        const reason = actionMatch[3]?.trim();
+        if (["navigate", "click", "type", "scroll", "wait", "submit", "run", "open"].includes(actionType)) {
+          const act: LuminaAction = {
+            id: Math.random().toString(36).slice(2),
+            type: actionType,
+            target,
+            reason,
+            status: "proposed",
+          };
+          this.state.actions.push(act);
+        }
+        this.buffer = this.buffer.slice(actionMatch[0].length).replace(/^\n+/, "");
+        continue;
+      }
+
+      // Try STATUS: block
+      const statusMatch = this.buffer.match(/^STATUS:\s*(info|blocked|working|done)?\s*(.+?)$/m);
+      if (statusMatch && statusMatch.index !== undefined && statusMatch.index === 0) {
+        const severity = (statusMatch[1] as LuminaStatus["severity"]) || "info";
+        this.state.statuses.push({ text: statusMatch[2].trim(), severity });
+        this.buffer = this.buffer.slice(statusMatch[0].length).replace(/^\n+/, "");
+        continue;
+      }
+
       // Try new format: FILE: path
       const fileMatch = this.buffer.match(/^FILE:\s*([\w./\-_]+)\s*\n/);
       if (fileMatch) {
