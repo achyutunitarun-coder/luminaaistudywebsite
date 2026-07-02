@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
+import { ArtifactStore } from "../_shared/artifact-store.ts";
+import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -98,8 +101,14 @@ function buildSystem(intent: string, mode: string, effort: string, isComputer: b
   if (intent === "coding") return `${base}\nProvide working code with explanation.`;
   if (intent === "study") return `${base}\nExplain with examples and analogies.`;
   if (intent === "greeting") return `${base}\nBe warm and brief.`;
+  if (intent === "research") return `${base}\nConduct thorough analysis. Use multiple sources and cite them.`;
+  if (intent === "slides") return `${base}\nCreate well-structured slide content with clear narrative flow.`;
+  if (intent === "data") return `${base}\nWork with data to create structured spreadsheets and charts.`;
+  if (intent === "writing") return `${base}\nWrite comprehensive, well-formatted documents.`;
   return base;
 }
+
+const modeRouter = new ModeRouter();
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -112,14 +121,15 @@ serve(async (req) => {
     if (ue || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...CORS, "Content-Type": "application/json" } });
 
     const body = JSON.parse(await req.text());
-    const { messages, mode, effort } = body;
+    const { messages, mode, effort, lumina_mode, files: uploadedFiles } = body;
     if (!Array.isArray(messages)) return new Response(JSON.stringify({ error: "Invalid messages" }), { status: 400, headers: { ...CORS, "Content-Type": "application/json" } });
 
     const isComputer = mode === "computer" || mode === "mun";
+    const isLuminaMode = ["research", "doc", "sheet", "slide", "website", "auto"].includes(lumina_mode);
     const effortLvl = ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
     const query = messages.filter((m: any) => m.role === "user").pop()?.content || "";
-    const intent = /code|build|create|app|website/i.test(query) ? "coding" : /explain|what|how|why|teach|learn/i.test(query) ? "study" : "general";
-    const system = buildSystem(intent, mode, effortLvl, isComputer);
+    const intent = modeRouter.detectIntent(query);
+    const system = buildSystem(intent.intent, mode, effortLvl, isComputer);
     const maxTokens = isComputer ? (effortLvl === "quick" ? 8192 : 16384) : 4096;
 
     const enc = new TextEncoder();
@@ -130,16 +140,97 @@ serve(async (req) => {
         const abort = new AbortController();
         req.signal.addEventListener("abort", () => abort.abort());
 
-        try {
-          send({ lumina_meta: { model: isComputer ? "computer" : "chat", intent, is_computer: isComputer } });
-
+        async function runStreamingChat() {
           if (OR_KEYS.length === 0) {
             delta("**Error:** No API keys. Set OPENROUTER_API_KEY in Supabase.\n");
-          } else {
-            const convo = [{ role: "system", content: system }, ...messages];
-            for await (const chunk of streamGen(convo, maxTokens, 0.7, abort.signal)) {
-              delta(chunk);
+            return;
+          }
+          const convo = [{ role: "system", content: system }, ...messages];
+          for await (const chunk of streamGen(convo, maxTokens, 0.7, abort.signal)) {
+            delta(chunk);
+          }
+        }
+
+        try {
+          if (isLuminaMode) {
+            const userId = user.id;
+            const sessionId = body.session_id || `${userId}_${Date.now()}`;
+            const orchestrator = new LuminaModeOrchestrator(sessionId);
+
+            if (Array.isArray(uploadedFiles)) {
+              for (const f of uploadedFiles) {
+                orchestrator.getStore().addFile({
+                  id: crypto.randomUUID(),
+                  sessionId,
+                  name: f.name,
+                  type: f.type || "unknown",
+                  size: f.content?.length || 0,
+                  content: f.content || "",
+                  createdAt: Date.now(),
+                });
+              }
             }
+
+            if (lumina_mode === "auto") {
+              const routes = await modeRouter.suggestModes(query);
+              const sorted = routes.sort((a, b) => b.confidence - a.confidence);
+              delta(`### Mode Suggestion\n\n${formatModeRoutes(sorted)}\n\n---\n\n`);
+            }
+
+            let modeToRun = lumina_mode === "auto" ? intent.mode : lumina_mode;
+
+            const researchArtifact = orchestrator.getStore().list(sessionId, "research").slice(-1)[0];
+            const docArtifact = orchestrator.getStore().list(sessionId, "doc").slice(-1)[0];
+            const sheetArtifact = orchestrator.getStore().list(sessionId, "sheet").slice(-1)[0];
+            const slideArtifact = orchestrator.getStore().list(sessionId, "slide").slice(-1)[0];
+
+            let sourceId: string | undefined;
+            if (modeToRun === "slide" && researchArtifact) sourceId = researchArtifact.id;
+            else if (modeToRun === "doc" && sheetArtifact) sourceId = sheetArtifact.id;
+            else if (modeToRun === "doc" && researchArtifact) sourceId = researchArtifact.id;
+            else if (modeToRun === "slide" && sheetArtifact) sourceId = sheetArtifact.id;
+
+            delta(`\n**${modeToRun.charAt(0).toUpperCase() + modeToRun.slice(1)} Mode**\n\n`);
+
+            const result = await orchestrator.executeMode(
+              modeToRun as any,
+              query,
+              (statusMsg) => delta(`_${statusMsg}_\n\n`),
+              sourceId,
+            );
+
+            if (result.handoffTo && result.handoffTo !== modeToRun) {
+              delta(`\n\n**Handing off to ${result.handoffTo} mode...**\n\n`);
+              const handoffResult = await orchestrator.crossModeHandoff(
+                result.mode,
+                result.handoffTo,
+                query,
+                (statusMsg) => delta(`_${statusMsg}_\n\n`),
+              );
+              result.mode = handoffResult.mode;
+              result.output = handoffResult.output;
+            }
+
+            let outputBody = "";
+            if ("body" in result.output) outputBody = (result.output as any).body;
+            else if ("summary" in result.output) outputBody = (result.output as any).summary;
+            else if ("files" in result.output) {
+              outputBody = (result.output as any).files.map((f: any) => `--- ${f.path} ---\n\`\`\`${f.language}\n${f.content.slice(0, 2000)}\n\`\`\``).join("\n\n");
+            }
+
+            delta(`\n\n${outputBody.slice(0, 15000)}`);
+
+            if ("verificationNotes" in result.output && (result.output as any).verificationNotes?.length > 0) {
+              delta(`\n\n> **Verification:** ${(result.output as any).verificationNotes.join("; ")}`);
+            }
+
+            delta(`\n\n_Session: ${orchestrator.getSessionSummary()}_`);
+          } else if (isComputer) {
+            send({ lumina_meta: { model: "computer", intent: intent.intent, is_computer: true } });
+            await runStreamingChat();
+          } else {
+            send({ lumina_meta: { model: "chat", intent: intent.intent, is_computer: false } });
+            await runStreamingChat();
           }
         } catch (e) {
           delta(`\n**Error:** ${e instanceof Error ? e.message : String(e)}\n`);

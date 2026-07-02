@@ -16,7 +16,7 @@ import type { Tool, ToolSchema } from "./computer-agent.ts";
 
 // ── Types ───────────────────────────────────────────────────────────
 
-export type DocType = "slides" | "document" | "spreadsheet" | "code";
+export type DocType = "slides" | "document" | "spreadsheet" | "code" | "docx" | "pptx" | "xlsx";
 
 export interface DocRequest {
   type: DocType;
@@ -77,6 +77,45 @@ export const SPREADSHEET_TOOL_SCHEMA: ToolSchema = {
 
 // ── Self-Verification ───────────────────────────────────────────────
 
+export function formatAsDocx(markdown: string): string {
+  const lines = markdown.split("\n");
+  const docx: string[] = [`<?xml version="1.0" encoding="UTF-8"?>`];
+  docx.push(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">`);
+  docx.push(`<w:body>`);
+  let inTable = false;
+  for (const line of lines) {
+    if (line.startsWith("| ") && line.endsWith(" |")) {
+      if (!inTable) { docx.push(`<w:tbl>`); inTable = true; }
+      const cells = line.split("|").filter(Boolean).map((c) => c.trim());
+      docx.push(`<w:tr>${cells.map((c) => `<w:tc><w:p><w:r><w:t>${c.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`);
+    } else {
+      if (inTable) { docx.push(`</w:tbl>`); inTable = false; }
+      if (line.startsWith("## ")) docx.push(`<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>${line.slice(3)}</w:t></w:r></w:p>`);
+      else if (line.startsWith("# ")) docx.push(`<w:p><w:r><w:rPr><w:b/><w:sz w:val="36"/></w:rPr><w:t>${line.slice(2)}</w:t></w:r></w:p>`);
+      else if (line.trim()) docx.push(`<w:p><w:r><w:t>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</w:t></w:r></w:p>`);
+    }
+  }
+  if (inTable) docx.push(`</w:tbl>`);
+  docx.push(`</w:body></w:document>`);
+  return docx.join("\n");
+}
+
+export function formatAsPptx(markdown: string): string {
+  const slides = markdown.split(/\n##\s+/).filter(Boolean);
+  return slides.map((slide, i) => {
+    const lines = slide.split("\n");
+    const title = lines[0]?.trim() || `Slide ${i + 1}`;
+    const body = lines.slice(1).join("\n").trim();
+    return `--- Slide ${i + 1} ---\nTitle: ${title}\n${body}\n`;
+  }).join("\n\n");
+}
+
+export function formatAsXlsx(csv: string): string {
+  const lines = csv.trim().split("\n");
+  const rows = lines.map((l) => l.split(",").map((c) => c.trim()));
+  return rows.map((r) => r.join("\t")).join("\n");
+}
+
 export function verifyDoc(request: DocRequest, result: DocResult): DocResult {
   const issues: string[] = [];
 
@@ -98,6 +137,24 @@ export function verifyDoc(request: DocRequest, result: DocResult): DocResult {
   // Check for truncation
   if (/\.\.\.\s*$/.test(result.body.trim()) || /rest unchanged|to be continued/i.test(result.body)) {
     issues.push("Output appears truncated (ends with '...' or contains 'rest unchanged')");
+  }
+
+  // For docx/pptx/xlsx: check format markers exist
+  if (request.type === "docx") {
+    if (!result.body.includes("<w:document")) {
+      issues.push("DOCX output missing Word XML document element");
+    }
+  }
+  if (request.type === "pptx") {
+    if (!result.body.includes("--- Slide ")) {
+      issues.push("PPTX output missing slide markers");
+    }
+  }
+  if (request.type === "xlsx") {
+    const rows = result.body.trim().split("\n").filter(Boolean);
+    if (rows.length < 2) {
+      issues.push("XLSX output has fewer than 2 rows");
+    }
   }
 
   // For slides: check each slide has content
