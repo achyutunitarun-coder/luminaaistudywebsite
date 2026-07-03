@@ -4,6 +4,7 @@ import { callWithFallback, getModelsForIntent, getSystemPromptForIntent, MODELS_
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
+import { detectTruncation, logContinuationEvent } from "../_shared/truncation-guard.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -72,7 +73,7 @@ async function streamContinuation(
       { role: "assistant", content: accumulated },
       { role: "user", content: (accumulated.length / 4) < maxTokens * 0.30 ? CONT_SHORT : CONT_LONG },
     ];
-    const { response } = await callWithFallback(msgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
+    const { response, model } = await callWithFallback(msgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
     if (!response.body) break;
     const reader = response.body.getReader();
     const dec = new TextDecoder();
@@ -103,8 +104,23 @@ async function streamContinuation(
     } catch { /* connection dropped — use what we have */ }
     accumulated += roundContent;
     if (!roundContent || roundContent.trim().length === 0) break;
-    const estimatedTokens = Math.round(accumulated.length / 4);
-    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+
+    // Three-signal truncation detection: API, structural, content
+    const truncation = detectTruncation(accumulated, finishReason, {
+      structural: true,
+      content: true,
+      minExpected: maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined,
+    });
+    if (!truncation.truncated) break;
+
+    logContinuationEvent({
+      tag,
+      round: rounds + 1,
+      signal: truncation.signal,
+      originalLength: accumulated.length - roundContent.length,
+      continuationLength: roundContent.length,
+      model: model ?? "unknown",
+    });
   }
   return accumulated;
 }
@@ -183,7 +199,21 @@ serve(async (req) => {
               result.output = handoffResult.output;
             }
 
-            delta(`\n\n${renderLuminaOutput(result)}`);
+            let rendered = renderLuminaOutput(result);
+            const finalTrunc = detectTruncation(rendered, null, { structural: true, content: true, minExpected: 200 });
+            if (finalTrunc.truncated) {
+              rendered += `\n\n_[Output appears truncated (${finalTrunc.detail}). Attempting to extend...]_`;
+              const extend = await callWithFallback(
+                [{ role: "user", content: `Continue from where the following text was cut off. Output ONLY the direct continuation.\n\n---\n${rendered.slice(-2000)}` }],
+                MODELS_LONG_CTX, 4096, 0.3, 30000, `${modeToRun}/final-extend`,
+              );
+              const extData = await extend.response.json();
+              const extContent = extData?.choices?.[0]?.message?.content;
+              if (extContent && extContent.trim().length > 20) {
+                rendered = (rendered.endsWith("\n") ? rendered : rendered + "\n") + extContent.trimStart();
+              }
+            }
+            delta(`\n\n${rendered}`);
             if ("verificationNotes" in result.output && (result.output as any).verificationNotes?.length > 0) {
               delta(`\n\n> **Verification:** ${(result.output as any).verificationNotes.join("; ")}`);
             }
