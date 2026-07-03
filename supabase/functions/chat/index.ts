@@ -20,9 +20,9 @@ const STATUS_MAP: Record<string, string> = {
   data: "Creating spreadsheet...",
   computer: "Processing...",
 };
-const MAX_CONTINUATION_ROUNDS = 6;
-const CONT_SHORT = "Continue your response naturally.";
-const CONT_LONG = "Please provide a thorough continuation of your response above, covering any remaining details.";
+const MAX_CONTINUATION_ROUNDS = 20;
+const CONT_SHORT = "The response was cut short. Continue from where you stopped. Output ONLY the continuation \u2014 no prefixes, no explanations, no markdown.";
+const CONT_LONG = "Continue exactly where you left off. Do NOT repeat ANYTHING already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation \u2014 no prefixes, no explanations.";
 
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
   if (isComputer) return `${COMPUTER_PROMPT}\nEffort: ${effort}`;
@@ -131,7 +131,7 @@ serve(async (req) => {
               outputBody = typeof ro === "string" ? ro : JSON.stringify(ro, null, 2);
             }
 
-            delta(`\n\n${outputBody.slice(0, 15000)}`);
+            delta(`\n\n${outputBody.slice(0, 100000)}`);
             if ("verificationNotes" in result.output && (result.output as any).verificationNotes?.length > 0) {
               delta(`\n\n> **Verification:** ${(result.output as any).verificationNotes.join("; ")}`);
             }
@@ -150,7 +150,8 @@ serve(async (req) => {
             while (rounds < MAX_CONTINUATION_ROUNDS) {
               const msgs = rounds === 0 ? convo : [...convo, { role: "assistant", content: accumulated }, { role: "user", content: (accumulated.length / 4) < maxTokens * 0.30 ? CONT_SHORT : CONT_LONG }];
               const { response } = await callWithFallback(msgs as any[], models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
-              const reader = response.body!.getReader();
+              if (!response.body) { delta("**Error:** Empty response from AI.\n"); break; }
+              const reader = response.body.getReader();
               const dec = new TextDecoder();
               let buf = "";
               let fr: string | null = null;
