@@ -40,24 +40,35 @@ async function* streamGen(
           { role: "user", content: accumulatedContent.trim().length < maxTokens * 0.30 ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH },
         ];
 
-    let response: Response;
-    let currentModel: string;
-    try {
-      const result = await callWithFallback(
-        convoMessages,
-        models,
-        maxTokens,
-        temperature,
-        STREAM_TOTAL_BUDGET_MS,
-        `${tag}/stream${rounds > 0 ? `/cont${rounds}` : ""}`,
-        { stream: true },
-      );
-      response = result.response;
-      currentModel = result.model;
-    } catch (e) {
-      if (rounds === 0) yield `[ERROR: ${e instanceof Error ? e.message : String(e)}]\n`;
-      return;
+    let response: Response | undefined;
+    let attempt = 0;
+    while (attempt < 2) {
+      attempt++;
+      try {
+        const result = await callWithFallback(
+          attempt === 1 ? convoMessages : [...convoMessages.slice(0, -1), { role: "user", content: "Write more. Expand on every point above. Add details, examples, and specific content. Do NOT repeat anything already written." }],
+          models,
+          maxTokens,
+          temperature,
+          STREAM_TOTAL_BUDGET_MS,
+          `${tag}/stream${rounds > 0 ? `/cont${rounds}` : ""}`,
+          { stream: true },
+        );
+        response = result.response;
+        break;
+      } catch (e) {
+        if (rounds === 0) {
+          yield `[ERROR: ${e instanceof Error ? e.message : String(e)}]\n`;
+          return;
+        }
+        if (attempt >= 2) {
+          console.warn(`[streamGen] cont round ${rounds} failed after retry`);
+          break;
+        }
+        console.warn(`[streamGen] cont round ${rounds} failed, retrying with simpler prompt`);
+      }
     }
+    if (!response) break;
 
     const reader = response.body!.getReader();
     const dec = new TextDecoder();
@@ -98,7 +109,10 @@ async function* streamGen(
     if (signal.aborted) return;
 
     const estimatedTokens = Math.round(accumulatedContent.length / 4);
-    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+    // MINIMUM OUTPUT SAFETY: if first round produced fewer than 2000 chars for
+    // a substantive task, always continue — the model likely stubbed the response.
+    const minOutput = rounds === 0 ? Math.min(maxTokens * 0.20, 500) : 0;
+    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85 && accumulatedContent.length >= minOutput * 4) break;
     if (!roundContent || roundContent.trim().length === 0) {
       rounds++;
       if (rounds >= CONTINUATION_MAX_ROUNDS) break;
