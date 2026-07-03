@@ -825,6 +825,47 @@ export default function LuminaComputer() {
             </div>
           )}
 
+          {/* Task Badges Strip — production-AI style "Creating file / report / sheet / slides" */}
+          {(busy || files.length > 0) && (() => {
+            const badgeFor = (f: LuminaFile) => {
+              const name = f.path.toLowerCase();
+              const ext = (name.split(".").pop() || "");
+              if (name.includes("slide") || ext === "pptx") return { kind: "slides", label: `Creating slides`, color: "#EC4899", Icon: Sparkles };
+              if (ext === "csv" || ext === "xlsx" || name.includes("sheet")) return { kind: "sheet", label: `Creating sheet`, color: "#10B981", Icon: FileText };
+              if (name.includes("report") || name.includes("research") || name.includes("summary")) return { kind: "report", label: `Writing ${f.path.split("/").pop()}`, color: "#8B5CF6", Icon: FileText };
+              if (ext === "html" || ext === "htm") return { kind: "web", label: `Building ${f.path.split("/").pop()}`, color: "#06B6D4", Icon: FileCode };
+              if (ext === "md" || ext === "mdx") return { kind: "doc", label: `Writing ${f.path.split("/").pop()}`, color: "#3B82F6", Icon: FileText };
+              return { kind: "file", label: `Creating ${f.path.split("/").pop()}`, color: "#F59E0B", Icon: FileCode };
+            };
+            const visible = files.filter(f => f.path !== "response.md").slice(-6);
+            if (visible.length === 0 && !busy) return null;
+            return (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 border-b overflow-x-auto flex-shrink-0" style={{ borderColor: "var(--border-subtle)", background: "var(--bg-base)" }}>
+                {busy && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(124,92,252,0.14)", border: "1px solid rgba(124,92,252,0.28)" }}>
+                    <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#7C5CFC" }} />
+                    <span className="text-[10.5px] font-semibold" style={{ color: "#A78BFA" }}>Working</span>
+                  </div>
+                )}
+                {visible.map(f => {
+                  const b = badgeFor(f);
+                  const done = f.done;
+                  return (
+                    <div key={f.path} className="flex items-center gap-1.5 px-2 py-1 rounded-full flex-shrink-0 transition" style={{ background: `${b.color}14`, border: `1px solid ${b.color}33` }}>
+                      {done ? (
+                        <Check className="w-3 h-3" style={{ color: b.color }} />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: b.color, boxShadow: `0 0 6px ${b.color}` }} />
+                      )}
+                      <b.Icon className="w-3 h-3" style={{ color: b.color }} />
+                      <span className="text-[10.5px] font-medium whitespace-nowrap" style={{ color: b.color }}>{done ? `Created ${f.path.split("/").pop()}` : b.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* Editor + Preview Split */}
           <div className="flex-1 flex min-h-0">
             {/* Code Editor */}

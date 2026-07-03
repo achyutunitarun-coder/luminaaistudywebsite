@@ -166,7 +166,12 @@ serve(async (req) => {
     const intent = modeRouter.detectIntent(query);
 
     const budget = isLuminaMode ? getBudgetForMode(lumina_mode) : classifyBudget(messages);
-    const maxTokens = isComputer ? (effortLvl === "quick" ? 16384 : 32768) : 8192;
+    // Output token budget per effort tier. Beast gets a very high ceiling so
+    // long single-file HTML artifacts can finish in one shot; server-side
+    // `getModelOutputLimit` still caps per-model.
+    const maxTokens = isComputer
+      ? (effortLvl === "quick" ? 32768 : effortLvl === "beast" ? 131072 : 65536)
+      : 16384;
     const system = buildSystem(intent.intent, mode, effortLvl, isComputer);
 
     if (budget.tier === "lightweight") {

@@ -89,13 +89,13 @@ const containerVariants = {
   },
 };
 
-const cardVariants = {
+const cardVariants: import("framer-motion").Variants = {
   hidden: { opacity: 0, y: 16, scale: 0.95 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: "spring", stiffness: 180, damping: 18 },
+    transition: { type: "spring" as const, stiffness: 180, damping: 18 },
   },
 };
 
