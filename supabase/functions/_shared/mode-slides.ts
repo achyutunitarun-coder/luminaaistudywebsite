@@ -1,7 +1,16 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { verifyDoc } from "./document-gen.ts";
-import { safeJsonParse, isTruncated, completeTruncated } from "./truncation-handler.ts";
+import { safeJsonParse } from "./truncation-handler.ts";
+import {
+  isTruncated,
+  detectTruncation,
+  generateWithContinuation,
+  verifyAssembly,
+  honestFailureReport,
+  spliceContinuation,
+  logContinuationEvent,
+} from "./truncation-guard.ts";
 
 export interface SlideContent {
   heading: string;
@@ -23,6 +32,7 @@ export interface SlidesOutput {
   format: "markdown" | "pptx";
   verified: boolean;
   verificationNotes: string[];
+  continuationRounds?: number;
 }
 
 export class SlidesMode {
@@ -52,7 +62,7 @@ export class SlidesMode {
     if (sourceArtifactId) {
       const source = this.store.get(sourceArtifactId);
       if (source) {
-        sourceContext = `\nSource material (${source.type}): ${source.title}\n${source.body.slice(0, 6000)}`;
+        sourceContext = `\nSource material (${source.type}): ${source.title}\n${source.body}`;
       }
     }
 
@@ -113,6 +123,7 @@ Aim for 5-12 slides. Each outline entry should have a clear, specific title. Cho
     onStatus?.("---EDITABLE OUTLINE ABOVE--- Confirm or modify structure, then generation will proceed.");
 
     const slides: SlideContent[] = [];
+    let totalContinuationRounds = 0;
 
     for (let i = 0; i < deck.outline.length; i++) {
       onStatus?.(`Writing slide ${i + 1}/${deck.outline.length}: ${deck.outline[i].title}`);
@@ -140,28 +151,40 @@ Rules:
 - Speaker notes should be conversational, 2-3 sentences
 - Each slide should have a clear takeaway`;
 
-      const slideResp = await this.client.complete(
-        [
-          { role: "system", content: "You are a presentation content writer. Write concise, impactful slide content. Return JSON." },
-          { role: "user", content: slidePrompt },
-        ],
-        { maxTokens: 4096, temperature: 0.4, tag: `slides/slide${i + 1}` },
+      const slideResult = await generateWithContinuation(
+        async () => {
+          const text = await this.client.complete(
+            [
+              { role: "system", content: "You are a presentation content writer. Write concise, impactful slide content. Return JSON." },
+              { role: "user", content: slidePrompt },
+            ],
+            { maxTokens: 4096, temperature: 0.4, tag: `slides/slide${i + 1}` },
+          );
+          return { text, finishReason: "stop", model: "default" };
+        },
+        {
+          tag: `slides/slide${i + 1}`,
+          maxContinuationRounds: 3,
+          structuralCheck: true,
+          contentCheck: true,
+        },
       );
 
-      const slideParsed = await safeJsonParse<SlideContent>(this.client, slideResp, `slides/slide-parse-${i}`, 4096);
+      totalContinuationRounds += slideResult.continuationRounds;
+
+      const slideParsed = await safeJsonParse<SlideContent>(this.client, slideResult.data, `slides/slide-parse-${i}`, 4096);
       if (slideParsed.data) {
         slides.push(slideParsed.data);
-        if (slideParsed.recovered) onStatus?.(`  Recovered truncated content for slide ${i + 1}`);
+        if (slideParsed.recovered) onStatus?.(`  Recovered truncated slide ${i + 1}`);
       } else {
         onStatus?.(`  Slide ${i + 1} response had invalid format, continuing with raw content`);
         slides.push({
           heading: slideInfo.title,
-          body: slideResp,
+          body: slideResult.data,
           notes: "Auto-generated content.",
         });
       }
 
-      // Checkpoint after each slide so we can resume if interrupted
       this.conv?.setCheckpoint({
         step: i + 1,
         totalSteps: deck.outline.length,
@@ -170,7 +193,6 @@ Rules:
         context: `Generating slide deck "${deck.metadata.title}". Completed slide ${i + 1}/${deck.outline.length}: "${slideInfo.title}". Resume by generating slide ${i + 2}.`,
       });
 
-      // Stream progress — user sees slides appearing in real-time
       onStatus?.(`[SLIDE ${i + 1}/${deck.outline.length}] ${slideInfo.title} — ready`);
     }
 
@@ -180,7 +202,7 @@ Rules:
         const liveData = await this.client.complete(
           [
             { role: "system", content: "You are a research assistant. Fetch relevant current data for slide content." },
-            { role: "user", content: `Find current data/statistics for this deck: ${deck.title}\nSlides: ${deck.outline.join(", ")}` },
+            { role: "user", content: `Find current data/statistics for this deck: ${deck.metadata.title}\nSlides: ${deck.outline.join(", ")}` },
           ],
           { maxTokens: 4096, temperature: 0.3, tag: "slides/live-data" },
         );
@@ -193,8 +215,33 @@ Rules:
     onStatus?.("Verifying deck structure...");
     const deckTitle = deck.metadata.title;
     const mdBody = slides.map((s) =>
-      `## ${s.heading}\n\n${s.body}${s.notes ? `\n\n---\n*Speaker notes: ${s.notes}*` : ""}${s.visual ? `\n\n*Visual: ${s.visual.type} — ${s.visual.description}*` : ""}`
+      `## ${s.heading}\n\n${s.body}${s.notes ? `\n\n---\n*Speaker notes: ${s.notes}*` : ""}${s.visual ? `\n\n*Visual: ${s.visual.type} \u2014 ${s.visual.description}*` : ""}`
     ).join("\n\n");
+
+    const assemblyCheck = await verifyAssembly([
+      {
+        name: "all-slides-present",
+        check: () => slides.length === deck.outline.length,
+        detail: `Expected ${deck.outline.length} slides, got ${slides.length}`,
+      },
+      {
+        name: "no-empty-slides",
+        check: () => slides.every((s) => s.body.trim().length > 10),
+        detail: "One or more slides have empty body content",
+      },
+      {
+        name: "balanced-code-blocks",
+        check: () => {
+          const fences = mdBody.match(/```/g);
+          return !fences || fences.length % 2 === 0;
+        },
+        detail: "Unclosed code blocks in deck",
+      },
+    ]);
+
+    if (!assemblyCheck.passed) {
+      onStatus?.(`Assembly issues: ${assemblyCheck.failures.map((f) => f.detail).join("; ")}`);
+    }
 
     const verifyResult = verifyDoc(
       { type: "slides", title: deckTitle, content: mdBody },
@@ -208,21 +255,30 @@ Rules:
     }
 
     let finalBody = mdBody;
-    if (isTruncated(mdBody)) {
-      onStatus?.("Final body appears truncated, extending...");
+    const truncCheck = detectTruncation(mdBody, null, { structural: true, content: true });
+    if (truncCheck.truncated) {
+      onStatus?.(`Final body appears truncated (${truncCheck.detail}), extending...`);
       const convSummary = this.conv?.getContextSummary();
-      finalBody = await completeTruncated(this.client, mdBody, "slides/final-extend", false, 4096, undefined, convSummary);
+      const extended = await this.client.complete(
+        [{
+          role: "user",
+          content: `Continue exactly where you left off. Do NOT repeat ANYTHING. Do NOT summarize. Output ONLY the direct continuation.\n\n--- PARTIAL OUTPUT ---\n${mdBody.slice(-3000)}`,
+        }],
+        { maxTokens: 4096, temperature: 0.1, tag: "slides/final-extend" },
+      );
+      if (extended && extended.trim().length > 10) {
+        finalBody = spliceContinuation(mdBody, extended);
+      }
     }
-
-    const outlineTitles = deck.outline.map((o) => o.title);
 
     const output: SlidesOutput = {
       title: deckTitle,
-      outline: outlineTitles,
+      outline: deck.outline.map((o) => o.title),
       slides,
       format: "markdown",
-      verified: issues.length === 0,
-      verificationNotes: issues,
+      verified: issues.length === 0 && assemblyCheck.passed,
+      verificationNotes: [...issues, ...assemblyCheck.failures.map((f) => f.detail)],
+      continuationRounds: totalContinuationRounds,
     };
 
     const artifact: Artifact = {
@@ -232,7 +288,13 @@ Rules:
       title: output.title,
       body: finalBody,
       format: "markdown",
-      metadata: { slideCount: slides.length, outline: outlineTitles, sourceArtifactId, deckV3: deck },
+      metadata: {
+        slideCount: slides.length,
+        outline: output.outline,
+        sourceArtifactId,
+        deckV3: deck,
+        continuationRounds: totalContinuationRounds,
+      },
       sourceFiles: files.map((f) => f.name),
       parentId: sourceArtifactId,
       createdAt: Date.now(),
@@ -240,10 +302,9 @@ Rules:
     };
     this.store.put(artifact);
 
-    // Clear checkpoint on successful completion
     this.conv?.clearCheckpoint("slide");
 
-    onStatus?.(`Deck "${output.title}" ready (${slides.length} slides).`);
+    onStatus?.(`Deck "${output.title}" ready (${slides.length} slides, ${totalContinuationRounds} continuation rounds).`);
     return output;
   }
 }

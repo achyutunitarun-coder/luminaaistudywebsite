@@ -1,7 +1,17 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import { verifyDoc } from "./document-gen.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
-import { safeJsonParse, isTruncated, completeTruncated } from "./truncation-handler.ts";
+import { safeJsonParse } from "./truncation-handler.ts";
+import {
+  isTruncated,
+  detectStructuralTruncation,
+  detectContentTruncation,
+  detectApiTruncation,
+  generateWithContinuation,
+  verifyAssembly,
+  honestFailureReport,
+  logContinuationEvent,
+} from "./truncation-guard.ts";
 
 export interface DocOutput {
   title: string;
@@ -9,6 +19,8 @@ export interface DocOutput {
   format: "markdown" | "html" | "pdf";
   verified: boolean;
   verificationNotes: string[];
+  continuationRounds?: number;
+  sectionsGenerated?: number;
 }
 
 export class DocsMode {
@@ -35,7 +47,7 @@ export class DocsMode {
     if (sourceArtifactId) {
       const source = this.store.get(sourceArtifactId);
       if (source) {
-        sourceContext = `\n\nSource material (${source.type}):\n${source.body.slice(0, 8000)}`;
+        sourceContext = `\n\nSource material (${source.type}):\n${source.body}`;
       }
     }
 
@@ -43,7 +55,7 @@ export class DocsMode {
     let fileContext = "";
     if (files.length > 0) {
       fileContext = "\n\nUploaded files:\n" +
-        files.map((f) => `--- ${f.name} (${f.type}) ---\n${f.content.slice(0, 3000)}`).join("\n");
+        files.map((f) => `--- ${f.name} (${f.type}) ---\n${f.content}`).join("\n");
     }
 
     const outlinePrompt = `You are a document architect using the v3.0 structured format. Given a request, produce a detailed outline.
@@ -69,76 +81,164 @@ Return ONLY a JSON object with:
       { maxTokens: 4096, temperature: 0.3, tag: "docs/outline" },
     );
 
-    let outline: { title: string; sections: { heading: string; subsections: string[] }[] };
-    const outlineParsed = await safeJsonParse<{ title: string; sections: { heading: string; subsections: string[] }[] }>(this.client, outlineResp, "docs/outline-parse");
+    let outline: { title: string; sections: { heading: string; subsections: string[] }[]; format?: string; document_type?: string; audience?: string; tags?: string[] };
+    const outlineParsed = await safeJsonParse<typeof outline>(this.client, outlineResp, "docs/outline-parse");
     if (outlineParsed.data) {
       outline = outlineParsed.data;
     } else {
       outline = { title: "Untitled", sections: [{ heading: "Content", subsections: [] }] };
     }
 
-    onStatus?.(`Outline: ${outline.title} (${outline.sections.length} sections). Writing full document...`);
+    onStatus?.(`Outline: ${outline.title} (${outline.sections.length} sections). Writing section by section...`);
 
-    // Checkpoint outline progress
     this.conv?.setCheckpoint({
       step: 1,
-      totalSteps: 2,
+      totalSteps: outline.sections.length + 1,
       mode: "doc",
       partial: { outline, sectionsPlanned: outline.sections.length },
-      context: `Writing document "${outline.title}" with ${outline.sections.length} sections. Sections: ${outline.sections.map((s) => s.heading).join(", ")}. Next step: write the full document body.`,
+      context: `Writing document "${outline.title}" with ${outline.sections.length} sections. Sections: ${outline.sections.map((s) => s.heading).join(", ")}. Next step: write section 1.`,
     });
 
-    const writePrompt = `Write a complete ${outline.format ?? "markdown"} document based on this outline.
+    const frontmatter = `---
+title: "${outline.title}"
+document_type: "${outline.document_type ?? "report"}"
+audience: "${outline.audience ?? "general"}"
+tags: ${JSON.stringify(outline.tags ?? ["document"])}
+---\n\n`;
 
-Title: ${outline.title}
+    const sections: string[] = [];
+    let totalContinuationRounds = 0;
 
-Sections:
-${outline.sections.map((s) => `## ${s.heading}\n${s.subsections.map((ss) => `- ${ss}`).join("\n")}`).join("\n\n")}
+    for (let i = 0; i < outline.sections.length; i++) {
+      const sec = outline.sections[i];
+      onStatus?.(`Writing section ${i + 1}/${outline.sections.length}: ${sec.heading}`);
 
+      const sectionPrompt = `Write the "${sec.heading}" section of a document titled "${outline.title}".
+
+Document type: ${outline.document_type ?? "report"}
+Audience: ${outline.audience ?? "general"}
 ${sourceContext}${fileContext}
 
+${sec.subsections.length > 0 ? `Subsections to cover:\n${sec.subsections.map((ss) => `- ${ss}`).join("\n")}\n\n` : ""}
 Requirements:
-- Use proper markdown formatting (headings, tables, lists, code blocks)
+- Use proper markdown formatting
+- Write complete paragraphs, not bullet points for prose
 - Include inline citations if referencing sources
-- Write complete paragraphs, not bullet points for prose sections
-- START with YAML frontmatter:
----
-title: "${outline.title}"
-document_type: "${(outline as any).document_type ?? "report"}"
-audience: "${(outline as any).audience ?? "general"}"
-tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
----
-- Then write the full document content with ## headings for each section
-- Include an Executive Summary at the start
-- Add a References or Sources section at the end`;
+- Start with a "## ${sec.heading}" heading
+- Write thorough, substantive content — aim for 300-800 words per section
+- Do NOT repeat content from previous sections`;
 
-    let docBody = await this.client.complete(
-      [
-        { role: "system", content: "You are a professional writer. Write complete, well-structured documents in markdown." },
-        { role: "user", content: writePrompt },
-      ],
-      { maxTokens: 32768, temperature: 0.4, tag: "docs/write" },
-    );
+      const sectionResult = await generateWithContinuation(
+        async () => {
+          const text = await this.client.complete(
+            [
+              { role: "system", content: "You are a professional writer. Write complete, well-structured sections." },
+              { role: "user", content: sectionPrompt },
+            ],
+            { maxTokens: 16384, temperature: 0.4, tag: `docs/section${i + 1}` },
+          );
+          return { text, finishReason: "stop", model: "default" };
+        },
+        {
+          tag: `docs/section${i + 1}`,
+          maxContinuationRounds: 5,
+          structuralCheck: true,
+          contentCheck: true,
+        },
+      );
 
-    if (isTruncated(docBody)) {
-      onStatus?.("Document body truncated, extending...");
-      const convSummary = this.conv?.getContextSummary();
-      docBody = await completeTruncated(this.client, docBody, "docs/doc-extend", false, 8192, undefined, convSummary);
+      totalContinuationRounds += sectionResult.continuationRounds;
+      sections.push(sectionResult.data);
+
+      if (sectionResult.truncated) {
+        onStatus?.(`  Section ${i + 1} truncated after ${sectionResult.continuationRounds} continuation rounds — will repair`);
+      }
+
+      this.conv?.setCheckpoint({
+        step: i + 2,
+        totalSteps: outline.sections.length + 1,
+        mode: "doc",
+        partial: { outline, sectionsGenerated: i + 1, totalSections: outline.sections.length },
+        context: `Writing document "${outline.title}". Completed section ${i + 1}/${outline.sections.length}: "${sec.heading}". Next: ${i + 1 < outline.sections.length ? `write section ${i + 2}: "${outline.sections[i + 1].heading}"` : "assemble and verify final document."}`,
+      });
     }
 
-    // Checkpoint document completed
+    onStatus?.("Assembling final document...");
+    let docBody = frontmatter + "\n\n" + sections.join("\n\n");
+
+    const execSummary = `## Executive Summary\n\n${outline.title} provides a comprehensive examination of the subject. This document covers ${outline.sections.length} sections: ${outline.sections.map((s) => s.heading).join(", ")}.\n\n`;
+    docBody = frontmatter + "\n\n" + execSummary + sections.join("\n\n");
+
+    if (docBody.length < 100) {
+      docBody = await this.client.complete(
+        [
+          { role: "system", content: "You are a professional writer. Write complete documents." },
+          { role: "user", content: `Write a complete document based on this outline:\nTitle: ${outline.title}\n\n${outline.sections.map((s) => `## ${s.heading}\n${s.subsections.map((ss) => `- ${ss}`).join("\n")}`).join("\n\n")}\n\n${sourceContext}${fileContext}` },
+        ],
+        { maxTokens: 32768, temperature: 0.4, tag: "docs/full-fallback" },
+      );
+    }
+
+    const assemblyCheck = await verifyAssembly([
+      {
+        name: "document-not-empty",
+        check: () => docBody.trim().length > 100,
+        detail: "Document body is too short",
+      },
+      {
+        name: "all-sections-present",
+        check: () => {
+          const headings = docBody.match(/^#{1,3}\s+.+/gm) ?? [];
+          const planned = outline.sections.map((s) => s.heading.toLowerCase().trim());
+          const missing = planned.filter((h) => !headings.some((hd) => hd.toLowerCase().includes(h)));
+          return missing.length === 0;
+        },
+        detail: `Missing sections in final assembly`,
+      },
+      {
+        name: "no-truncation-signals",
+        check: () => !isTruncated(docBody),
+        detail: "Final body contains truncation patterns",
+      },
+      {
+        name: "balanced-code-blocks",
+        check: () => {
+          const fences = docBody.match(/```/g);
+          return !fences || fences.length % 2 === 0;
+        },
+        detail: "Unclosed code blocks in final assembly",
+      },
+    ]);
+
+    if (!assemblyCheck.passed) {
+      onStatus?.(`Assembly issues: ${assemblyCheck.failures.map((f) => f.detail).join("; ")}. Repairing...`);
+      for (const failure of assemblyCheck.failures) {
+        if (failure.name === "missing-sections-in-final") {
+          const missingHeader = failure.detail.replace("Missing sections in final assembly: ", "");
+          const sectionIndex = outline.sections.findIndex((s) => s.heading.toLowerCase().trim() === missingHeader.toLowerCase());
+          if (sectionIndex >= 0 && sectionIndex < sections.length) {
+            docBody += `\n\n${sections[sectionIndex]}`;
+          }
+        }
+      }
+    }
+
     this.conv?.setCheckpoint({
-      step: 2, totalSteps: 2, mode: "doc",
+      step: outline.sections.length + 1,
+      totalSteps: outline.sections.length + 1,
+      mode: "doc",
       partial: { docBody: docBody.slice(0, 500) },
-      context: `Document "${outline.title}" written (${docBody.length} chars). Verifying quality.`,
+      context: `Document "${outline.title}" assembled (${docBody.length} chars). Verifying quality.`,
     });
 
     const result: DocOutput = {
       title: outline.title,
       body: docBody,
-      format: (outline as any).format ?? "markdown",
+      format: outline.format as "markdown" | "html" | "pdf" ?? "markdown",
       verified: false,
       verificationNotes: [],
+      continuationRounds: totalContinuationRounds,
+      sectionsGenerated: outline.sections.length,
     };
 
     onStatus?.("Verifying document...");
@@ -155,7 +255,7 @@ tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
 
     if (!result.verified) {
       onStatus?.(`Verification notes: ${result.verificationNotes.join("; ")}. Fixing...`);
-      const fixPrompt = `Fix these issues in the document:\n${result.verificationNotes.join("\n")}\n\nDocument:\n${result.body}`;
+      const fixPrompt = `Fix these issues in the document:\n${result.verificationNotes.join("\n")}\n\nDocument:\n${docBody}`;
       const fixed = await this.client.complete(
         [{ role: "user", content: fixPrompt }],
         { maxTokens: 16384, temperature: 0.3, tag: "docs/fix" },
@@ -171,7 +271,12 @@ tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
       title: result.title,
       body: result.body,
       format: result.format,
-      metadata: { outline, sourceArtifactId },
+      metadata: {
+        outline,
+        sourceArtifactId,
+        continuationRounds: totalContinuationRounds,
+        sectionsGenerated: outline.sections.length,
+      },
       sourceFiles: files.map((f) => f.name),
       parentId: sourceArtifactId,
       createdAt: Date.now(),
@@ -179,7 +284,7 @@ tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
     };
     this.store.put(artifact);
 
-    onStatus?.(`Document "${result.title}" ready (${result.body.length} chars).`);
+    onStatus?.(`Document "${result.title}" ready (${result.body.length} chars, ${result.sectionsGenerated} sections, ${result.continuationRounds} continuation rounds).`);
     return result;
   }
 

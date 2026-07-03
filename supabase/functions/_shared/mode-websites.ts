@@ -1,6 +1,15 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { safeJsonParse } from "./truncation-handler.ts";
+import {
+  isTruncated,
+  detectTruncation,
+  generateWithContinuation,
+  verifyAssembly,
+  honestFailureReport,
+  spliceContinuation,
+  logContinuationEvent,
+} from "./truncation-guard.ts";
 
 export interface SiteSection {
   name: string;
@@ -20,6 +29,7 @@ export interface WebsiteOutput {
   verified: boolean;
   verificationNotes: string[];
   previewUrl?: string;
+  continuationRounds?: number;
 }
 
 export class WebsitesMode {
@@ -77,16 +87,28 @@ Return ONLY JSON (no markdown code blocks):
 Aim for 1-5 pages based on the request complexity. Include a design system with colors and typography. Each page should have SEO metadata and clearly defined sections. If multi-page, include navigation and footer.`;
 
     onStatus?.("Creating site structure...");
-    const siteMapResp = await this.client.complete(
-      [
-        { role: "system", content: "You are a web architect. Design multi-page site structures. Return valid JSON only." },
-        { role: "user", content: siteMapPrompt },
-      ],
-      { maxTokens: 4096, temperature: 0.3, tag: "website/sitemap" },
+    const siteMapResult = await generateWithContinuation(
+      async () => {
+        const text = await this.client.complete(
+          [
+            { role: "system", content: "You are a web architect. Design multi-page site structures. Return valid JSON only." },
+            { role: "user", content: siteMapPrompt },
+          ],
+          { maxTokens: 4096, temperature: 0.3, tag: "website/sitemap" },
+        );
+        return { text, finishReason: "length", model: "default" };
+      },
+      {
+        tag: "website/sitemap",
+        maxContinuationRounds: 3,
+        structuralCheck: true,
+        contentCheck: true,
+        minExpectedLength: 300,
+      },
     );
 
     let siteMap: SiteMap;
-    const siteMapParsed = await safeJsonParse<SiteMap>(this.client, siteMapResp, "website/sitemap-parse");
+    const siteMapParsed = await safeJsonParse<SiteMap>(this.client, siteMapResult.data, "website/sitemap-parse");
     if (siteMapParsed.data) {
       siteMap = siteMapParsed.data;
       if (siteMapParsed.recovered) onStatus?.("Recovered truncated site structure");
@@ -96,6 +118,8 @@ Aim for 1-5 pages based on the request complexity. Include a design system with 
         pages: [{ route: "/", title: "Home", description: "Main page", sections: [{ name: "main", description: "Content" }] }],
       };
     }
+
+    let totalContinuationRounds = siteMapResult.continuationRounds;
 
     onStatus?.(`Site structure: ${siteMap.pages.length} page(s). Generating code...`);
     siteMap.pages.forEach((p) => onStatus?.(`  ${p.route} — ${p.title}: ${p.sections.length} section(s)`));
@@ -123,25 +147,62 @@ Requirements:
 
 Return ONLY the complete HTML code in a code block.`;
 
-      const htmlResp = await this.client.complete(
-        [
-          { role: "system", content: "You are a frontend developer. Generate complete, runnable HTML pages with embedded CSS and JS." },
-          { role: "user", content: pagePrompt },
-        ],
-        { maxTokens: 16384, temperature: 0.4, tag: `website/page_${p + 1}` },
+      const pageResult = await generateWithContinuation(
+        async () => {
+          const text = await this.client.complete(
+            [
+              { role: "system", content: "You are a frontend developer. Generate complete, runnable HTML pages with embedded CSS and JS." },
+              { role: "user", content: pagePrompt },
+            ],
+            { maxTokens: 16384, temperature: 0.4, tag: `website/page_${p + 1}` },
+          );
+          return { text, finishReason: "length", model: "default" };
+        },
+        {
+          tag: `website/page_${p + 1}`,
+          maxContinuationRounds: 5,
+          structuralCheck: true,
+          contentCheck: true,
+          minExpectedLength: 500,
+        },
       );
 
-      const match = htmlResp.match(/```(?:html)?\s*([\s\S]*?)```/);
-      const cleanHtml = match?.[1]?.trim() ?? htmlResp.trim();
+      totalContinuationRounds += pageResult.continuationRounds;
 
-      files.push({
-        path: page.route === "/" ? "index.html" : `${page.route.slice(1)}.html`,
-        content: cleanHtml,
-        language: "html",
+      const match = pageResult.data.match(/```(?:html)?\s*([\s\S]*?)```/);
+      const cleanHtml = match?.[1]?.trim() ?? pageResult.data.trim();
+
+      const finalCheck = detectTruncation(cleanHtml, null, { structural: true, content: true });
+      if (finalCheck.truncated) {
+        onStatus?.(`  Page ${p + 1} may be truncated (${finalCheck.detail}), attempting to repair...`);
+        const repair = await this.client.complete(
+          [{ role: "user", content: `Complete this HTML page. Do NOT repeat anything above. Continue from where it left off. Output ONLY the missing HTML.\n\n--- PARTIAL PAGE ---\n${cleanHtml.slice(-2000)}` }],
+          { maxTokens: 8192, temperature: 0.2, tag: `website/repair_${p + 1}` },
+        );
+        const finalClean = cleanHtml.endsWith("\n") ? cleanHtml : cleanHtml + "\n";
+        files.push({
+          path: page.route === "/" ? "index.html" : `${page.route.slice(1)}.html`,
+          content: spliceContinuation(finalClean, repair),
+          language: "html",
+        });
+      } else {
+        files.push({
+          path: page.route === "/" ? "index.html" : `${page.route.slice(1)}.html`,
+          content: cleanHtml,
+          language: "html",
+        });
+      }
+
+      this.conv?.setCheckpoint({
+        step: p + 1,
+        totalSteps: siteMap.pages.length,
+        mode: "website",
+        partial: { pagesGenerated: p + 1, totalPages: siteMap.pages.length, files: files.map((f) => f.path) },
+        context: `Building website "${siteMap.title}". Generated page ${p + 1}/${siteMap.pages.length}: "${page.title}". ${p + 1 < siteMap.pages.length ? `Next: generate page ${p + 2} "${siteMap.pages[p + 1].title}".` : "All pages generated. Next: verify and assemble."}`,
       });
     }
 
-    onStatus?.("Running self-check: loading site in browser...");
+    onStatus?.("Running self-check: verifying site quality...");
     const issues: string[] = [];
 
     for (const file of files) {
@@ -154,13 +215,45 @@ Return ONLY the complete HTML code in a code block.`;
       if (/todo|placeholder|lorem ipsum|change this/i.test(file.content) && !file.path.includes("template")) {
         issues.push(`${file.path}: contains placeholder text`);
       }
+      const fileTrunc = detectTruncation(file.content, null, { structural: true, content: true });
+      if (fileTrunc.truncated) {
+        issues.push(`${file.path}: appears truncated (${fileTrunc.detail})`);
+      }
     }
 
     if (!files.some((f) => f.path === "index.html")) {
       issues.push("Missing index.html entry point");
     }
 
-    onStatus?.("Verifying site quality...");
+    const assemblyCheck = await verifyAssembly([
+      {
+        name: "all-pages-present",
+        check: () => files.length === siteMap.pages.length,
+        detail: `Expected ${siteMap.pages.length} files, got ${files.length}`,
+      },
+      {
+        name: "index-html-exists",
+        check: () => files.some((f) => f.path === "index.html"),
+        detail: "Missing index.html entry point",
+      },
+      {
+        name: "no-minimal-content",
+        check: () => files.every((f) => f.content.length >= 100),
+        detail: "One or more files have insufficient content",
+      },
+      {
+        name: "balanced-code-blocks",
+        check: () => files.every((f) => {
+          const fences = f.content.match(/```/g);
+          return !fences || fences.length % 2 === 0;
+        }),
+        detail: "Unclosed code blocks in one or more files",
+      },
+    ]);
+
+    if (!assemblyCheck.passed) {
+      issues.push(...assemblyCheck.failures.map((f) => `${f.name}: ${f.detail}`));
+    }
 
     let fixed = false;
     if (issues.length > 0) {
@@ -193,7 +286,10 @@ Return ONLY the complete HTML code in a code block.`;
       verified: issues.length === 0 || fixed,
       verificationNotes: issues,
       previewUrl: undefined,
+      continuationRounds: totalContinuationRounds,
     };
+
+    this.conv?.clearCheckpoint("website");
 
     const artifact: Artifact = {
       id: crypto.randomUUID(),
@@ -202,14 +298,14 @@ Return ONLY the complete HTML code in a code block.`;
       title: output.title,
       body: bundledHtml,
       format: "code",
-      metadata: { pages: siteMap.pages.length, files: files.map((f) => f.path) },
+      metadata: { pages: siteMap.pages.length, files: files.map((f) => f.path), continuationRounds: totalContinuationRounds },
       sourceFiles: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     this.store.put(artifact);
 
-    onStatus?.(`Website "${output.title}" ready (${files.length} file(s), ${siteMap.pages.length} page(s)).`);
+    onStatus?.(`Website "${output.title}" ready (${files.length} file(s), ${siteMap.pages.length} page(s), ${totalContinuationRounds} continuation rounds).`);
     return output;
   }
 
@@ -239,19 +335,40 @@ ${targetFile.content}
 
 Return ONLY the complete updated HTML in a code block.`;
 
-    const editResp = await this.client.complete(
-      [
-        { role: "system", content: "You are a frontend developer. Make precise edits to existing code. Return the complete updated file." },
-        { role: "user", content: editPrompt },
-      ],
-      { maxTokens: 8192, temperature: 0.3, tag: "website/edit" },
+    const editResult = await generateWithContinuation(
+      async () => {
+        const text = await this.client.complete(
+          [
+            { role: "system", content: "You are a frontend developer. Make precise edits to existing code. Return the complete updated file." },
+            { role: "user", content: editPrompt },
+          ],
+          { maxTokens: 8192, temperature: 0.3, tag: "website/edit" },
+        );
+        return { text, finishReason: "length", model: "default" };
+      },
+      {
+        tag: "website/edit",
+        maxContinuationRounds: 3,
+        structuralCheck: true,
+        contentCheck: true,
+      },
     );
 
-    const match = editResp.match(/```(?:html)?\s*([\s\S]*?)```/);
+    const match = editResult.data.match(/```(?:html)?\s*([\s\S]*?)```/);
     if (match) {
       targetFile.content = match[1].trim();
     } else {
-      targetFile.content = editResp.trim();
+      targetFile.content = editResult.data.trim();
+    }
+
+    const truncCheck = detectTruncation(targetFile.content, null, { structural: true, content: true });
+    if (truncCheck.truncated) {
+      onStatus?.(`  Edited file appears truncated (${truncCheck.detail}), extending...`);
+      const extend = await this.client.complete(
+        [{ role: "user", content: `Continue editing this file. Do NOT repeat existing content. Output ONLY the missing continuation.\n\n--- PARTIAL FILE ---\n${targetFile.content.slice(-2000)}` }],
+        { maxTokens: 4096, temperature: 0.2, tag: "website/edit-extend" },
+      );
+      targetFile.content = spliceContinuation(targetFile.content, extend);
     }
 
     currentOutput.verified = true;

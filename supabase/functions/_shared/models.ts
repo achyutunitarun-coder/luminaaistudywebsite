@@ -3,6 +3,8 @@
 // Fast-first routing · proper key rotation · resilient fallbacks
 // ═══════════════════════════════════════════════════════════════════
 
+import { detectTruncation, logContinuationEvent } from "./truncation-guard.ts";
+
 export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1004,19 +1006,20 @@ export async function callAIText(
   let rounds = 0;
 
   // Unified continuation loop:
-  // Continue whenever the model either hit its output cap ("length") or
-  // stopped producing with "stop" / null / undefined but produced far
-  // less than what was requested.  The threshold is 85% of maxTokens —
-  // if we got less than that, something likely cut the model short.
+  // Continue whenever the output is truncated — either by API finish_reason,
+  // structural signals (unclosed braces/code blocks), or content signals
+  // (mid-sentence/word cutoff).  Three-signal detection ensures no silent truncation.
   while (rounds < CONTINUATION_MAX_ROUNDS) {
-    const estimatedTokens = Math.round(full.length / 4);
+    const truncation = detectTruncation(full, finish, {
+      structural: true,
+      content: true,
+      minExpected: maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined,
+    });
 
-    // "length" → always continue (model hit its output cap)
-    // other finish + output << maxTokens → likely premature stop
-    if (finish !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+    if (!truncation.truncated) break;
 
     rounds++;
-    const short = finish !== "length" && estimatedTokens < maxTokens * 0.3;
+    const short = truncation.signal !== "api";
     const prompt = short ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH;
     const contMessages = [
       ...messages,
@@ -1033,16 +1036,22 @@ export async function callAIText(
       const chunk = d?.choices?.[0]?.message?.content;
       finish = d?.choices?.[0]?.finish_reason;
       if (!chunk || typeof chunk !== "string" || !chunk.trim()) {
-        // Model returned nothing — likely context full or model broken. Stop.
         if (rounds <= 1) {
-          // First round got nothing — try one more with just the last bit
           console.warn(`[callAIText:${tag}] cont ${rounds} empty, retrying once`);
           continue;
         }
         break;
       }
       full += chunk;
-      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds}, finish=${finish}, estimated ${estimatedTokens + Math.round(chunk.length / 4)}/${maxTokens} tok)`);
+      logContinuationEvent({
+        tag,
+        round: rounds,
+        signal: truncation.signal,
+        originalLength: full.length - chunk.length,
+        continuationLength: chunk.length,
+        model,
+      });
+      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds}, signal=${truncation.signal}, finish=${finish})`);
     } catch (e) {
       console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
       break;

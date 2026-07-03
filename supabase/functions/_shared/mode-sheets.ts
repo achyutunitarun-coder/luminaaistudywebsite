@@ -1,6 +1,15 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { safeJsonParse } from "./truncation-handler.ts";
+import {
+  isTruncated,
+  detectTruncation,
+  generateWithContinuation,
+  verifyAssembly,
+  honestFailureReport,
+  spliceContinuation,
+  logContinuationEvent,
+} from "./truncation-guard.ts";
 
 export interface SheetCell {
   value: string;
@@ -20,6 +29,7 @@ export interface SheetOutput {
   charts: { title: string; type: string; dataRef: string }[];
   verified: boolean;
   verificationNotes: string[];
+  continuationRounds?: number;
 }
 
 export class SheetsMode {
@@ -78,12 +88,24 @@ Rules:
 - Include conditional formatting rules where appropriate (color scales for variance, data bars for comparisons)`;
 
     onStatus?.("Designing sheet structure...");
-    const designResp = await this.client.complete(
-      [
-        { role: "system", content: "You are a spreadsheet designer. Return valid JSON only." },
-        { role: "user", content: schemaPrompt },
-      ],
-      { maxTokens: 8192, temperature: 0.3, tag: "sheet/design" },
+    const designResult = await generateWithContinuation(
+      async () => {
+        const text = await this.client.complete(
+          [
+            { role: "system", content: "You are a spreadsheet designer. Return valid JSON only." },
+            { role: "user", content: schemaPrompt },
+          ],
+          { maxTokens: 8192, temperature: 0.3, tag: "sheet/design" },
+        );
+        return { text, finishReason: "length", model: "default" };
+      },
+      {
+        tag: "sheet/design",
+        maxContinuationRounds: 3,
+        structuralCheck: true,
+        contentCheck: true,
+        minExpectedLength: 200,
+      },
     );
 
     let design: {
@@ -93,7 +115,7 @@ Rules:
       summary_layer?: { group_by: string; aggregations: { column: string; function: string; label: string }[] };
     };
 
-    const designParsed = await safeJsonParse<{ title: string; tables: SheetTable[]; assumptions: Record<string, string>; summary_layer?: any }>(this.client, designResp, "sheet/design-parse");
+    const designParsed = await safeJsonParse<{ title: string; tables: SheetTable[]; assumptions: Record<string, string>; summary_layer?: any }>(this.client, designResult.data, "sheet/design-parse");
     if (designParsed.data) {
       design = designParsed.data;
       if (designParsed.recovered) onStatus?.("Recovered truncated sheet design");
@@ -107,11 +129,13 @@ Rules:
 
     this.conv?.setCheckpoint({
       step: 1,
-      totalSteps: 2,
+      totalSteps: design.tables.length + 1,
       mode: "sheet",
       partial: { tables: design.tables.length, title: design.title },
-      context: `Building spreadsheet "${design.title}" with ${design.tables.length} tables. Next step: populate data and create aggregation layers.`,
+      context: `Building spreadsheet "${design.title}" with ${design.tables.length} tables. Next step: populate data for table 1.`,
     });
+
+    let totalContinuationRounds = designResult.continuationRounds;
 
     onStatus?.(`Building ${design.tables.length} table(s)...`);
 
@@ -122,23 +146,36 @@ Rules:
       if (design.summary_layer && t === 0) {
         const aggPrompt = `Given this data, create a grouped summary table and chart-ready data.
 
-Headers: ${table.headers.join(", ")}
+Headings: ${table.headers.join(", ")}
 Rows: ${JSON.stringify(table.rows.slice(0, 50))}
 Group by: ${design.summary_layer.group_by}
 Aggregations: ${JSON.stringify(design.summary_layer.aggregations)}
 
 Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], "chart_data": { "labels": [...], "datasets": [...] } }`;
 
-        const aggResp = await this.client.complete(
-          [
-            { role: "system", content: "Create summarized data for charting. Return JSON only." },
-            { role: "user", content: aggPrompt },
-          ],
-          { maxTokens: 8192, temperature: 0.3, tag: "sheet/summarize" },
+        const aggResult = await generateWithContinuation(
+          async () => {
+            const text = await this.client.complete(
+              [
+                { role: "system", content: "Create summarized data for charting. Return JSON only." },
+                { role: "user", content: aggPrompt },
+              ],
+              { maxTokens: 8192, temperature: 0.3, tag: "sheet/summarize" },
+            );
+            return { text, finishReason: "length", model: "default" };
+          },
+          {
+            tag: "sheet/summarize",
+            maxContinuationRounds: 3,
+            structuralCheck: true,
+            contentCheck: true,
+          },
         );
 
+        totalContinuationRounds += aggResult.continuationRounds;
+
         try {
-          const aggData = JSON.parse(aggResp);
+          const aggData = JSON.parse(aggResult.data);
           design.tables.push({
             headers: aggData.summary_headers ?? table.headers,
             rows: aggData.summary_rows ?? table.rows,
@@ -146,6 +183,14 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
         } catch {
           // summary layer failed silently, keep original data
         }
+
+        this.conv?.setCheckpoint({
+          step: t + 2,
+          totalSteps: design.tables.length + 1,
+          mode: "sheet",
+          partial: { tables: design.tables.length, title: design.title, currentTable: t },
+          context: `Building spreadsheet "${design.title}". Completed table ${t + 1}/${design.tables.length}. ${t + 1 < design.tables.length ? `Next: table ${t + 2}.` : "All tables ready."}`,
+        });
       }
     }
 
@@ -172,6 +217,7 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
       charts: [],
       verified: issues.length === 0,
       verificationNotes: issues,
+      continuationRounds: totalContinuationRounds,
     };
 
     if (output.tables.length > 1) {
@@ -182,8 +228,35 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
       });
     }
 
-    if (!output.verified) {
-      onStatus?.(`Fixing: ${issues.join("; ")}`);
+    const csvOutput = output.tables.map((t) =>
+      [t.headers.join(","), ...t.rows.map((r) => t.headers.map((h) => r[h] ?? "").join(","))].join("\n")
+    ).join("\n\n---\n\n");
+
+    const assemblyCheck = await verifyAssembly([
+      {
+        name: "all-tables-present",
+        check: () => output.tables.length > 0,
+        detail: "No tables in output",
+      },
+      {
+        name: "no-empty-headers",
+        check: () => output.tables.every((t) => t.headers.length > 0),
+        detail: "One or more tables have empty headers",
+      },
+      {
+        name: "header-row-consistency",
+        check: () => output.tables.every((t) => t.rows.every((r) => t.headers.every((h) => h in r))),
+        detail: "Rows missing expected columns",
+      },
+      {
+        name: "no-truncation-signals",
+        check: () => !isTruncated(csvOutput),
+        detail: "Output contains truncation patterns",
+      },
+    ]);
+
+    if (!assemblyCheck.passed) {
+      onStatus?.(`Assembly issues: ${assemblyCheck.failures.map((f) => f.detail).join("; ")}`);
       for (const table of output.tables) {
         const validHeaders = new Set(table.headers);
         table.rows = table.rows.map((row) => {
@@ -194,12 +267,11 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
           return cleaned;
         });
       }
-      output.verified = true;
+      output.verified = assemblyCheck.failures.every((f) => f.name.startsWith("header-row-consistency") || f.name.startsWith("no-empty-headers"));
+      output.verificationNotes = [...issues, ...assemblyCheck.failures.map((f) => f.detail)];
     }
 
-    const csvOutput = output.tables.map((t) =>
-      [t.headers.join(","), ...t.rows.map((r) => t.headers.map((h) => r[h] ?? "").join(","))].join("\n")
-    ).join("\n\n---\n\n");
+    this.conv?.clearCheckpoint("sheet");
 
     const artifact: Artifact = {
       id: crypto.randomUUID(),
@@ -208,14 +280,14 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
       title: output.title,
       body: csvOutput,
       format: "csv",
-      metadata: { assumptions: output.assumptions, charts: output.charts, tables: output.tables.length },
+      metadata: { assumptions: output.assumptions, charts: output.charts, tables: output.tables.length, continuationRounds: totalContinuationRounds },
       sourceFiles: files.map((f) => f.name),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     this.store.put(artifact);
 
-    onStatus?.(`Sheet "${output.title}" ready (${output.tables.length} tables, ${output.charts.length} charts).`);
+    onStatus?.(`Sheet "${output.title}" ready (${output.tables.length} tables, ${output.charts.length} charts, ${totalContinuationRounds} continuation rounds).`);
     return output;
   }
 }

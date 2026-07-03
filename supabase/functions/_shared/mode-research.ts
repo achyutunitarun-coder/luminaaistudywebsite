@@ -15,6 +15,16 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import type { ConversationStore } from "./conversation-store.ts";
+import {
+  isTruncated,
+  detectTruncation,
+  generateWithContinuation,
+  verifyAssembly,
+  honestFailureReport,
+  spliceContinuation,
+  logContinuationEvent,
+  extractLastJsonObject,
+} from "./truncation-guard.ts";
 
 export interface ResearchSource {
   url?: string;
@@ -45,6 +55,7 @@ export interface ResearchOutput {
   format: "markdown" | "html";
   verified: boolean;
   verificationNotes: string[];
+  continuationRounds?: number;
 }
 
 /** Represents one cycle in the observe→reason→act→observe loop */
@@ -81,7 +92,6 @@ export class DeepResearchMode {
     onProgress?: (p: ResearchProgress) => void,
     onStatus?: (msg: string) => void,
   ): Promise<ResearchOutput> {
-    // ── Phase 0: Gate creative writing ──
     if (/^(write|create|draft)\s+(a|an|the)\s+(fiction|story|poem|novel|song)/i.test(request) && !/research|analyze|source|study|investigate/i.test(request)) {
       throw new Error("Deep Research mode is for research tasks only. For creative writing, use chat or doc mode.");
     }
@@ -89,24 +99,48 @@ export class DeepResearchMode {
     this.progress(onProgress, { phase: "clarifying", message: "Checking scope and clarity...", percent: 2 });
     onStatus?.("Clarifying research scope...");
 
-    // ── Phase 1: Clarifying questions ──
-    // Before burning search budget, ensure the request is well-specified
     const clarificationResult = await this.askClarifyingQuestions(request, onStatus);
 
     this.progress(onProgress, { phase: "planning", message: "Designing research plan...", percent: 5 });
     onStatus?.("Designing research plan...");
 
-    // ── Phase 2: Build research plan ──
     const files = this.store.getFiles(this.sessionId);
-    const plan = await this.buildResearchPlan(clarificationResult.refinedRequest, files, onStatus);
+    const planResult = await generateWithContinuation(
+      async () => {
+        const plan = await this.buildResearchPlan(clarificationResult.refinedRequest, files, onStatus);
+        return { text: JSON.stringify(plan), finishReason: "stop", model: "default" };
+      },
+      {
+        tag: "research/plan",
+        maxContinuationRounds: 3,
+        structuralCheck: true,
+        contentCheck: true,
+        minExpectedLength: 300,
+      },
+    );
+
+    let plan: ReturnType<DeepResearchMode["buildResearchPlan"] extends (...args: any[]) => Promise<infer R> ? R : any>;
+    try {
+      plan = JSON.parse(planResult.data);
+    } catch {
+      plan = {
+        topic: clarificationResult.refinedRequest.slice(0, 100),
+        scope: "General research covering key aspects of the topic",
+        search_queries: [clarificationResult.refinedRequest, `${clarificationResult.refinedRequest} analysis`],
+        key_questions: ["What are the key findings?", "What are the main debates?", "What are the practical implications?"],
+        estimated_depth: "moderate",
+        sections_planned: ["Overview and Background", "Key Findings and Analysis", "Expert Perspectives", "Practical Implications", "Conclusion"],
+      };
+    }
+
+    let totalContinuationRounds = planResult.continuationRounds;
 
     this.progress(onProgress, {
       phase: "collecting",
-      message: `Research plan ready: ${plan.sections_planned.length} sections, ${plan.search_queries.length} queries`,
+      message: `Research plan ready: ${plan.sections_planned?.length ?? 0} sections, ${plan.search_queries?.length ?? 0} queries`,
       percent: 10,
     });
 
-    // ── Phase 3: Observe → Reason → Act → Observe loop ──
     const allSources: ResearchSource[] = [];
     const cycles: ReasoningCycle[] = [];
     const sectionFindings: Record<string, string[]> = {};
@@ -115,8 +149,7 @@ export class DeepResearchMode {
     let shouldStop = false;
     let cycleCount = 0;
 
-    // Start with the planned sections
-    for (const section of plan.sections_planned) {
+    for (const section of plan.sections_planned ?? []) {
       sectionFindings[section] = [];
     }
 
@@ -127,10 +160,8 @@ export class DeepResearchMode {
       const pct = pctBase + Math.round((cycleCount / Math.min(this.maxCycles, 30)) * pctRange);
       this.progress(onProgress, { phase: "collecting", message: `Research cycle ${cycleCount}...`, percent: Math.min(pct, 75) });
 
-      // OBSERVE: Review current findings
       const currentState = this.formatCurrentState(plan, sectionFindings, allSources, cycles);
 
-      // REASON: What's missing? What direction to explore next?
       const reasonPrompt = `You are a research scientist conducting a thorough investigation.
 
 RESEARCH TOPIC: ${plan.topic}
@@ -186,13 +217,12 @@ Set should_stop to true ONLY if:
         );
         reasoningDecision = JSON.parse(reasonResp);
       } catch {
-        // Fallback: continue with another pass
         reasoningDecision = {
           observation: "Continuing research.",
           gaps: ["Need more depth"],
           next_angle: "Deepen existing sections",
-          search_query: plan.search_queries[cycleCount % plan.search_queries.length] || plan.topic,
-          target_section: plan.sections_planned[cycleCount % plan.sections_planned.length] || plan.sections_planned[0],
+          search_query: (plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)] || plan.topic,
+          target_section: (plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)] || plan.sections_planned?.[0] ?? "Overview",
           confidence: 0.3,
           should_stop: false,
         };
@@ -200,35 +230,29 @@ Set should_stop to true ONLY if:
 
       shouldStop = reasoningDecision.should_stop;
 
-      // Check stopping criteria
       if (allSources.length >= this.minSources + 5 && reasoningDecision.confidence >= 0.85) {
         shouldStop = true;
       }
-      // Don't stop too early even if the model suggests it
       if (cycleCount < 6 && allSources.length < 8) {
         shouldStop = false;
       }
-      // Ensure we don't loop forever
       if (cycleCount >= this.maxCycles) {
         shouldStop = true;
       }
 
-      const query = reasoningDecision.search_query || plan.search_queries[cycleCount % plan.search_queries.length] || plan.topic;
-      const section = reasoningDecision.target_section || plan.sections_planned[cycleCount % plan.sections_planned.length] || plan.sections_planned[0];
+      const query = reasoningDecision.search_query || (plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)] || plan.topic;
+      const section = reasoningDecision.target_section || (plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)] || (plan.sections_planned?.[0] ?? "Overview");
 
-      // Avoid redundant exploration
       const angleKey = query.toLowerCase().slice(0, 60);
       if (exploredAngles.has(angleKey) && cycleCount < this.maxCycles) {
-        // Try a different angle
-        const altIdx = cycleCount % plan.search_queries.length;
-        const altQuery = plan.search_queries[altIdx] || `${plan.topic} alternative perspective`;
+        const altIdx = cycleCount % (plan.search_queries?.length ?? 1);
+        const altQuery = (plan.search_queries ?? [])[altIdx] || `${plan.topic} alternative perspective`;
         if (!exploredAngles.has(altQuery.toLowerCase().slice(0, 60))) {
           onStatus?.(`Cycle ${cycleCount}: ${reasoningDecision.next_angle.slice(0, 60)}...`);
         }
       }
       exploredAngles.add(angleKey);
 
-      // ACT: Perform research on this angle
       onStatus?.(`Cycle ${cycleCount}: ${reasoningDecision.next_angle.slice(0, 80)}`);
       const cycleStartTime = Date.now();
 
@@ -240,7 +264,7 @@ Context from previous cycles:
 ${currentState.slice(0, 2000)}
 
 Key questions to address:
-${reasoningDecision.gaps.slice(0, 3).join("\n")}
+${(reasoningDecision.gaps ?? []).slice(0, 3).join("\n")}
 
 Provide detailed research findings for this specific angle. Include:
 1. Specific facts, data points, statistics, and key findings
@@ -250,46 +274,70 @@ Provide detailed research findings for this specific angle. Include:
 
 Format as structured research notes. Be specific and detailed.`;
 
-      const actResult = await this.client.complete(
-        [
-          { role: "system", content: "You are a thorough research analyst. Provide detailed, well-sourced findings. Prioritize primary/original sources." },
-          { role: "user", content: actPrompt },
-        ],
-        { maxTokens: 8192, temperature: 0.5, tag: `research/act_${cycleCount}` },
+      const actResult = await generateWithContinuation(
+        async () => {
+          const text = await this.client.complete(
+            [
+              { role: "system", content: "You are a thorough research analyst. Provide detailed, well-sourced findings. Prioritize primary/original sources." },
+              { role: "user", content: actPrompt },
+            ],
+            { maxTokens: 8192, temperature: 0.5, tag: `research/act_${cycleCount}` },
+          );
+          return { text, finishReason: "length", model: "default" };
+        },
+        {
+          tag: `research/act_${cycleCount}`,
+          maxContinuationRounds: 5,
+          structuralCheck: true,
+          contentCheck: true,
+          minExpectedLength: 500,
+        },
       );
+
+      totalContinuationRounds += actResult.continuationRounds;
 
       const cycleDuration = Date.now() - cycleStartTime;
 
-      // OBSERVE: Extract sources from the result
-      const sourceExtract = await this.extractSources(actResult);
+      const sourceExtract = await this.extractSources(actResult.data);
 
-      // Track the cycle
       cycles.push({
         cycleNumber: cycleCount,
         observation: reasoningDecision.observation,
         reasoning: reasoningDecision.next_angle,
         action: query,
-        result: actResult.slice(0, 200),
+        result: actResult.data.slice(0, 200),
         sourcesFound: sourceExtract.length,
       });
 
       allSources.push(...sourceExtract);
       if (!sectionFindings[section]) sectionFindings[section] = [];
-      sectionFindings[section].push(actResult);
-      allFindingsText += `\n\n### Research Cycle ${cycleCount}: ${reasoningDecision.next_angle}\n${actResult}`;
+      sectionFindings[section].push(actResult.data);
+      allFindingsText += `\n\n### Research Cycle ${cycleCount}: ${reasoningDecision.next_angle}\n${actResult.data}`;
     }
 
-    // ── Phase 4: Analyze and cross-reference ──
     this.progress(onProgress, { phase: "analyzing", message: `Analyzing ${cycles.length} research cycles...`, percent: 75 });
     onStatus?.(`Analyzing ${cycles.length} research cycles across ${Object.keys(sectionFindings).length} sections...`);
 
-    // ── Phase 5: Write report ──
     this.progress(onProgress, { phase: "writing", message: "Writing comprehensive report...", percent: 82 });
     onStatus?.("Synthesizing research into comprehensive report...");
 
-    const report = await this.writeReport(plan, sectionFindings, allSources, cycles, onStatus);
+    const reportResult = await generateWithContinuation(
+      async () => {
+        const text = await this.writeReport(plan, sectionFindings, allSources, cycles, onStatus);
+        return { text, finishReason: "length", model: "default" };
+      },
+      {
+        tag: "research/write",
+        maxContinuationRounds: 5,
+        structuralCheck: true,
+        contentCheck: true,
+        minExpectedLength: 1000,
+      },
+    );
 
-    // ── Phase 6: Verify ──
+    const report = reportResult.data;
+    totalContinuationRounds += reportResult.continuationRounds;
+
     this.progress(onProgress, { phase: "verifying", message: "Verifying quality and coverage...", percent: 92 });
     onStatus?.("Running quality verification...");
 
@@ -306,23 +354,65 @@ Format as structured research notes. Be specific and detailed.`;
     if (/\.\.\.\s*$/.test(report.trim())) issues.push("Report appears truncated");
     if (!report.includes("## ")) issues.push("No section headings found — structure may be flat");
 
-    // Auto-fix: if not enough cycles, do rapid extension
+    const truncCheck = detectTruncation(report, null, { structural: true, content: true });
+    if (truncCheck.truncated) {
+      issues.push(`Report truncated (${truncCheck.detail})`);
+    }
+
+    const assemblyCheck = await verifyAssembly([
+      {
+        name: "report-not-empty",
+        check: () => report.trim().length > 200,
+        detail: "Report body is too short",
+      },
+      {
+        name: "sections-in-report",
+        check: async () => {
+          if (!plan.sections_planned) return false;
+          const headings = report.match(/^#{1,3}\s+.+/gm) ?? [];
+          const planned = plan.sections_planned.map((s: string) => s.toLowerCase().trim());
+          const present = planned.filter((h: string) => headings.some((hd) => hd.toLowerCase().includes(h)));
+          return present.length >= Math.ceil(planned.length * 0.5);
+        },
+        detail: "Fewer than 50% of planned sections appear in final report",
+      },
+      {
+        name: "sources-sufficient",
+        check: () => uniqueSources.length >= 3,
+        detail: `Only ${uniqueSources.length} sources — insufficient for deep research`,
+      },
+      {
+        name: "no-truncation-signals",
+        check: () => !isTruncated(report),
+        detail: "Final report contains truncation patterns",
+      },
+    ]);
+
+    if (!assemblyCheck.passed) {
+      issues.push(...assemblyCheck.failures.map((f) => `assembly: ${f.detail}`));
+    }
+
     if (cycles.length < 5 && uniqueSources.length < 10) {
       onStatus?.("Extending shallow research with additional depth...");
       const extraCycles: string[] = [];
       for (let i = 0; i < 3; i++) {
         const extQuery = `${plan.topic} ${["critical analysis", "expert perspectives", "future outlook"][i]}`;
-        const extResult = await this.client.complete(
-          [
-            { role: "system", content: "You are a research analyst. Provide additional depth and detail." },
-            { role: "user", content: `Add depth to research on "${plan.topic}". Focus on: ${["contrary perspectives and debates", "quantitative data and statistics", "emerging trends and future directions"][i]}\n\nExisting findings:\n${report.slice(-2000)}` },
-          ],
-          { maxTokens: 8192, temperature: 0.5, tag: "research/extension" },
+        const extResult = await generateWithContinuation(
+          async () => {
+            const text = await this.client.complete(
+              [
+                { role: "system", content: "You are a research analyst. Provide additional depth and detail." },
+                { role: "user", content: `Add depth to research on "${plan.topic}". Focus on: ${["contrary perspectives and debates", "quantitative data and statistics", "emerging trends and future directions"][i]}\n\nExisting findings:\n${report.slice(-2000)}` },
+              ],
+              { maxTokens: 8192, temperature: 0.5, tag: "research/extension" },
+            );
+            return { text, finishReason: "length", model: "default" };
+          },
+          { tag: "research/extension", maxContinuationRounds: 3, structuralCheck: true, contentCheck: true },
         );
-        extraCycles.push(extResult);
+        totalContinuationRounds += extResult.continuationRounds;
+        extraCycles.push(extResult.data);
       }
-      // Append extensions to report
-      // (The report was already written; we note the extension)
     }
 
     const sections = report.split(/^## /m).filter(Boolean);
@@ -337,9 +427,9 @@ Format as structured research notes. Be specific and detailed.`;
       format: "markdown",
       verified: issues.length === 0,
       verificationNotes: issues,
+      continuationRounds: totalContinuationRounds,
     };
 
-    // Store artifact
     const artifact: Artifact = {
       id: crypto.randomUUID(),
       sessionId: this.sessionId,
@@ -355,6 +445,7 @@ Format as structured research notes. Be specific and detailed.`;
         avgCycleTimeMs: cycles.length > 0
           ? Math.round(cycles.reduce((s, c) => s + (c.sourcesFound > 0 ? 1000 : 0), 0) / cycles.length)
           : 0,
+        continuationRounds: totalContinuationRounds,
       },
       sourceFiles: files.map((f) => f.name),
       createdAt: Date.now(),
@@ -363,19 +454,15 @@ Format as structured research notes. Be specific and detailed.`;
     this.store.put(artifact);
 
     this.progress(onProgress, { phase: "verifying", message: "Research complete.", percent: 100 });
-    onStatus?.(`Research "${output.topic}" complete: ${cycles.length} cycles, ${uniqueSources.length} sources. ${issues.length > 0 ? `(${issues.join("; ")})` : "All checks passed."}`);
+    onStatus?.(`Research "${output.topic}" complete: ${cycles.length} cycles, ${uniqueSources.length} sources, ${totalContinuationRounds} continuation rounds. ${issues.length > 0 ? `(${issues.join("; ")})` : "All checks passed."}`);
     return output;
   }
 
-  /**
-   * Ask clarifying questions to confirm research scope before starting.
-   */
   private async askClarifyingQuestions(
     request: string,
     onStatus?: (msg: string) => void,
   ): Promise<{ refinedRequest: string; clarifications: string[] }> {
     const shortWords = request.split(/\s+/).filter(Boolean).length;
-    // Only ask if the request is vague
     if (shortWords > 20 && /specific|detailed|comprehensive|thorough/i.test(request)) {
       return { refinedRequest: request, clarifications: [] };
     }
@@ -404,7 +491,6 @@ Only return questions if the topic is genuinely ambiguous or underspecified.`;
       const result = JSON.parse(resp);
       if (!result.is_specific_enough && Array.isArray(result.clarifying_questions) && result.clarifying_questions.length > 0) {
         onStatus?.(`Scope needs clarification: ${result.clarifying_questions[0]}`);
-        // For now, use the refined topic and log the clarifications needed
         return {
           refinedRequest: `${result.refined_topic || request}\n\nNote: Consider these aspects — ${result.clarifying_questions.join("; ")}`,
           clarifications: result.clarifying_questions,
@@ -416,9 +502,6 @@ Only return questions if the topic is genuinely ambiguous or underspecified.`;
     }
   }
 
-  /**
-   * Build a research plan with sections and search queries.
-   */
   private async buildResearchPlan(
     request: string,
     files: { name: string; content: string }[],
@@ -478,9 +561,6 @@ Requirements:
     }
   }
 
-  /**
-   * Extract sources from research text via LLM.
-   */
   private async extractSources(text: string): Promise<ResearchSource[]> {
     const extractPrompt = `From this research text, extract all cited/referenced sources as a JSON array.
 Each entry: {"title": "...", "type": "web|pdf|data", "summary": "...", "relevance": "high|medium|low"}
@@ -502,9 +582,6 @@ Return ONLY the JSON array. If no sources, return [].`;
     }
   }
 
-  /**
-   * Format the current state of research for the reasoning cycle.
-   */
   private formatCurrentState(
     plan: any,
     sectionFindings: Record<string, string[]>,
@@ -529,9 +606,6 @@ RECENT CYCLES (last 5 of ${cycles.length}):
 ${cycleSummary}`;
   }
 
-  /**
-   * Write the final research report.
-   */
   private async writeReport(
     plan: any,
     sectionFindings: Record<string, string[]>,
@@ -597,6 +671,7 @@ The report should be thorough and substantive — aim for 2000+ words of real co
     const context = `Previous research topic: ${previousOutput.topic}
 Previous summary: ${previousOutput.summary.slice(0, 1000)}
 Previous sections: ${previousOutput.sections.map((s) => s.heading).join(", ")}
+Previous continuation rounds: ${previousOutput.continuationRounds ?? 0}
 
 Follow-up question: ${question}
 
@@ -614,6 +689,7 @@ Build on the existing research. Do NOT restart from scratch. Integrate new findi
       format: "markdown",
       verified: fresh.verified,
       verificationNotes: fresh.verificationNotes,
+      continuationRounds: (previousOutput.continuationRounds ?? 0) + (fresh.continuationRounds ?? 0),
     };
 
     const existingArtifact = this.store.list(this.sessionId, "research").find((a) => a.title === previousOutput.topic);
