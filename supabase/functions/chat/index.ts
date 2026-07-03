@@ -26,7 +26,7 @@ const CONT_LONG = "Continue exactly where you left off. Do NOT repeat ANYTHING a
 
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
   if (isComputer) {
-    const detailed = getSystemPromptForIntent(mode === "mun" ? "mun" : "computer", false, false);
+    const detailed = getSystemPromptForIntent(mode === "mun" ? "mun" : "computer");
     return `${detailed}\n\nEffort: ${effort}`;
   }
   const base = "You are Lumina AI, an elite study assistant. Format beautifully with markdown headings, bold terms, lists, and code blocks. Write like a great teacher.";
@@ -65,7 +65,7 @@ async function streamContinuation(
   maxTokens: number,
   tag: string,
   delta: (t: string) => void,
-): Promise<string> {
+): Promise<{ text: string; continuationRounds: number }> {
   const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : 1229;
   let accumulated = "";
 
@@ -73,6 +73,7 @@ async function streamContinuation(
   // Unlike callAIText (which does JSON non-streaming), this function
   // streams every chunk to the client.  Accumulation and truncation
   // detection happen in the same loop so we never return early.
+  let roundsUsed = 0;
   for (let rounds = 0; rounds < MAX_CONTINUATION_ROUNDS; rounds++) {
     const msgs = rounds === 0 ? convo : [
       ...convo,
@@ -131,8 +132,12 @@ async function streamContinuation(
       content: true,
       minExpected,
     });
-    if (!trunc.truncated) break;
+    if (!trunc.truncated) {
+      roundsUsed = rounds;
+      break;
+    }
 
+    roundsUsed = rounds + 1;
     logContinuationEvent({
       tag, round: rounds + 1, signal: trunc.signal,
       originalLength: accumulated.length - (roundContent?.length ?? 0),
@@ -142,8 +147,8 @@ async function streamContinuation(
   }
 
   // Final safety net: if we exhausted all rounds and still too short,
-  // concatenate whatever we have and let the client deal with it
-  return accumulated;
+  // return what we have along with the number of continuation rounds used.
+  return { text: accumulated, continuationRounds: roundsUsed };
 }
 
 serve(async (req) => {
@@ -253,7 +258,8 @@ serve(async (req) => {
             const models = isComputer ? MODELS_LONG_CTX : (getModelsForIntent(intent.intent as any) || MODELS_LONG_CTX);
             const convo = [{ role: "system", content: system }, ...messages];
             const tag = isComputer ? "computer" : intent.intent;
-            await streamContinuation(convo, models, maxTokens, tag, delta);
+            const { continuationRounds } = await streamContinuation(convo, models, maxTokens, tag, delta);
+            try { send({ lumina_usage: { continuations: continuationRounds, model: models[0] ?? "unknown" } }); } catch (e) { /* best-effort */ }
           }
         } catch (e) { delta(`\n**Error:** ${e instanceof Error ? e.message : String(e)}\n`); }
         send({ choices: [{ finish_reason: "stop", delta: {} }] });

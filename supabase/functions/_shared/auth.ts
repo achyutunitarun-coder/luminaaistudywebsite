@@ -14,9 +14,20 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
       }),
     } as const;
   }
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      error: new Response(JSON.stringify({ error: "Server misconfiguration: SUPABASE_URL or SUPABASE_ANON_KEY is missing" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }),
+    } as const;
+  }
+
   const sb = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
+    supabaseUrl,
+    supabaseAnonKey,
     { global: { headers: { Authorization: authHeader } } },
   );
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();

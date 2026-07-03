@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MemorySidebar } from "@/components/MemoryDashboard";
 import { AppSidebarContent } from "@/components/AppSidebarContent";
+import LuminaHeader from "@/components/LuminaHeader";
 
 const FULL_BLEED_ROUTES = ['/computer', '/chat', '/lecture-ai', '/smart-notebook'];
 const SIDEBAR_W_EXPANDED = 240;
@@ -134,8 +135,11 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         )}
       </AnimatePresence>
 
+      {/* Desktop Header */}
+      <LuminaHeader collapsed={collapsed} onToggle={toggleCollapsed} />
+
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto transition-[margin] duration-300 ease-out relative z-20 mt-14 md:mt-0 md:[margin-left:var(--app-sidebar-w,0px)]">
+      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto transition-[margin] duration-300 ease-out relative z-20 mt-14 md:mt-14 md:[margin-left:var(--app-sidebar-w,0px)]">
         {isFullBleed ? (
           children
         ) : (

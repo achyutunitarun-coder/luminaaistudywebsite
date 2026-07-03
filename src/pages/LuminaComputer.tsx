@@ -43,27 +43,47 @@ import { LuminaModeIndicator } from "@/features/chat/components/LuminaModeIndica
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-function getLuminaSystemPrompt(mode: LuminaMode): string {
-  const base = `You are Lumina, an expert AI assistant. Output content using FILE: format.
+function getLuminaSystemPrompt(mode: LuminaMode | null, effort: Effort): string {
+  const effortNote = effort === "quick"
+    ? "Use a lean, high-impact implementation with clean structure and minimal polish. Prioritize speed and working clarity."
+    : effort === "beast"
+      ? "Produce the most polished, production-ready implementation with rich UX, realistic content, thorough validation, and self-repair."
+      : "Produce a balanced, practical implementation with clean structure, strong usability, and dependable validation.";
+
+  const base = `You are Lumina, an autonomous AI agent and software factory. Output all work using FILE: blocks and progress STATUS messages.
 
 FILE: path.ext
 content
 END FILE
 
-Use STATUS: msg for progress. Output multiple files in one response.`;
+STATUS: message
+
+Use the FILE: format for every file and the STATUS: tag for stage updates. Always finish each file completely. Do not apologize or add commentary outside FILE or STATUS blocks.`;
 
   const prompts: Record<LuminaMode, string> = {
     research: `${base}
-MODE: Deep Research — produce research-report.md, executive-summary.md, references.md. STATUS: planning→searching→collecting→synthesizing→verifying.`,
+MODE: Deep Research — produce research-report.md, executive-summary.md, references.md. STATUS: planning→researching→synthesizing→verifying.
+${effortNote}`,
     doc: `${base}
-MODE: Document — produce document.md + document.html. STATUS: outlining→writing→verifying.`,
+MODE: Document — produce document.md + document.html. STATUS: outlining→writing→verifying.
+${effortNote}`,
     sheet: `${base}
-MODE: Sheets — produce data.csv + schema.json + summary.csv. STATUS: designing→building→formulas→verifying.`,
+MODE: Sheets — produce data.csv + schema.json + summary.csv. STATUS: designing→building→formulas→verifying.
+${effortNote}`,
     slide: `${base}
-MODE: Slides — produce slides.md (--- separators for Google Slides) + slides.json. STATUS: outlining→writing→verifying.`,
+MODE: Slides — produce slides.md (--- separators for Google Slides) + slides.json. STATUS: outlining→writing→verifying.
+${effortNote}`,
     website: `${base}
-MODE: Website — produce index.html + style.css + script.js. STATUS: mapping→generating→verifying.`,
+MODE: Website — produce index.html + style.css + script.js. STATUS: mapping→generating→verifying.
+${effortNote}`,
   };
+
+  if (!mode) {
+    return `${base}
+MODE: Autonomous Agent — produce the best artifact for the user's request. STATUS: planning→routing→researching→architecting→building→validating→debugging→running→assembling.
+${effortNote}`;
+  }
+
   return prompts[mode];
 }
 
@@ -89,6 +109,39 @@ const FACTORY_STAGES: PipelineStage[] = ["planner","router","research","architec
 const idleFactoryStates = () => Object.fromEntries(FACTORY_STAGES.map(s => [s, "idle"])) as Record<PipelineStage, StageStatus>;
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+function inferPipelineStage(status: string): PipelineStage | null {
+  const normalized = status.toLowerCase();
+  if (/planning|thinking|understand|scope|identify|breaking|define/.test(normalized)) return "planner";
+  if (/routing|fallback|model selection|provider|path|route|choose|choose model/.test(normalized)) return "router";
+  if (/research|studying|gathering|collecting|analyzing|sources|facts|reference/.test(normalized)) return "research";
+  if (/architect|design|structure|layout|plan|system|map|mapping|schema/.test(normalized)) return "architect";
+  if (/build|writing|generating|composing|creating|coding|implement|construct|develop|produce/.test(normalized)) return "builder";
+  if (/validate|checking|check|evaluate|review|audit|verify|testing|lint/.test(normalized)) return "validator";
+  if (/debug|repair|fix|resolve|correct|patch/.test(normalized)) return "debugger";
+  if (/run|execute|preview|render|launch|serve|test|package/.test(normalized)) return "runner";
+  if (/assemble|final|handoff|deliver|complete|done|finish|ready|release/.test(normalized)) return "assembler";
+  return null;
+}
+
+function updatePipelineFromStatus(status: string, setFactoryStage: (stage: PipelineStage, status: StageStatus, event?: string) => void) {
+  const stage = inferPipelineStage(status);
+  const normalized = status.toLowerCase();
+  if (!stage) {
+    if (/complete|done|finished|ready|successful/.test(normalized)) {
+      FACTORY_STAGES.forEach((stageName) => setFactoryStage(stageName, "done", status));
+    }
+    return;
+  }
+
+  const isDone = /complete|done|finished|ready|successful/.test(normalized);
+  const stageIndex = FACTORY_STAGES.indexOf(stage);
+  for (let i = 0; i < stageIndex; i += 1) {
+    setFactoryStage(FACTORY_STAGES[i], "done");
+  }
+  setFactoryStage(stage, isDone ? "done" : "working", status);
+}
+
 function timeFmt(ts: number) { const d = new Date(ts); return `${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")}`; }
 
 function buildPreviewDoc(file: LuminaFile, allFiles: LuminaFile[]): string {
@@ -465,6 +518,8 @@ export default function LuminaComputer() {
       parserRef.current = new LuminaParser();
       rawAssistantRef.current = "";
       lastUserPromptRef.current = trimmed;
+      setLuminaStatus("Planning request...");
+      setFactoryStage("planner", "working", "Planning request");
     } else if (!parserRef.current) return;
 
     setPrompt(""); setCanContinue(false);
@@ -486,7 +541,7 @@ export default function LuminaComputer() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Please sign in.");
 
-      const sysPrompt = luminaMode ? getLuminaSystemPrompt(luminaMode) : null;
+      const sysPrompt = getLuminaSystemPrompt(luminaMode, effort);
       let messages: any[];
       if (isCont) {
         // Pass full assistant context so model knows exactly what was written so far.
@@ -510,8 +565,9 @@ export default function LuminaComputer() {
 
       const applyState = () => {
         const st = parserRef.current!.state;
-        // FILTER OUT response.md from files list - plan goes in plan panel
-        const displayFiles = st.files.filter(f => f.path !== "response.md");
+        const visibleFiles = st.files.filter(f => f.path !== "response.md");
+        const responseFile = st.files.find(f => f.path === "response.md");
+        const displayFiles = visibleFiles.length > 0 ? visibleFiles : responseFile ? [responseFile] : [];
         setPlan(st.plan);
         setFinalMd(st.final);
         setFiles(displayFiles);
@@ -525,9 +581,15 @@ export default function LuminaComputer() {
           seenActionsRef.current.add(a.id);
           log("action", `${a.type} ${a.target}${a.reason ? " - " + a.reason : ""}`, a);
         }
+        const lastStatus = st.statuses[st.statuses.length - 1];
+        if (lastStatus) {
+          setLuminaStatus(lastStatus.text);
+          updatePipelineFromStatus(lastStatus.text, setFactoryStage);
+        }
       };
 
       const streamMessages = async (payload: any[]) => {
+        setFactoryStage("router", "working", "Routing model call");
         const body: Record<string, any> = { messages: payload, mode: "computer", effort };
         if (luminaMode) {
           body.lumina_mode = luminaMode;
@@ -605,13 +667,20 @@ export default function LuminaComputer() {
           log("system", `Saved ${displayFiles.length} file(s) from partial output.`);
         }
       } else {
-        // Validate
+        setFactoryStage("validator", "working", "Validating output");
         parserRef.current!.finish();
         applyState();
         st = parserRef.current!.state;
         const issues = validateLuminaProject(st.files, lastUserPromptRef.current);
         setValidationSummary(summarizeValidation(issues));
+        setFactoryStage("validator", "done", "Validation complete");
+        if (issues.length === 0) {
+          setFactoryStage("runner", "working", "Preparing preview");
+        }
         log("done", `Done - ${displayFiles.length} file(s). ${summarizeValidation(issues)}`);
+        FACTORY_STAGES.forEach((stage) => {
+          if (stage !== "debugger") setFactoryStage(stage, "done", "Finished");
+        });
 
         // Auto-repair: if there are blocking errors and at least one file was produced, ask model to fix
         const errors = issues.filter(i => i.severity === "error");
@@ -624,8 +693,6 @@ export default function LuminaComputer() {
               { role: "assistant", content: rawAssistantRef.current.slice(-12000) },
               { role: "user", content: repairPrompt + "\n\nFix ALL issues listed above. Return COMPLETE corrected files using the FILE: format. Do NOT truncate." },
             ];
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) throw new Error("Please sign in.");
             const repairRes = await fetch(CHAT_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -773,6 +840,15 @@ export default function LuminaComputer() {
             ) : (
               <FileTree files={files} activePath={activeFile?.path ?? ""} onPick={p => setActivePath(p)} />
             )}
+          </div>
+          <div className="border-t px-3 py-3">
+            <AgentPipelinePanel
+              states={factoryStates}
+              activeLabel={factoryActive}
+              running={luminaRunning || busy}
+              events={factoryEvents}
+              compact={files.length > 0 ? false : true}
+            />
           </div>
         </aside>
 

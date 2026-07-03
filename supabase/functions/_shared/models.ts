@@ -899,9 +899,20 @@ export async function callWithFallback(
     if (res) return { response: res, model: `google/${geminiModel}` };
   }
 
+  // Phase 3.5: Cross-provider fallback — try Moonshot direct Kimi models
+  if (KIMI_KEYS.length > 0) {
+    const moonshotModels = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2"];
+    const moonshotTimeout = Math.min(120_000, Math.max(20_000, timeoutMs ?? 30_000));
+    for (const moonshotModel of moonshotModels) {
+      const moonshotBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(moonshotModel)) };
+      const res = await callModel(moonshotModel, moonshotBody, moonshotTimeout, `${tag}/moonshot`);
+      if (res) return { response: res, model: moonshotModel };
+    }
+  }
+
   // Phase 4: Force-try — reset cooldowns and attempt each model one more time
   console.warn(`[${tag}] all pools exhausted, force-retrying with reset cooldowns`);
-  for (const provider of ["openrouter", "google"] as const) {
+  for (const provider of ["openrouter", "google", "moonshot"] as const) {
     const pool = KEY_POOLS[provider];
     for (let i = 0; i < pool.keys.length; i++) {
       pool.cooledUntil[i] = 0;
@@ -1240,22 +1251,29 @@ export async function streamAI(
       try {
         let { finish, usage } = await consumeOne(currentResponse);
         if (usage?.total_tokens) totalTokens += usage.total_tokens;
+        const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined;
 
-        // Unified continuation — works for both "length" and premature "stop"
+        // Unified continuation — works for API length endings, incomplete content,
+        // or structural truncation like unclosed code blocks or partial JSON.
         while (rounds < CONTINUATION_MAX_ROUNDS) {
-          const estimatedTokens = Math.round(assistantSoFar.length / 4);
-          if (finish !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+          const truncation = detectTruncation(assistantSoFar, finish, {
+            structural: true,
+            content: true,
+            minExpected,
+          });
+          if (!truncation.truncated) break;
 
           rounds++;
-          const short = finish !== "length" && estimatedTokens < maxTokens * 0.3;
+          const short = truncation.signal !== "api";
           const prompt = short ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH;
-          console.log(`[streamAI:${tag}] cont round ${rounds} (finish=${finish}, est=${estimatedTokens}/${maxTokens} tok)`);
+          console.log(`[streamAI:${tag}] cont round ${rounds} (finish=${finish}, tokens=${totalTokens}/${maxTokens})`);
           const contMessages = [
             ...messages,
             { role: "assistant", content: assistantSoFar },
             { role: "user", content: prompt },
           ];
           try {
+            const beforeLen = assistantSoFar.length;
             const { response: next, model: nextModel } = await callWithFallback(
               contMessages,
               [currentModel, ...models.filter((m) => m !== currentModel)],
@@ -1267,8 +1285,13 @@ export async function streamAI(
             }
             currentModel = nextModel;
             const r = await consumeOne(next);
+            const added = assistantSoFar.length - beforeLen;
             finish = r.finish;
             if (r.usage?.total_tokens) totalTokens += r.usage.total_tokens;
+            // Log continuation event for streaming flows so metrics are recorded
+            try {
+              logContinuationEvent({ tag, round: rounds, signal: truncation.signal, originalLength: beforeLen, continuationLength: added, model: currentModel });
+            } catch (e) { /* best-effort logging */ }
           } catch (e) {
             console.warn(`[streamAI:${tag}] continuation ${rounds} failed:`, e);
             break;

@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   Search, FileText, Table, Presentation, Globe, Sparkles, ArrowRight, X, Check,
 } from "lucide-react";
@@ -89,7 +89,8 @@ const containerVariants = {
   },
 };
 
-const cardVariants: import("framer-motion").Variants = {
+const cardVariants: Variants = {
+>>>>>>> 6eef77c (Finish Supabase backend routing/continuation fixes and emit streaming metadata)
   hidden: { opacity: 0, y: 16, scale: 0.95 },
   visible: {
     opacity: 1,
