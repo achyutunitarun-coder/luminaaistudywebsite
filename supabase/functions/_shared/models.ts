@@ -118,15 +118,22 @@ console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 // ── Google AI Studio key pool (Gemini models, fallback when OpenRouter exhausted) ──
 const GOOGLE_KEYS: string[] = [
   Deno.env.get("GOOGLE_AI_STUDIO_API_KEY"),
+  Deno.env.get("GOOGLE_KEY_2"),
+  Deno.env.get("GOOGLE_KEY_3"),
+  Deno.env.get("GOOGLE_KEY_4"),
   Deno.env.get("GOOGLE_AI_STUDIO_KEY_2"),
   Deno.env.get("GOOGLE_AI_STUDIO_KEY_3"),
   Deno.env.get("GOOGLE_AI_STUDIO_KEY_4"),
 ].filter(Boolean) as string[];
+const KIMI_KEYS: string[] = [Deno.env.get("KIMI_API_KEY")].filter(Boolean) as string[];
 const GOOGLE_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 if (GOOGLE_KEYS.length > 0) {
   console.log(`[keys] ${GOOGLE_KEYS.length} Google AI Studio key(s) loaded`);
 } else {
   console.log("[keys] No Google AI Studio keys configured (optional)");
+}
+if (KIMI_KEYS.length > 0) {
+  console.log(`[keys] ${KIMI_KEYS.length} Moonshot/Kimi direct key(s) loaded`);
 }
 
 // ── Per-key LRU tracking for OpenRouter pool ──
@@ -135,11 +142,15 @@ const _keyLastUsed: number[] = ALL_KEYS.map(() => 0);
 // Per-key request counts for rate-limit awareness
 const _keyRequestsMinute: number[] = ALL_KEYS.map(() => 0);
 const _keyMinuteWindow: number[] = ALL_KEYS.map(() => 0);
+const _kimiLastUsed: number[] = KIMI_KEYS.map(() => 0);
+const _kimiRequestsMinute: number[] = KIMI_KEYS.map(() => 0);
+const _kimiMinuteWindow: number[] = KIMI_KEYS.map(() => 0);
 // Map of provider name to key arrays, used for cross-provider fallback
 type KeyPool = { keys: string[]; cooledUntil: number[]; lastUsed: number[]; requestsMinute: number[]; minuteWindow: number[] };
 const KEY_POOLS: Record<string, KeyPool> = {
   openrouter: { keys: ALL_KEYS, cooledUntil: ALL_KEYS.map(() => 0), lastUsed: _keyLastUsed, requestsMinute: _keyRequestsMinute, minuteWindow: _keyMinuteWindow },
   google: { keys: GOOGLE_KEYS, cooledUntil: GOOGLE_KEYS.map(() => 0), lastUsed: GOOGLE_KEYS.map(() => 0), requestsMinute: GOOGLE_KEYS.map(() => 0), minuteWindow: GOOGLE_KEYS.map(() => 0) },
+  moonshot: { keys: KIMI_KEYS, cooledUntil: KIMI_KEYS.map(() => 0), lastUsed: _kimiLastUsed, requestsMinute: _kimiRequestsMinute, minuteWindow: _kimiMinuteWindow },
 };
 
 const KEY_COOLDOWN_MS = 45_000;          // generic 429
@@ -450,6 +461,13 @@ const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // give primary model TTFB headroom; tin
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
 
+const MOONSHOT_MODELS = ["moonshotai/kimi-k2", "moonshotai/kimi-k2.5"];
+
+function isMoonshotModel(model: string): boolean {
+  const base = model.toLowerCase().replace(/:(free|online)$/, "");
+  return MOONSHOT_MODELS.some((m) => base === m || base.startsWith(`${m}:`));
+}
+
 type RouteMeta = {
   model: string;
   mode: string;
@@ -513,11 +531,11 @@ async function callModel(
   tag: string,
 ): Promise<Response | null> {
   if (_deadModels.has(model)) return null;
-  if (ALL_KEYS.length === 0) {
-    console.warn(`[${tag}] no API keys — skipping ${model}`);
-    return null;
+  if (isMoonshotModel(model) && KIMI_KEYS.length > 0) {
+    const direct = await callMoonshot(model, body, timeoutMs, tag);
+    if (direct) return direct;
+    // If moonshot direct fails, continue to other providers only when necessary.
   }
-  // Route google/* models through Google AI Studio directly.
   if (/^google\//.test(model) && GOOGLE_KEYS.length > 0) {
     const geminiModel = model.replace(/^google\//, "");
     if (canCallGemini(geminiModel)) {
@@ -525,6 +543,11 @@ async function callModel(
       if (direct) return direct;
     }
     // Don't fall through to OpenRouter — Gemini is only available via Google AI Studio
+    return null;
+  }
+
+  if (ALL_KEYS.length === 0) {
+    console.warn(`[${tag}] no API keys — skipping ${model}`);
     return null;
   }
 
@@ -765,6 +788,46 @@ async function callGoogleGemini(
     return null;
   } catch (e) {
     console.warn(`[${tag}] gemini ${model} error:`, e);
+    return null;
+  }
+}
+
+async function callMoonshot(
+  model: string,
+  body: Record<string, unknown>,
+  timeoutMs: number,
+  tag: string,
+): Promise<Response | null> {
+  if (KIMI_KEYS.length === 0) return null;
+  const pool = KEY_POOLS.moonshot;
+  const idx = getLeastRecentlyUsedKey(pool);
+  if (idx === null) return null;
+  const key = pool.keys[idx];
+  const moonshotUrl = `https://api.moonshot.cn/v1/chat/completions`;
+  try {
+    const res = await fetchWithTimeout(moonshotUrl, {
+      method: "POST",
+      headers: { ...HEADERS_BASE, Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ ...body, model }),
+    }, timeoutMs);
+    if (res.ok) {
+      console.log(`[${tag}] ✓ ${model} (kimi-key-${idx + 1})`);
+      return res;
+    }
+    if (res.status === 429) {
+      pool.cooledUntil[idx] = Date.now() + KEY_COOLDOWN_MS;
+      console.warn(`[${tag}] moonshot key ${idx + 1} rate-limited`);
+    } else if (res.status === 401 || res.status === 403) {
+      pool.cooledUntil[idx] = Date.now() + KEY_BAD_COOLDOWN_MS;
+      console.warn(`[${tag}] moonshot key ${idx + 1} invalid/forbidden`);
+    } else if (res.status === 404) {
+      _deadModels.add(model);
+      console.warn(`[${tag}] moonshot ${model} 404 dead model`);
+    }
+    try { await res.body?.cancel(); } catch { /* ignore */ }
+    return null;
+  } catch (e) {
+    console.warn(`[${tag}] moonshot ${model} error:`, e);
     return null;
   }
 }
