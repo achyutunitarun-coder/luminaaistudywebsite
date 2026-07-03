@@ -154,6 +154,15 @@ function CodeEditor({ file, allFiles }: { file: LuminaFile | null; allFiles: Lum
 
   return (
     <div ref={scrollRef} className="flex-1 overflow-auto" style={{ background: "var(--bg-surface)" }}>
+      {!file.done && (
+        <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(16,185,129,0.06)" }}>
+          <div className="flex items-center gap-2 text-[12px] font-semibold text-emerald-100">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-300 animate-pulse shadow-[0_0_12px_rgba(110,231,183,0.5)]" />
+            <span>AI is writing <span className="font-medium text-white">{file.path}</span></span>
+          </div>
+          <p className="mt-1 text-[11px] text-emerald-200/80">The file is being generated live. Expand it to watch the model write in real time.</p>
+        </div>
+      )}
       <pre className="m-0 p-0 text-[13px] leading-[1.65] font-mono" style={{ color: "var(--text-secondary)" }}>
         <code>
           <table className="w-full border-collapse">

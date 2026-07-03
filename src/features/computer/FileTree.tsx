@@ -68,9 +68,12 @@ function NodeRow({
             >
               <FileIcon file={child.file} />
               <span className="text-[13px] truncate flex-1">{child.name}</span>
-              {!child.file.done && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-              )}
+              {!child.file.done ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  generating
+                </span>
+              ) : null}
             </button>
           );
         }
