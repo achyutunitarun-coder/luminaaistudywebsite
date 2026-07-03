@@ -272,9 +272,26 @@ serve(async (req) => {
             delta(`\n\n_Session: ${orchestrator.getSessionSummary()}_`);
           } else if (isComputer) {
             send({ lumina_meta: { model: "computer", intent: intent.intent, is_computer: true } });
+            const statusMsg = ({
+              slides: "Creating slide deck...",
+              writing: "Creating document...",
+              coding: "Creating files...",
+              research: "Researching...",
+              data: "Creating spreadsheet...",
+              computer: "Processing...",
+            } as Record<string, string>)[intent.intent] || "";
+            if (statusMsg) delta(`_${statusMsg}_\n\n`);
             await runStreamingChat();
           } else {
             send({ lumina_meta: { model: "chat", intent: intent.intent, is_computer: false } });
+            const statusMsg = ({
+              slides: "Creating slide deck...",
+              writing: "Creating document...",
+              coding: "Creating files...",
+              research: "Researching...",
+              data: "Creating spreadsheet...",
+            } as Record<string, string>)[intent.intent] || "";
+            if (statusMsg) delta(`_${statusMsg}_\n\n`);
             await runStreamingChat();
           }
         } catch (e) {
