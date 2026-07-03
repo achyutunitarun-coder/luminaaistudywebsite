@@ -1,6 +1,7 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { verifyDoc } from "./document-gen.ts";
+import { safeJsonParse, isTruncated, completeTruncated } from "./truncation-handler.ts";
 
 export interface SlideContent {
   heading: string;
@@ -27,14 +28,16 @@ export interface SlidesOutput {
 export class SlidesMode {
   private client: ModelClient;
   private visionClient: ModelClient;
+  private conv?: import("./conversation-store.ts").ConversationStore;
 
   constructor(
     private store: ArtifactStore,
     private sessionId: string,
-    opts?: { modelClient?: ModelClient; visionClient?: ModelClient },
+    opts?: { modelClient?: ModelClient; visionClient?: ModelClient; conversation?: import("./conversation-store.ts").ConversationStore },
   ) {
     this.client = opts?.modelClient ?? createModelClient();
     this.visionClient = opts?.visionClient ?? createModelClient();
+    this.conv = opts?.conversation;
   }
 
   async generate(
@@ -60,54 +63,72 @@ export class SlidesMode {
         files.map((f) => `- ${f.name} (${f.type}, ${f.size} bytes)`).join("\n");
     }
 
-    const outlinePrompt = `You are a presentation architect. Design the narrative structure first.
+    const outlinePrompt = `You are a presentation architect using the v3.0 structured format. Design the narrative structure first.
 
 Request: ${request}${sourceContext}${fileContext}
 ${adaptive ? "\nInclude live data/research from web where relevant." : ""}
 
-Return ONLY JSON:
+Return ONLY valid JSON (no markdown code blocks):
 {
-  "title": "Deck title",
-  "outline": ["slide 1 title", "slide 2 title", ...],
-  "narrative_flow": "description of how the argument flows across slides"
+  "metadata": {
+    "title": "Deck title",
+    "subtitle": "Optional subtitle",
+    "theme": "dark_modern",
+    "slide_count": number,
+    "target_audience": "description",
+    "narrative_arc": ["hook", "problem", "solution", "evidence", "close"]
+  },
+  "outline": [
+    { "slide_number": 1, "type": "title|section|content|data|quote|comparison|timeline|process|closing", "title": "slide title", "layout": "hero_split|single_column|two_column|three_column|metrics_grid", "speaker_notes": "notes for this slide" }
+  ]
 }
 
-Aim for 5-15 slides. Each outline entry should be a clear, specific slide title.`;
+Aim for 5-12 slides. Each outline entry should have a clear, specific title. Choose appropriate slide types and layouts based on content.`;
 
     onStatus?.("Creating outline...");
     const outlineResp = await this.client.complete(
       [
-        { role: "system", content: "You are a presentation architect. Return valid JSON only. Design the narrative arc first, then individual slides." },
+        { role: "system", content: "You are a presentation architect using the v3.0 structured JSON schema. Return valid JSON only. Design the narrative arc first, then individual slides. Output raw JSON without markdown code blocks." },
         { role: "user", content: outlinePrompt },
       ],
-      { maxTokens: 2048, temperature: 0.3, tag: "slides/outline" },
+      { maxTokens: 4096, temperature: 0.3, tag: "slides/outline" },
     );
 
-    let deck: { title: string; outline: string[]; narrative_flow?: string };
-    try {
-      deck = JSON.parse(outlineResp);
-    } catch {
-      deck = { title: "Presentation", outline: ["Introduction", "Main Content", "Conclusion"] };
+    let deck: { metadata: { title: string; subtitle?: string; theme: string; slide_count: number; target_audience: string; narrative_arc: string[] }; outline: { slide_number: number; type: string; title: string; layout: string; speaker_notes: string }[] };
+    const parsed = await safeJsonParse<typeof deck>(this.client, outlineResp, "slides/outline-parse");
+    if (parsed.data) {
+      deck = parsed.data;
+      if (parsed.recovered) onStatus?.("Recovered truncated outline");
+    } else {
+      try {
+        const title = outlineResp.match(/"title"\s*:\s*"([^"]+)"/)?.[1] ?? "Presentation";
+        deck = { metadata: { title, theme: "dark_modern", slide_count: 5, target_audience: "general", narrative_arc: ["hook", "problem", "solution", "evidence", "close"] }, outline: ["Introduction", "Main Content", "Conclusion"].map((t, i) => ({ slide_number: i + 1, type: i === 0 ? "title" : i === 2 ? "closing" : "content", title: t, layout: "single_column", speaker_notes: "" })) };
+      } catch {
+        deck = { metadata: { title: "Presentation", theme: "dark_modern", slide_count: 3, target_audience: "general", narrative_arc: ["hook", "problem", "solution"] }, outline: ["Introduction", "Main Content", "Conclusion"].map((t, i) => ({ slide_number: i + 1, type: i === 0 ? "title" : i === 2 ? "closing" : "content", title: t, layout: "single_column", speaker_notes: "" })) };
+      }
     }
 
     onStatus?.(`Outline ready — ${deck.outline.length} slides. Writing slide content...`);
-    onStatus?.(`Slides: ${deck.outline.map((s, i) => `\n  ${i + 1}. ${s}`).join("")}`);
+    onStatus?.(`Slides: ${deck.outline.map((s, i) => `\n  ${i + 1}. [${s.type}] ${s.title}`).join("")}`);
     onStatus?.("---EDITABLE OUTLINE ABOVE--- Confirm or modify structure, then generation will proceed.");
 
     const slides: SlideContent[] = [];
 
     for (let i = 0; i < deck.outline.length; i++) {
-      onStatus?.(`Writing slide ${i + 1}/${deck.outline.length}: ${deck.outline[i]}`);
+      onStatus?.(`Writing slide ${i + 1}/${deck.outline.length}: ${deck.outline[i].title}`);
 
-      const slidePrompt = `Write content for slide ${i + 1} of the deck "${deck.title}".
+      const slideInfo = deck.outline[i];
+      const slidePrompt = `Write content for slide ${i + 1} of the deck "${deck.metadata.title}".
 
-Slide title: ${deck.outline[i]}
-Narrative flow: ${deck.narrative_flow ?? "sequential"}
+Slide title: ${slideInfo.title}
+Slide type: ${slideInfo.type}
+Layout: ${slideInfo.layout}
+Narrative arc position: ${deck.metadata.narrative_arc[Math.min(i, deck.metadata.narrative_arc.length - 1)]}
 ${sourceContext}${fileContext}
 
 Return JSON:
 {
-  "heading": "${deck.outline[i]}",
+  "heading": "${slideInfo.title}",
   "body": "slide content in markdown (concise, bullet points, max 150 words)",
   "notes": "speaker notes for this slide",
   "visual": { "type": "chart|image|diagram", "description": "what visual should appear here" }
@@ -124,19 +145,33 @@ Rules:
           { role: "system", content: "You are a presentation content writer. Write concise, impactful slide content. Return JSON." },
           { role: "user", content: slidePrompt },
         ],
-        { maxTokens: 2048, temperature: 0.4, tag: `slides/slide${i + 1}` },
+        { maxTokens: 4096, temperature: 0.4, tag: `slides/slide${i + 1}` },
       );
 
-      try {
-        const slide = JSON.parse(slideResp);
-        slides.push(slide);
-      } catch {
+      const slideParsed = await safeJsonParse<SlideContent>(this.client, slideResp, `slides/slide-parse-${i}`, 4096);
+      if (slideParsed.data) {
+        slides.push(slideParsed.data);
+        if (slideParsed.recovered) onStatus?.(`  Recovered truncated content for slide ${i + 1}`);
+      } else {
+        onStatus?.(`  Slide ${i + 1} response had invalid format, continuing with raw content`);
         slides.push({
-          heading: deck.outline[i],
+          heading: slideInfo.title,
           body: slideResp,
           notes: "Auto-generated content.",
         });
       }
+
+      // Checkpoint after each slide so we can resume if interrupted
+      this.conv?.setCheckpoint({
+        step: i + 1,
+        totalSteps: deck.outline.length,
+        mode: "slide",
+        partial: { slides, currentSlide: i, currentTitle: slideInfo.title },
+        context: `Generating slide deck "${deck.metadata.title}". Completed slide ${i + 1}/${deck.outline.length}: "${slideInfo.title}". Resume by generating slide ${i + 2}.`,
+      });
+
+      // Stream progress — user sees slides appearing in real-time
+      onStatus?.(`[SLIDE ${i + 1}/${deck.outline.length}] ${slideInfo.title} — ready`);
     }
 
     if (adaptive && slides.length > 0) {
@@ -156,13 +191,14 @@ Rules:
     }
 
     onStatus?.("Verifying deck structure...");
+    const deckTitle = deck.metadata.title;
     const mdBody = slides.map((s) =>
       `## ${s.heading}\n\n${s.body}${s.notes ? `\n\n---\n*Speaker notes: ${s.notes}*` : ""}${s.visual ? `\n\n*Visual: ${s.visual.type} — ${s.visual.description}*` : ""}`
     ).join("\n\n");
 
     const verifyResult = verifyDoc(
-      { type: "slides", title: deck.title, content: mdBody },
-      { type: "slides", title: deck.title, body: mdBody, format: "markdown", verified: false },
+      { type: "slides", title: deckTitle, content: mdBody },
+      { type: "slides", title: deckTitle, body: mdBody, format: "markdown", verified: false },
     );
 
     const issues = verifyResult.verificationNotes ? verifyResult.verificationNotes.split("; ").filter(Boolean) : [];
@@ -171,9 +207,18 @@ Rules:
       onStatus?.(`Fixing deck issues: ${issues.join("; ")}`);
     }
 
+    let finalBody = mdBody;
+    if (isTruncated(mdBody)) {
+      onStatus?.("Final body appears truncated, extending...");
+      const convSummary = this.conv?.getContextSummary();
+      finalBody = await completeTruncated(this.client, mdBody, "slides/final-extend", false, 4096, undefined, convSummary);
+    }
+
+    const outlineTitles = deck.outline.map((o) => o.title);
+
     const output: SlidesOutput = {
-      title: deck.title,
-      outline: deck.outline,
+      title: deckTitle,
+      outline: outlineTitles,
       slides,
       format: "markdown",
       verified: issues.length === 0,
@@ -185,15 +230,18 @@ Rules:
       sessionId: this.sessionId,
       type: "slide",
       title: output.title,
-      body: mdBody,
+      body: finalBody,
       format: "markdown",
-      metadata: { slideCount: slides.length, outline: deck.outline, sourceArtifactId },
+      metadata: { slideCount: slides.length, outline: outlineTitles, sourceArtifactId, deckV3: deck },
       sourceFiles: files.map((f) => f.name),
       parentId: sourceArtifactId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     this.store.put(artifact);
+
+    // Clear checkpoint on successful completion
+    this.conv?.clearCheckpoint("slide");
 
     onStatus?.(`Deck "${output.title}" ready (${slides.length} slides).`);
     return output;

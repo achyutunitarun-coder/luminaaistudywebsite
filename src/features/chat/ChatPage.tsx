@@ -21,8 +21,7 @@ import { detectCanvas, wrapAsHtmlDoc } from "@/features/canvas/canvasDetector";
 import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWorkspace";
 import { useArtifactStore } from "@/features/artifacts/artifactStore";
 import { type ModelMode } from "./components/ModelSelector";
-import { LuminaModePicker, type LuminaMode } from "./components/LuminaModePicker";
-import { LuminaModeIndicator } from "./components/LuminaModeIndicator";
+
 import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
 import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
 import { ManualRestoreButton } from "@/features/credits/ManualRestore";
@@ -210,9 +209,7 @@ const ChatPage = () => {
     const [showArtifactPicker, setShowArtifactPicker] = useState(false);
     const [canvasOpen, setCanvasOpen] = useState(false);
     const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-    const [luminaMode, setLuminaMode] = useState<LuminaMode | null>(null);
-    const [luminaRunning, setLuminaRunning] = useState(false);
-    const [luminaStatus, setLuminaStatus] = useState("");
+
 
     const abortRef = useRef<AbortController | null>(null);
     const currentChatIdRef = useRef<string | null>(null);
@@ -296,7 +293,6 @@ const ChatPage = () => {
     const startNewChat = useCallback(() => {
       abortRef.current?.abort(); setCurrentChatId(null); currentChatIdRef.current = null;
       setMessages([]); setInput(""); setLoading(false); setLoadingStage("");
-      setLuminaMode(null); setLuminaRunning(false); setLuminaStatus("");
     }, []);
 
     const deleteChat = useCallback(async (id: string) => {
@@ -307,20 +303,15 @@ const ChatPage = () => {
       if (currentChatIdRef.current === id) startNewChat();
     }, [startNewChat, user]);
 
-    const streamChat = useCallback(async (history: Message[], chatId: string | null, lmnMode?: LuminaMode) => {
+    const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
       const ctrl = new AbortController(); abortRef.current = ctrl;
       const aiMessages = history.filter(m => m.type === "text").slice(-20).map(m => ({ role: m.role, content: m.content }));
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Please sign in.");
       const wireMode = model === "deepDive" ? "long_context" : model;
-      const body: Record<string, any> = { messages: aiMessages, mode: wireMode };
-      if (lmnMode) {
-        body.lumina_mode = lmnMode;
-        body.session_id = currentChatIdRef.current || `${user?.id}_${Date.now()}`;
-      }
       const res = await fetch(CHAT_URL, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify(body), signal: ctrl.signal,
+        body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal,
       });
       if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
 
@@ -344,14 +335,6 @@ const ChatPage = () => {
               const parsed = JSON.parse(json);
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
-                if (lmnMode) {
-                  const trimmed = delta.trim();
-                  const statusMatch = trimmed.match(/^_(.+?)_$/);
-                  if (statusMatch && statusMatch[1].length < 200) {
-                    setLuminaStatus(statusMatch[1]);
-                    continue;
-                  }
-                }
                 acc += delta;
                 setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
               }
@@ -388,70 +371,9 @@ const ChatPage = () => {
       } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
     }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
 
-    const handleLuminaSend = useCallback(async (mode: LuminaMode, prompt: string) => {
-      const t = prompt.trim() || input.trim();
-      if (!t && !prompt) return;
-      const effectivePrompt = t || "Generate in " + mode + " mode";
-      const cid = await ensureChat(effectivePrompt);
-      if (!cid) return;
-      const um: Message = { id: uid(), role: "user", content: effectivePrompt, type: "text", timestamp: Date.now() };
-      const updatedMessages = [...messages, um];
-      setMessages(updatedMessages);
-      setInput("");
-      setLoading(true);
-      setLuminaRunning(true);
-      setLuminaStatus("Starting…");
-      await persistMessage(cid, um);
-      try {
-        await streamChat(updatedMessages, cid, mode);
-      } catch (e: any) {
-        if (e?.name !== "AbortError") {
-          setMessages(current => current.filter(m => m.type !== "loading").concat({
-            id: uid(), role: "assistant", type: "error" as const,
-            content: e?.message ?? "Something went wrong. Please try again.",
-            timestamp: Date.now(),
-          }));
-        }
-      } finally {
-        setLoading(false);
-        setLuminaRunning(false);
-        setLuminaStatus("");
-      }
-    }, [input, loading, messages, ensureChat, streamChat, persistMessage]);
-
     const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
       const t = (text || input).trim();
       if (!t || loading) return;
-
-      // If Lumina mode is active, route through Lumina mode
-      if (luminaMode) {
-        const cid = await ensureChat(t);
-        if (!cid) return;
-        const um: Message = { id: uid(), role: "user", content: t, type: "text", timestamp: Date.now() };
-        const updatedMessages = [...messages, um];
-        setMessages(updatedMessages);
-        setInput("");
-        setLoading(true);
-        setLuminaRunning(true);
-        setLuminaStatus("Starting…");
-        await persistMessage(cid, um);
-        try {
-          await streamChat(updatedMessages, cid, luminaMode);
-        } catch (e: any) {
-          if (e?.name !== "AbortError") {
-            setMessages(current => current.filter(m => m.type !== "loading").concat({
-              id: uid(), role: "assistant", type: "error" as const,
-              content: e?.message ?? "Something went wrong. Please try again.",
-              timestamp: Date.now(),
-            }));
-          }
-        } finally {
-          setLoading(false);
-          setLuminaRunning(false);
-          setLuminaStatus("");
-        }
-        return;
-      }
 
       // Explicit artifact generation (via artifact picker or quick buttons)
       if (artifactType) {
@@ -509,9 +431,9 @@ const ChatPage = () => {
         setLoading(false);
         setLoadingStage("");
       }
-    }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact, luminaMode]);
+    }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
-    const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); setLuminaRunning(false); setLuminaStatus(""); }, []);
+    const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
     const handleRegenerate = useCallback(async (mid: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx)); try { await streamChat(messages.slice(0, idx), cid); } catch { /* ignore */ } }, [messages, streamChat]);
     const handleRetry = useCallback(async (mid: string) => { await handleRegenerate(mid); }, [handleRegenerate]);
     const handleEdit = useCallback(async (mid: string, nt: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx).concat({ ...messages[idx], content: nt })); try { await streamChat(messages.slice(0, idx).concat({ ...messages[idx], content: nt }), cid); } catch { /* ignore */ } }, [messages, streamChat]);
@@ -559,18 +481,9 @@ const ChatPage = () => {
             </div>
           </div>
           <div className="chat-topbar-center">
-            {luminaMode ? (
-              <LuminaModeIndicator
-                mode={luminaMode}
-                onClear={() => { setLuminaMode(null); setLuminaRunning(false); setLuminaStatus(""); }}
-                isRunning={luminaRunning}
-                statusMessage={luminaStatus}
-              />
-            ) : (
-              <div className="chat-mode-pills">
-                {MODES.map(m => <button key={m.key} onClick={() => setModel(m.key)} className={`chat-mode-pill ${model === m.key ? "active" : ""}`}>{m.label}</button>)}
-              </div>
-            )}
+            <div className="chat-mode-pills">
+              {MODES.map(m => <button key={m.key} onClick={() => setModel(m.key)} className={`chat-mode-pill ${model === m.key ? "active" : ""}`}>{m.label}</button>)}
+            </div>
           </div>
           <div className="chat-topbar-right">
             <button onClick={startNewChat} className="chat-topbar-btn hidden sm:inline-flex"><MessageSquarePlus className="w-3.5 h-3.5" /> New</button>
@@ -587,12 +500,6 @@ const ChatPage = () => {
                 <h1 className="chat-empty-heading">How can I help you study?</h1>
                 <p className="chat-empty-sub">Generate notes, exams, slides, code, and explanations instantly.</p>
               </motion.div>
-              <LuminaModePicker
-                selected={luminaMode}
-                onSelect={(m) => setLuminaMode(m)}
-                onSend={(mode, prompt) => handleLuminaSend(mode, prompt)}
-                active={luminaRunning}
-              />
               <div className="chat-suggestions">
                 {SUGGESTIONS.map((s, i) => (
                   <motion.button key={s.text} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] as const }} onClick={() => handleSend(s.text)} className="chat-suggestion-card">

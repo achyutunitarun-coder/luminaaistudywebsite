@@ -1,6 +1,7 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import { verifyDoc } from "./document-gen.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
+import { safeJsonParse, isTruncated, completeTruncated } from "./truncation-handler.ts";
 
 export interface DocOutput {
   title: string;
@@ -12,13 +13,15 @@ export interface DocOutput {
 
 export class DocsMode {
   private client: ModelClient;
+  private conv?: import("./conversation-store.ts").ConversationStore;
 
   constructor(
     private store: ArtifactStore,
     private sessionId: string,
-    opts?: { modelClient?: ModelClient },
+    opts?: { modelClient?: ModelClient; conversation?: import("./conversation-store.ts").ConversationStore },
   ) {
     this.client = opts?.modelClient ?? createModelClient();
+    this.conv = opts?.conversation;
   }
 
   async generate(
@@ -43,15 +46,19 @@ export class DocsMode {
         files.map((f) => `--- ${f.name} (${f.type}) ---\n${f.content.slice(0, 3000)}`).join("\n");
     }
 
-    const outlinePrompt = `You are a document architect. Given a request, produce a detailed outline.
+    const outlinePrompt = `You are a document architect using the v3.0 structured format. Given a request, produce a detailed outline.
 
 Request: ${request}${sourceContext}${fileContext}
 
 Return ONLY a JSON object with:
 - title: the document title
+- subtitle: optional subtitle
+- document_type: "report" | "whitepaper" | "proposal" | "memo" | "guide" | "spec" | "blog" | "essay"
+- audience: "technical" | "executive" | "general" | "academic"
 - sections: array of { heading, subsections: string[] }
 - estimated_pages: number
-- format: one of "markdown", "html", "pdf"`;
+- format: one of "markdown", "html", "pdf"
+- tags: string[] (3-5 relevant tags)`;
 
     onStatus?.("Drafting outline...");
     const outlineResp = await this.client.complete(
@@ -59,17 +66,27 @@ Return ONLY a JSON object with:
         { role: "system", content: "You are a professional document architect. Return valid JSON only." },
         { role: "user", content: outlinePrompt },
       ],
-      { maxTokens: 2048, temperature: 0.3, tag: "docs/outline" },
+      { maxTokens: 4096, temperature: 0.3, tag: "docs/outline" },
     );
 
     let outline: { title: string; sections: { heading: string; subsections: string[] }[] };
-    try {
-      outline = JSON.parse(outlineResp);
-    } catch {
+    const outlineParsed = await safeJsonParse<{ title: string; sections: { heading: string; subsections: string[] }[] }>(this.client, outlineResp, "docs/outline-parse");
+    if (outlineParsed.data) {
+      outline = outlineParsed.data;
+    } else {
       outline = { title: "Untitled", sections: [{ heading: "Content", subsections: [] }] };
     }
 
     onStatus?.(`Outline: ${outline.title} (${outline.sections.length} sections). Writing full document...`);
+
+    // Checkpoint outline progress
+    this.conv?.setCheckpoint({
+      step: 1,
+      totalSteps: 2,
+      mode: "doc",
+      partial: { outline, sectionsPlanned: outline.sections.length },
+      context: `Writing document "${outline.title}" with ${outline.sections.length} sections. Sections: ${outline.sections.map((s) => s.heading).join(", ")}. Next step: write the full document body.`,
+    });
 
     const writePrompt = `Write a complete ${outline.format ?? "markdown"} document based on this outline.
 
@@ -84,15 +101,37 @@ Requirements:
 - Use proper markdown formatting (headings, tables, lists, code blocks)
 - Include inline citations if referencing sources
 - Write complete paragraphs, not bullet points for prose sections
-- Output the full document content`;
+- START with YAML frontmatter:
+---
+title: "${outline.title}"
+document_type: "${(outline as any).document_type ?? "report"}"
+audience: "${(outline as any).audience ?? "general"}"
+tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
+---
+- Then write the full document content with ## headings for each section
+- Include an Executive Summary at the start
+- Add a References or Sources section at the end
 
-    const docBody = await this.client.complete(
+    let docBody = await this.client.complete(
       [
         { role: "system", content: "You are a professional writer. Write complete, well-structured documents in markdown." },
         { role: "user", content: writePrompt },
       ],
-      { maxTokens: 16384, temperature: 0.4, tag: "docs/write" },
+      { maxTokens: 32768, temperature: 0.4, tag: "docs/write" },
     );
+
+    if (isTruncated(docBody)) {
+      onStatus?.("Document body truncated, extending...");
+      const convSummary = this.conv?.getContextSummary();
+      docBody = await completeTruncated(this.client, docBody, "docs/doc-extend", false, 8192, undefined, convSummary);
+    }
+
+    // Checkpoint document completed
+    this.conv?.setCheckpoint({
+      step: 2, totalSteps: 2, mode: "doc",
+      partial: { docBody: docBody.slice(0, 500) },
+      context: `Document "${outline.title}" written (${docBody.length} chars). Verifying quality.`,
+    });
 
     const result: DocOutput = {
       title: outline.title,

@@ -1,5 +1,6 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
+import { safeJsonParse } from "./truncation-handler.ts";
 
 export interface SheetCell {
   value: string;
@@ -23,13 +24,15 @@ export interface SheetOutput {
 
 export class SheetsMode {
   private client: ModelClient;
+  private conv?: import("./conversation-store.ts").ConversationStore;
 
   constructor(
     private store: ArtifactStore,
     private sessionId: string,
-    opts?: { modelClient?: ModelClient },
+    opts?: { modelClient?: ModelClient; conversation?: import("./conversation-store.ts").ConversationStore },
   ) {
     this.client = opts?.modelClient ?? createModelClient();
+    this.conv = opts?.conversation;
   }
 
   async generate(
@@ -46,12 +49,12 @@ export class SheetsMode {
         files.map((f) => `--- ${f.name} ---\n${f.content.slice(0, 4000)}`).join("\n");
     }
 
-    const schemaPrompt = `You are a spreadsheet architect. Given a request and optional data, design the sheet structure.
+    const schemaPrompt = `You are a spreadsheet architect using the v3.0 structured format. Given a request and optional data, design the sheet structure.
 
 Request: ${request}
 ${sourceData ? `Source data:\n${sourceData.slice(0, 5000)}` : ""}${fileContext}
 
-Return ONLY JSON:
+Return ONLY JSON (no markdown code blocks):
 {
   "title": "Sheet name",
   "tables": [
@@ -61,7 +64,7 @@ Return ONLY JSON:
     }
   ],
   "assumptions": {"key": "value", ...},
-  "summary_layer": {  // build a grouped/summarized table from raw data
+  "summary_layer": {
     "group_by": "column name",
     "aggregations": [{"column": "col", "function": "sum|avg|count|min|max", "label": "Total X"}]
   }
@@ -70,8 +73,9 @@ Return ONLY JSON:
 Rules:
 - If raw data is provided, build a summary layer first (grouped/aggregated), then design charts from that
 - Include an assumptions section visible in the sheet
-- All formulas should reference actual column ranges
-- Headers should be clear and human-readable`;
+- All formulas should reference actual column ranges using v3.0 format: {"column": "A", "name": "Category", "formula": "=SUM(...)", "format": "currency", "validation": {"type": "list", "source": "range"}}
+- Headers should be clear and human-readable
+- Include conditional formatting rules where appropriate (color scales for variance, data bars for comparisons)`;
 
     onStatus?.("Designing sheet structure...");
     const designResp = await this.client.complete(
@@ -79,7 +83,7 @@ Rules:
         { role: "system", content: "You are a spreadsheet designer. Return valid JSON only." },
         { role: "user", content: schemaPrompt },
       ],
-      { maxTokens: 4096, temperature: 0.3, tag: "sheet/design" },
+      { maxTokens: 8192, temperature: 0.3, tag: "sheet/design" },
     );
 
     let design: {
@@ -89,15 +93,25 @@ Rules:
       summary_layer?: { group_by: string; aggregations: { column: string; function: string; label: string }[] };
     };
 
-    try {
-      design = JSON.parse(designResp);
-    } catch {
+    const designParsed = await safeJsonParse<{ title: string; tables: SheetTable[]; assumptions: Record<string, string>; summary_layer?: any }>(this.client, designResp, "sheet/design-parse");
+    if (designParsed.data) {
+      design = designParsed.data;
+      if (designParsed.recovered) onStatus?.("Recovered truncated sheet design");
+    } else {
       design = {
         title: "Sheet1",
         tables: [{ headers: ["Item", "Value"], rows: [{ Item: "Sample", Value: "0" }] }],
         assumptions: {},
       };
     }
+
+    this.conv?.setCheckpoint({
+      step: 1,
+      totalSteps: 2,
+      mode: "sheet",
+      partial: { tables: design.tables.length, title: design.title },
+      context: `Building spreadsheet "${design.title}" with ${design.tables.length} tables. Next step: populate data and create aggregation layers.`,
+    });
 
     onStatus?.(`Building ${design.tables.length} table(s)...`);
 
@@ -120,7 +134,7 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
             { role: "system", content: "Create summarized data for charting. Return JSON only." },
             { role: "user", content: aggPrompt },
           ],
-          { maxTokens: 4096, temperature: 0.3, tag: "sheet/summarize" },
+          { maxTokens: 8192, temperature: 0.3, tag: "sheet/summarize" },
         );
 
         try {

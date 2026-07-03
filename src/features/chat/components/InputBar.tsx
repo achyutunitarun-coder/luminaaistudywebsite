@@ -218,22 +218,21 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      <div className="flex items-end gap-2 p-2 rounded-2xl bg-card/60 backdrop-blur-xl border border-border focus-within:border-primary/60 transition-colors">
+      <div className="flex items-end gap-2 p-2.5 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.4)] focus-within:border-primary/40 transition-all duration-300">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={disabled}
-          className="shrink-0 w-9 h-9 grid place-items-center rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          className="shrink-0 w-9 h-9 grid place-items-center rounded-xl hover:bg-white/[0.08] transition-all text-muted-foreground hover:text-foreground hover:scale-105 active:scale-95"
           title="Attach files"
           aria-label="Attach files"
         >
           <Paperclip className="w-4 h-4" />
         </button>
-        {/* Connectors disabled */}
         <button
           type="button"
           onClick={() => setPickerOpen((o) => !o)}
-          className="shrink-0 w-9 h-9 grid place-items-center rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          className="shrink-0 w-9 h-9 grid place-items-center rounded-xl hover:bg-white/[0.08] transition-all text-muted-foreground hover:text-foreground hover:scale-105 active:scale-95"
           title="Generate artifact"
           aria-label="Generate artifact"
         >
@@ -249,11 +248,11 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
           placeholder="Ask anything, attach files, or say 'create notes on photosynthesis'…"
           maxLength={50000}
           disabled={disabled}
-          className="flex-1 bg-transparent border-0 outline-none resize-none py-2 px-1 text-sm placeholder:text-muted-foreground/60 max-h-[200px] overflow-y-auto"
+          className="flex-1 bg-transparent border-0 outline-none resize-none py-2.5 px-1 text-sm placeholder:text-muted-foreground/50 max-h-[200px] overflow-y-auto"
         />
 
         {value.length > 1000 && (
-          <span className="self-end pb-2 text-[10px] text-muted-foreground tabular-nums">
+          <span className="self-end pb-3 text-[10px] text-muted-foreground/50 tabular-nums">
             {value.length.toLocaleString()}
           </span>
         )}
@@ -262,7 +261,7 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
           <button
             type="button"
             onClick={onStop}
-            className="shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-destructive/20 hover:bg-destructive/30 text-destructive transition-colors"
+            className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-destructive/15 hover:bg-destructive/25 text-destructive transition-all hover:scale-105 active:scale-95"
             title="Stop"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
@@ -272,7 +271,7 @@ export const InputBar = ({ value, onChange, onSend, onStop, isLoading, disabled,
             type="button"
             onClick={submit}
             disabled={(!value.trim() && attachments.length === 0 && contextBlocks.length === 0) || disabled}
-            className="shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            className="shrink-0 w-9 h-9 grid place-items-center rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-[0_4px_16px_rgba(124,92,252,0.3)] disabled:shadow-none"
             title="Send"
           >
             <Send className="w-4 h-4" />

@@ -38,8 +38,34 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-markdown";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-bash";
+import { LuminaModePicker, type LuminaMode } from "@/features/chat/components/LuminaModePicker";
+import { LuminaModeIndicator } from "@/features/chat/components/LuminaModeIndicator";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+function getLuminaSystemPrompt(mode: LuminaMode): string {
+  const base = `You are Lumina, an expert AI assistant. Output content using FILE: format.
+
+FILE: path.ext
+content
+END FILE
+
+Use STATUS: msg for progress. Output multiple files in one response.`;
+
+  const prompts: Record<LuminaMode, string> = {
+    research: `${base}
+MODE: Deep Research — produce research-report.md, executive-summary.md, references.md. STATUS: planning→searching→collecting→synthesizing→verifying.`,
+    doc: `${base}
+MODE: Document — produce document.md + document.html. STATUS: outlining→writing→verifying.`,
+    sheet: `${base}
+MODE: Sheets — produce data.csv + schema.json + summary.csv. STATUS: designing→building→formulas→verifying.`,
+    slide: `${base}
+MODE: Slides — produce slides.md (--- separators for Google Slides) + slides.json. STATUS: outlining→writing→verifying.`,
+    website: `${base}
+MODE: Website — produce index.html + style.css + script.js. STATUS: mapping→generating→verifying.`,
+  };
+  return prompts[mode];
+}
 
 // ── Types ──
 interface Attachment { id: string; name: string; kind: "image" | "text" | "file"; size: number; preview?: string; text?: string; }
@@ -150,14 +176,79 @@ function CodeEditor({ file, allFiles }: { file: LuminaFile | null; allFiles: Lum
   );
 }
 
+// ── Slide Parser ──
+interface SlideData { title: string; content: string; notes: string; }
+
+function parseSlidesFromMd(md: string): SlideData[] {
+  const slides: SlideData[] = [];
+  const parts = md.split(/\n---\n/);
+  for (const part of parts) {
+    const lines = part.trim().split("\n");
+    let title = "";
+    let content = "";
+    let notes = "";
+    let inContent = false;
+    for (const line of lines) {
+      if (line.startsWith("# ")) { title = line.slice(2).trim(); inContent = true; }
+      else if (line.toLowerCase().startsWith("notes:")) { notes = line.slice(6).trim(); }
+      else if (inContent) { content += line + "\n"; }
+    }
+    if (title || content.trim()) {
+      slides.push({ title: title || "Slide", content: content.trim(), notes });
+    }
+  }
+  return slides.length > 0 ? slides : [{ title: "Slide", content: md.trim(), notes: "" }];
+}
+
+function generateHtmlPresentation(slides: SlideData[]): string {
+  const slidesHtml = slides.map((s, i) => `
+    <div class="slide${i === 0 ? ' active' : ''}">
+      <div class="slide-inner">
+        <div class="slide-number">${i + 1} / ${slides.length}</div>
+        <h1>${s.title}</h1>
+        <div class="slide-content">${s.content.replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>')}</div>
+        ${s.notes ? `<div class="slide-notes">${s.notes}</div>` : ''}
+      </div>
+    </div>`).join("");
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lumina Presentation</title><style>
+*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a12;font-family:-apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif;overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center}
+.slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s ease;pointer-events:none;padding:40px}
+.slide.active{opacity:1;pointer-events:auto}
+.slide-inner{max-width:960px;width:100%;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-radius:24px;padding:60px;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative;min-height:500px;display:flex;flex-direction:column;justify-content:center;border:1px solid rgba(255,255,255,.06)}
+.slide-number{position:absolute;top:20px;right:24px;font-size:12px;color:rgba(255,255,255,.3);font-weight:500;letter-spacing:.05em}
+h1{font-size:36px;font-weight:700;color:#fff;margin-bottom:24px;line-height:1.2}
+.slide-content{font-size:18px;line-height:1.7;color:rgba(255,255,255,.8)}
+.slide-content strong{color:#fff}
+.slide-notes{margin-top:24px;padding:12px 16px;background:rgba(255,255,255,.05);border-radius:10px;font-size:13px;color:rgba(255,255,255,.4);border-left:2px solid rgba(255,255,255,.1)}
+nav{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:100}
+nav button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+nav button:hover{background:rgba(255,255,255,.15)}.dots{display:flex;gap:6px;margin:0 12px}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .2s}
+.dot.active{background:#7C5CFC;box-shadow:0 0 8px rgba(124,92,252,.5)}.dot:hover{background:rgba(255,255,255,.3)}
+@media print{.slide{opacity:1!important;position:relative!important;page-break-after:always;height:100vh}nav{display:none!important}}
+</style></head><body>
+${slidesHtml}
+<nav><button onclick="prevSlide()">←</button><div class="dots">${slides.map((_,i)=>`<div class="dot${i===0?' active':''}" onclick="goSlide(${i})"></div>`).join("")}</div><button onclick="nextSlide()">→</button></nav>
+<script>let i=0;const s=document.querySelectorAll('.slide'),d=document.querySelectorAll('.dot');function show(n){s.forEach((e,j)=>{e.classList.toggle('active',j===n);d[j]?.classList.toggle('active',j===n)});i=n}
+function nextSlide(){show(Math.min(i+1,s.length-1))}function prevSlide(){show(Math.max(i-1,0))}function goSlide(n){show(n)}
+document.addEventListener('keydown',e=>{e.key==='ArrowRight'&&nextSlide();e.key==='ArrowLeft'&&prevSlide()})</script>
+</body></html>`;
+}
+
 // ── Preview Panel ──
 function PreviewPanel({ open, onClose, files, activeFile }: { open: boolean; onClose: () => void; files: LuminaFile[]; activeFile: LuminaFile | null }) {
   const [fullscreen, setFullscreen] = useState(false);
+  const [slideView, setSlideView] = useState(false);
+  const slideFile = useMemo(() => files.find(f => f.path === "slides.md"), [files]);
+  const slides = useMemo(() => slideFile ? parseSlidesFromMd(slideFile.content) : [], [slideFile]);
   const previewTarget = useMemo(() => {
+    if (slideView && slides.length > 0) return null;
     if (activeFile && activeFile.lang === "html") return activeFile;
     return files.find(f => f.lang === "html") ?? activeFile;
-  }, [files, activeFile]);
+  }, [files, activeFile, slideView, slides]);
   const doc = useMemo(() => previewTarget ? buildPreviewDoc(previewTarget, files) : "", [previewTarget, files]);
+  const pptDoc = useMemo(() => slides.length > 0 ? generateHtmlPresentation(slides) : "", [slides]);
 
   if (!open) return null;
 
@@ -170,8 +261,17 @@ function PreviewPanel({ open, onClose, files, activeFile }: { open: boolean; onC
       <div className="flex items-center gap-2 px-4 h-10 border-b flex-shrink-0" style={{ borderColor: "var(--border-subtle)" }}>
         <Eye className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
         <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Preview</span>
-        {previewTarget && <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{previewTarget.path}</span>}
+        {slides.length > 0 && (
+          <button onClick={() => setSlideView(v => !v)} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all" style={{ background: slideView ? "var(--text-primary)" : "transparent", color: slideView ? "var(--bg-base)" : "var(--text-muted)", border: "1px solid", borderColor: slideView ? "var(--text-primary)" : "var(--border-subtle)" }}>
+            Slides
+          </button>
+        )}
         <div className="ml-auto flex items-center gap-1">
+          {slides.length > 0 && (
+            <button onClick={() => { const b = new Blob([pptDoc], { type: "text/html" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "presentation.html"; a.click(); URL.revokeObjectURL(a.href); }} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-all" style={{ background: "var(--text-primary)", color: "var(--bg-base)" }} title="Download HTML presentation">
+              <Download className="w-3 h-3" /> Export
+            </button>
+          )}
           <button onClick={() => setFullscreen(!fullscreen)} className="p-1.5 rounded transition" style={{ color: "var(--text-muted)" }} title="Fullscreen">
             {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
@@ -180,8 +280,10 @@ function PreviewPanel({ open, onClose, files, activeFile }: { open: boolean; onC
           </button>
         </div>
       </div>
-      <div className="flex-1 relative overflow-hidden" style={{ background: "var(--text-primary)", minHeight: 400 }}>
-        {previewTarget ? (
+      <div className="flex-1 relative overflow-hidden" style={{ minHeight: 400 }}>
+        {slideView && slides.length > 0 ? (
+          <iframe title="Lumina Slides" srcDoc={pptDoc} className="w-full h-full border-0" style={{ background: "#0a0a12" }} />
+        ) : previewTarget ? (
           <iframe title="Lumina Preview" srcDoc={doc} sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock" className="w-full h-full border-0" />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: "var(--text-muted)", background: "var(--bg-surface)" }}>
@@ -247,6 +349,10 @@ export default function LuminaComputer() {
   const [factoryActive, setFactoryActive] = useState<string | null>(null);
   const [factoryEvents, setFactoryEvents] = useState<string[]>([]);
   const [validationSummary, setValidationSummary] = useState("");
+  const [luminaMode, setLuminaMode] = useState<LuminaMode | null>(null);
+  const [luminaRunning, setLuminaRunning] = useState(false);
+  const [luminaStatus, setLuminaStatus] = useState("");
+  const [liveContent, setLiveContent] = useState("");
 
   const activeFile = useMemo(() => files.find(f => f.path === activePath) ?? files[0] ?? null, [files, activePath]);
   const activeFileIndex = useMemo(() => files.findIndex(f => f.path === activePath), [files, activePath]);
@@ -299,6 +405,7 @@ export default function LuminaComputer() {
     setFiles([]); setPlan(""); setFinalMd(""); setActivePath(null); setAttachments([]);
     setCanContinue(false); setFactoryStates(idleFactoryStates()); setFactoryActive(null);
     setFactoryEvents([]); setValidationSummary("");
+    setLuminaMode(null); setLuminaRunning(false); setLuminaStatus(""); setLiveContent("");
     rawAssistantRef.current = ""; lastUserPromptRef.current = ""; turnsRef.current = [];
     sessionIdRef.current = null; parserRef.current = null; seenActionsRef.current = new Set();
     setLogs([{ id: uid(), level: "system", text: "Cleared. What next?", ts: Date.now() }]);
@@ -354,6 +461,8 @@ export default function LuminaComputer() {
     setPrompt(""); setCanContinue(false);
     if (taRef.current) taRef.current.style.height = "auto";
     setBusy(true);
+    setLiveContent("");
+    if (luminaMode) { setLuminaRunning(true); setLuminaStatus("Starting…"); }
 
     if (isCont) {
       log("system", "Continuing from last cut-off...");
@@ -368,12 +477,14 @@ export default function LuminaComputer() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Please sign in.");
 
+      const sysPrompt = luminaMode ? getLuminaSystemPrompt(luminaMode) : null;
       let messages: any[];
       if (isCont) {
         // Pass full assistant context so model knows exactly what was written so far.
         // Truncate to last 16000 chars to stay within context window.
         const assistantContext = rawAssistantRef.current.slice(-16000);
         messages = [
+          ...(sysPrompt ? [{ role: "system", content: sysPrompt }] : []),
           { role: "user", content: lastUserPromptRef.current },
           { role: "assistant", content: assistantContext },
           { role: "user", content: "CONTINUE EXACTLY from where you left off. Do NOT repeat anything already written. Do NOT restart. Do NOT add commentary. Output ONLY the remaining content so the document is complete and properly closed." },
@@ -382,7 +493,7 @@ export default function LuminaComputer() {
         const content = buildMessageContent(trimmed);
         setAttachments([]);
         const history = turnsRef.current.slice(-12);
-        messages = [...history, { role: "user", content }];
+        messages = [...(sysPrompt ? [{ role: "system", content: sysPrompt }] : []), ...history, { role: "user", content }];
       }
 
       const seenFiles = new Set<string>();
@@ -408,10 +519,16 @@ export default function LuminaComputer() {
       };
 
       const streamMessages = async (payload: any[]) => {
+        const body: Record<string, any> = { messages: payload, mode: "computer", effort };
+        if (luminaMode) {
+          body.lumina_mode = luminaMode;
+          sessionIdRef.current = sessionIdRef.current || `${session.user.id}_${Date.now()}`;
+          body.session_id = sessionIdRef.current;
+        }
         const res = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ messages: payload, mode: "computer", effort }),
+          body: JSON.stringify(body),
           signal: ctrl.signal,
         });
         if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -436,7 +553,16 @@ export default function LuminaComputer() {
               if (parsed?.lumina_meta?.model) { log("model", `Model: ${parsed.lumina_meta.model}`); }
               const delta = parsed?.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta.length > 0) {
+                if (luminaMode) {
+                  const trimmed = delta.trim();
+                  const statusMatch = trimmed.match(/^_(.+?)_$/);
+                  if (statusMatch && statusMatch[1].length < 200) {
+                    setLuminaStatus(statusMatch[1]);
+                    continue;
+                  }
+                }
                 rawAssistantRef.current += delta;
+                setLiveContent(rawAssistantRef.current.slice(-2000));
                 parserRef.current!.push(delta);
                 applyState();
               }
@@ -547,8 +673,8 @@ export default function LuminaComputer() {
         log("warn", "Stopped");
         if (rawAssistantRef.current.length > 200) setCanContinue(true);
       } else { log("warn", e?.message ?? "Request failed"); toast.error(e?.message ?? "Request failed"); }
-    } finally { setBusy(false); setFactoryActive(null); abortRef.current = null; }
-  }, [busy, log, attachments, setFactoryStage]);
+    } finally { setBusy(false); setFactoryActive(null); setLuminaRunning(false); setLuminaStatus(""); abortRef.current = null; }
+  }, [busy, log, attachments, setFactoryStage, luminaMode]);
 
   const onSubmit = () => send(prompt);
   const onContinue = () => send("", { continuation: true });
@@ -591,6 +717,15 @@ export default function LuminaComputer() {
             );
           })}
         </div>
+
+        {luminaMode && (
+          <LuminaModeIndicator
+            mode={luminaMode}
+            onClear={() => { setLuminaMode(null); setLuminaRunning(false); setLuminaStatus(""); }}
+            isRunning={luminaRunning}
+            statusMessage={luminaStatus}
+          />
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           {busy && (
@@ -686,8 +821,48 @@ export default function LuminaComputer() {
             {/* Code Editor */}
             <div className="flex-1 flex flex-col min-w-0" style={{ borderRight: previewOpen && activeFile?.lang === "html" ? "1px solid var(--border-subtle)" : "none" }}>
               {isEmpty ? (
-                <div className="flex-1 flex items-center justify-center" style={{ color: "var(--text-muted)", fontSize: 14 }}>
-                  Ready when you are.
+                <div className="flex-1 flex flex-col items-center justify-center overflow-auto py-8">
+                  <LuminaModePicker
+                    selected={luminaMode}
+                    onSelect={(m) => setLuminaMode(m)}
+                    onSend={(mode) => {
+                      setLuminaMode(mode);
+                      taRef.current?.focus();
+                    }}
+                    active={luminaRunning}
+                  />
+                </div>
+              ) : busy && files.length === 0 && !plan && !finalMd ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto" style={{ background: "var(--bg-base)" }}>
+                  {luminaMode && (() => {
+                    const meta = ({ research: { label: "Deep Research", color: "#8B5CF6" }, doc: { label: "Documents", color: "#3B82F6" }, sheet: { label: "Sheets", color: "#10B981" }, slide: { label: "Slides", color: "#EC4899" }, website: { label: "Websites", color: "#06B6D4" } } as const)[luminaMode];
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full" style={{ background: `${meta.color}14`, border: `1px solid ${meta.color}33` }}>
+                          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: meta.color, boxShadow: `0 0 6px ${meta.color}` }} />
+                          <span className="text-[12px] font-semibold" style={{ color: meta.color }}>{meta.label}</span>
+                          {luminaStatus && <span className="text-[11px] ml-1" style={{ color: "var(--text-muted)" }}>— {luminaStatus}</span>}
+                        </div>
+                        {liveContent && (
+                          <pre className="text-[11px] leading-relaxed max-w-[640px] w-full whitespace-pre-wrap font-mono" style={{ color: "var(--text-secondary)", maxHeight: 360, overflow: "auto" }}>
+                            {liveContent.slice(-1500)}
+                          </pre>
+                        )}
+                        {!liveContent && (
+                          <div className="flex items-center gap-2 text-[12px]" style={{ color: "var(--text-muted)" }}>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Thinking...
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                  {!luminaMode && (
+                    <div className="flex items-center gap-2 text-[12px]" style={{ color: "var(--text-muted)" }}>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
+                    </div>
+                  )}
                 </div>
               ) : finalMd && !activeFile && !files.length ? (
                 <div className="flex-1 overflow-auto px-6 py-5" style={{ background: "var(--bg-surface)" }}>

@@ -34,72 +34,72 @@ const STAGES: StageDef[] = [
   {
     stage: "planner",
     label: "Thinking",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free"],
-    maxTokens: 1500, temperature: 0.4,
+    models: ["nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra:free"],
+    maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
       `You are the ORCHESTRATOR for Lumina Computer. Break the user's request into a structured task list. Return ONLY JSON: {"subtasks":[...], "agent_assignments":{...}, "parallel_opportunities":[...], "success_criteria":[...]}. Be concise.`,
   },
   {
     stage: "router",
     label: "Routing",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-    maxTokens: 2000, temperature: 0.4,
+    models: ["nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
+    maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
-      `You are the ROUTER. Produce the model strategy: Primary meta-llama/llama-3.3-70b-instruct:free, Secondary openai/gpt-oss-120b:free, Tertiary qwen/qwen3-coder:free. Include fallback triggers: timeout, invalid id, malformed tags, validation errors. Return concise Markdown.`,
+      `You are the ROUTER. Produce the model strategy. Include fallback triggers: timeout, invalid id, malformed tags, validation errors. Return concise Markdown.`,
   },
   {
     stage: "research",
     label: "Research",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra-550b-a55b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-    maxTokens: 3000, temperature: 0.4,
+    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
+    maxTokens: 8192, temperature: 0.4,
     systemPrompt: () =>
       `You are the RESEARCH agent. Gather all context, facts, formulas, definitions, and edge cases the BUILDER will need. Return a structured Markdown context packet under headings: Facts, Formulas, Examples, Edge Cases, Citations.`,
   },
   {
     stage: "architect",
     label: "Architecture",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-super-120b-a12b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-    maxTokens: 5000, temperature: 0.35,
+    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
+    maxTokens: 8192, temperature: 0.35,
     systemPrompt: () =>
       `You are the ARCHITECT. Define a production multi-file structure before coding. Return Markdown with: file tree, module responsibility, UI design system, runtime interactions, validation checklist. No code yet.`,
   },
   {
     stage: "builder",
     label: "Coding",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free"],
-    maxTokens: 32000, temperature: 0.55,
+    models: ["cohere/codex-north:free", "nvidia/nemotron-3-super:free", "qwen/qwen3-coder:free", "poolside/laguna:free", "openai/gpt-oss-120b:free"],
+    maxTokens: 65536, temperature: 0.55,
     systemPrompt: () =>
       `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,
   },
   {
     stage: "validator",
     label: "Evaluating",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "poolside/laguna-m.1:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
-    maxTokens: 1200, temperature: 0.3,
+    models: ["nvidia/nemotron-3-super:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
+    maxTokens: 4096, temperature: 0.3,
     systemPrompt: () =>
       `You are the VALIDATOR. Inspect the builder's output for syntax, import resolution, preview readiness, subject fidelity, placeholders, and completeness. Return ONLY JSON: {"status":"approved"|"revision_needed","issues":[...],"approved_sections":[...]}.`,
   },
   {
     stage: "debugger",
     label: "Debugging",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
-    maxTokens: 24000, temperature: 0.45,
+    models: ["cohere/codex-north:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
+    maxTokens: 65536, temperature: 0.45,
     systemPrompt: () =>
       `You are the DEBUGGER. Apply minimal fixes for validator issues only. Keep the same FORMAT (HTML stays HTML, code stays code, Markdown stays Markdown). Output ONLY the repaired artifact — no commentary.`,
   },
   {
     stage: "runner",
     label: "Running",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free", "meta-llama/llama-3.2-3b-instruct:free"],
-    maxTokens: 800, temperature: 0.2,
+    models: ["nvidia/nemotron-3-super:free", "openai/gpt-oss-20b:free"],
+    maxTokens: 2048, temperature: 0.2,
     systemPrompt: () =>
       `You are the RUNNER. Check the artifact can be executed in a browser iframe. Return concise Markdown with runtime pass/fail and exact minimal run notes.`,
   },
   {
     stage: "assembler",
     label: "Assembling",
-    models: ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-120b:free"],
-    maxTokens: 24000, temperature: 0.42,
+    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
+    maxTokens: 65536, temperature: 0.42,
     systemPrompt: () =>
       `You are the ASSEMBLER. Combine the best previous stage output into the final coherent artifact. Strengthen clarity, remove generic language, preserve all working code, and output ONLY the final artifact.`,
   },

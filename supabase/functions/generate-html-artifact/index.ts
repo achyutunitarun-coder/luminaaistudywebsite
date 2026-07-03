@@ -8,20 +8,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Preferred models for HTML artifact generation.
-// Owl-alpha first per user direction (1M+ ctx, fast streaming, can hold an
-// entire notes/exam/slides document without truncating). Free heavy hitters
-// stay behind it as fallback if the primary is rate-limited.
+// Preferred models for HTML artifact generation (July 2026 free roster).
 const HTML_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-ultra:free",
+  "cohere/codex-north:free",
+  "nvidia/nemotron-3-super:free",
   "qwen/qwen3-coder:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "poolside/laguna-m.1:free",
-  "google/gemma-4-31b-instruct:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "poolside/laguna:free",
+  "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
 ];
 
@@ -269,10 +263,7 @@ UNIQUENESS: This artifact must feel like a custom-designed product, not a templa
                     { role: "system", content: sysPrompt },
                     { role: "user", content: userPrompt },
                   ],
-                  // Bumped from 12k -> 24k so notes/exams/slides have headroom to
-                  // emit the full document; the primary model supports it natively. Timeout
-                  // bumped from 90s -> 180s for the same reason.
-                  [model], 24000, 0.5, 180_000, `html-artifact-${type}`
+                  [model], 65536, 0.5, 180_000, `html-artifact-${type}`
                 );
                 const cleaned = cleanHtml(text);
                 if (cleaned.toLowerCase().includes("<!doctype html") || cleaned.toLowerCase().includes("<html")) {

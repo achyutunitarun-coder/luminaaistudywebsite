@@ -16,103 +16,76 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 //   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
 
-// Primary model — the best all-round free model as of current OpenRouter availability.
-// Replaced by dynamic model catalog sync at startup (see `syncModelCatalog()` below).
-export const OWL = "meta-llama/llama-3.3-70b-instruct:free";
-/** @deprecated Use OWL directly or resolveModelForRole() for dynamic routing */
+// Primary model — the best all-round free model as of July 2026.
+export const OWL = "nvidia/nemotron-3-super:free";
 export const PRIMARY_MODEL = OWL;
 
-// FAST — Generalists & Efficiency (low-latency)
-export const MODELS_FAST = [
-  OWL,
-  "liquid/lfm-2.5-1.2b-instruct:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "openai/gpt-oss-20b:free",
-  "poolside/laguna-xs.2:free",
-  "cohere/north-mini-code:free",
-];
-
-// BALANCED — Generalists & Efficiency for daily tasks
-export const MODELS_BALANCED = [
-  OWL,
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "openai/gpt-oss-20b:free",
-];
-
-// QUALITY — High-Reasoning & Frontier Models
+// QUALITY — Complex reasoning, agentic workflows
 export const MODELS_QUALITY = [
   OWL,
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/nemotron-3-ultra:free",
   "meta-llama/llama-3.3-70b-instruct:free",
+];
+
+// CODE — Software engineering specialists
+export const MODELS_CODE = [
+  "cohere/codex-north:free",
+  OWL,
+  "poolside/laguna:free",
+  "poolside/laguna-xs.2:free",
+  "poolside/laguna-xs-2.1:free",
+  "qwen/qwen3-coder:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
 ];
 
-// ── CODING — Software Engineering Specialists ──────────────────────
-export const MODELS_CODE = [
+// LONG CTX — Deep research, huge docs
+export const MODELS_LONG_CTX = [
+  "google/gemini-1.5-pro-002:free",
   OWL,
-  "qwen/qwen3-coder:free",
-  "poolside/laguna-m.1:free",
-  "poolside/laguna-xs.2:free",
-  "cohere/north-mini-code:free",
+  "nvidia/nemotron-3-ultra:free",
+];
+
+// VISION — Multimodal, vision & video
+export const MODELS_VISION = [
+  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-nano-omni:free",
+  "nvidia/nemotron-nano-12b-2-vl:free",
+];
+
+// FAST — Quick responses, ultra-fast, edge
+export const MODELS_FAST = [
+  OWL,
+  "nvidia/nemotron-nano-30b-a3b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "liquid/lfm2.5-1.2b-instruct:free",
+  "liquid/lfm2.5-1.2b-thinking:free",
+];
+
+// BALANCED — Daily tasks, low latency
+export const MODELS_BALANCED = [
+  OWL,
   "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-26b-a4b:free",
 ];
 
-// ── LONG CONTEXT — deep research, reports, artifacts ──────────────
-export const MODELS_LONG_CTX = [
-  OWL,                                                    // 1M+ ctx
-  "qwen/qwen3-coder:free",
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
-];
-
-// ── VISION — Multimodal, Vision & Video Specialists ───────────────
-export const MODELS_VISION = [
-  OWL,
-  "google/gemma-4-31b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-nano-12b-v2-vl:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-];
-
-// ── WRITING / NOTES (long-form prose) ──────────────────────────────
+// WRITING — Long-form prose, roleplay, multilingual
 export const MODELS_WRITING = [
+  "nousresearch/hermes-3-405b-instruct:free",
   OWL,
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "google/gemma-4-31b-instruct:free",
+  "zhipu-ai/glm-4-32b:free",
+  "venice/uncensored:free",
 ];
 
-// ── SAFETY — content moderation / guardrail filtering ─────────────
+// SAFETY — content moderation / guardrail filtering
 export const MODELS_SAFETY = [
   "nvidia/nemotron-3.5-content-safety:free",
 ];
 
 export const MODELS_EXTRA = [
-  OWL,
-  "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
+  ...MODELS_FAST,
+  ...MODELS_BALANCED,
 ];
 
 export const MODEL_FREE_ROUTER = "openrouter/free";
@@ -236,12 +209,12 @@ export interface ModelClient {
 export function createModelClient(models: string[] = [OWL, ...MODELS_CODE]): ModelClient {
   return {
     async complete(messages, opts = {}) {
-      const { maxTokens = 8192, temperature = 0.3, tag = "client" } = opts;
+      const { maxTokens = 16384, temperature = 0.3, tag = "client" } = opts;
       return callAIText(messages, models, maxTokens, temperature, TEXT_TOTAL_BUDGET_MS, tag);
     },
 
     async completeWithTools(messages, tools, opts = {}) {
-      const { maxTokens = 8192, temperature = 0.3, tag = "client" } = opts;
+      const { maxTokens = 16384, temperature = 0.3, tag = "client" } = opts;
       const { response, model } = await callWithFallback(
         messages, models, maxTokens, temperature, TEXT_TOTAL_BUDGET_MS, tag,
         { tools, tool_choice: "auto" },
@@ -461,55 +434,7 @@ const HEADERS_BASE = {
   "X-Title": "Lumina AI",
 };
 
-// ── Moonshot (Kimi) direct API ─────────────────────────────────────
-// When KIMI_API_KEY is configured we call Moonshot directly for any
-// `moonshotai/kimi*` model id — bypassing OpenRouter's :free rate caps and
-// unlocking K2.6's full output budget (multi-file, 40k+ LOC generations).
-const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
-const KIMI_URL = Deno.env.get("KIMI_API_URL") ?? "https://api.moonshot.ai/v1/chat/completions";
-const KIMI_MODEL_DEFAULT = Deno.env.get("KIMI_MODEL_ID") ?? "kimi-k2.6";
-function mapToMoonshotModel(orId: string): string {
-  // Strip provider prefix + ":free" suffix; keep Kimi K2.6 on the real K2.6 id.
-  const tail = orId.replace(/^moonshotai\//, "").replace(/:free$/, "").toLowerCase();
-  if (/k2\.?6|k2-?thinking/.test(tail)) return KIMI_MODEL_DEFAULT;
-  if (/k2\.?5/.test(tail))              return "kimi-k2-0905-preview";
-  if (/k2\b|k2-base/.test(tail))        return "kimi-k2-0711-preview";
-  return KIMI_MODEL_DEFAULT;
-}
-async function callKimiDirect(
-  orModel: string,
-  body: Record<string, unknown>,
-  timeoutMs: number,
-  tag: string,
-): Promise<Response | null> {
-  if (!KIMI_API_KEY) return null;
-  const moonshotModel = mapToMoonshotModel(orModel);
-  try {
-    const res = await fetchWithTimeout(
-      KIMI_URL,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${KIMI_API_KEY}`,
-        },
-        body: JSON.stringify({ ...body, model: moonshotModel }),
-      },
-      timeoutMs,
-    );
-    if (res.ok) {
-      console.log(`[${tag}] ✓ kimi-direct ${moonshotModel}`);
-      return res;
-    }
-    const err = await readErrorText(res);
-    console.warn(`[${tag}] kimi-direct ${moonshotModel} -> ${res.status} ${err}`);
-    try { await res.body?.cancel(); } catch { /* ignore */ }
-    return null;
-  } catch (e) {
-    console.warn(`[${tag}] kimi-direct ${moonshotModel} network/timeout`, e);
-    return null;
-  }
-}
+// Moonshot/Kimi direct API — removed per user preference (OpenRouter + Google AI Studio only)
 
 const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token
 const OWL_KEY_FANOUT = 3;               // fire OWL on this many keys in parallel — first responder wins
@@ -590,12 +515,17 @@ async function callModel(
     console.warn(`[${tag}] no API keys — skipping ${model}`);
     return null;
   }
-  // Prefer Moonshot direct API when the caller asked for a kimi model.
-  if (KIMI_API_KEY && /^moonshotai\//.test(model)) {
-    const direct = await callKimiDirect(model, body, timeoutMs, tag);
-    if (direct) return direct;
-    // fall through to OpenRouter on failure
+  // Route google/* models through Google AI Studio directly.
+  if (/^google\//.test(model) && GOOGLE_KEYS.length > 0) {
+    const geminiModel = model.replace(/^google\//, "");
+    if (canCallGemini(geminiModel)) {
+      const direct = await callGoogleGemini(geminiModel, body, timeoutMs, tag);
+      if (direct) return direct;
+    }
+    // Don't fall through to OpenRouter — Gemini is only available via Google AI Studio
+    return null;
   }
+
   const maxAttempts = Math.max(1, ALL_KEYS.length);
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIdx = getNextKeyIndex(model);
@@ -664,9 +594,6 @@ async function callModelKeyFanout(
   fanout: number,
 ): Promise<Response | null> {
   if (_deadModels.has(model)) return null;
-  if (KIMI_API_KEY && /^moonshotai\//.test(model)) {
-    return callModel(model, body, timeoutMs, tag);
-  }
   const healthyKeys: number[] = [];
   for (let i = 0; i < ALL_KEYS.length; i++) {
     if (_isHealthy(i, model)) healthyKeys.push(i);
@@ -783,8 +710,9 @@ async function callGoogleGemini(
   if (idx === null) return null;
   const key = pool.keys[idx];
   
-  // Translate OpenAI-format body to Gemini format
-  const geminiUrl = `${GOOGLE_GEMINI_URL}/${model}:generateContent?key=${key}`;
+  // Strip :free/:online suffix — Google AI Studio doesn't use OpenRouter suffixes
+  const geminiModel = model.replace(/:(free|online)$/, "");
+  const geminiUrl = `${GOOGLE_GEMINI_URL}/${geminiModel}:generateContent?key=${key}`;
   const geminiBody = {
     contents: (body.messages as any[])?.map((m: any) => ({
       role: m.role === "system" ? "user" : m.role,
@@ -869,9 +797,13 @@ export async function callWithFallback(
   const tryModel = async (model: string, timeout: number): Promise<Response | null> => {
     if (_deadModels.has(model)) return null;
     const isPrimary = model === models[0] || model === OWL;
+    // Cap per-call max_tokens to the model's single-shot output limit
+    // Auto-continuation in callAIText chains multiple chunks to reach the
+    // caller's total maxTokens.
+    const perModelBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(model)) };
     const res = isPrimary
-      ? await callModelKeyFanout(model, baseBody, timeout, tag, 3)
-      : await callModel(model, baseBody, timeout, tag);
+      ? await callModelKeyFanout(model, perModelBody, timeout, tag, 3)
+      : await callModel(model, perModelBody, timeout, tag);
     return res;
   };
 
@@ -888,16 +820,17 @@ export async function callWithFallback(
   // Phase 2: Try openrouter/free router
   const routerTimeout = Math.min(90_000, Math.max(20_000, timeoutMs ?? 30_000));
   if (routerTimeout >= 1000) {
-    const res = await callModel(MODEL_FREE_ROUTER, baseBody, routerTimeout, `${tag}/free`);
+    const routerBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(MODEL_FREE_ROUTER)) };
+    const res = await callModel(MODEL_FREE_ROUTER, routerBody, routerTimeout, `${tag}/free`);
     if (res) return { response: res, model: MODEL_FREE_ROUTER };
   }
 
   // Phase 3: Cross-provider fallback — try Google AI Studio Gemini
   if (GOOGLE_KEYS.length > 0) {
-    // Resolve best Gemini model for this task type
     const geminiModel = isArtifact || isComputer ? "gemini-2.0-flash-thinking-exp" : "gemini-2.0-flash-exp";
     const geminiTimeout = Math.min(120_000, Math.max(20_000, timeoutMs ?? 30_000));
-    const res = await callGoogleGemini(geminiModel, baseBody, geminiTimeout, tag);
+    const geminiBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(geminiModel)) };
+    const res = await callGoogleGemini(geminiModel, geminiBody, geminiTimeout, tag);
     if (res) return { response: res, model: `google/${geminiModel}` };
   }
 
@@ -913,7 +846,16 @@ export async function callWithFallback(
   }
   for (const model of models) {
     const timeout = Math.min(120_000, Math.max(25_000, timeoutMs ?? 30_000));
-    const res = await tryModel(model, timeout);
+    const perModelBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(model)) };
+    const tryModelReset = async (m: string, t: number): Promise<Response | null> => {
+      // In force-retry, the module-level _deadModels set is respected
+      // (populated by callModel/callModelKeyFanout on 404).
+      const isPrimary = m === models[0] || m === OWL;
+      return isPrimary
+        ? await callModelKeyFanout(m, perModelBody, t, `${tag}/force`, 3)
+        : await callModel(m, perModelBody, t, `${tag}/force`);
+    };
+    const res = await tryModelReset(model, timeout);
     if (res) return { response: res, model };
   }
 
@@ -923,13 +865,124 @@ export async function callWithFallback(
   throw new Error(helpMsg);
 }
 
+// ── Gemini usage tracking ──────────────────────────────────────────
+// Prevents burning through Google AI Studio keys by limiting calls
+// per model per minute.  Only 1 Gemini call per model per 30s window.
+const _geminiUsage = new Map<string, { count: number; windowStart: number }>();
+const GEMINI_CALLS_PER_WINDOW = 2;        // max calls per model per window
+const GEMINI_WINDOW_MS = 30_000;           // 30-second rolling window
+
+function canCallGemini(modelId: string): boolean {
+  const now = Date.now();
+  const entry = _geminiUsage.get(modelId);
+  if (!entry || now - entry.windowStart > GEMINI_WINDOW_MS) {
+    _geminiUsage.set(modelId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count < GEMINI_CALLS_PER_WINDOW) {
+    entry.count++;
+    return true;
+  }
+  return false;
+}
+
+// ── Gemini models available via Google AI Studio ───────────────────
+// These are added to rosters and routed through callGoogleGemini.
+// They are NOT available on OpenRouter's free tier — we call Google AI
+// Studio API directly.  Usage is tracked to avoid key exhaustion.
+export const GEMINI_FLASH = "gemini-2.0-flash-exp";
+export const GEMINI_FLASH_THINKING = "gemini-2.0-flash-thinking-exp";
+
+// ── Per-model output budget ────────────────────────────────────────
+// Each model has a maximum it can produce in a single completion call.
+// We look this up from the catalog (context_length) or use heuristics
+// for known model sizes.  This ensures we never send a max_tokens value
+// larger than the model can actually produce, while auto-continuation
+// chains multiple chunks to reach the caller's total.
+// Return value: single-call output cap (not the caller's total budget).
+function getModelOutputLimit(modelId: string): number {
+  // Strip :free or :online suffix for matching
+  const base = modelId.replace(/:(free|online)$/, "");
+
+  // Gemini models (direct Google AI Studio) — massive output budget
+  if (base === GEMINI_FLASH || base === GEMINI_FLASH_THINKING) return 65536;
+  if (/^gemini-1\.5-pro/.test(base)) return 1_000_000;
+
+  // 1. Check live catalog (most accurate — uses context_length)
+  for (const m of _modelCatalog) {
+    if (m.id === base || modelId.startsWith(m.id + ":")) {
+      if (m.context_length > 0) {
+        // Use ½ of context as output budget — gives models room to breathe
+        return Math.min(65536, Math.max(8192, Math.floor(m.context_length / 2)));
+      }
+    }
+  }
+
+  // 2. Explicit model match from known roster
+  const name = base.toLowerCase();
+  // LONG_CTX / QUALITY — 32K-1M output
+  if (name.includes("gemini-1.5-pro")) return 1_000_000;
+  if (name.includes("kimi-k2")) return 256_000;
+  // 64K output code models
+  if (name.includes("codex-north")) return 64000;
+  // 32K output models
+  if (
+    name.includes("nemotron-3-ultra") ||
+    name.includes("nemotron-3-super") ||
+    name.includes("llama-3.3-70b") ||
+    name.includes("hermes-3-405b") ||
+    name.includes("gpt-oss-120b") ||
+    name.includes("gpt-oss-20b") ||
+    name.includes("gemma-4-26b") ||
+    name.includes("glm-4-32b") ||
+    name.includes("laguna") ||
+    name.includes("qwen3-coder") ||
+    name.includes("qwen3-next") ||
+    name.includes("qwen3-next-80b")
+  ) return 32768;
+  // 16K output models
+  if (
+    name.includes("gemma-4-31b") ||
+    name.includes("nemotron-3-nano-omni") ||
+    name.includes("nemotron-nano-12b") ||
+    name.includes("nemotron-nano-30b") ||
+    name.includes("vicuna")
+  ) return 16384;
+  // 8K output models
+  if (
+    name.includes("llama-3.2-3b") ||
+    name.includes("lfm2.5-1.2b") ||
+    name.includes("nano-9b") ||
+    name.includes("nemotron-nano-9b") ||
+    name.includes("nemotron-nano-30b-a3b") ||
+    name.includes("venice") ||
+    name.includes("north-mini")
+  ) return 8192;
+
+  // 3. Heuristic by model size in name (B = billions of params)
+  if (/nano/.test(name)) return 8192;
+  if (/1\.\d*b/.test(name) || /3b\b/.test(name)) return 8192;
+  if (/9b\b/.test(name)) return 16384;
+  if (/\b20b\b/.test(name) || /\b70b\b/.test(name)) return 32768;
+  if (/\b80b\b/.test(name) || /\b120b\b/.test(name) || /\b405b\b/.test(name) || /\b550b\b/.test(name)) return 65536;
+
+  // 4. openrouter/free — generous default
+  if (name.includes("openrouter/free")) return 32768;
+
+  // 5. Default safe limit — much higher than before
+  return 16384;
+}
+
 // ── Auto-continuation config ───────────────────────────────────────
 // When a model stops because it hit its output cap (finish_reason = "length"),
 // transparently fire a follow-up "continue" request and stitch the result.
 // This gives every caller "infinite generation" without changing their code.
-const CONTINUATION_MAX_ROUNDS = 14;       // up to 15 total chunks per response — long Computer/code outputs
-const CONTINUATION_USER_PROMPT =
-  "Continue exactly where you left off. Do not repeat anything. Do not summarize. Resume in the middle of the sentence/code/JSON if needed.";
+const CONTINUATION_MAX_ROUNDS = 20;       // up to 21 total chunks per response — ensures even tiny models produce enough
+const CONTINUATION_PROMPT_LENGTH =
+  "Continue exactly where you left off. Do NOT repeat ANYTHING already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation \u2014 no prefixes, no explanations.";
+
+const CONTINUATION_PROMPT_SHORT =
+  "The response was cut short. Continue from where you stopped. Output ONLY the continuation \u2014 no prefixes, no explanations, no markdown.";
 
 export async function callAIText(
   messages: any[],
@@ -949,30 +1002,53 @@ export async function callAIText(
 
   let full = content;
   let rounds = 0;
-  while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
+
+  // Unified continuation loop:
+  // Continue whenever the model either hit its output cap ("length") or
+  // stopped producing with "stop" / null / undefined but produced far
+  // less than what was requested.  The threshold is 85% of maxTokens —
+  // if we got less than that, something likely cut the model short.
+  while (rounds < CONTINUATION_MAX_ROUNDS) {
+    const estimatedTokens = Math.round(full.length / 4);
+
+    // "length" → always continue (model hit its output cap)
+    // other finish + output << maxTokens → likely premature stop
+    if (finish !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+
     rounds++;
+    const short = finish !== "length" && estimatedTokens < maxTokens * 0.3;
+    const prompt = short ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH;
     const contMessages = [
       ...messages,
       { role: "assistant", content: full },
-      { role: "user", content: CONTINUATION_USER_PROMPT },
+      { role: "user", content: prompt },
     ];
     try {
-      const { response: r2 } = await callWithFallback(
+      const { response: next } = await callWithFallback(
         contMessages,
         [model, ...models.filter((m) => m !== model)],
         maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
       );
-      const d2 = await r2.json();
-      const chunk = d2?.choices?.[0]?.message?.content;
-      finish = d2?.choices?.[0]?.finish_reason;
-      if (!chunk || typeof chunk !== "string" || !chunk.trim()) break;
+      const d = await next.json();
+      const chunk = d?.choices?.[0]?.message?.content;
+      finish = d?.choices?.[0]?.finish_reason;
+      if (!chunk || typeof chunk !== "string" || !chunk.trim()) {
+        // Model returned nothing — likely context full or model broken. Stop.
+        if (rounds <= 1) {
+          // First round got nothing — try one more with just the last bit
+          console.warn(`[callAIText:${tag}] cont ${rounds} empty, retrying once`);
+          continue;
+        }
+        break;
+      }
       full += chunk;
-      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds})`);
+      console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds}, finish=${finish}, estimated ${estimatedTokens + Math.round(chunk.length / 4)}/${maxTokens} tok)`);
     } catch (e) {
       console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
       break;
     }
   }
+
   return full;
 }
 
@@ -1061,13 +1137,19 @@ export async function streamAI(
         let { finish, usage } = await consumeOne(currentResponse);
         if (usage?.total_tokens) totalTokens += usage.total_tokens;
 
-        while (finish === "length" && rounds < CONTINUATION_MAX_ROUNDS) {
+        // Unified continuation — works for both "length" and premature "stop"
+        while (rounds < CONTINUATION_MAX_ROUNDS) {
+          const estimatedTokens = Math.round(assistantSoFar.length / 4);
+          if (finish !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+
           rounds++;
-          console.log(`[streamAI:${tag}] auto-continue round ${rounds}`);
+          const short = finish !== "length" && estimatedTokens < maxTokens * 0.3;
+          const prompt = short ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH;
+          console.log(`[streamAI:${tag}] cont round ${rounds} (finish=${finish}, est=${estimatedTokens}/${maxTokens} tok)`);
           const contMessages = [
             ...messages,
             { role: "assistant", content: assistantSoFar },
-            { role: "user", content: CONTINUATION_USER_PROMPT },
+            { role: "user", content: prompt },
           ];
           try {
             const { response: next, model: nextModel } = await callWithFallback(
@@ -1352,19 +1434,17 @@ export function getModelsForIntent(intent: IntentType): string[] {
   switch (intent) {
     case "greeting":
     case "conversational":
-      return MODELS_FAST;
     case "quick":
     case "motivation":
       return MODELS_FAST;
     case "study":
       return MODELS_BALANCED;
     case "deep":
-      return MODELS_LONG_CTX;
-    case "coding":
-      return MODELS_CODE;
     case "computer":
     case "mun":
       return MODELS_LONG_CTX;
+    case "coding":
+      return MODELS_CODE;
   }
 }
 
@@ -1396,35 +1476,28 @@ export type ArtifactType = "notes" | "exam" | "slides" | "code" | "html" | "reac
 
 export function getModelsForArtifact(type: ArtifactType, hasImage = false): string[] {
   if (hasImage) return MODELS_VISION;
-  // OWL is the primary model for every artifact type (per user direction).
-  // Each chain is ordered: OWL first → quality fallbacks → global fallback fills rest.
   switch (type) {
     case "html":
-      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free", ...MODELS_CODE];
     case "react":
-      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-20b:free", ...MODELS_CODE];
-    case "python":
-      return [OWL, "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE];
     case "javascript":
-      return [OWL, "poolside/laguna-xs.2:free", "qwen/qwen3-coder:free", "cohere/north-mini-code:free", ...MODELS_CODE];
+    case "python":
     case "code":
-      return [OWL, "openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free", "qwen/qwen3-coder:free", ...MODELS_CODE];
     case "svg":
-      return [OWL, "qwen/qwen3-coder:free", "google/gemma-4-31b-instruct:free", "poolside/laguna-xs.2:free", ...MODELS_CODE];
+      return [OWL, "cohere/codex-north:free", "poolside/laguna:free", "qwen/qwen3-coder:free", ...MODELS_CODE];
     case "mermaid":
-      return [OWL, "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+      return [OWL, "qwen/qwen3-next-80b-a3b-instruct:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"];
     case "slides":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-ultra:free", "openai/gpt-oss-120b:free", ...MODELS_WRITING];
     case "notes":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.3-70b-instruct:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-ultra:free", "nousresearch/hermes-3-405b-instruct:free", ...MODELS_WRITING];
     case "flashcards":
-      return [OWL, "openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-31b-instruct:free", ...MODELS_BALANCED];
+      return [OWL, "openai/gpt-oss-20b:free", "google/gemma-4-26b-a4b:free", ...MODELS_BALANCED];
     case "math":
-      return [OWL, "qwen/qwen3-next-80b-a3b-instruct:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "liquid/lfm-2.5-1.2b-thinking:free", ...MODELS_QUALITY];
+      return [OWL, "nvidia/nemotron-3-ultra:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
     case "exam":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
+      return [OWL, "nvidia/nemotron-3-ultra:free", "openai/gpt-oss-120b:free", ...MODELS_QUALITY];
     case "general":
     default:
-      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
+      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-ultra:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
   }
 }

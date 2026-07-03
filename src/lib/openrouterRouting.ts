@@ -17,28 +17,28 @@ export type ModeChip =
 
 const ROUTING: Record<string, string> = {
   "chat-low": "openai/gpt-oss-20b:free",
-  "chat-medium": "meta-llama/llama-3.3-70b-instruct:free",
-  "chat-high": "nvidia/nemotron-3-super-120b-a12b:free",
-  "code": "qwen/qwen3-coder:free",
+  "chat-medium": "nvidia/nemotron-3-super:free",
+  "chat-high": "nvidia/nemotron-3-ultra:free",
+  "code": "cohere/codex-north:free",
   "build": "qwen/qwen3-coder:free",
   "reason": "openai/gpt-oss-120b:free",
-  "research": "nvidia/nemotron-3-super-120b-a12b:free",
+  "research": "nvidia/nemotron-3-ultra:free",
   "plan": "openai/gpt-oss-120b:free",
-  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
-  "vision": "google/gemma-4-31b-instruct:free",
+  "creative": "nousresearch/hermes-3-405b-instruct:free",
+  "vision": "google/gemma-4-31b-it:free",
   "data": "qwen/qwen3-next-80b-a3b-instruct:free",
-  "agent": "meta-llama/llama-3.3-70b-instruct:free",
+  "agent": "nvidia/nemotron-3-super:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
-  study: "meta-llama/llama-3.3-70b-instruct:free",
-  coding: "qwen/qwen3-coder:free",
-  reasoning: "openai/gpt-oss-120b:free",
-  deepDive: "nvidia/nemotron-3-super-120b-a12b:free",
-  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
+  study: "nvidia/nemotron-3-super:free",
+  coding: "cohere/codex-north:free",
+  reasoning: "nvidia/nemotron-3-ultra:free",
+  deepDive: "nvidia/nemotron-3-ultra:free",
+  creative: "nousresearch/hermes-3-405b-instruct:free",
   fast: "openai/gpt-oss-20b:free",
-  general: "meta-llama/llama-3.3-70b-instruct:free",
+  general: "nvidia/nemotron-3-super:free",
 };
 
 export function pickModel(opts: {
@@ -72,7 +72,7 @@ export async function classifyIntent(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: await authHeader() },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b:free",
+        model: "nvidia/nemotron-nano-30b-a3b:free",
         stream: false,
         max_tokens: 80,
         messages: [

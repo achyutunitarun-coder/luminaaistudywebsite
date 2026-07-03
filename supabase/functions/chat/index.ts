@@ -1,96 +1,112 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
-import { ArtifactStore } from "../_shared/artifact-store.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
+import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
+import {
+  callWithFallback,
+  getModelsForIntent,
+  STREAM_TOTAL_BUDGET_MS,
+  CONTINUATION_MAX_ROUNDS,
+  CONTINUATION_PROMPT_LENGTH,
+  CONTINUATION_PROMPT_SHORT,
+  MODELS_LONG_CTX,
+} from "../_shared/models.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OR_KEYS = [
-  Deno.env.get("OPENROUTER_API_KEY"),
-  Deno.env.get("OPENROUTER_KEY_2"),
-  Deno.env.get("OPENROUTER_KEY_3"),
-  Deno.env.get("OPENROUTER_KEY_4"),
-  Deno.env.get("OPENROUTER_KEY_5"),
-  Deno.env.get("OPENROUTER_KEY_6"),
-  Deno.env.get("OPENROUTER_KEY_7"),
-].filter(Boolean) as string[];
+async function* streamGen(
+  messages: any[],
+  maxTokens: number,
+  temperature: number,
+  signal: AbortSignal,
+  models: string[],
+  tag: string,
+) {
+  let accumulatedContent = "";
+  let rounds = 0;
 
-const CHAIN = ["meta-llama/llama-3.3-70b-instruct:free", "openai/gpt-oss-20b:free", "qwen/qwen3-coder:free"];
+  while (rounds <= CONTINUATION_MAX_ROUNDS) {
+    if (signal.aborted) return;
 
-let _cursor = 0;
-const _cooldown: number[] = OR_KEYS.map(() => 0);
+    const convoMessages = rounds === 0
+      ? messages
+      : [
+          ...messages,
+          { role: "assistant", content: accumulatedContent },
+          { role: "user", content: accumulatedContent.trim().length < maxTokens * 0.30 ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH },
+        ];
 
-function nextKey(): number {
-  const now = Date.now();
-  for (let i = 0; i < OR_KEYS.length; i++) {
-    const idx = (_cursor + i) % OR_KEYS.length;
-    if (_cooldown[idx] <= now) { _cursor = (idx + 1) % OR_KEYS.length; return idx; }
-  }
-  return 0;
-}
+    let response: Response;
+    let currentModel: string;
+    try {
+      const result = await callWithFallback(
+        convoMessages,
+        models,
+        maxTokens,
+        temperature,
+        STREAM_TOTAL_BUDGET_MS,
+        `${tag}/stream${rounds > 0 ? `/cont${rounds}` : ""}`,
+        { stream: true },
+      );
+      response = result.response;
+      currentModel = result.model;
+    } catch (e) {
+      if (rounds === 0) yield `[ERROR: ${e instanceof Error ? e.message : String(e)}]\n`;
+      return;
+    }
 
-async function* streamGen(messages: any[], maxTokens: number, temperature: number, signal: AbortSignal) {
-  if (OR_KEYS.length === 0) { yield "[ERROR] No API keys configured.\n"; return; }
+    const reader = response.body!.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let roundContent = "";
+    let finishReason: string | null = null;
 
-  for (const model of CHAIN) {
-    for (let attempt = 0; attempt < Math.min(OR_KEYS.length, 3) && !signal.aborted; attempt++) {
-      const keyIdx = nextKey();
-      try {
-        const res = await fetch(OR_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${OR_KEYS[keyIdx]}`,
-            "HTTP-Referer": "https://luminaai.co.in",
-            "X-Title": "Lumina AI",
-          },
-          body: JSON.stringify({ model, messages, stream: true, max_tokens: maxTokens, temperature: 0.7, top_p: 0.95 }),
-          signal,
-        });
-
-        if (res.status === 429) { _cooldown[keyIdx] = Date.now() + 45_000; continue; }
-        if (res.status === 401 || res.status === 403) { _cooldown[keyIdx] = Date.now() + 600_000; continue; }
-        if (!res.ok) { yield `[ERROR] HTTP ${res.status}\n`; continue; }
-
-        const reader = res.body!.getReader();
-        const dec = new TextDecoder();
-        let buf = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          let nl;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            const raw = buf.slice(0, nl);
-            buf = buf.slice(nl + 1);
-            const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6).trim();
-            if (!jsonStr || jsonStr === "[DONE]") continue;
-            try {
-              const p = JSON.parse(jsonStr);
-              const d = p?.choices?.[0]?.delta?.content;
-              if (typeof d === "string" && d) yield d;
-            } catch {
-              buf = line.slice(6) + "\n" + buf;
-              break;
-            }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) !== -1) {
+        const raw = buf.slice(0, nl);
+        buf = buf.slice(nl + 1);
+        const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr || jsonStr === "[DONE]") continue;
+        try {
+          const p = JSON.parse(jsonStr);
+          const d = p?.choices?.[0]?.delta?.content;
+          if (typeof d === "string" && d) {
+            roundContent += d;
+            yield d;
           }
+          const fr = p?.choices?.[0]?.finish_reason;
+          if (fr) finishReason = fr;
+        } catch {
+          buf = line + "\n" + buf;
+          break;
         }
-        return;
-      } catch (e) {
-        if (signal.aborted) { yield "[ABORTED]\n"; return; }
-        yield `[RETRY] ${e instanceof Error ? e.message : String(e)}\n`;
       }
     }
+
+    accumulatedContent += roundContent;
+
+    if (signal.aborted) return;
+
+    const estimatedTokens = Math.round(accumulatedContent.length / 4);
+    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+    if (!roundContent || roundContent.trim().length === 0) {
+      rounds++;
+      if (rounds >= CONTINUATION_MAX_ROUNDS) break;
+      continue;
+    }
+
+    rounds++;
   }
-  yield "[ERROR] All models exhausted.\n";
 }
 
 const COMPUTER_PROMPT = `You are Lumina Computer. You help with research, code, documents, and multi-step tasks. Voice: direct and capable. Use FILE: blocks for files, markdown for reports. Never truncate output.`;
@@ -129,8 +145,22 @@ serve(async (req) => {
     const effortLvl = ["quick", "normal", "beast"].includes(effort) ? effort : "normal";
     const query = messages.filter((m: any) => m.role === "user").pop()?.content || "";
     const intent = modeRouter.detectIntent(query);
+
+    const budget = isLuminaMode
+      ? getBudgetForMode(lumina_mode)
+      : classifyBudget(messages);
+    const maxTokens = isComputer
+      ? (effortLvl === "quick" ? 16384 : 32768)
+      : 8192;
+
     const system = buildSystem(intent.intent, mode, effortLvl, isComputer);
-    const maxTokens = isComputer ? (effortLvl === "quick" ? 8192 : 16384) : 4096;
+    if (budget.tier === "lightweight") {
+      const systemExt = `\n\nNote: This is a quick conversation. Keep responses brief and direct — under 150 words. Do not generate files or undertake multi-step tasks unless the user explicitly asks.`;
+      const lastUserIdx = messages.length - 1 - [...messages].reverse().findIndex((m: any) => m.role === "user");
+      if (lastUserIdx >= 0 && lastUserIdx < messages.length) {
+        messages[lastUserIdx] = { ...messages[lastUserIdx], content: messages[lastUserIdx].content + systemExt };
+      }
+    }
 
     const enc = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
@@ -141,12 +171,13 @@ serve(async (req) => {
         req.signal.addEventListener("abort", () => abort.abort());
 
         async function runStreamingChat() {
-          if (OR_KEYS.length === 0) {
-            delta("**Error:** No API keys. Set OPENROUTER_API_KEY in Supabase.\n");
+          const convo = [{ role: "system", content: system }, ...messages];
+          const models = isComputer ? MODELS_LONG_CTX : getModelsForIntent(intent.intent);
+          if (!models || models.length === 0) {
+            delta("**Error:** No models available for this request.\n");
             return;
           }
-          const convo = [{ role: "system", content: system }, ...messages];
-          for await (const chunk of streamGen(convo, maxTokens, 0.7, abort.signal)) {
+          for await (const chunk of streamGen(convo, maxTokens, 0.7, abort.signal, models, intent.intent)) {
             delta(chunk);
           }
         }

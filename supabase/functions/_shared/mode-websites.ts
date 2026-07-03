@@ -1,5 +1,6 @@
 import { createModelClient, type ModelClient } from "./models.ts";
 import type { ArtifactStore, Artifact } from "./artifact-store.ts";
+import { safeJsonParse } from "./truncation-handler.ts";
 
 export interface SiteSection {
   name: string;
@@ -23,13 +24,15 @@ export interface WebsiteOutput {
 
 export class WebsitesMode {
   private client: ModelClient;
+  private conv?: import("./conversation-store.ts").ConversationStore;
 
   constructor(
     private store: ArtifactStore,
     private sessionId: string,
-    opts?: { modelClient?: ModelClient },
+    opts?: { modelClient?: ModelClient; conversation?: import("./conversation-store.ts").ConversationStore },
   ) {
     this.client = opts?.modelClient ?? createModelClient();
+    this.conv = opts?.conversation;
   }
 
   async generate(
@@ -45,25 +48,33 @@ export class WebsitesMode {
     if (research) sourceContext += `\nResearch available: ${research.title}\n${research.body.slice(0, 2000)}`;
     if (doc) sourceContext += `\nDoc available: ${doc.title}\n${doc.body.slice(0, 2000)}`;
 
-    const siteMapPrompt = `You are a web architect. Design a site map for this request.
+    const siteMapPrompt = `You are a web architect using the v3.0 structured format. Design a site map for this request.
 
 Request: ${request}${sourceContext}
 ${visualRefs?.length ? `Visual references provided: ${visualRefs.join(", ")}` : ""}
 
-Return ONLY JSON:
+Return ONLY JSON (no markdown code blocks):
 {
   "title": "Site title",
+  "description": "SEO meta description for the site",
+  "design_system": {
+    "colors": { "primary": {"50": "#eef2ff", "500": "#6366f1", "900": "#312e81"} },
+    "typography": { "font_stack": "system-ui, sans-serif", "scale": {"base": "1rem", "xl": "1.25rem"} },
+    "spacing": { "sm": "1rem", "md": "1.5rem", "lg": "2rem" }
+  },
   "pages": [
     {
       "route": "/",
-      "title": "Home",
-      "description": "landing page purpose",
-      "sections": [{"name": "hero", "description": "hero section content"}, ...]
+      "name": "Home",
+      "seo": {"title": "Homepage", "description": "Description under 160 chars"},
+      "sections": [{"id": "hero", "type": "hero", "layout": "split", "content": {"headline": "...", "subheadline": "...", "cta": {"text": "Get Started", "href": "#"}}}]
     }
-  ]
+  ],
+  "navigation": { "type": "sticky", "items": [{"label": "Page", "href": "#"}] },
+  "footer": { "columns": [{"title": "Section", "links": [{"label": "Link", "href": "/"}]}], "legal": ["2026 Company"] }
 }
 
-Aim for 1-5 pages based on the request complexity. If the request implies multiple pages (e.g. "a website for a business"), generate a multi-page structure.`;
+Aim for 1-5 pages based on the request complexity. Include a design system with colors and typography. Each page should have SEO metadata and clearly defined sections. If multi-page, include navigation and footer.`;
 
     onStatus?.("Creating site structure...");
     const siteMapResp = await this.client.complete(
@@ -71,13 +82,15 @@ Aim for 1-5 pages based on the request complexity. If the request implies multip
         { role: "system", content: "You are a web architect. Design multi-page site structures. Return valid JSON only." },
         { role: "user", content: siteMapPrompt },
       ],
-      { maxTokens: 2048, temperature: 0.3, tag: "website/sitemap" },
+      { maxTokens: 4096, temperature: 0.3, tag: "website/sitemap" },
     );
 
     let siteMap: SiteMap;
-    try {
-      siteMap = JSON.parse(siteMapResp);
-    } catch {
+    const siteMapParsed = await safeJsonParse<SiteMap>(this.client, siteMapResp, "website/sitemap-parse");
+    if (siteMapParsed.data) {
+      siteMap = siteMapParsed.data;
+      if (siteMapParsed.recovered) onStatus?.("Recovered truncated site structure");
+    } else {
       siteMap = {
         title: "Website",
         pages: [{ route: "/", title: "Home", description: "Main page", sections: [{ name: "main", description: "Content" }] }],
@@ -115,7 +128,7 @@ Return ONLY the complete HTML code in a code block.`;
           { role: "system", content: "You are a frontend developer. Generate complete, runnable HTML pages with embedded CSS and JS." },
           { role: "user", content: pagePrompt },
         ],
-        { maxTokens: 8192, temperature: 0.4, tag: `website/page_${p + 1}` },
+        { maxTokens: 16384, temperature: 0.4, tag: `website/page_${p + 1}` },
       );
 
       const match = htmlResp.match(/```(?:html)?\s*([\s\S]*?)```/);
