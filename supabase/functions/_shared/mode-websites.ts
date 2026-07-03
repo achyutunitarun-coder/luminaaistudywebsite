@@ -247,6 +247,11 @@ Return ONLY the complete HTML code in a code block.`;
         }),
         detail: "Unclosed code blocks in one or more files",
       },
+      {
+        name: "no-truncation-signals",
+        check: () => files.every((f) => !isTruncated(f.content, 200)),
+        detail: "One or more files are truncated or too short",
+      },
     ]);
 
     if (!assemblyCheck.passed) {

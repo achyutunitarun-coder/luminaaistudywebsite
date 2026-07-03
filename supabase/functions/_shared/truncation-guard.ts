@@ -374,8 +374,8 @@ export function honestFailureReport(
   return parts.join("\n");
 }
 
-export function isTruncated(text: string): boolean {
-  return detectTruncation(text, null, { structural: true, content: true }).truncated;
+export function isTruncated(text: string, minExpected?: number): boolean {
+  return detectTruncation(text, null, { structural: true, content: true, minExpected }).truncated;
 }
 
 export function looksLikeTruncatedJson(text: string): boolean {

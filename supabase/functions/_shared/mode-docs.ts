@@ -177,7 +177,7 @@ Requirements:
     const assemblyCheck = await verifyAssembly([
       {
         name: "document-not-empty",
-        check: () => docBody.trim().length > 100,
+        check: () => docBody.trim().length > 200,
         detail: "Document body is too short",
       },
       {
@@ -192,8 +192,8 @@ Requirements:
       },
       {
         name: "no-truncation-signals",
-        check: () => !isTruncated(docBody),
-        detail: "Final body contains truncation patterns",
+        check: () => !isTruncated(docBody, 200),
+        detail: "Final body is truncated or too short",
       },
       {
         name: "balanced-code-blocks",

@@ -266,7 +266,7 @@ export class LuminaModeOrchestrator {
     const source = this.store.list(this.sessionId, sourceMode as ArtifactType).slice(-1)[0];
     if (!source) throw new Error(`No ${sourceMode} output found in session context to hand off.`);
 
-    const request = `Transform this ${sourceMode} output into a ${targetMode} format.\n\nSource:\n${source.body.slice(0, 4000)}\n\n${additionalInstructions ?? ""}`;
+    const request = `Transform this ${sourceMode} output into a ${targetMode} format.\n\nSource:\n${source.body.slice(0, 32000)}\n\n${additionalInstructions ?? ""}`;
 
     onStatus?.(`Handing off from ${sourceMode} → ${targetMode}...`);
     const targetArtifactId = source.id;

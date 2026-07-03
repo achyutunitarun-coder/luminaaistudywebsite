@@ -246,8 +246,8 @@ Return JSON: { "summary_headers": [...], "summary_rows": [{"col": "val", ...}], 
       },
       {
         name: "no-truncation-signals",
-        check: () => !isTruncated(csvOutput),
-        detail: "Output contains truncation patterns",
+        check: () => !isTruncated(csvOutput, 80),
+        detail: "Output is truncated or too short",
       },
     ]);
 

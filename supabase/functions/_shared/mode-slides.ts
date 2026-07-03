@@ -228,6 +228,11 @@ Rules:
         detail: "One or more slides have empty body content",
       },
       {
+        name: "no-truncation-signals",
+        check: () => !isTruncated(mdBody, 100),
+        detail: "Final deck is truncated or too short",
+      },
+      {
         name: "balanced-code-blocks",
         check: () => {
           const fences = mdBody.match(/```/g);

@@ -1004,6 +1004,7 @@ export async function callAIText(
 
   let full = content;
   let rounds = 0;
+  const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined;
 
   // Unified continuation loop:
   // Continue whenever the output is truncated — either by API finish_reason,
@@ -1013,7 +1014,7 @@ export async function callAIText(
     const truncation = detectTruncation(full, finish, {
       structural: true,
       content: true,
-      minExpected: maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined,
+      minExpected,
     });
 
     if (!truncation.truncated) break;
@@ -1026,6 +1027,8 @@ export async function callAIText(
       { role: "assistant", content: full },
       { role: "user", content: prompt },
     ];
+    let chunk = "";
+    let contOk = false;
     try {
       const { response: next } = await callWithFallback(
         contMessages,
@@ -1033,15 +1036,17 @@ export async function callAIText(
         maxTokens, temperature, timeoutMs, `${tag}/cont${rounds}`,
       );
       const d = await next.json();
-      const chunk = d?.choices?.[0]?.message?.content;
+      const rawChunk = d?.choices?.[0]?.message?.content;
       finish = d?.choices?.[0]?.finish_reason;
-      if (!chunk || typeof chunk !== "string" || !chunk.trim()) {
-        if (rounds <= 1) {
-          console.warn(`[callAIText:${tag}] cont ${rounds} empty, retrying once`);
-          continue;
-        }
-        break;
+      if (rawChunk && typeof rawChunk === "string" && rawChunk.trim().length > 0) {
+        chunk = rawChunk;
+        contOk = true;
       }
+    } catch (e) {
+      console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
+    }
+
+    if (contOk) {
       full += chunk;
       logContinuationEvent({
         tag,
@@ -1052,8 +1057,35 @@ export async function callAIText(
         model,
       });
       console.log(`[callAIText:${tag}] continued +${chunk.length} chars (round ${rounds}, signal=${truncation.signal}, finish=${finish})`);
-    } catch (e) {
-      console.warn(`[callAIText:${tag}] continuation ${rounds} failed:`, e);
+    } else {
+      // Continuation produced no content — model considers response complete.
+      // Don't give up; try full regeneration with a length constraint.
+      console.warn(`[callAIText:${tag}] continuation ${rounds} empty, attempting full regeneration`);
+      try {
+        const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+        const regenPrompt = lastUserMsg
+          ? `Provide a VERY DETAILED response (minimum ${Math.round(minExpected ?? 2000)} characters). Do NOT give a short answer:\n\n${lastUserMsg.content}`
+          : `Please provide a more detailed response. Minimum ${Math.round(minExpected ?? 2000)} characters.`;
+        const regenMsgs = [
+          ...messages.filter((m) => m.role !== "user"),
+          { role: "user", content: regenPrompt },
+        ];
+        const { response: regen } = await callWithFallback(
+          regenMsgs,
+          models, maxTokens, temperature, timeoutMs, `${tag}/regen`,
+        );
+        const regenData = await regen.json();
+        const regenContent = regenData?.choices?.[0]?.message?.content;
+        if (regenContent && typeof regenContent === "string" && regenContent.trim().length > full.length) {
+          full = regenContent;
+          finish = regenData?.choices?.[0]?.finish_reason;
+          console.log(`[callAIText:${tag}] full regeneration produced ${regenContent.length} chars`);
+          continue;
+        }
+      } catch (regenErr) {
+        console.warn(`[callAIText:${tag}] regeneration failed:`, regenErr);
+      }
+      // Both continuation and regeneration failed — return what we have
       break;
     }
   }

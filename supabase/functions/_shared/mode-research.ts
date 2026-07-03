@@ -379,8 +379,8 @@ Format as structured research notes. Be specific and detailed.`;
       },
       {
         name: "no-truncation-signals",
-        check: () => !isTruncated(report),
-        detail: "Final report contains truncation patterns",
+        check: () => !isTruncated(report, 500),
+        detail: "Final report is truncated or too short",
       },
     ]);
 

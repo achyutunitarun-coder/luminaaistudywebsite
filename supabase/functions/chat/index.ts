@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callWithFallback, getModelsForIntent, getSystemPromptForIntent, MODELS_LONG_CTX } from "../_shared/models.ts";
+import { callWithFallback, callAIText, getModelsForIntent, getSystemPromptForIntent, MODELS_LONG_CTX } from "../_shared/models.ts";
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
@@ -103,7 +103,47 @@ async function streamContinuation(
       }
     } catch { /* connection dropped — use what we have */ }
     accumulated += roundContent;
-    if (!roundContent || roundContent.trim().length === 0) break;
+
+    // If this round produced nothing, try a different continuation prompt
+    if (!roundContent || roundContent.trim().length === 0) {
+      const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined;
+      if (rounds < MAX_CONTINUATION_ROUNDS - 1 && accumulated.length < (minExpected ?? 2000)) {
+        // Try one more round with an encouraging prompt
+        const retryMsg = [...convo, { role: "user", content: `Please continue your response. Do not stop yet — write more. Output ONLY the direct continuation:\n\n${accumulated.slice(-500)}` }];
+        const { response: retryResp } = await callWithFallback(retryMsg, models, maxTokens, 0.7, BUDGET_MS, `${tag}/retry`, { stream: true });
+        if (retryResp.body) {
+          const rReader = retryResp.body.getReader();
+          let rBuf = "";
+          let rContent = "";
+          try {
+            while (true) {
+              const { done: rDone, value: rVal } = await rReader.read();
+              if (rDone) break;
+              rBuf += new TextDecoder().decode(rVal, { stream: true });
+              let rNl;
+              while ((rNl = rBuf.indexOf("\n")) !== -1) {
+                const rRaw = rBuf.slice(0, rNl); rBuf = rBuf.slice(rNl + 1);
+                const rLine = rRaw.endsWith("\r") ? rRaw.slice(0, -1) : rRaw;
+                if (!rLine.startsWith("data: ")) continue;
+                const rJs = rLine.slice(6).trim();
+                if (!rJs || rJs === "[DONE]") continue;
+                try {
+                  const rP = JSON.parse(rJs);
+                  if (rP.lumina_meta || rP.lumina_usage) continue;
+                  const rD = rP?.choices?.[0]?.delta?.content;
+                  if (typeof rD === "string" && rD) { rContent += rD; delta(rD); }
+                } catch { rBuf = rLine + "\n" + rBuf; break; }
+              }
+            }
+          } catch { /* best effort */ }
+          if (rContent && rContent.trim().length > 0) {
+            roundContent = rContent;
+            accumulated += roundContent;
+          }
+        }
+      }
+      if (!roundContent || roundContent.trim().length === 0) break;
+    }
 
     // Three-signal truncation detection: API, structural, content
     const truncation = detectTruncation(accumulated, finishReason, {
@@ -202,16 +242,16 @@ serve(async (req) => {
             let rendered = renderLuminaOutput(result);
             const finalTrunc = detectTruncation(rendered, null, { structural: true, content: true, minExpected: 200 });
             if (finalTrunc.truncated) {
-              rendered += `\n\n_[Output appears truncated (${finalTrunc.detail}). Attempting to extend...]_`;
-              const extend = await callWithFallback(
-                [{ role: "user", content: `Continue from where the following text was cut off. Output ONLY the direct continuation.\n\n---\n${rendered.slice(-2000)}` }],
-                MODELS_LONG_CTX, 4096, 0.3, 30000, `${modeToRun}/final-extend`,
-              );
-              const extData = await extend.response.json();
-              const extContent = extData?.choices?.[0]?.message?.content;
-              if (extContent && extContent.trim().length > 20) {
-                rendered = (rendered.endsWith("\n") ? rendered : rendered + "\n") + extContent.trimStart();
-              }
+              rendered += `\n\n_[Output appears truncated (${finalTrunc.detail}). Extending...]_`;
+              try {
+                const extended = await callAIText(
+                  [{ role: "user", content: `Continue from where the following text was cut off. Output ONLY the direct continuation.\n\n---\n${rendered.slice(-2000)}` }],
+                  MODELS_LONG_CTX, 4096, 0.3, 30000, `${modeToRun}/final-extend`,
+                );
+                if (extended && extended.trim().length > 20) {
+                  rendered = (rendered.endsWith("\n") ? rendered : rendered + "\n") + extended.trimStart();
+                }
+              } catch { /* best effort — keep original */ }
             }
             delta(`\n\n${rendered}`);
             if ("verificationNotes" in result.output && (result.output as any).verificationNotes?.length > 0) {
