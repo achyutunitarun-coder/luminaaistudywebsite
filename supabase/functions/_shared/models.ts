@@ -19,10 +19,7 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // ═══════════════════════════════════════════════════════════════════
 
 // Primary model — the best all-round free model as of July 2026.
-// NOTE: `openrouter/owl-alpha` (formerly `nvidia/nemotron-3-super:free`)
-// was retired. Point the OWL alias at a live, reliable free endpoint so
-// every roster keeps working without a routing rewrite.
-export const OWL = "deepseek/deepseek-chat-v3.1:free";
+export const OWL = "openrouter/owl-alpha";
 export const PRIMARY_MODEL = OWL;
 
 // QUALITY — Complex reasoning, agentic workflows
