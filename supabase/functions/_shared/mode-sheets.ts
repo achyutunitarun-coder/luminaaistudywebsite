@@ -3,12 +3,8 @@ import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { safeJsonParse } from "./truncation-handler.ts";
 import {
   isTruncated,
-  detectTruncation,
   generateWithContinuation,
   verifyAssembly,
-  honestFailureReport,
-  spliceContinuation,
-  logContinuationEvent,
 } from "./truncation-guard.ts";
 
 export interface SheetCell {

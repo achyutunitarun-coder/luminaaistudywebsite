@@ -4,13 +4,8 @@ import type { ArtifactStore, Artifact } from "./artifact-store.ts";
 import { safeJsonParse } from "./truncation-handler.ts";
 import {
   isTruncated,
-  detectStructuralTruncation,
-  detectContentTruncation,
-  detectApiTruncation,
   generateWithContinuation,
   verifyAssembly,
-  honestFailureReport,
-  logContinuationEvent,
 } from "./truncation-guard.ts";
 
 export interface DocOutput {

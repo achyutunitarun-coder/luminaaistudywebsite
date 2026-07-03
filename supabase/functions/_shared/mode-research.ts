@@ -20,10 +20,6 @@ import {
   detectTruncation,
   generateWithContinuation,
   verifyAssembly,
-  honestFailureReport,
-  spliceContinuation,
-  logContinuationEvent,
-  extractLastJsonObject,
 } from "./truncation-guard.ts";
 
 export interface ResearchSource {

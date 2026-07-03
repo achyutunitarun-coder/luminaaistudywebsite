@@ -7,9 +7,7 @@ import {
   detectTruncation,
   generateWithContinuation,
   verifyAssembly,
-  honestFailureReport,
   spliceContinuation,
-  logContinuationEvent,
 } from "./truncation-guard.ts";
 
 export interface SlideContent {
