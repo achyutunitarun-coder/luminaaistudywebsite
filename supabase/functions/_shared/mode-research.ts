@@ -217,8 +217,8 @@ Set should_stop to true ONLY if:
           observation: "Continuing research.",
           gaps: ["Need more depth"],
           next_angle: "Deepen existing sections",
-          search_query: (plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)] || plan.topic,
-          target_section: (plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)] || plan.sections_planned?.[0] ?? "Overview",
+          search_query: ((plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)]) || plan.topic,
+          target_section: ((plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)]) || (plan.sections_planned?.[0] ?? "Overview"),
           confidence: 0.3,
           should_stop: false,
         };
@@ -236,13 +236,13 @@ Set should_stop to true ONLY if:
         shouldStop = true;
       }
 
-      const query = reasoningDecision.search_query || (plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)] || plan.topic;
-      const section = reasoningDecision.target_section || (plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)] || (plan.sections_planned?.[0] ?? "Overview");
+      const query = reasoningDecision.search_query || ((plan.search_queries ?? [])[cycleCount % (plan.search_queries?.length ?? 1)]) || plan.topic;
+      const section = reasoningDecision.target_section || ((plan.sections_planned ?? [])[cycleCount % (plan.sections_planned?.length ?? 1)]) || (plan.sections_planned?.[0] ?? "Overview");
 
       const angleKey = query.toLowerCase().slice(0, 60);
       if (exploredAngles.has(angleKey) && cycleCount < this.maxCycles) {
         const altIdx = cycleCount % (plan.search_queries?.length ?? 1);
-        const altQuery = (plan.search_queries ?? [])[altIdx] || `${plan.topic} alternative perspective`;
+        const altQuery = ((plan.search_queries ?? [])[altIdx]) || `${plan.topic} alternative perspective`;
         if (!exploredAngles.has(altQuery.toLowerCase().slice(0, 60))) {
           onStatus?.(`Cycle ${cycleCount}: ${reasoningDecision.next_angle.slice(0, 60)}...`);
         }
