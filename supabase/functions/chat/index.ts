@@ -66,102 +66,65 @@ async function streamContinuation(
   tag: string,
   delta: (t: string) => void,
 ): Promise<string> {
+  const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : 1229;
   let accumulated = "";
-  for (let rounds = 0; rounds < MAX_CONTINUATION_ROUNDS; rounds++) {
-    const msgs = rounds === 0 ? convo : [
-      ...convo,
-      { role: "assistant", content: accumulated },
-      { role: "user", content: (accumulated.length / 4) < maxTokens * 0.30 ? CONT_SHORT : CONT_LONG },
-    ];
-    const { response, model } = await callWithFallback(msgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
-    if (!response.body) break;
-    const reader = response.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let finishReason: string | null = null;
-    let roundContent = "";
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let nl;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
-          const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-          if (!line.startsWith("data: ")) continue;
-          const js = line.slice(6).trim();
-          if (!js || js === "[DONE]") continue;
-          try {
-            const p = JSON.parse(js);
-            if (p.lumina_meta || p.lumina_usage) continue;
-            const d = p?.choices?.[0]?.delta?.content;
-            if (typeof d === "string" && d) { roundContent += d; delta(d); }
-            if (p?.choices?.[0]?.finish_reason) finishReason = p.choices[0].finish_reason;
-          } catch { buf = line + "\n" + buf; break; }
-        }
-      }
-    } catch { /* connection dropped — use what we have */ }
-    accumulated += roundContent;
 
-    // If this round produced nothing, try a different continuation prompt
-    if (!roundContent || roundContent.trim().length === 0) {
-      const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined;
-      if (rounds < MAX_CONTINUATION_ROUNDS - 1 && accumulated.length < (minExpected ?? 2000)) {
-        // Try one more round with an encouraging prompt
-        const retryMsg = [...convo, { role: "user", content: `Please continue your response. Do not stop yet — write more. Output ONLY the direct continuation:\n\n${accumulated.slice(-500)}` }];
-        const { response: retryResp } = await callWithFallback(retryMsg, models, maxTokens, 0.7, BUDGET_MS, `${tag}/retry`, { stream: true });
-        if (retryResp.body) {
-          const rReader = retryResp.body.getReader();
-          let rBuf = "";
-          let rContent = "";
-          try {
-            while (true) {
-              const { done: rDone, value: rVal } = await rReader.read();
-              if (rDone) break;
-              rBuf += new TextDecoder().decode(rVal, { stream: true });
-              let rNl;
-              while ((rNl = rBuf.indexOf("\n")) !== -1) {
-                const rRaw = rBuf.slice(0, rNl); rBuf = rBuf.slice(rNl + 1);
-                const rLine = rRaw.endsWith("\r") ? rRaw.slice(0, -1) : rRaw;
-                if (!rLine.startsWith("data: ")) continue;
-                const rJs = rLine.slice(6).trim();
-                if (!rJs || rJs === "[DONE]") continue;
-                try {
-                  const rP = JSON.parse(rJs);
-                  if (rP.lumina_meta || rP.lumina_usage) continue;
-                  const rD = rP?.choices?.[0]?.delta?.content;
-                  if (typeof rD === "string" && rD) { rContent += rD; delta(rD); }
-                } catch { rBuf = rLine + "\n" + rBuf; break; }
-              }
-            }
-          } catch { /* best effort */ }
-          if (rContent && rContent.trim().length > 0) {
-            roundContent = rContent;
-            accumulated += roundContent;
+  // Round 0: initial streaming response
+  {
+    const { response } = await callWithFallback(convo, models, maxTokens, 0.7, BUDGET_MS, tag, { stream: true });
+    if (response.body) {
+      const reader = response.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let roundContent = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
+            const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+            if (!line.startsWith("data: ")) continue;
+            const js = line.slice(6).trim();
+            if (!js || js === "[DONE]") continue;
+            try {
+              const p = JSON.parse(js);
+              if (p.lumina_meta || p.lumina_usage) continue;
+              const d = p?.choices?.[0]?.delta?.content;
+              if (typeof d === "string" && d) { roundContent += d; delta(d); }
+            } catch { buf = line + "\n" + buf; break; }
           }
         }
-      }
-      if (!roundContent || roundContent.trim().length === 0) break;
+      } catch { /* carry on with what we have */ }
+      accumulated = roundContent;
     }
-
-    // Three-signal truncation detection: API, structural, content
-    const truncation = detectTruncation(accumulated, finishReason, {
-      structural: true,
-      content: true,
-      minExpected: maxTokens > 0 ? Math.round(maxTokens * 0.15) : undefined,
-    });
-    if (!truncation.truncated) break;
-
-    logContinuationEvent({
-      tag,
-      round: rounds + 1,
-      signal: truncation.signal,
-      originalLength: accumulated.length - roundContent.length,
-      continuationLength: roundContent.length,
-      model: model ?? "unknown",
-    });
   }
+
+  // If response is too short, regenerate from scratch as non-streaming
+  if (accumulated.length < minExpected || detectTruncation(accumulated, null, { structural: true, content: true }).truncated) {
+    console.warn(`[streamContinuation:${tag}] short response (${accumulated.length} chars), regenerating with length constraint`);
+    try {
+      const lastUserMsg = [...convo].reverse().find((m) => m.role === "user");
+      const regenPrompt = lastUserMsg
+        ? `IMPORTANT: Your response MUST be at least ${Math.round(minExpected)} characters long. Do NOT give a short answer. Provide a detailed, thorough response:\n\n${lastUserMsg.content}`
+        : `Provide a detailed, thorough response with at least ${Math.round(minExpected)} characters.`;
+      const regenMsgs = [
+        ...convo.filter((m) => m.role !== "user"),
+        { role: "user", content: regenPrompt },
+      ];
+      const regenResult = await callAIText(regenMsgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}/regen`);
+      if (regenResult && regenResult.trim().length > accumulated.length) {
+        // Send the regenerated content, replacing what was streamed
+        delta(`\n\n_Regenerating for completeness..._\n\n${regenResult}`);
+        accumulated = regenResult;
+      }
+    } catch (e) {
+      console.warn(`[streamContinuation:${tag}] regeneration failed:`, e);
+    }
+  }
+
   return accumulated;
 }
 
