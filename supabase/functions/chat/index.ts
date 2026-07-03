@@ -69,62 +69,80 @@ async function streamContinuation(
   const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : 1229;
   let accumulated = "";
 
-  // Round 0: initial streaming response
-  {
-    const { response } = await callWithFallback(convo, models, maxTokens, 0.7, BUDGET_MS, tag, { stream: true });
-    if (response.body) {
-      const reader = response.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      let roundContent = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += dec.decode(value, { stream: true });
-          let nl;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
-            const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-            if (!line.startsWith("data: ")) continue;
-            const js = line.slice(6).trim();
-            if (!js || js === "[DONE]") continue;
-            try {
-              const p = JSON.parse(js);
-              if (p.lumina_meta || p.lumina_usage) continue;
-              const d = p?.choices?.[0]?.delta?.content;
-              if (typeof d === "string" && d) { roundContent += d; delta(d); }
-            } catch { buf = line + "\n" + buf; break; }
-          }
-        }
-      } catch { /* carry on with what we have */ }
-      accumulated = roundContent;
-    }
-  }
+  // ── Inline continuation: stream, detect, continue, repeat ──
+  // Unlike callAIText (which does JSON non-streaming), this function
+  // streams every chunk to the client.  Accumulation and truncation
+  // detection happen in the same loop so we never return early.
+  for (let rounds = 0; rounds < MAX_CONTINUATION_ROUNDS; rounds++) {
+    const msgs = rounds === 0 ? convo : [
+      ...convo,
+      { role: "assistant", content: accumulated },
+      { role: "user", content: accumulated.length < minExpected
+        ? `You MUST write a longer response. Minimum ${Math.round(minExpected)} characters total. Continue exactly where you left off. Output ONLY the continuation:`
+        : `Continue exactly where you left off. Do NOT repeat. Output ONLY the continuation:` },
+    ];
 
-  // If response is too short, regenerate from scratch as non-streaming
-  if (accumulated.length < minExpected || detectTruncation(accumulated, null, { structural: true, content: true }).truncated) {
-    console.warn(`[streamContinuation:${tag}] short response (${accumulated.length} chars), regenerating with length constraint`);
+    const { response } = await callWithFallback(msgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
+    if (!response.body) { if (rounds === 0) break; else break; }
+
+    const reader = response.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let roundContent = "";
+    let finishReason: string | null = null;
+
     try {
-      const lastUserMsg = [...convo].reverse().find((m) => m.role === "user");
-      const regenPrompt = lastUserMsg
-        ? `IMPORTANT: Your response MUST be at least ${Math.round(minExpected)} characters long. Do NOT give a short answer. Provide a detailed, thorough response:\n\n${lastUserMsg.content}`
-        : `Provide a detailed, thorough response with at least ${Math.round(minExpected)} characters.`;
-      const regenMsgs = [
-        ...convo.filter((m) => m.role !== "user"),
-        { role: "user", content: regenPrompt },
-      ];
-      const regenResult = await callAIText(regenMsgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}/regen`);
-      if (regenResult && regenResult.trim().length > accumulated.length) {
-        // Send the regenerated content, replacing what was streamed
-        delta(`\n\n_Regenerating for completeness..._\n\n${regenResult}`);
-        accumulated = regenResult;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
+          const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+          if (!line.startsWith("data: ")) continue;
+          const js = line.slice(6).trim();
+          if (!js || js === "[DONE]") continue;
+          try {
+            const p = JSON.parse(js);
+            if (p.lumina_meta || p.lumina_usage) continue;
+            const d = p?.choices?.[0]?.delta?.content;
+            if (typeof d === "string" && d) { roundContent += d; delta(d); }
+            if (p?.choices?.[0]?.finish_reason) finishReason = p.choices[0].finish_reason;
+          } catch { buf = line + "\n" + buf; break; }
+        }
       }
-    } catch (e) {
-      console.warn(`[streamContinuation:${tag}] regeneration failed:`, e);
+    } catch { /* connection dropped — keep what we got */ }
+
+    if (roundContent) accumulated += roundContent;
+
+    // If this round produced nothing AND we're still below minimum,
+    // try once more with a more aggressive prompt, then give up.
+    if (!roundContent || roundContent.trim().length === 0) {
+      if (rounds === 0 && accumulated.length < minExpected) {
+        continue;  // retry round 0 with continuation prompt
+      }
+      break;
     }
+
+    // Three-signal truncation check
+    const trunc = detectTruncation(accumulated, finishReason, {
+      structural: true,
+      content: true,
+      minExpected,
+    });
+    if (!trunc.truncated) break;
+
+    logContinuationEvent({
+      tag, round: rounds + 1, signal: trunc.signal,
+      originalLength: accumulated.length - (roundContent?.length ?? 0),
+      continuationLength: roundContent?.length ?? 0,
+      model: models[0] ?? "unknown",
+    });
   }
 
+  // Final safety net: if we exhausted all rounds and still too short,
+  // concatenate whatever we have and let the client deal with it
   return accumulated;
 }
 
