@@ -186,10 +186,21 @@ serve(async (req) => {
             }
 
             let outputBody = "";
-            if ("body" in result.output) outputBody = (result.output as any).body;
-            else if ("summary" in result.output) outputBody = (result.output as any).summary;
-            else if ("files" in result.output) {
-              outputBody = (result.output as any).files.map((f: any) => `--- ${f.path} ---\n\`\`\`${f.language}\n${f.content.slice(0, 2000)}\n\`\`\``).join("\n\n");
+            const ro = result.output as any;
+            if ("body" in ro && typeof ro.body === "string") outputBody = ro.body;
+            else if ("summary" in ro && typeof ro.summary === "string") outputBody = ro.summary;
+            else if ("slides" in ro && Array.isArray(ro.slides)) {
+              outputBody = ro.slides.map((sl: any, i: number) => `## ${sl.heading}\n\n${sl.body}${sl.notes ? `\n\n> ${sl.notes}` : ""}${sl.visual ? `\n\n*Visual: ${sl.visual.type} — ${sl.visual.description}*` : ""}`).join("\n\n---\n\n");
+            } else if ("tables" in ro && Array.isArray(ro.tables)) {
+              outputBody = ro.tables.map((t: any) => {
+                const h = t.headers || [];
+                const rows = t.rows || [];
+                return `### ${ro.title}\n\n| ${h.join(" | ")} |\n| ${h.map(() => "---").join(" | ")} |\n${rows.map((r: any) => `| ${h.map((c: string) => r[c] ?? "").join(" | ")} |`).join("\n")}`;
+              }).join("\n\n");
+            } else if ("files" in ro && Array.isArray(ro.files)) {
+              outputBody = ro.files.map((f: any) => `--- ${f.path} ---\n\`\`\`${f.language}\n${f.content.slice(0, 2000)}\n\`\`\``).join("\n\n");
+            } else {
+              outputBody = typeof ro === "string" ? ro : JSON.stringify(ro, null, 2);
             }
 
             delta(`\n\n${outputBody.slice(0, 15000)}`);
