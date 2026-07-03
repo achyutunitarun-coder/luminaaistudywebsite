@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callWithFallback, getModelsForIntent, MODELS_LONG_CTX } from "../_shared/models.ts";
+import { callWithFallback, getModelsForIntent, getSystemPromptForIntent, MODELS_LONG_CTX } from "../_shared/models.ts";
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
@@ -11,7 +11,6 @@ const CORS = {
 };
 const BUDGET_MS = 150_000;
 const modeRouter = new ModeRouter();
-const COMPUTER_PROMPT = "You are Lumina Computer. You help with research, code, documents, and multi-step tasks. Voice: direct and capable. Use FILE: blocks for files, markdown for reports. Never truncate output.";
 const STATUS_MAP: Record<string, string> = {
   slides: "Creating slide deck...",
   writing: "Creating document...",
@@ -25,7 +24,10 @@ const CONT_SHORT = "The response was cut short. Continue from where you stopped.
 const CONT_LONG = "Continue exactly where you left off. Do NOT repeat ANYTHING already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation \u2014 no prefixes, no explanations.";
 
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
-  if (isComputer) return `${COMPUTER_PROMPT}\nEffort: ${effort}`;
+  if (isComputer) {
+    const detailed = getSystemPromptForIntent(mode === "mun" ? "mun" : "computer", false, false);
+    return `${detailed}\n\nEffort: ${effort}`;
+  }
   const base = "You are Lumina AI, an elite study assistant. Format beautifully with markdown headings, bold terms, lists, and code blocks. Write like a great teacher.";
   if (intent === "coding") return `${base}\nProvide working code with explanation.`;
   if (intent === "study") return `${base}\nExplain with examples and analogies.`;
@@ -35,6 +37,76 @@ function buildSystem(intent: string, mode: string, effort: string, isComputer: b
   if (intent === "data") return `${base}\nWork with data to create structured spreadsheets and charts.`;
   if (intent === "writing") return `${base}\nWrite comprehensive, well-formatted documents.`;
   return base;
+}
+
+function renderLuminaOutput(result: any): string {
+  const ro = result.output as any;
+  if ("body" in ro && typeof ro.body === "string") return ro.body;
+  if ("summary" in ro && typeof ro.summary === "string") return ro.summary;
+  if ("slides" in ro && Array.isArray(ro.slides)) {
+    return ro.slides.map((sl: any) => `## ${sl.heading}\n\n${sl.body}${sl.notes ? `\n\n> ${sl.notes}` : ""}${sl.visual ? `\n\n*Visual: ${sl.visual.type} \u2014 ${sl.visual.description}*` : ""}`).join("\n\n---\n\n");
+  }
+  if ("tables" in ro && Array.isArray(ro.tables)) {
+    return ro.tables.map((t: any) => {
+      const h = t.headers || []; const rows = t.rows || [];
+      return `### ${ro.title}\n\n| ${h.join(" | ")} |\n| ${h.map(() => "---").join(" | ")} |\n${rows.map((r: any) => `| ${h.map((c: string) => r[c] ?? "").join(" | ")} |`).join("\n")}`;
+    }).join("\n\n");
+  }
+  if ("files" in ro && Array.isArray(ro.files)) {
+    return ro.files.map((f: any) => `FILE: ${f.path}\n\`\`\`${f.language}\n${f.content}\n\`\`\``).join("\n\n");
+  }
+  return typeof ro === "string" ? ro : JSON.stringify(ro, null, 2);
+}
+
+async function streamContinuation(
+  convo: { role: string; content: string }[],
+  models: string[],
+  maxTokens: number,
+  tag: string,
+  delta: (t: string) => void,
+): Promise<string> {
+  let accumulated = "";
+  for (let rounds = 0; rounds < MAX_CONTINUATION_ROUNDS; rounds++) {
+    const msgs = rounds === 0 ? convo : [
+      ...convo,
+      { role: "assistant", content: accumulated },
+      { role: "user", content: (accumulated.length / 4) < maxTokens * 0.30 ? CONT_SHORT : CONT_LONG },
+    ];
+    const { response } = await callWithFallback(msgs, models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
+    if (!response.body) break;
+    const reader = response.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let finishReason: string | null = null;
+    let roundContent = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
+          const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+          if (!line.startsWith("data: ")) continue;
+          const js = line.slice(6).trim();
+          if (!js || js === "[DONE]") continue;
+          try {
+            const p = JSON.parse(js);
+            if (p.lumina_meta || p.lumina_usage) continue;
+            const d = p?.choices?.[0]?.delta?.content;
+            if (typeof d === "string" && d) { roundContent += d; delta(d); }
+            if (p?.choices?.[0]?.finish_reason) finishReason = p.choices[0].finish_reason;
+          } catch { buf = line + "\n" + buf; break; }
+        }
+      }
+    } catch { /* connection dropped — use what we have */ }
+    accumulated += roundContent;
+    if (!roundContent || roundContent.trim().length === 0) break;
+    const estimatedTokens = Math.round(accumulated.length / 4);
+    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85) break;
+  }
+  return accumulated;
 }
 
 serve(async (req) => {
@@ -92,11 +164,9 @@ serve(async (req) => {
             }
 
             let modeToRun = lumina_mode === "auto" ? intent.mode : lumina_mode;
-            const researchArtifact = orchestrator.getStore().list(sessionId, "research").slice(-1)[0];
-            const docArtifact = orchestrator.getStore().list(sessionId, "doc").slice(-1)[0];
-            const sheetArtifact = orchestrator.getStore().list(sessionId, "sheet").slice(-1)[0];
-            const slideArtifact = orchestrator.getStore().list(sessionId, "slide").slice(-1)[0];
-
+            const store = orchestrator.getStore();
+            const researchArtifact = store.list(sessionId, "research").slice(-1)[0];
+            const sheetArtifact = store.list(sessionId, "sheet").slice(-1)[0];
             let sourceId: string | undefined;
             if (modeToRun === "slide" && researchArtifact) sourceId = researchArtifact.id;
             else if (modeToRun === "doc" && sheetArtifact) sourceId = sheetArtifact.id;
@@ -104,7 +174,6 @@ serve(async (req) => {
             else if (modeToRun === "slide" && sheetArtifact) sourceId = sheetArtifact.id;
 
             delta(`\n**${modeToRun.charAt(0).toUpperCase() + modeToRun.slice(1)} Mode**\n\n`);
-
             const result = await orchestrator.executeMode(modeToRun as any, query, (statusMsg) => delta(`_${statusMsg}_\n\n`), sourceId);
 
             if (result.handoffTo && result.handoffTo !== modeToRun) {
@@ -114,24 +183,7 @@ serve(async (req) => {
               result.output = handoffResult.output;
             }
 
-            let outputBody = "";
-            const ro = result.output as any;
-            if ("body" in ro && typeof ro.body === "string") outputBody = ro.body;
-            else if ("summary" in ro && typeof ro.summary === "string") outputBody = ro.summary;
-            else if ("slides" in ro && Array.isArray(ro.slides)) {
-              outputBody = ro.slides.map((sl: any, i: number) => `## ${sl.heading}\n\n${sl.body}${sl.notes ? `\n\n> ${sl.notes}` : ""}${sl.visual ? `\n\n*Visual: ${sl.visual.type} \u2014 ${sl.visual.description}*` : ""}`).join("\n\n---\n\n");
-            } else if ("tables" in ro && Array.isArray(ro.tables)) {
-              outputBody = ro.tables.map((t: any) => {
-                const h = t.headers || []; const rows = t.rows || [];
-                return `### ${ro.title}\n\n| ${h.join(" | ")} |\n| ${h.map(() => "---").join(" | ")} |\n${rows.map((r: any) => `| ${h.map((c: string) => r[c] ?? "").join(" | ")} |`).join("\n")}`;
-              }).join("\n\n");
-            } else if ("files" in ro && Array.isArray(ro.files)) {
-              outputBody = ro.files.map((f: any) => `--- ${f.path} ---\n\`\`\`${f.language}\n${f.content.slice(0, 2000)}\n\`\`\``).join("\n\n");
-            } else {
-              outputBody = typeof ro === "string" ? ro : JSON.stringify(ro, null, 2);
-            }
-
-            delta(`\n\n${outputBody.slice(0, 100000)}`);
+            delta(`\n\n${renderLuminaOutput(result)}`);
             if ("verificationNotes" in result.output && (result.output as any).verificationNotes?.length > 0) {
               delta(`\n\n> **Verification:** ${(result.output as any).verificationNotes.join("; ")}`);
             }
@@ -145,42 +197,7 @@ serve(async (req) => {
             const models = isComputer ? MODELS_LONG_CTX : (getModelsForIntent(intent.intent as any) || MODELS_LONG_CTX);
             const convo = [{ role: "system", content: system }, ...messages];
             const tag = isComputer ? "computer" : intent.intent;
-            let accumulated = "";
-            let rounds = 0;
-            while (rounds < MAX_CONTINUATION_ROUNDS) {
-              const msgs = rounds === 0 ? convo : [...convo, { role: "assistant", content: accumulated }, { role: "user", content: (accumulated.length / 4) < maxTokens * 0.30 ? CONT_SHORT : CONT_LONG }];
-              const { response } = await callWithFallback(msgs as any[], models, maxTokens, 0.7, BUDGET_MS, `${tag}${rounds > 0 ? `/cont${rounds}` : ""}`, { stream: true });
-              if (!response.body) { delta("**Error:** Empty response from AI.\n"); break; }
-              const reader = response.body.getReader();
-              const dec = new TextDecoder();
-              let buf = "";
-              let fr: string | null = null;
-              let rc = "";
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buf += dec.decode(value, { stream: true });
-                let nl;
-                while ((nl = buf.indexOf("\n")) !== -1) {
-                  const raw = buf.slice(0, nl); buf = buf.slice(nl + 1);
-                  const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-                  if (!line.startsWith("data: ")) continue;
-                  const js = line.slice(6).trim();
-                  if (!js || js === "[DONE]") continue;
-                  try {
-                    const p = JSON.parse(js);
-                    if (p.lumina_meta || p.lumina_usage) { send(p); continue; }
-                    const d = p?.choices?.[0]?.delta?.content;
-                    if (typeof d === "string" && d) { rc += d; delta(d); }
-                    if (p?.choices?.[0]?.finish_reason) fr = p.choices[0].finish_reason;
-                  } catch { buf = line + "\n" + buf; break; }
-                }
-              }
-              accumulated += rc;
-              if (!rc || rc.trim().length === 0) break;
-              rounds++;
-              if (fr !== "length" && accumulated.length / 4 >= maxTokens * 0.85) break;
-            }
+            await streamContinuation(convo, models, maxTokens, tag, delta);
           }
         } catch (e) { delta(`\n**Error:** ${e instanceof Error ? e.message : String(e)}\n`); }
         send({ choices: [{ finish_reason: "stop", delta: {} }] });
