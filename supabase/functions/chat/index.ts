@@ -3,125 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
-import {
-  callWithFallback,
-  getModelsForIntent,
-  STREAM_TOTAL_BUDGET_MS,
-  CONTINUATION_MAX_ROUNDS,
-  CONTINUATION_PROMPT_LENGTH,
-  CONTINUATION_PROMPT_SHORT,
-  MODELS_LONG_CTX,
-} from "../_shared/models.ts";
+import { streamAI, getModelsForIntent, STREAM_TOTAL_BUDGET_MS, MODELS_LONG_CTX } from "../_shared/models.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-async function* streamGen(
-  messages: any[],
-  maxTokens: number,
-  temperature: number,
-  signal: AbortSignal,
-  models: string[],
-  tag: string,
-) {
-  let accumulatedContent = "";
-  let rounds = 0;
-
-  while (rounds <= CONTINUATION_MAX_ROUNDS) {
-    if (signal.aborted) return;
-
-    const convoMessages = rounds === 0
-      ? messages
-      : [
-          ...messages,
-          { role: "assistant", content: accumulatedContent },
-          { role: "user", content: accumulatedContent.trim().length < maxTokens * 0.30 ? CONTINUATION_PROMPT_SHORT : CONTINUATION_PROMPT_LENGTH },
-        ];
-
-    let response: Response | undefined;
-    let attempt = 0;
-    while (attempt < 2) {
-      attempt++;
-      try {
-        const result = await callWithFallback(
-          attempt === 1 ? convoMessages : [...convoMessages.slice(0, -1), { role: "user", content: "Write more. Expand on every point above. Add details, examples, and specific content. Do NOT repeat anything already written." }],
-          models,
-          maxTokens,
-          temperature,
-          STREAM_TOTAL_BUDGET_MS,
-          `${tag}/stream${rounds > 0 ? `/cont${rounds}` : ""}`,
-          { stream: true },
-        );
-        response = result.response;
-        break;
-      } catch (e) {
-        if (rounds === 0) {
-          yield `[ERROR: ${e instanceof Error ? e.message : String(e)}]\n`;
-          return;
-        }
-        if (attempt >= 2) {
-          console.warn(`[streamGen] cont round ${rounds} failed after retry`);
-          break;
-        }
-        console.warn(`[streamGen] cont round ${rounds} failed, retrying with simpler prompt`);
-      }
-    }
-    if (!response) break;
-
-    const reader = response.body!.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-    let roundContent = "";
-    let finishReason: string | null = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf("\n")) !== -1) {
-        const raw = buf.slice(0, nl);
-        buf = buf.slice(nl + 1);
-        const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
-        if (!line.startsWith("data: ")) continue;
-        const jsonStr = line.slice(6).trim();
-        if (!jsonStr || jsonStr === "[DONE]") continue;
-        try {
-          const p = JSON.parse(jsonStr);
-          const d = p?.choices?.[0]?.delta?.content;
-          if (typeof d === "string" && d) {
-            roundContent += d;
-            yield d;
-          }
-          const fr = p?.choices?.[0]?.finish_reason;
-          if (fr) finishReason = fr;
-        } catch {
-          buf = line + "\n" + buf;
-          break;
-        }
-      }
-    }
-
-    accumulatedContent += roundContent;
-
-    if (signal.aborted) return;
-
-    const estimatedTokens = Math.round(accumulatedContent.length / 4);
-    // MINIMUM OUTPUT SAFETY: if first round produced fewer than 2000 chars for
-    // a substantive task, always continue — the model likely stubbed the response.
-    const minOutput = rounds === 0 ? Math.min(maxTokens * 0.20, 500) : 0;
-    if (finishReason !== "length" && estimatedTokens >= maxTokens * 0.85 && accumulatedContent.length >= minOutput * 4) break;
-    if (!roundContent || roundContent.trim().length === 0) {
-      rounds++;
-      if (rounds >= CONTINUATION_MAX_ROUNDS) break;
-      continue;
-    }
-
-    rounds++;
-  }
-}
 
 const COMPUTER_PROMPT = `You are Lumina Computer. You help with research, code, documents, and multi-step tasks. Voice: direct and capable. Use FILE: blocks for files, markdown for reports. Never truncate output.`;
 
@@ -137,6 +24,15 @@ function buildSystem(intent: string, mode: string, effort: string, isComputer: b
   if (intent === "writing") return `${base}\nWrite comprehensive, well-formatted documents.`;
   return base;
 }
+
+const STATUS_MAP: Record<string, string> = {
+  slides: "Creating slide deck...",
+  writing: "Creating document...",
+  coding: "Creating files...",
+  research: "Researching...",
+  data: "Creating spreadsheet...",
+  computer: "Processing...",
+};
 
 const modeRouter = new ModeRouter();
 
@@ -169,7 +65,7 @@ serve(async (req) => {
 
     const system = buildSystem(intent.intent, mode, effortLvl, isComputer);
     if (budget.tier === "lightweight") {
-      const systemExt = `\n\nNote: This is a quick conversation. Keep responses brief and direct — under 150 words. Do not generate files or undertake multi-step tasks unless the user explicitly asks.`;
+      const systemExt = `\n\nNote: This is a quick conversation. Keep responses brief and direct \u2014 under 150 words. Do not generate files or undertake multi-step tasks unless the user explicitly asks.`;
       const lastUserIdx = messages.length - 1 - [...messages].reverse().findIndex((m: any) => m.role === "user");
       if (lastUserIdx >= 0 && lastUserIdx < messages.length) {
         messages[lastUserIdx] = { ...messages[lastUserIdx], content: messages[lastUserIdx].content + systemExt };
@@ -191,8 +87,41 @@ serve(async (req) => {
             delta("**Error:** No models available for this request.\n");
             return;
           }
-          for await (const chunk of streamGen(convo, maxTokens, 0.7, abort.signal, models, intent.intent)) {
-            delta(chunk);
+          const tag = isComputer ? "computer" : intent.intent;
+
+          const streamRes = await streamAI(convo, models, maxTokens, 0.7, STREAM_TOTAL_BUDGET_MS, tag);
+          const reader = streamRes.body!.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            let nl;
+            while ((nl = buf.indexOf("\n")) !== -1) {
+              const raw = buf.slice(0, nl);
+              buf = buf.slice(nl + 1);
+              const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === "[DONE]") continue;
+              try {
+                const p = JSON.parse(jsonStr);
+                if (p.lumina_meta || p.lumina_usage) {
+                  send(p);
+                  continue;
+                }
+                const d = p?.choices?.[0]?.delta?.content;
+                if (typeof d === "string" && d) {
+                  delta(d);
+                }
+              } catch {
+                // partial SSE line — push back
+                buf = line + "\n" + buf;
+                break;
+              }
+            }
           }
         }
 
@@ -270,27 +199,10 @@ serve(async (req) => {
             }
 
             delta(`\n\n_Session: ${orchestrator.getSessionSummary()}_`);
-          } else if (isComputer) {
-            send({ lumina_meta: { model: "computer", intent: intent.intent, is_computer: true } });
-            const statusMsg = ({
-              slides: "Creating slide deck...",
-              writing: "Creating document...",
-              coding: "Creating files...",
-              research: "Researching...",
-              data: "Creating spreadsheet...",
-              computer: "Processing...",
-            } as Record<string, string>)[intent.intent] || "";
-            if (statusMsg) delta(`_${statusMsg}_\n\n`);
-            await runStreamingChat();
           } else {
-            send({ lumina_meta: { model: "chat", intent: intent.intent, is_computer: false } });
-            const statusMsg = ({
-              slides: "Creating slide deck...",
-              writing: "Creating document...",
-              coding: "Creating files...",
-              research: "Researching...",
-              data: "Creating spreadsheet...",
-            } as Record<string, string>)[intent.intent] || "";
+            const modeLabel = isComputer ? "computer" : "chat";
+            send({ lumina_meta: { model: modeLabel, intent: intent.intent, is_computer: isComputer } });
+            const statusMsg = STATUS_MAP[intent.intent] || "";
             if (statusMsg) delta(`_${statusMsg}_\n\n`);
             await runStreamingChat();
           }

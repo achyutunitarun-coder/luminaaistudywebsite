@@ -110,7 +110,7 @@ tags: ${JSON.stringify((outline as any).tags ?? ["document"])}
 ---
 - Then write the full document content with ## headings for each section
 - Include an Executive Summary at the start
-- Add a References or Sources section at the end
+- Add a References or Sources section at the end`;
 
     let docBody = await this.client.complete(
       [
