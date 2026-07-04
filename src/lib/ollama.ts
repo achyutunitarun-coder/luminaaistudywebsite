@@ -119,7 +119,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
     window.clearTimeout(timeout);
   }
 }
-}
 
 async function ollamaFetch(path: string, init?: RequestInit, timeoutMs?: number) {
   const errors: string[] = [];
