@@ -68,10 +68,9 @@ function getChatUrl(endpoint: string): string {
 }
 
 export async function checkOllamaStatus(): Promise<OllamaStatus> {
-  // Try direct localhost:11434 first (works from browser on same machine)
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), 1500);
     const res = await fetch(`${DIRECT_OLLAMA}/api/tags`, { signal: controller.signal });
     clearTimeout(timeout);
     if (res.ok) {
@@ -85,29 +84,9 @@ export async function checkOllamaStatus(): Promise<OllamaStatus> {
         details: loaded ? "direct" : "model_not_found",
       };
     }
+    return { available: false, model: DEFAULT_MODEL, message: "Ollama responded but with an error.", details: "RESPONSE_ERROR" };
   } catch {
-    // Direct failed, try proxy
-  }
-
-  // Fall back to proxy (/api/ai — works via Vite dev middleware or Vercel serverless)
-  try {
-    const response = await fetchWithTimeout(`${PROXY_BASE}/ai`, { method: "GET" }, 5000);
-    const payload = await response.json();
-    if (!response.ok) throw new OllamaError(normalizeErrorMessage(payload, "Ollama unavailable."), response.status, payload?.code || "OLLAMA_UNAVAILABLE");
-    return {
-      available: true,
-      model: payload.model || DEFAULT_MODEL,
-      message: payload.message || "Ready",
-      details: payload.details,
-    };
-  } catch (error) {
-    if (error instanceof OllamaError) {
-      return { available: false, model: DEFAULT_MODEL, message: error.message, details: error.code };
-    }
-    if (error instanceof Error && error.name === "AbortError") {
-      return { available: false, model: DEFAULT_MODEL, message: "Request timed out.", details: "REQUEST_TIMEOUT" };
-    }
-    return { available: false, model: DEFAULT_MODEL, message: error instanceof Error ? error.message : "Cannot reach Ollama.", details: "NETWORK_ERROR" };
+    return { available: false, model: DEFAULT_MODEL, message: "Cannot reach Ollama at localhost:11434. Make sure it's running with OLLAMA_ORIGINS=*", details: "CONNECTION_REFUSED" };
   }
 }
 
