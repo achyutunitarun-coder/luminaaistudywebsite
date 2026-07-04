@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUp, Bot, Brain, Loader2, PauseCircle, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { checkOllamaStatus, streamResponse, type OllamaStatus } from "@/lib/ollama";
+import { checkConnection, streamChat, type OllamaConnectionStatus } from "@/lib/ollama";
 
 type ChatRole = "user" | "assistant";
 
@@ -27,7 +27,7 @@ const OllamaChatPage = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaConnectionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -37,12 +37,7 @@ const OllamaChatPage = () => {
   }, [messages, isLoading]);
 
   useEffect(() => {
-    const syncStatus = async () => {
-      const status = await checkOllamaStatus();
-      setOllamaStatus(status);
-    };
-
-    void syncStatus();
+    checkConnection().then(setOllamaStatus);
   }, []);
 
   const canSend = draft.trim().length > 0 && !isLoading;
@@ -70,8 +65,11 @@ const OllamaChatPage = () => {
 
     try {
       let content = "";
-      await streamResponse(
-        trimmed,
+      const history = messages.map(m => ({ role: m.role, content: m.content }));
+      history.push({ role: "user", content: trimmed });
+
+      await streamChat(
+        history,
         (token) => {
           content += token;
           setMessages((current) =>
@@ -114,8 +112,8 @@ const OllamaChatPage = () => {
 
   const statusLabel = useMemo(() => {
     if (!ollamaStatus) return "Checking local Ollama connection…";
-    if (ollamaStatus.available) {
-      return `${ollamaStatus.message} Using ${ollamaStatus.model}.`;
+    if (ollamaStatus.connected && ollamaStatus.modelReady) {
+      return ollamaStatus.message;
     }
     return ollamaStatus.message;
   }, [ollamaStatus]);
@@ -137,7 +135,7 @@ const OllamaChatPage = () => {
             </div>
             <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
               <div className="flex items-center gap-2">
-                {ollamaStatus?.available ? <Brain className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+                {ollamaStatus?.connected && ollamaStatus?.modelReady ? <Brain className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
                 <span>{statusLabel}</span>
               </div>
             </div>

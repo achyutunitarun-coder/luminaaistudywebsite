@@ -686,7 +686,8 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
   border-radius: var(--r-xl);
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  min-height: 52px; transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  min-height: 52px; overflow: hidden;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .chat-input-box:focus-within {
   border-color: var(--border-brand);
@@ -696,9 +697,11 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .chat-textarea {
   flex: 1; background: none; border: none; outline: none; resize: none;
   padding: 10px 4px; font-size: 15px; color: var(--text-primary);
-  max-height: 200px; font-family: 'Inter', sans-serif; line-height: 1.6;
+  max-height: 200px; overflow-y: auto; font-family: 'Inter', sans-serif; line-height: 1.6;
   caret-color: var(--brand);
 }
+.chat-textarea::-webkit-scrollbar { width: 3px; }
+.chat-textarea::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
 .chat-textarea::placeholder { color: var(--text-muted); }
 
 .chat-input-btn {
@@ -1015,7 +1018,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
   display: flex; align-items: flex-end; gap: 6px; padding: 6px;
   border-radius: var(--r-xl); background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  min-height: 48px;
+  min-height: 48px; overflow: hidden;
   max-width: min(90vw, 860px); width: 100%;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
@@ -1035,9 +1038,11 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .chat-textarea {
   flex: 1; background: none; border: none; outline: none; resize: none;
   padding: 8px 4px; font-size: 14px; color: var(--text-primary);
-  max-height: 180px; font-family: 'Inter', sans-serif; line-height: 1.6;
+  max-height: 200px; overflow-y: auto; font-family: 'Inter', sans-serif; line-height: 1.6;
   caret-color: var(--brand);
 }
+.chat-textarea::-webkit-scrollbar { width: 3px; }
+.chat-textarea::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
 .chat-textarea::placeholder { color: var(--text-muted); }
 
 .chat-send-btn {

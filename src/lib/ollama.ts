@@ -1,204 +1,300 @@
-export interface OllamaStatus {
-  available: boolean;
-  model: string;
+export interface OllamaConnectionStatus {
+  connected: boolean;
+  modelReady: boolean;
   message: string;
-  details?: string;
 }
 
 export interface OllamaResponse {
   text: string;
   model: string;
+  toolCalls?: OllamaToolCall[];
 }
 
-const DIRECT_OLLAMA = "http://localhost:11434";
-const PROXY_BASE = (import.meta.env.VITE_OLLAMA_API_BASE || "/api").replace(/\/$/, "");
-const DEFAULT_MODEL = import.meta.env.VITE_OLLAMA_MODEL || "qwen2.5-coder:3b";
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_OLLAMA_TIMEOUT_MS || 120000);
+export interface OllamaToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
 
-class OllamaError extends Error {
-  status: number;
-  code: string;
+export interface OllamaTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
 
-  constructor(message: string, status: number, code: string) {
-    super(message);
-    this.name = "OllamaError";
-    this.status = status;
-    this.code = code;
+export interface OllamaChatMessage {
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  tool_calls?: OllamaToolCall[];
+  tool_call_id?: string;
+}
+
+const OLLAMA_URL = "http://localhost:11434";
+const DEFAULT_MODEL = "qwen2.5-coder:3b-instruct";
+const REQUEST_TIMEOUT_MS = 120000;
+
+const NUM_CTX = 32768;
+const TEMPERATURE = 0.1;
+
+const TOOLS: OllamaTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "create_artifact",
+      description: "Generate a structured study artifact: notes, exam, slides, or code. Use when the user asks to create, generate, make, or write study materials.",
+      parameters: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: ["notes", "exam", "slides", "code"],
+            description: "Type of artifact to generate",
+          },
+          topic: {
+            type: "string",
+            description: "The topic or subject for the artifact",
+          },
+          content: {
+            type: "string",
+            description: "The full content/markdown of the artifact",
+          },
+        },
+        required: ["type", "topic", "content"],
+      },
+    },
+  },
+];
+
+function buildSystemPrompt(): string {
+  return `You are Lumina, a brilliant study AI tutor. Be concise, use markdown formatting.
+
+You have access to tools. When the user asks to create study materials (notes, exams, slides, code), use the \`create_artifact\` tool.
+
+Otherwise, respond conversationally with helpful explanations. Use markdown for formatting.`;
+}
+
+function buildMessages(history: { role: string; content: string }[]): OllamaChatMessage[] {
+  const msgs: OllamaChatMessage[] = [
+    { role: "system", content: buildSystemPrompt() },
+  ];
+  for (const m of history) {
+    if (m.role === "user" || m.role === "assistant") {
+      msgs.push({ role: m.role, content: m.content });
+    }
   }
+  return msgs;
+}
+
+function buildRequestBody(messages: OllamaChatMessage[], stream: boolean, tools?: OllamaTool[]) {
+  const body: Record<string, unknown> = {
+    model: DEFAULT_MODEL,
+    messages,
+    stream,
+    options: {
+      num_ctx: NUM_CTX,
+      temperature: TEMPERATURE,
+    },
+  };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+  }
+  return JSON.stringify(body);
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
   }
 }
 
-function normalizeErrorMessage(payload: unknown, fallback: string) {
-  if (typeof payload === "string") return payload;
-  if (payload && typeof payload === "object") {
-    const record = payload as Record<string, unknown>;
-    if (typeof record.error === "string") return record.error;
-    if (typeof record.message === "string") return record.message;
-  }
-  return fallback;
+async function ollamaFetch(path: string, init?: RequestInit, timeoutMs?: number) {
+  return fetchWithTimeout(`${OLLAMA_URL}${path}`, init, timeoutMs);
 }
 
-async function tryDirect(): Promise<boolean> {
+export async function checkConnection(): Promise<OllamaConnectionStatus> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${DIRECT_OLLAMA}/api/tags`, { signal: controller.signal });
+    const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: controller.signal });
     clearTimeout(timeout);
-    return res.ok;
+    if (!res.ok) {
+      return { connected: false, modelReady: false, message: "Ollama responded with an error." };
+    }
+    const data = await res.json();
+    const models: { name: string }[] = data?.models || [];
+    const hasModel = models.some((m) => m.name === DEFAULT_MODEL);
+    return {
+      connected: true,
+      modelReady: hasModel,
+      message: hasModel ? "Ready" : `Run: ollama pull ${DEFAULT_MODEL}`,
+    };
+  } catch {
+    return { connected: false, modelReady: false, message: "Cannot reach Ollama. Make sure it's running with OLLAMA_ORIGINS=*" };
+  }
+}
+
+export async function healthCheckToolCall(): Promise<boolean> {
+  try {
+    const messages: OllamaChatMessage[] = [
+      { role: "system", content: "You have access to tools. Respond with a tool call." },
+      { role: "user", content: "Say hello by calling the test tool." },
+    ];
+    const res = await ollamaFetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: buildRequestBody(messages, false, TOOLS),
+    }, 15000);
+    if (!res.ok) return false;
+    const data = await res.json();
+    const toolCalls = data?.message?.tool_calls;
+    return Array.isArray(toolCalls) && toolCalls.length > 0;
   } catch {
     return false;
   }
 }
 
-async function getEndpoint(): Promise<string> {
-  return (await tryDirect()) ? DIRECT_OLLAMA : PROXY_BASE;
-}
+export async function streamChat(
+  history: { role: string; content: string }[],
+  onToken?: (token: string) => void,
+  options?: { signal?: AbortSignal; tools?: OllamaTool[] },
+): Promise<OllamaResponse> {
+  const messages = buildMessages(history);
+  const useTools = options?.tools ?? TOOLS;
 
-function getChatUrl(endpoint: string): string {
-  return endpoint === DIRECT_OLLAMA ? `${DIRECT_OLLAMA}/api/generate` : `${PROXY_BASE}/ai`;
-}
-
-export async function checkOllamaStatus(): Promise<OllamaStatus> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
-    const res = await fetch(`${DIRECT_OLLAMA}/api/tags`, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      const models = data?.models || [];
-      const loaded = models.some((m: any) => m.name === DEFAULT_MODEL);
-      return {
-        available: true,
-        model: DEFAULT_MODEL,
-        message: loaded ? "Ready" : `Run: ollama pull ${DEFAULT_MODEL}`,
-        details: loaded ? "direct" : "model_not_found",
-      };
-    }
-    return { available: false, model: DEFAULT_MODEL, message: "Ollama responded but with an error.", details: "RESPONSE_ERROR" };
-  } catch {
-    return { available: false, model: DEFAULT_MODEL, message: "Cannot reach Ollama at localhost:11434. Make sure it's running with OLLAMA_ORIGINS=*", details: "CONNECTION_REFUSED" };
-  }
-}
-
-export async function generateResponse(prompt: string, options?: { model?: string }) {
-  const model = options?.model || DEFAULT_MODEL;
-  const endpoint = await getEndpoint();
-
-  if (endpoint === DIRECT_OLLAMA) {
-    const res = await fetchWithTimeout(`${DIRECT_OLLAMA}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, prompt, stream: false, temperature: 0.3 }),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new OllamaError(`Ollama error: ${err}`, res.status, "GENERATION_FAILED");
-    }
-    const data = await res.json();
-    return { text: data.response || "", model: data.model || model } satisfies OllamaResponse;
-  }
-
-  const response = await fetchWithTimeout(`${PROXY_BASE}/ai`, {
+  const response = await ollamaFetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, model, stream: false }),
+    body: buildRequestBody(messages, true, useTools),
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new OllamaError(normalizeErrorMessage(payload, "Generation failed."), response.status, payload?.code || "GENERATION_FAILED");
-  return { text: payload.text || payload.reply || "", model: payload.model || model } satisfies OllamaResponse;
-}
-
-export async function streamResponse(
-  prompt: string,
-  onToken?: (token: string) => void,
-  options?: { model?: string; signal?: AbortSignal }
-): Promise<OllamaResponse> {
-  const model = options?.model || DEFAULT_MODEL;
-  const endpoint = await getEndpoint();
-  const isDirect = endpoint === DIRECT_OLLAMA;
-
-  const body = isDirect
-    ? JSON.stringify({ model, prompt, stream: true, temperature: 0.3 })
-    : JSON.stringify({ prompt, model, stream: true });
-
-  const response = await fetchWithTimeout(
-    isDirect ? `${DIRECT_OLLAMA}/api/generate` : `${PROXY_BASE}/ai`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body },
-    REQUEST_TIMEOUT_MS
-  );
 
   if (!response.ok || !response.body) {
-    const payload = await response.json().catch(() => ({}));
-    throw new OllamaError(normalizeErrorMessage(payload, "Streaming request failed."), response.status, payload?.code || "STREAM_FAILED");
+    const text = await response.text().catch(() => "");
+    throw new Error(`Ollama /api/chat error (${response.status}): ${text.slice(0, 200)}`);
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  let toolCalls: OllamaToolCall[] | undefined;
 
   while (true) {
     if (options?.signal?.aborted) {
       reader.cancel();
-      throw new OllamaError("Generation stopped.", 499, "ABORTED");
+      throw Object.assign(new Error("Aborted"), { name: "AbortError" });
     }
 
     const { done, value } = await reader.read();
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
 
-    if (isDirect) {
-      // Direct Ollama API: newline-delimited JSON
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          const parsed = JSON.parse(trimmed) as { response?: string; done?: boolean; error?: string };
-          if (parsed.error) throw new OllamaError(parsed.error, 502, "STREAM_ERROR");
-          if (typeof parsed.response === "string" && parsed.response.length) {
-            text += parsed.response;
-            onToken?.(parsed.response);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.error) throw new Error(parsed.error);
+
+        const delta = parsed.message;
+        if (delta) {
+          if (delta.content) {
+            text += delta.content;
+            onToken?.(delta.content);
           }
-        } catch (error) {
-          if (error instanceof OllamaError) throw error;
+          if (delta.tool_calls && Array.isArray(delta.tool_calls)) {
+            toolCalls = delta.tool_calls.map((tc: any, i: number) => ({
+              id: tc.id || `call_${i}`,
+              type: "function" as const,
+              function: {
+                name: tc.function?.name || "",
+                arguments: tc.function?.arguments || "{}",
+              },
+            }));
+          }
         }
-      }
-    } else {
-      // Proxy SSE: data: {...}\n\n
-      const parts = buffer.split(/\n\n/);
-      buffer = parts.pop() || "";
-      for (const part of parts) {
-        const line = part.trim();
-        if (!line.startsWith("data:")) continue;
-        const payload = line.replace(/^data:\s*/, "");
-        if (!payload) continue;
-        try {
-          const parsed = JSON.parse(payload) as { text?: string; done?: boolean; token?: string; error?: string };
-          if (parsed.error) throw new OllamaError(parsed.error, 502, "STREAM_ERROR");
-          const chunk = parsed.token || parsed.text;
-          if (typeof chunk === "string" && chunk.length) {
-            text += chunk;
-            onToken?.(chunk);
-          }
-        } catch (error) {
-          if (error instanceof OllamaError) throw error;
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          buffer = trimmed + "\n" + buffer;
+        } else {
+          throw e;
         }
       }
     }
   }
 
-  return { text, model };
+  return { text, model: DEFAULT_MODEL, toolCalls };
 }
+
+export async function chatOnce(
+  history: { role: string; content: string }[],
+  options?: { signal?: AbortSignal; tools?: OllamaTool[] },
+): Promise<OllamaResponse> {
+  const messages = buildMessages(history);
+  const useTools = options?.tools ?? TOOLS;
+
+  const response = await ollamaFetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: buildRequestBody(messages, false, useTools),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Ollama /api/chat error (${response.status}): ${text.slice(0, 200)}`);
+  }
+
+  const data = await response.json();
+  const msg = data?.message || {};
+  let text = typeof msg.content === "string" ? msg.content : "";
+  let toolCalls: OllamaToolCall[] | undefined;
+
+  if (msg.tool_calls && Array.isArray(msg.tool_calls)) {
+    toolCalls = msg.tool_calls.map((tc: any, i: number) => ({
+      id: tc.id || `call_${i}`,
+      type: "function" as const,
+      function: {
+        name: tc.function?.name || "",
+        arguments: tc.function?.arguments || "{}",
+      },
+    }));
+  }
+
+  return { text, model: DEFAULT_MODEL, toolCalls };
+}
+
+export function extractToolCallFromText(text: string): OllamaToolCall | null {
+  const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[1]);
+    if (parsed.name || parsed.function?.name) {
+      return {
+        id: `call_extracted_${Date.now()}`,
+        type: "function",
+        function: {
+          name: parsed.name || parsed.function?.name || "",
+          arguments: JSON.stringify(parsed.arguments || parsed.parameters || parsed),
+        },
+      };
+    }
+  } catch {
+    // Not valid JSON
+  }
+  return null;
+}
+
+export const MODEL_NAME = DEFAULT_MODEL;
+export { TOOLS, OllamaError, buildMessages };

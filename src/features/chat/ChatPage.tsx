@@ -30,7 +30,7 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { streamResponse, checkOllamaStatus } from "@/lib/ollama";
+import { checkConnection, streamChat as ollamaStream, chatOnce, extractToolCallFromText, TOOLS, MODEL_NAME, type OllamaToolCall, type OllamaConnectionStatus } from "@/lib/ollama";
 
 // ─── Types ───
 export interface Message {
@@ -209,6 +209,7 @@ const ChatPage = () => {
     const [showArtifactPicker, setShowArtifactPicker] = useState(false);
     const [canvasOpen, setCanvasOpen] = useState(false);
     const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
+    const [ollamaStatus, setOllamaStatus] = useState<OllamaConnectionStatus | null>(null);
 
 
     const abortRef = useRef<AbortController | null>(null);
@@ -220,12 +221,25 @@ const ChatPage = () => {
     useEffect(() => { currentChatIdRef.current = currentChatId; }, [currentChatId]);
 
     useEffect(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      const el = messagesEndRef.current;
+      if (!el) return;
+      const parent = el.closest(".chat-messages") || el.parentElement;
+      if (!parent) return;
+      const atBottom = parent.scrollHeight - parent.scrollTop - parent.clientHeight < 80;
+      if (atBottom) el.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     useEffect(() => {
+      checkConnection().then(setOllamaStatus);
+    }, []);
+
+    useEffect(() => {
       const ta = textareaRef.current;
-      if (ta) { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 180) + "px"; }
+      if (ta) {
+        ta.style.height = "auto";
+        ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+        ta.style.overflowY = ta.scrollHeight > 200 ? "auto" : "hidden";
+      }
     }, [input]);
 
     useEffect(() => {
@@ -303,17 +317,58 @@ const ChatPage = () => {
       if (currentChatIdRef.current === id) startNewChat();
     }, [startNewChat, user]);
 
+    const executeToolCalls = useCallback(async (toolCalls: OllamaToolCall[], history: Message[], chatId: string | null) => {
+      for (const tc of toolCalls) {
+        if (tc.function.name === "create_artifact") {
+          try {
+            const args = JSON.parse(tc.function.arguments);
+            const type = args.type as "notes" | "exam" | "slides" | "code";
+            const topic = args.topic || "";
+            const content = args.content || "";
+            const msg: Message = {
+              id: uid(), role: "assistant", type: "artifact",
+              content: "", artifactHtml: content, artifactType: type,
+              topic, timestamp: Date.now(),
+            };
+            setMessages(p => [...p, msg]);
+            upsertArtifact({
+              id: msg.id, type, title: topic, html: content,
+              createdAt: msg.timestamp, sourceMessageId: msg.id,
+              contextMessageIds: [], summary: `Created ${type}`,
+            });
+            openArtifact(msg.id);
+            await persistMessage(chatId, msg);
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    }, [upsertArtifact, openArtifact, persistMessage]);
+
     const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
       const ctrl = new AbortController(); abortRef.current = ctrl;
       const aId = uid();
-      setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+      const assistantPlaceholder: Message = {
+        id: aId, role: "assistant", content: "", type: "text",
+        isStreaming: true, timestamp: Date.now(),
+      };
+      setMessages(p => [...p, assistantPlaceholder]);
       let acc = "";
 
-      const status = await checkOllamaStatus();
-      if (!status.available) {
+      const status = await checkConnection();
+      setOllamaStatus(status);
+      if (!status.connected) {
         const final: Message = {
           id: aId, role: "assistant", type: "error",
-          content: `Ollama unavailable — please make sure Ollama is running on your laptop.`,
+          content: `Ollama unavailable — please make sure Ollama is running on your laptop with OLLAMA_ORIGINS=*`,
+          timestamp: Date.now(),
+        };
+        setMessages(p => p.map(m => m.id === aId ? final : m));
+        await persistMessage(chatId, final);
+        return;
+      }
+      if (!status.modelReady) {
+        const final: Message = {
+          id: aId, role: "assistant", type: "error",
+          content: `Model not found. Run: ollama pull ${MODEL_NAME}`,
           timestamp: Date.now(),
         };
         setMessages(p => p.map(m => m.id === aId ? final : m));
@@ -321,20 +376,15 @@ const ChatPage = () => {
         return;
       }
 
-      const aiMessages = history.filter(m => m.type === "text").slice(-12);
-      const prompt = [
-        "You are Lumina, a brilliant study AI tutor. Be concise, use markdown, and ask follow-up questions.",
-        "",
-        "Conversation:",
-        ...aiMessages.map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`),
-        "Assistant:",
-      ].join("\n");
+      // Send as Ollama chat messages
+      const aiMessages = history.filter(m => m.type === "text").slice(-12).map(m => ({ role: m.role, content: m.content }));
 
+      let result: { text: string; toolCalls?: OllamaToolCall[] };
       try {
-        await streamResponse(prompt, (token) => {
+        result = await ollamaStream(aiMessages, (token) => {
           acc += token;
           setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
-        }, { signal: ctrl.signal });
+        }, { signal: ctrl.signal, tools: TOOLS });
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         const final: Message = {
@@ -347,13 +397,46 @@ const ChatPage = () => {
         return;
       }
 
+      // Handle tool calls
+      let toolCalls = result.toolCalls;
+
+      // If no tool_calls but content has JSON, try extracting
+      if ((!toolCalls || toolCalls.length === 0) && result.text) {
+        const extracted = extractToolCallFromText(result.text);
+        if (extracted) {
+          toolCalls = [extracted];
+          // Retry once with a system message instructing tool-calling interface
+          const retryMessages = [
+            ...aiMessages,
+            { role: "assistant" as const, content: result.text },
+            { role: "system" as const, content: "You MUST use the tool-calling interface only. Do NOT output tool calls as raw text. Call the function using the proper tool_calls format." },
+            { role: "user" as const, content: "Please use the tool calling interface to complete your previous request." },
+          ];
+          try {
+            const retryResult = await ollamaStream(retryMessages, undefined, { signal: ctrl.signal, tools: TOOLS });
+            if (retryResult.toolCalls && retryResult.toolCalls.length > 0) {
+              toolCalls = retryResult.toolCalls;
+              acc = retryResult.text || acc;
+            }
+          } catch { /* keep original result */ }
+        }
+      }
+
+      // Execute tool calls
+      if (toolCalls && toolCalls.length > 0) {
+        setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+        await executeToolCalls(toolCalls, history, chatId);
+        return;
+      }
+
+      // Plain text response
       const final: Message = acc.trim().length === 0
         ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
         : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
       setMessages(p => p.map(m => m.id === aId ? final : m));
       await persistMessage(chatId, final);
       if (final.type === "text") pushCanvasFromMessage(final.content);
-    }, [persistMessage, pushCanvasFromMessage]);
+    }, [persistMessage, pushCanvasFromMessage, executeToolCalls]);
 
     const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null) => {
       const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];
@@ -481,6 +564,9 @@ const ChatPage = () => {
             <div className="chat-topbar-title">
               <div className="chat-topbar-logo"><Sparkles className="w-3.5 h-3.5" /></div>
               <span className="chat-topbar-name">Lumina AI</span>
+              <span className="flex items-center gap-1 ml-1.5" title={ollamaStatus?.message || "Checking…"}>
+                <span className={`w-1.5 h-1.5 rounded-full ${!ollamaStatus ? "bg-amber-500 animate-pulse" : ollamaStatus.connected && ollamaStatus.modelReady ? "bg-green-500" : "bg-red-500"}`} />
+              </span>
               {loading && <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: "var(--teal)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />Thinking…</span>}
             </div>
           </div>
@@ -554,7 +640,7 @@ const ChatPage = () => {
               <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} className="chat-send-btn" title="Send"><Send className="w-4 h-4" /></button>
             )}
           </div>
-          <p className="chat-disclaimer">Model: Owl Alpha · Free · Press ⌘↵ to send · Shift↵ for new line</p>
+          <p className="chat-disclaimer">Model: qwen2.5-coder:3b-instruct (local Ollama) · Press ⌘↵ to send · Shift↵ for new line</p>
         </div>
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
