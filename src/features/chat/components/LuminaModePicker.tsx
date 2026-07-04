@@ -90,7 +90,6 @@ const containerVariants = {
 };
 
 const cardVariants: Variants = {
->>>>>>> 6eef77c (Finish Supabase backend routing/continuation fixes and emit streaming metadata)
   hidden: { opacity: 0, y: 16, scale: 0.95 },
   visible: {
     opacity: 1,
