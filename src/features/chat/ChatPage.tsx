@@ -30,6 +30,7 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { streamResponse, checkOllamaStatus } from "@/lib/ollama";
 
 // ─── Types ───
 export interface Message {
@@ -305,6 +306,41 @@ const ChatPage = () => {
 
     const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
       const ctrl = new AbortController(); abortRef.current = ctrl;
+      const aId = uid();
+      setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
+      let acc = "";
+
+      // Try local Ollama first (direct from browser — user's machine)
+      try {
+        const status = await checkOllamaStatus();
+        if (status.available) {
+          const aiMessages = history.filter(m => m.type === "text").slice(-12);
+          const prompt = [
+            "You are Lumina, a brilliant study AI tutor. Be concise, use markdown, and ask follow-up questions.",
+            "",
+            "Conversation:",
+            ...aiMessages.map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`),
+            "Assistant:",
+          ].join("\n");
+
+          await streamResponse(prompt, (token) => {
+            acc += token;
+            setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
+          }, { signal: ctrl.signal });
+
+          const final: Message = acc.trim().length === 0
+            ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
+            : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
+          setMessages(p => p.map(m => m.id === aId ? final : m));
+          await persistMessage(chatId, final);
+          if (final.type === "text") pushCanvasFromMessage(final.content);
+          return;
+        }
+      } catch {
+        // Ollama not available — fall through to cloud
+      }
+
+      // Fallback: Supabase edge function
       const aiMessages = history.filter(m => m.type === "text").slice(-20).map(m => ({ role: m.role, content: m.content }));
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Please sign in.");
@@ -315,10 +351,7 @@ const ChatPage = () => {
       });
       if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
 
-      const aId = uid();
-      setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-      const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
-
+      const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "";
       try {
         while (true) {
           const { done, value } = await reader.read();
