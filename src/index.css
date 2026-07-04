@@ -729,7 +729,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .chat-disclaimer { font-size: 10px; text-align: center; margin-top: 8px; color: var(--text-muted); }
 
 /* Message bubbles */
-.msg-row { display: flex; gap: 12px; max-width: 760px; margin: 0 auto; padding: 0 24px; width: 100%; }
+.msg-row { display: flex; gap: 12px; max-width: min(90vw, 860px); margin: 0 auto; padding: 0 24px; width: 100%; }
 .msg-row-user { justify-content: flex-end; }
 .msg-row-assistant { justify-content: flex-start; }
 
@@ -865,12 +865,12 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
    CHAT PAGE — Core Layout
    ═══════════════════════════════════════════════════════════════ */
 .chat-root {
-  display: flex; height: 100vh; width: 100%; overflow: hidden;
+  display: flex; height: 100%; width: 100%; overflow: hidden;
   background: var(--bg-base); position: relative;
 }
 
 .chat-main {
-  flex: 1; min-width: 0; height: 100vh;
+  flex: 1; min-width: 0; height: 100%;
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--bg-base);
 }
@@ -936,6 +936,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .chat-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   padding-top: 60px; padding-bottom: 20px;
+  width: 100%; max-width: min(90vw, 860px); margin: 0 auto;
 }
 
 .chat-empty-hero { text-align: center; margin-bottom: 28px; }
@@ -961,7 +962,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 /* Suggestions */
 .chat-suggestions {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 8px; width: 100%; max-width: 640px; margin-top: 24px;
+  gap: 8px; width: 100%; max-width: min(90vw, 700px); margin-top: 24px;
 }
 
 .chat-suggestion-card {
@@ -1007,6 +1008,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
   border-top: 1px solid var(--border-subtle);
   padding: 10px 16px 14px;
   background: var(--bg-base);
+  display: flex; flex-direction: column; align-items: center;
 }
 
 .chat-input-box {
@@ -1014,6 +1016,7 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
   border-radius: var(--r-xl); background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   min-height: 48px;
+  max-width: min(90vw, 860px); width: 100%;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .chat-input-box:focus-within {
@@ -1058,6 +1061,11 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .chat-disclaimer {
   font-size: 10px; text-align: center; margin-top: 6px;
   color: var(--text-muted);
+}
+
+/* messages wrapper inside chat-content — no overflow since parent scrolls */
+.chat-content > .chat-messages {
+  display: flex; flex-direction: column; gap: 16px; padding: 24px 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1447,13 +1455,6 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 .dash-chart-bar { width: 100%; max-width: 32px; border-radius: 4px; background: linear-gradient(to top, var(--teal), var(--brand)); min-height: 4px; }
 .dash-chart-bar-today { box-shadow: 0 0 8px rgba(45,211,191,0.4); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.chat-messages {
-  flex: 1; overflow-y: auto; padding: 24px 0;
-  display: flex; flex-direction: column; gap: 16px;
-}
-.chat-messages::-webkit-scrollbar { width: 4px; }
-.chat-messages::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--r-full); }
-
 /* ═══════════════════════════════════════════════════════════════
    DASHBOARD v4 — Linear/Notion/Vercel grade
    ═══════════════════════════════════════════════════════════════ */
@@ -1494,8 +1495,8 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,0.007) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.007) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 0%, transparent 85%);
   -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 50%, black 0%, transparent 85%);
