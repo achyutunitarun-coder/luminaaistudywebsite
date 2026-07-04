@@ -30,6 +30,7 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { streamResponse } from "@/lib/ollama";
 
 // ─── Types ───
 export interface Message {
@@ -54,7 +55,6 @@ export interface Message {
 interface ChatSummary { id: string; title: string; updated_at: string; created_at: string; }
 
 // ─── Constants ───
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const uid = () => crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
 const titleFrom = (t: string) => { const c = t.replace(/\s+/g, " ").trim(); return c.length > 48 ? c.slice(0, 48).trim() + "…" : c || "New chat"; };
 
@@ -305,51 +305,45 @@ const ChatPage = () => {
 
     const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
       const ctrl = new AbortController(); abortRef.current = ctrl;
-      const aiMessages = history.filter(m => m.type === "text").slice(-20).map(m => ({ role: m.role, content: m.content }));
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Please sign in.");
-      const wireMode = model === "deepDive" ? "long_context" : model;
-      const res = await fetch(CHAT_URL, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ messages: aiMessages, mode: wireMode }), signal: ctrl.signal,
-      });
-      if (!res.ok || !res.body) { const t = await res.text().catch(() => ""); throw new Error(`HTTP ${res.status}: ${t.slice(0, 120)}`); }
+      const recentHistory = history.filter((m) => m.type === "text").slice(-12);
+      const prompt = [
+        "You are Lumina, a helpful study AI tutor.",
+        "Respond naturally, clearly, and use markdown when it helps.",
+        "Conversation history:",
+        ...recentHistory.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`),
+        "Assistant:",
+      ].join("\n");
 
       const aId = uid();
-      setMessages(p => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
-      const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = ""; let acc = "";
+      setMessages((p) => [...p, { id: aId, role: "assistant", content: "", type: "text", isStreaming: true, timestamp: Date.now() }]);
 
+      let acc = "";
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            let line = buf.slice(0, nl); buf = buf.slice(nl + 1);
-            if (line.charCodeAt(line.length - 1) === 13) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (json === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(json);
-              const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === "string" && delta.length > 0) {
-                acc += delta;
-                setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
-              }
-            } catch { buf = line + "\n" + buf; break; }
-          }
-        }
-      } finally { setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m)); }
+        await streamResponse(
+          prompt,
+          (token) => {
+            acc += token;
+            setMessages((p) => p.map((m) => (m.id === aId ? { ...m, content: acc } : m)));
+          },
+          { signal: ctrl.signal }
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "No response received.";
+        const final: Message = { id: aId, role: "assistant", type: "error", content: message, timestamp: Date.now() };
+        setMessages((p) => p.map((m) => (m.id === aId ? final : m)));
+        await persistMessage(chatId, final);
+        throw err;
+      } finally {
+        setMessages((p) => p.map((m) => (m.id === aId ? { ...m, isStreaming: false } : m)));
+      }
 
       const final: Message = acc.trim().length === 0
         ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
         : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };
-      setMessages(p => p.map(m => m.id === aId ? final : m));
+      setMessages((p) => p.map((m) => (m.id === aId ? final : m)));
       await persistMessage(chatId, final);
       if (final.type === "text") pushCanvasFromMessage(final.content);
-    }, [model, persistMessage, pushCanvasFromMessage]);
+    }, [persistMessage, pushCanvasFromMessage]);
 
     const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null) => {
       const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];

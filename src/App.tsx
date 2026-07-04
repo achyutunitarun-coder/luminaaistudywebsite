@@ -11,7 +11,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Chat from "@/features/chat/ChatPage";
+import OllamaChatPage from "@/features/chat/OllamaChatPage";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -123,7 +123,7 @@ const App = () => (
                 <Route path="/artifacts" element={<ArtifactGallery />} />
                 <Route path="/ai-tools" element={<AITools />} />
                 <Route path="/hub" element={<LuminaHub />} />
-                <Route path="/chat" element={<ChatErrorBoundary><Chat /></ChatErrorBoundary>} />
+                <Route path="/chat" element={<ChatErrorBoundary><OllamaChatPage /></ChatErrorBoundary>} />
                 <Route path="/computer" element={<ChatErrorBoundary><LuminaComputer /></ChatErrorBoundary>} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />

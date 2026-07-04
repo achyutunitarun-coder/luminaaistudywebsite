@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIText, getModelsForArtifact, OWL, type ArtifactType } from "../_shared/models.ts";
+import { detectTruncation } from "../_shared/truncation-guard.ts";
 
 declare const EdgeRuntime:
   | { waitUntil: (promise: Promise<unknown>) => void }
@@ -200,7 +201,7 @@ async function generateHtml(
   const sys = makeSystemPrompt(type, topic, systemPrompt);
   const maxTokens = type === "code" ? 32000 : 24000;
 
-  // ── Attempt 1: Primary ──
+  // ── Attempt 1: Primary with truncation detection ──
   {
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
@@ -217,6 +218,33 @@ async function generateHtml(
           `artifact/${type}`,
         );
         const cleaned = cleanHtml(text);
+
+        // Check for truncation and retry if needed
+        const truncation = detectTruncation(cleaned, "unknown", {
+          structural: true,
+          content: true,
+          minExpected: 1500,
+        });
+
+        if (truncation.truncated) {
+          console.warn(`[artifact] primary truncated: ${truncation.signal}, retrying with simpler prompt...`);
+          const retryText = await callAIText(
+            [
+              { role: "system", content: `Output a complete HTML page about "${type}". Start with <!DOCTYPE html>. Real content, dark theme, No markdown, No explanations.` },
+              { role: "user", content: `Create a ${type} artifact. Complete HTML with real content, minimum 400 lines.` },
+            ],
+            models,
+            maxTokens,
+            0.2,
+            Math.min(maxTtl - elapsed, 90_000),
+            `artifact/${type}/retry`,
+          );
+          const retryCleaned = cleanHtml(retryText);
+          if (validHtml(retryCleaned) && retryCleaned.length > 500) {
+            return { html: retryCleaned, model: models[0] };
+          }
+        }
+
         if (validHtml(cleaned)) {
           return { html: cleaned, model: models[0] };
         }

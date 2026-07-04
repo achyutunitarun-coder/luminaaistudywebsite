@@ -327,30 +327,47 @@ function getLeastRecentlyUsedKey(pool: KeyPool): number | null {
 
 function getBestAvailableProvider(): { name: string; pool: KeyPool; idx: number } {
   const now = Date.now();
-  // Prefer OpenRouter, fall back to Google
-  for (const provider of ["openrouter", "google"] as const) {
+  
+  // 1. Try to find healthy keys (no cooldown)
+  for (const provider of ["openrouter", "google", "moonshot"] as const) {
     const pool = KEY_POOLS[provider];
     if (pool.keys.length === 0) continue;
     const idx = getLeastRecentlyUsedKey(pool);
     if (idx !== null) {
+      console.log(`[pool] found healthy key: ${provider}-${idx + 1}`);
       return { name: provider, pool, idx };
     }
   }
-  // All exhausted — force-return the soonest-to-recover key from either pool
+  
+  // 2. All cooled — find soonest-to-recover AND RESET IT
   let bestName = "openrouter";
   let bestPool = KEY_POOLS.openrouter;
   let bestIdx = -1;
   let bestUntil = Infinity;
-  for (const provider of ["openrouter", "google"] as const) {
+  
+  for (const provider of ["openrouter", "google", "moonshot"] as const) {
     const pool = KEY_POOLS[provider];
     for (let i = 0; i < pool.keys.length; i++) {
-      if (pool.cooledUntil[i] < bestUntil) {
-        bestUntil = pool.cooledUntil[i];
-        bestName = provider; bestPool = pool; bestIdx = i;
+      const timeUntilReady = pool.cooledUntil[i];
+      if (timeUntilReady < bestUntil) {
+        bestUntil = timeUntilReady;
+        bestName = provider;
+        bestPool = pool;
+        bestIdx = i;
       }
     }
   }
-  return bestIdx >= 0 ? { name: bestName, pool: bestPool, idx: bestIdx } : { name: "openrouter", pool: KEY_POOLS.openrouter, idx: 0 };
+  
+  // Force-reset this key to allow one retry
+  if (bestIdx >= 0) {
+    console.warn(`[pool] forcing reset on ${bestName}-${bestIdx + 1} (was cooling ${Math.round((bestUntil - now) / 1000)}s more)`);
+    bestPool.cooledUntil[bestIdx] = now;
+    bestPool.lastUsed[bestIdx] = now;
+  }
+  
+  return bestIdx >= 0 
+    ? { name: bestName, pool: bestPool, idx: bestIdx }
+    : { name: "openrouter", pool: KEY_POOLS.openrouter, idx: 0 };
 }
 
 /** Mask a key for safe logging — show only last 4 chars */

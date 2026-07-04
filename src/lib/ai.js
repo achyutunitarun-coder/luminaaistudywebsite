@@ -1,10 +1,10 @@
 /**
  * Lumina AI — Streaming Chat Library
- * Handles all AI communication via OpenRouter with SSE streaming.
- * 
+ * Handles all AI communication via the local Ollama backend.
+ *
  * Usage:
  *   import { streamChat } from '@/lib/ai';
- *   
+ *
  *   await streamChat({
  *     messages: [{ role: 'user', content: 'Hello' }],
  *     mode: 'auto',
@@ -15,7 +15,7 @@
  *   });
  */
 
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1/chat/completions';
+import { streamResponse } from '@/lib/ollama';
 
 const SYSTEM_PROMPTS = {
   auto: `You are Lumina — a brilliant, patient, deeply intuitive tutor. Modeled on the world's greatest educators. You explain things so clearly that students forget they're talking to AI.
@@ -77,72 +77,18 @@ Rules: One striking metaphor per concept. Keep it accurate but memorable. End wi
  * @param {AbortSignal} params.signal - AbortController signal for cancellation
  */
 export async function streamChat({ messages, mode = 'auto', onToken, onDone, onError, signal }) {
-  const apiKey = import.meta.env.VITE_OPENROUTER_KEY;
-  
-  if (!apiKey) {
-    onError?.(new Error('OpenRouter API key not configured. Set VITE_OPENROUTER_KEY in .env'));
-    return;
-  }
-
-  const response = await fetch(OPENROUTER_BASE, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': window.location.origin,
-      'X-Title': 'Lumina AI Tutor',
-    },
-    body: JSON.stringify({
-      model: 'openrouter/quasar-alpha',
-      stream: true,
-      max_tokens: 4096,
-      temperature: mode === 'fast' ? 0.3 : 0.7,
-      top_p: 0.9,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.auto },
-        ...messages,
-      ],
-    }),
-    signal,
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    const error = new Error(err?.error?.message || `OpenRouter error: ${response.status}`);
-    onError?.(error);
-    return;
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
+  const prompt = [
+    SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.auto,
+    'Conversation history:',
+    ...messages.map((message) => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.content}`),
+    'Assistant:',
+  ].join('\n');
 
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === 'data: [DONE]') continue;
-        if (!trimmed.startsWith('data: ')) continue;
-
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json?.choices?.[0]?.delta?.content;
-          if (delta) onToken?.(delta);
-        } catch {
-          // skip malformed SSE lines
-        }
-      }
-    }
+    await streamResponse(prompt, onToken, { signal });
     onDone?.();
   } catch (err) {
-    if (err.name !== 'AbortError') {
+    if (err?.name !== 'AbortError') {
       onError?.(err);
     }
   }

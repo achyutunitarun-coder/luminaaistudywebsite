@@ -108,8 +108,12 @@ async function pollJob(
   let pollDelay = 1000;
   let lastStatus = "queued";
   let failureCount = 0;
+  const maxFailures = 15;
+  const maxPolls = 10;
+  let pollCount = 0;
 
-  while (Date.now() - started < timeoutMs) {
+  while (Date.now() - started < timeoutMs && failureCount < maxFailures && pollCount < maxPolls) {
+    pollCount++;
     const { data, error } = await (supabase as any)
       .from("artifact_jobs")
       .select("status,html,error_message,updated_at")
@@ -118,7 +122,10 @@ async function pollJob(
 
     if (error || !data) {
       failureCount++;
-      if (failureCount > 15) return { html: "", error: "poll_failed_repeatedly" };
+      if (failureCount > maxFailures) {
+        console.error(`[poll] max failures reached (${maxFailures})`);
+        return { html: "", error: "poll_failed_repeatedly" };
+      }
     } else {
       failureCount = 0;
     }
@@ -143,7 +150,8 @@ async function pollJob(
     else if (elapsed > 30_000) onStage?.("Generating in background…");
 
     await sleep(pollDelay);
-    pollDelay = Math.min(10_000, Math.round(pollDelay * 1.4));
+    // Exponential backoff: 1s → 1.5s → 2.25s → 3.4s → 5s → 7.5s → 8s (capped)
+    pollDelay = Math.min(8000, Math.round(pollDelay * 1.5));
   }
 
   return { html: "", error: "job_timeout" };
