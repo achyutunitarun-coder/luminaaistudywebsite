@@ -79,13 +79,16 @@ You have access to tools. When the user asks to create study materials (notes, e
 Otherwise, respond conversationally with helpful explanations. Use markdown for formatting.`;
 }
 
-function buildMessages(history: { role: string; content: string }[]): OllamaChatMessage[] {
+function buildMessages(history: { role: string; content: string; tool_calls?: OllamaToolCall[]; tool_call_id?: string }[]): OllamaChatMessage[] {
   const msgs: OllamaChatMessage[] = [
     { role: "system", content: buildSystemPrompt() },
   ];
   for (const m of history) {
-    if (m.role === "user" || m.role === "assistant") {
-      msgs.push({ role: m.role, content: m.content });
+    if (m.role === "user" || m.role === "assistant" || m.role === "tool") {
+      const msg: OllamaChatMessage = { role: m.role as OllamaChatMessage["role"], content: m.content };
+      if (m.tool_calls) msg.tool_calls = m.tool_calls;
+      if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
+      msgs.push(msg);
     }
   }
   return msgs;
@@ -110,14 +113,29 @@ function buildRequestBody(messages: OllamaChatMessage[], stream: boolean, tools?
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const signal = init.signal
+    ? anySignal([init.signal, controller.signal])
+    : controller.signal;
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetch(input, { ...init, signal });
   } catch (err) {
     console.error(`[Ollama] fetchWithTimeout ${input}:`, (err as Error)?.message || err);
     throw err;
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
   }
+}
+
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      return controller.signal;
+    }
+    signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
+  }
+  return controller.signal;
 }
 
 async function ollamaFetch(path: string, init?: RequestInit, timeoutMs?: number) {
@@ -224,51 +242,54 @@ export async function streamChat(
   let text = "";
   let toolCalls: OllamaToolCall[] | undefined;
 
-  while (true) {
-    if (options?.signal?.aborted) {
-      reader.cancel();
-      throw Object.assign(new Error("Aborted"), { name: "AbortError" });
-    }
+  try {
+    while (true) {
+      if (options?.signal?.aborted) {
+        throw Object.assign(new Error("Aborted"), { name: "AbortError" });
+      }
 
-    const { done, value } = await reader.read();
-    if (done) break;
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed.error) throw new Error(parsed.error);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.error) throw new Error(parsed.error);
 
-        const delta = parsed.message;
-        if (delta) {
-          if (delta.content) {
-            text += delta.content;
-            onToken?.(delta.content);
+          const delta = parsed.message;
+          if (delta) {
+            if (delta.content) {
+              text += delta.content;
+              onToken?.(delta.content);
+            }
+            if (delta.tool_calls && Array.isArray(delta.tool_calls)) {
+              toolCalls = delta.tool_calls.map((tc: any, i: number) => ({
+                id: tc.id || `call_${i}`,
+                type: "function" as const,
+                function: {
+                  name: tc.function?.name || "",
+                  arguments: tc.function?.arguments || "{}",
+                },
+              }));
+            }
           }
-          if (delta.tool_calls && Array.isArray(delta.tool_calls)) {
-            toolCalls = delta.tool_calls.map((tc: any, i: number) => ({
-              id: tc.id || `call_${i}`,
-              type: "function" as const,
-              function: {
-                name: tc.function?.name || "",
-                arguments: tc.function?.arguments || "{}",
-              },
-            }));
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            buffer = trimmed + "\n" + buffer;
+          } else {
+            throw e;
           }
-        }
-      } catch (e) {
-        if (e instanceof SyntaxError) {
-          buffer = trimmed + "\n" + buffer;
-        } else {
-          throw e;
         }
       }
     }
+  } finally {
+    try { reader.cancel(); } catch { /* reader already closed */ }
   }
 
   return { text, model: DEFAULT_MODEL, toolCalls };
@@ -333,4 +354,4 @@ export function extractToolCallFromText(text: string): OllamaToolCall | null {
 }
 
 export const MODEL_NAME = DEFAULT_MODEL;
-export { TOOLS, OllamaError, buildMessages };
+export { TOOLS };

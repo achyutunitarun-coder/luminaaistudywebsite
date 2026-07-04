@@ -228,7 +228,23 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), ollamaDevProxy, mode === "development" && componentTagger()].filter(Boolean),
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom", "framer-motion"],
+          supabase: ["@supabase/supabase-js", "@supabase/ssr"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-tooltip", "@radix-ui/react-select", "@radix-ui/react-tabs"],
+          pdf: ["pdfjs-dist"],
+          xlsx: ["xlsx", "jszip"],
+          katex: ["katex", "rehype-katex"],
+          markdown: ["react-markdown", "remark-gfm", "remark-math", "rehype-raw"],
+        },
+      },
+    },
+  },
+  plugins: [react(), mode === "development" && ollamaDevProxy, mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

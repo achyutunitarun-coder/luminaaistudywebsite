@@ -213,6 +213,7 @@ const ChatPage = () => {
 
 
     const abortRef = useRef<AbortController | null>(null);
+    const loadingRef = useRef(false);
     const currentChatIdRef = useRef<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -344,6 +345,7 @@ const ChatPage = () => {
     }, [upsertArtifact, openArtifact, persistMessage]);
 
     const streamChat = useCallback(async (history: Message[], chatId: string | null) => {
+      abortRef.current?.abort();
       const ctrl = new AbortController(); abortRef.current = ctrl;
       const aId = uid();
       const assistantPlaceholder: Message = {
@@ -460,7 +462,7 @@ const ChatPage = () => {
 
     const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
       const t = (text || input).trim();
-      if (!t || loading) return;
+      if (!t || loadingRef.current) return;
 
       // Explicit artifact generation (via artifact picker or quick buttons)
       if (artifactType) {
@@ -498,6 +500,7 @@ const ChatPage = () => {
       const updatedMessages = [...messages, um];
       setMessages(updatedMessages);
       setInput("");
+      loadingRef.current = true;
       setLoading(true);
       setLoadingStage("Thinking…");
 
@@ -515,17 +518,55 @@ const ChatPage = () => {
           }));
         }
       } finally {
+        loadingRef.current = false;
         setLoading(false);
         setLoadingStage("");
       }
     }, [input, loading, messages, ensureChat, streamChat, persistMessage, runArtifact]);
 
-    const handleStop = useCallback(() => { abortRef.current?.abort(); setLoading(false); setLoadingStage(""); }, []);
-    const handleRegenerate = useCallback(async (mid: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx)); try { await streamChat(messages.slice(0, idx), cid); } catch { /* ignore */ } }, [messages, streamChat]);
+    const handleRegenerate = useCallback(async (mid: string) => {
+      if (loadingRef.current) return;
+      const idx = messages.findIndex(m => m.id === mid);
+      if (idx < 0) return;
+      const cid = currentChatIdRef.current;
+      if (!cid) return;
+      abortRef.current?.abort();
+      const removed = messages.slice(idx);
+      const toDelete = removed.filter(m => m.role === "assistant" && m.type !== "error").map(m => m.id);
+      setMessages(p => p.slice(0, idx));
+      loadingRef.current = true; setLoading(true);
+      try {
+        await streamChat(messages.slice(0, idx), cid);
+        if (toDelete.length > 0 && user) {
+          supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid).then(() => {}).catch(() => {});
+        }
+      } catch { /* ignore */ }
+      finally { loadingRef.current = false; setLoading(false); }
+    }, [messages, streamChat, user]);
     const handleRetry = useCallback(async (mid: string) => { await handleRegenerate(mid); }, [handleRegenerate]);
-    const handleEdit = useCallback(async (mid: string, nt: string) => { const idx = messages.findIndex(m => m.id === mid); if (idx < 0) return; const cid = currentChatIdRef.current; if (!cid) return; setMessages(p => p.slice(0, idx).concat({ ...messages[idx], content: nt })); try { await streamChat(messages.slice(0, idx).concat({ ...messages[idx], content: nt }), cid); } catch { /* ignore */ } }, [messages, streamChat]);
+    const handleEdit = useCallback(async (mid: string, nt: string) => {
+      if (loadingRef.current) return;
+      const idx = messages.findIndex(m => m.id === mid);
+      if (idx < 0) return;
+      const cid = currentChatIdRef.current;
+      if (!cid) return;
+      abortRef.current?.abort();
+      const removed = messages.slice(idx);
+      const toDelete = removed.filter(m => m.role === "assistant" && m.type !== "error").map(m => m.id);
+      const edited = { ...messages[idx], content: nt };
+      setMessages(p => p.slice(0, idx).concat(edited));
+      loadingRef.current = true; setLoading(true);
+      try {
+        await streamChat(messages.slice(0, idx).concat(edited), cid);
+        if (toDelete.length > 0 && user) {
+          supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid).then(() => {}).catch(() => {});
+        }
+      } catch { /* ignore */ }
+      finally { loadingRef.current = false; setLoading(false); }
+    }, [messages, streamChat, user]);
     const handleConfirmAction = useCallback(async (mid: string) => { const msg = messages.find(m => m.id === mid); if (!msg?.pendingAction) return; setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); const result = await executeAgentAction(msg.pendingAction, p => navigate(p)); setMessages(p => p.concat({ id: uid(), role: "assistant", type: "text", content: result.message, timestamp: Date.now() })); }, [messages, navigate]);
     const handleCancelAction = useCallback((mid: string) => { setMessages(p => p.map(m => m.id === mid ? { ...m, actionResolved: true } : m)); }, []);
+    const handleStop = useCallback(() => { abortRef.current?.abort(); loadingRef.current = false; setLoading(false); setLoadingStage(""); }, []);
 
     const { logActivity } = useMemory();
 
