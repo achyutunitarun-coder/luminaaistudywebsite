@@ -640,7 +640,7 @@ const ChatPage = () => {
               <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} className="chat-send-btn" title="Send"><Send className="w-4 h-4" /></button>
             )}
           </div>
-          <p className="chat-disclaimer">Model: qwen2.5-coder:3b-instruct (local Ollama) · Press ⌘↵ to send · Shift↵ for new line</p>
+          <p className="chat-disclaimer">Model: qwen2.5-coder:3b (local Ollama) · Press ⌘↵ to send · Shift↵ for new line</p>
         </div>
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />

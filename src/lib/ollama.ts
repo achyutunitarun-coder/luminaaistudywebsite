@@ -36,7 +36,7 @@ export interface OllamaChatMessage {
 }
 
 const OLLAMA_URLS = ["http://127.0.0.1:11434", "http://localhost:11434"];
-const DEFAULT_MODEL = "qwen2.5-coder:3b-instruct";
+const DEFAULT_MODEL = "qwen2.5-coder:3b";
 const REQUEST_TIMEOUT_MS = 120000;
 
 const NUM_CTX = 32768;
