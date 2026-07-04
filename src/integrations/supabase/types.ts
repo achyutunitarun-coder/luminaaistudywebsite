@@ -1055,6 +1055,57 @@ export type Database = {
           },
         ]
       }
+      learning_progress: {
+        Row: {
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          credits_earned: number
+          id: string
+          interactions_count: number
+          last_studied_at: string | null
+          metadata: Json
+          score: number | null
+          status: string
+          time_spent_seconds: number
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          credits_earned?: number
+          id?: string
+          interactions_count?: number
+          last_studied_at?: string | null
+          metadata?: Json
+          score?: number | null
+          status?: string
+          time_spent_seconds?: number
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          credits_earned?: number
+          id?: string
+          interactions_count?: number
+          last_studied_at?: string | null
+          metadata?: Json
+          score?: number | null
+          status?: string
+          time_spent_seconds?: number
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       learning_questions: {
         Row: {
           created_at: string | null
@@ -1383,6 +1434,42 @@ export type Database = {
           projected_score?: number | null
           score?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      recently_viewed: {
+        Row: {
+          content_id: string | null
+          content_type: string
+          id: string
+          metadata: Json
+          thumbnail_url: string | null
+          title: string | null
+          url: string | null
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          content_id?: string | null
+          content_type: string
+          id?: string
+          metadata?: Json
+          thumbnail_url?: string | null
+          title?: string | null
+          url?: string | null
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          content_id?: string | null
+          content_type?: string
+          id?: string
+          metadata?: Json
+          thumbnail_url?: string | null
+          title?: string | null
+          url?: string | null
+          user_id?: string
+          viewed_at?: string
         }
         Relationships: []
       }
@@ -2172,6 +2259,42 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           value?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          metadata: Json
+          notifications_enabled: boolean
+          preferred_model: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string
+          metadata?: Json
+          notifications_enabled?: boolean
+          preferred_model?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          metadata?: Json
+          notifications_enabled?: boolean
+          preferred_model?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
