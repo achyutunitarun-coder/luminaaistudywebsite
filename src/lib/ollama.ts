@@ -112,26 +112,36 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    console.error(`[Ollama] fetchWithTimeout ${input}:`, (err as Error)?.message || err);
+    throw err;
   } finally {
-    clearTimeout(timeout);
+    window.clearTimeout(timeout);
   }
+}
 }
 
 async function ollamaFetch(path: string, init?: RequestInit, timeoutMs?: number) {
+  const errors: string[] = [];
   for (const base of OLLAMA_URLS) {
     try {
       return await fetchWithTimeout(`${base}${path}`, init, timeoutMs);
-    } catch {
+    } catch (err) {
+      errors.push(`${base}: ${(err as Error)?.message || err}`);
       continue;
     }
   }
-  throw new Error(`Cannot reach Ollama at any address (${OLLAMA_URLS.join(", ")})`);
+  const msg = `Cannot reach Ollama at any address. Errors: ${errors.join("; ")}`;
+  console.error("[Ollama]", msg);
+  throw new Error(msg);
 }
 
 async function tryFetchTags(url: string, signal: AbortSignal): Promise<Response | null> {
   try {
-    return await fetch(url, { signal });
-  } catch {
+    const res = await fetch(url, { mode: "cors", signal });
+    return res;
+  } catch (err) {
+    console.error(`[Ollama] ${url}:`, (err as Error)?.message || err);
     return null;
   }
 }
@@ -158,9 +168,12 @@ export async function checkConnection(): Promise<OllamaConnectionStatus> {
           modelReady: hasModel,
           message: hasModel ? "Ready" : `Run: ollama pull ${DEFAULT_MODEL}`,
         };
-      } catch {
+      } catch (err) {
+        console.error("[Ollama] failed to parse /api/tags response:", (err as Error)?.message || err);
         return { connected: true, modelReady: false, message: "Connected but could not parse model list." };
       }
+    } else if (res) {
+      console.warn(`[Ollama] ${url} returned status ${res.status}`);
     }
   }
 
