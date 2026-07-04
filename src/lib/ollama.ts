@@ -35,7 +35,7 @@ export interface OllamaChatMessage {
   tool_call_id?: string;
 }
 
-const OLLAMA_URL = "http://localhost:11434";
+const OLLAMA_URLS = ["http://127.0.0.1:11434", "http://localhost:11434"];
 const DEFAULT_MODEL = "qwen2.5-coder:3b-instruct";
 const REQUEST_TIMEOUT_MS = 120000;
 
@@ -118,29 +118,53 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
 }
 
 async function ollamaFetch(path: string, init?: RequestInit, timeoutMs?: number) {
-  return fetchWithTimeout(`${OLLAMA_URL}${path}`, init, timeoutMs);
+  for (const base of OLLAMA_URLS) {
+    try {
+      return await fetchWithTimeout(`${base}${path}`, init, timeoutMs);
+    } catch {
+      continue;
+    }
+  }
+  throw new Error(`Cannot reach Ollama at any address (${OLLAMA_URLS.join(", ")})`);
+}
+
+async function tryFetchTags(url: string, signal: AbortSignal): Promise<Response | null> {
+  try {
+    return await fetch(url, { signal });
+  } catch {
+    return null;
+  }
 }
 
 export async function checkConnection(): Promise<OllamaConnectionStatus> {
-  try {
+  const urls = [
+    "http://127.0.0.1:11434/api/tags",
+    "http://localhost:11434/api/tags",
+  ];
+
+  for (const url of urls) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: controller.signal });
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await tryFetchTags(url, controller.signal);
     clearTimeout(timeout);
-    if (!res.ok) {
-      return { connected: false, modelReady: false, message: "Ollama responded with an error." };
+
+    if (res && res.ok) {
+      try {
+        const data = await res.json();
+        const models: { name: string }[] = data?.models || [];
+        const hasModel = models.some((m) => m.name === DEFAULT_MODEL);
+        return {
+          connected: true,
+          modelReady: hasModel,
+          message: hasModel ? "Ready" : `Run: ollama pull ${DEFAULT_MODEL}`,
+        };
+      } catch {
+        return { connected: true, modelReady: false, message: "Connected but could not parse model list." };
+      }
     }
-    const data = await res.json();
-    const models: { name: string }[] = data?.models || [];
-    const hasModel = models.some((m) => m.name === DEFAULT_MODEL);
-    return {
-      connected: true,
-      modelReady: hasModel,
-      message: hasModel ? "Ready" : `Run: ollama pull ${DEFAULT_MODEL}`,
-    };
-  } catch {
-    return { connected: false, modelReady: false, message: "Cannot reach Ollama. Make sure it's running with OLLAMA_ORIGINS=*" };
   }
+
+  return { connected: false, modelReady: false, message: "Cannot reach Ollama. Make sure it's running with OLLAMA_ORIGINS=*" };
 }
 
 export async function healthCheckToolCall(): Promise<boolean> {

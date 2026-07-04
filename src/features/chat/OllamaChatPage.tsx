@@ -112,9 +112,8 @@ const OllamaChatPage = () => {
 
   const statusLabel = useMemo(() => {
     if (!ollamaStatus) return "Checking local Ollama connection…";
-    if (ollamaStatus.connected && ollamaStatus.modelReady) {
-      return ollamaStatus.message;
-    }
+    if (ollamaStatus.connected && ollamaStatus.modelReady) return ollamaStatus.message;
+    if (ollamaStatus.connected) return `Connected — ${ollamaStatus.message}`;
     return ollamaStatus.message;
   }, [ollamaStatus]);
 
@@ -135,7 +134,7 @@ const OllamaChatPage = () => {
             </div>
             <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
               <div className="flex items-center gap-2">
-                {ollamaStatus?.connected && ollamaStatus?.modelReady ? <Brain className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+                {!ollamaStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : ollamaStatus.connected && ollamaStatus.modelReady ? <Brain className="h-4 w-4" /> : <Loader2 className="h-4 w-4" />}
                 <span>{statusLabel}</span>
               </div>
             </div>
