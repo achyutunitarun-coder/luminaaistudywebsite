@@ -197,7 +197,7 @@ const ollamaDevProxy = {
               res.end(JSON.stringify({ error: errText || "Ollama request failed" }));
               return;
             }
-            const data = await ollamaRes.json();
+            const data: any = await ollamaRes.json();
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ response: data.response || "" }));
           } catch (e) {
