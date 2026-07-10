@@ -605,8 +605,8 @@ const ChatPage = () => {
             <div className="chat-topbar-title">
               <div className="chat-topbar-logo"><Sparkles className="w-3.5 h-3.5" /></div>
               <span className="chat-topbar-name">Lumina AI</span>
-              <span className="flex items-center gap-1 ml-1.5" title={ollamaStatus?.message || "Checking…"}>
-                <span className={`w-1.5 h-1.5 rounded-full ${!ollamaStatus ? "bg-amber-500 animate-pulse" : ollamaStatus.connected && ollamaStatus.modelReady ? "bg-green-500" : ollamaStatus.connected ? "bg-yellow-500" : "bg-red-500"}`} />
+              <span className="flex items-center gap-1 ml-1.5" title="Online">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               </span>
               {loading && <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: "var(--teal)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />Thinking…</span>}
             </div>
