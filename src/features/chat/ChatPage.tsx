@@ -538,7 +538,7 @@ const ChatPage = () => {
       try {
         await streamChat(messages.slice(0, idx), cid);
         if (toDelete.length > 0 && user) {
-          supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid).then(() => {}).catch(() => {});
+          try { await supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
       finally { loadingRef.current = false; setLoading(false); }
