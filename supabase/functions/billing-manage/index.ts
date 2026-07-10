@@ -231,6 +231,16 @@ async function getMyMembership(admin: ReturnType<typeof createClient>, userId: s
     .maybeSingle();
 
   if (mErr) {
+    // Missing table / schema-cache error → treat as "no membership" so the
+    // dashboard renders instead of showing a blank screen.
+    const code = (mErr as { code?: string }).code;
+    if (code === "PGRST205" || code === "42P01") {
+      return new Response(
+        JSON.stringify({ membership: null, invoices: [], hasActiveAccess: false }),
+        { status: 200, headers: jsonHeaders },
+      );
+    }
+    console.error("[my-membership] db error:", mErr);
     return new Response(JSON.stringify({ error: "db_error" }), { status: 500, headers: jsonHeaders });
   }
 
