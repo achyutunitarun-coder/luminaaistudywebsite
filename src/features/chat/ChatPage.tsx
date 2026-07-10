@@ -30,7 +30,9 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { checkConnection, streamChat as ollamaStream, chatOnce, extractToolCallFromText, TOOLS, MODEL_NAME, type OllamaToolCall, type OllamaConnectionStatus } from "@/lib/ollama";
+import { extractToolCallFromText, type OllamaToolCall } from "@/lib/ollama";
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 // ─── Types ───
 export interface Message {
