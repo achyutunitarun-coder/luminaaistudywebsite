@@ -211,7 +211,7 @@ const ChatPage = () => {
     const [showArtifactPicker, setShowArtifactPicker] = useState(false);
     const [canvasOpen, setCanvasOpen] = useState(false);
     const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-    const [ollamaStatus, setOllamaStatus] = useState<OllamaConnectionStatus | null>(null);
+    // (removed local-Ollama status — chat goes through the edge function)
 
 
     const abortRef = useRef<AbortController | null>(null);
