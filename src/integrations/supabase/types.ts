@@ -41,6 +41,39 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_log: {
+        Row: {
+          action: string
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json
+          page_url: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json
+          page_url?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json
+          page_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       artifact_jobs: {
         Row: {
           artifact_type: string

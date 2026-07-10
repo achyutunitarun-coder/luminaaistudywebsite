@@ -30,7 +30,9 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { checkConnection, streamChat as ollamaStream, chatOnce, extractToolCallFromText, TOOLS, MODEL_NAME, type OllamaToolCall, type OllamaConnectionStatus } from "@/lib/ollama";
+import { extractToolCallFromText, type OllamaToolCall } from "@/lib/ollama";
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 // ─── Types ───
 export interface Message {
@@ -209,7 +211,7 @@ const ChatPage = () => {
     const [showArtifactPicker, setShowArtifactPicker] = useState(false);
     const [canvasOpen, setCanvasOpen] = useState(false);
     const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-    const [ollamaStatus, setOllamaStatus] = useState<OllamaConnectionStatus | null>(null);
+    // (removed local-Ollama status — chat goes through the edge function)
 
 
     const abortRef = useRef<AbortController | null>(null);
@@ -230,9 +232,7 @@ const ChatPage = () => {
       if (atBottom) el.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    useEffect(() => {
-      checkConnection().then(setOllamaStatus);
-    }, []);
+    // no-op: chat runs through the server edge function; no local status probe needed
 
     useEffect(() => {
       const ta = textareaRef.current;
@@ -355,22 +355,11 @@ const ChatPage = () => {
       setMessages(p => [...p, assistantPlaceholder]);
       let acc = "";
 
-      const status = await checkConnection();
-      setOllamaStatus(status);
-      if (!status.connected) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         const final: Message = {
           id: aId, role: "assistant", type: "error",
-          content: `Ollama unavailable — please make sure Ollama is running on your laptop with OLLAMA_ORIGINS=*`,
-          timestamp: Date.now(),
-        };
-        setMessages(p => p.map(m => m.id === aId ? final : m));
-        await persistMessage(chatId, final);
-        return;
-      }
-      if (!status.modelReady) {
-        const final: Message = {
-          id: aId, role: "assistant", type: "error",
-          content: `Model not found. Run: ollama pull ${MODEL_NAME}`,
+          content: "Please sign in to chat.",
           timestamp: Date.now(),
         };
         setMessages(p => p.map(m => m.id === aId ? final : m));
@@ -378,20 +367,48 @@ const ChatPage = () => {
         return;
       }
 
-      // Send as Ollama chat messages
       const aiMessages = history.filter(m => m.type === "text").slice(-12).map(m => ({ role: m.role, content: m.content }));
 
-      let result: { text: string; toolCalls?: OllamaToolCall[] };
+      let fullText = "";
       try {
-        result = await ollamaStream(aiMessages, (token) => {
-          acc += token;
-          setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
-        }, { signal: ctrl.signal, tools: TOOLS });
+        const res = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ messages: aiMessages, mode: "conversational" }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            const line = buf.slice(0, nl).replace(/\r$/, "");
+            buf = buf.slice(nl + 1);
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === "string" && delta) {
+                fullText += delta;
+                acc = fullText;
+                setMessages(p => p.map(m => m.id === aId ? { ...m, content: acc } : m));
+              }
+            } catch { /* skip */ }
+          }
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         const final: Message = {
           id: aId, role: "assistant", type: "error",
-          content: err?.message ?? "Ollama request failed.",
+          content: err?.message ?? "Chat request failed.",
           timestamp: Date.now(),
         };
         setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false, ...final } : m));
@@ -399,30 +416,13 @@ const ChatPage = () => {
         return;
       }
 
-      // Handle tool calls
-      let toolCalls = result.toolCalls;
-
-      // If no tool_calls but content has JSON, try extracting
-      if ((!toolCalls || toolCalls.length === 0) && result.text) {
-        const extracted = extractToolCallFromText(result.text);
-        if (extracted) {
-          toolCalls = [extracted];
-          // Retry once with a system message instructing tool-calling interface
-          const retryMessages = [
-            ...aiMessages,
-            { role: "assistant" as const, content: result.text },
-            { role: "system" as const, content: "You MUST use the tool-calling interface only. Do NOT output tool calls as raw text. Call the function using the proper tool_calls format." },
-            { role: "user" as const, content: "Please use the tool calling interface to complete your previous request." },
-          ];
-          try {
-            const retryResult = await ollamaStream(retryMessages, undefined, { signal: ctrl.signal, tools: TOOLS });
-            if (retryResult.toolCalls && retryResult.toolCalls.length > 0) {
-              toolCalls = retryResult.toolCalls;
-              acc = retryResult.text || acc;
-            }
-          } catch { /* keep original result */ }
-        }
+      // Optional: extract inline tool-call JSON emitted as text
+      let toolCalls: OllamaToolCall[] | undefined;
+      if (fullText) {
+        const extracted = extractToolCallFromText(fullText);
+        if (extracted) toolCalls = [extracted];
       }
+
 
       // Execute tool calls
       if (toolCalls && toolCalls.length > 0) {
@@ -538,7 +538,7 @@ const ChatPage = () => {
       try {
         await streamChat(messages.slice(0, idx), cid);
         if (toDelete.length > 0 && user) {
-          supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid).then(() => {}).catch(() => {});
+          try { await supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
       finally { loadingRef.current = false; setLoading(false); }
@@ -559,7 +559,7 @@ const ChatPage = () => {
       try {
         await streamChat(messages.slice(0, idx).concat(edited), cid);
         if (toDelete.length > 0 && user) {
-          supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid).then(() => {}).catch(() => {});
+          try { await supabase.from("chat_messages").delete().in("id", toDelete).eq("chat_id", cid); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
       finally { loadingRef.current = false; setLoading(false); }
@@ -605,8 +605,8 @@ const ChatPage = () => {
             <div className="chat-topbar-title">
               <div className="chat-topbar-logo"><Sparkles className="w-3.5 h-3.5" /></div>
               <span className="chat-topbar-name">Lumina AI</span>
-              <span className="flex items-center gap-1 ml-1.5" title={ollamaStatus?.message || "Checking…"}>
-                <span className={`w-1.5 h-1.5 rounded-full ${!ollamaStatus ? "bg-amber-500 animate-pulse" : ollamaStatus.connected && ollamaStatus.modelReady ? "bg-green-500" : ollamaStatus.connected ? "bg-yellow-500" : "bg-red-500"}`} />
+              <span className="flex items-center gap-1 ml-1.5" title="Online">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               </span>
               {loading && <span className="flex items-center gap-1.5 text-[10px] font-medium ml-2" style={{ color: "var(--teal)" }}><span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--teal)" }} />Thinking…</span>}
             </div>
@@ -681,7 +681,7 @@ const ChatPage = () => {
               <button type="button" onClick={() => input.trim() && handleSend()} disabled={!input.trim()} className="chat-send-btn" title="Send"><Send className="w-4 h-4" /></button>
             )}
           </div>
-          <p className="chat-disclaimer">Model: qwen2.5-coder:3b (local Ollama) · Press ⌘↵ to send · Shift↵ for new line</p>
+          <p className="chat-disclaimer">Press ⌘↵ to send · Shift↵ for new line</p>
         </div>
 
         <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
