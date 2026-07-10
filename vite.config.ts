@@ -13,7 +13,7 @@ async function checkOllamaStatus() {
     const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) return { healthy: false, message: "Ollama API returned error", modelLoaded: false };
-    const data = await res.json();
+    const data: any = await res.json();
     const models = data?.models || [];
     const modelLoaded = models.some((m: any) => m.name === DEFAULT_MODEL);
     if (!modelLoaded) return { healthy: true, message: `Model ${DEFAULT_MODEL} not loaded. Run: ollama pull ${DEFAULT_MODEL}`, modelLoaded: false };
