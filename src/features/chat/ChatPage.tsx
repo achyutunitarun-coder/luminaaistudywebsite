@@ -232,9 +232,7 @@ const ChatPage = () => {
       if (atBottom) el.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    useEffect(() => {
-      checkConnection().then(setOllamaStatus);
-    }, []);
+    // no-op: chat runs through the server edge function; no local status probe needed
 
     useEffect(() => {
       const ta = textareaRef.current;
