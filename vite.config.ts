@@ -93,7 +93,7 @@ async function proxyToOllama(payload: any, res: any, streamTokens: boolean) {
       return;
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ text: data.response || "", model: data.model || DEFAULT_MODEL }));
   } catch (error) {
