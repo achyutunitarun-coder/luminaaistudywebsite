@@ -26,7 +26,7 @@ const fadeUp = (delay = 0) => ({
 });
 
 export default function Dashboard() {
-  const { profile } = useProfile();
+  const { profile, isLoading: profileLoading } = useProfile();
   const { user } = useAuth();
   const { seconds: liveSeconds } = useStudyTimer();
   const { isProPlus } = useSubscription();
@@ -34,12 +34,20 @@ export default function Dashboard() {
   const prefersReduced = useReducedMotion();
   const go = navigate;
 
+  const safeProfile = profile ?? {
+    display_name: null,
+    extra_preferences: null,
+    xp: 0,
+    level: 1,
+    streak_days: 0,
+  };
+
   const userPrefs = useMemo(() => {
     if (!profile?.extra_preferences) return null;
     try { return JSON.parse(profile.extra_preferences as string); } catch { return null; }
   }, [profile?.extra_preferences]);
 
-  const rawName = (profile?.display_name?.split(' ')[0]?.trim() || user?.email?.split('@')[0]?.trim() || '').trim();
+  const rawName = (safeProfile.display_name?.split(' ')[0]?.trim() || user?.email?.split('@')[0]?.trim() || '').trim();
   const userName = !rawName || /^(lumina|user|student|guest|test|admin|scholar)$/i.test(rawName) ? 'Scholar' : rawName;
   const userSubjects = userPrefs?.subjects || [];
 
@@ -81,7 +89,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const streakDays = profile?.streak_days || 0;
+  const streakDays = safeProfile.streak_days || 0;
 
   const subjectScores = useMemo(() => {
     if (!recentTests?.length) return {};
@@ -108,8 +116,6 @@ export default function Dashboard() {
       .map(([subject, data]) => ({ subject, count: data.count, topMistakeType: Object.entries(data.types).sort((a, b) => b[1] - a[1])[0]?.[0] || 'conceptual' }));
   }, [mistakeData]);
 
-  if (!profile) return null;
-
   const liveMin = Math.floor(liveSeconds / 60);
   const totalToday = (todayMinutes || 0) + liveMin;
   const hrs = Math.floor(totalToday / 60);
@@ -134,7 +140,7 @@ export default function Dashboard() {
   const consistency = Math.round((daysStudied / 7) * 100);
 
   const stats = [
-    { icon: Trophy, label: 'Level', value: String(profile.level), sub: `${profile.xp % 100} / 100 XP`, accent: 'var(--amber)' },
+    { icon: Trophy, label: 'Level', value: String(safeProfile.level), sub: profileLoading && !profile ? 'syncing XP' : `${safeProfile.xp % 100} / 100 XP`, accent: 'var(--amber)' },
     { icon: Flame, label: 'Streak', value: String(streakDays), sub: streakDays === 1 ? 'day' : 'days', accent: '#f97316' },
     { icon: Clock, label: 'Today', value: totalToday > 0 ? (hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`) : '0m', sub: totalToday >= 60 ? 'deep work' : 'studying', accent: 'var(--teal)' },
     { icon: Target, label: 'Readiness', value: avgScore !== null ? `${avgScore}%` : '\u2014', sub: `${recentTests?.length || 0} tests`, accent: 'var(--brand-glow)' },
