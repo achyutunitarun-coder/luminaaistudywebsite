@@ -29,7 +29,15 @@ export default function LuminaHub() {
   const [toolResult, setToolResult] = useState<{ type: string; message: string } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const loadingFailsafe = window.setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 5000);
+
     setLoading(true);
 
     async function fetchData() {
@@ -42,29 +50,37 @@ export default function LuminaHub() {
 
         const totalStudyTime = studySessions?.reduce((sum: number, s: any) => sum + (s.duration_seconds || 0), 0) || 0;
 
-        setStats({
-          chats: chatCount || 0,
-          messages: msgCount || 0,
-          flashcards: fcCount || 0,
-          tests: testCount || 0,
-          studyTime: Math.round(totalStudyTime / 60),
-        });
+        if (!cancelled) {
+          setStats({
+            chats: chatCount || 0,
+            messages: msgCount || 0,
+            flashcards: fcCount || 0,
+            tests: testCount || 0,
+            studyTime: Math.round(totalStudyTime / 60),
+          });
+        }
 
         const { data: chats } = await supabase.from('chats').select('id, title, updated_at').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(8);
-        setRecentChats(chats || []);
+        if (!cancelled) setRecentChats(chats || []);
 
         if (chats && chats.length > 0) {
           const chatIds = chats.map((c: any) => c.id);
           const { data: msgs } = await supabase.from('chat_messages').select('id, content, created_at, chat_id, role').in('chat_id', chatIds).order('created_at', { ascending: false }).limit(10);
-          setRecentMessages(msgs || []);
+          if (!cancelled) setRecentMessages(msgs || []);
         }
       } catch (e) {
         console.error('Brain Hub fetch error:', e);
       } finally {
-        setLoading(false);
+        window.clearTimeout(loadingFailsafe);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchData();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(loadingFailsafe);
+    };
   }, [user]);
 
   // Tool: Generate study suggestions based on actual data
@@ -159,15 +175,6 @@ export default function LuminaHub() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-[1200px] mx-auto pt-12 flex items-center justify-center gap-3">
-        <div className="w-5 h-5 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-        <span className="text-gray-400 text-sm">Loading...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-[1200px] mx-auto">
       {/* Header */}
@@ -178,7 +185,7 @@ export default function LuminaHub() {
           </div>
           <div>
             <h1 className="font-display text-2xl text-white">Brain Hub</h1>
-            <p className="text-xs text-gray-500">Your study intelligence</p>
+            <p className="text-xs text-gray-500">{loading ? 'Syncing activity…' : 'Your study intelligence'}</p>
           </div>
         </div>
         <button onClick={() => navigate('/chat')} className="flex items-center gap-2 px-4 h-9 rounded-lg text-xs font-medium bg-brand text-white hover:bg-brand/90 transition-all">
@@ -242,7 +249,12 @@ export default function LuminaHub() {
                     <h2 className="text-sm font-semibold text-white">Recent Chats</h2>
                     <button onClick={() => navigate('/chat')} className="text-[11px] text-gray-500 hover:text-brand">New chat →</button>
                   </div>
-                  {recentChats.length === 0 ? (
+                  {loading ? (
+                    <div className="px-5 py-8 flex items-center justify-center gap-3 text-center">
+                      <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                      <p className="text-gray-500 text-sm">Loading recent activity…</p>
+                    </div>
+                  ) : recentChats.length === 0 ? (
                     <div className="px-5 py-8 text-center">
                       <p className="text-gray-500 text-sm">No chats yet.</p>
                       <button onClick={() => navigate('/chat')} className="mt-2 text-xs text-brand hover:underline">Start one →</button>
