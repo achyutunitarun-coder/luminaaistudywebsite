@@ -109,10 +109,9 @@ async function pollJob(
   let lastStatus = "queued";
   let failureCount = 0;
   const maxFailures = 15;
-  const maxPolls = 10;
   let pollCount = 0;
 
-  while (Date.now() - started < timeoutMs && failureCount < maxFailures && pollCount < maxPolls) {
+  while (Date.now() - started < timeoutMs && failureCount < maxFailures) {
     pollCount++;
     const { data, error } = await (supabase as any)
       .from("artifact_jobs")
