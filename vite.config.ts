@@ -13,7 +13,7 @@ async function checkOllamaStatus() {
     const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) return { healthy: false, message: "Ollama API returned error", modelLoaded: false };
-    const data = await res.json();
+    const data: any = await res.json();
     const models = data?.models || [];
     const modelLoaded = models.some((m: any) => m.name === DEFAULT_MODEL);
     if (!modelLoaded) return { healthy: true, message: `Model ${DEFAULT_MODEL} not loaded. Run: ollama pull ${DEFAULT_MODEL}`, modelLoaded: false };
@@ -93,7 +93,7 @@ async function proxyToOllama(payload: any, res: any, streamTokens: boolean) {
       return;
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ text: data.response || "", model: data.model || DEFAULT_MODEL }));
   } catch (error) {
@@ -197,7 +197,7 @@ const ollamaDevProxy = {
               res.end(JSON.stringify({ error: errText || "Ollama request failed" }));
               return;
             }
-            const data = await ollamaRes.json();
+            const data: any = await ollamaRes.json();
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ response: data.response || "" }));
           } catch (e) {
