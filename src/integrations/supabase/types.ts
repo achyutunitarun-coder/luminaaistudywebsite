@@ -130,6 +130,45 @@ export type Database = {
           },
         ]
       }
+      billing_plans: {
+        Row: {
+          active: boolean
+          amount_minor: number
+          created_at: string
+          credits_per_cycle: number
+          currency: string
+          cycle_days: number
+          dodo_product_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount_minor?: number
+          created_at?: string
+          credits_per_cycle?: number
+          currency?: string
+          cycle_days?: number
+          dodo_product_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount_minor?: number
+          created_at?: string
+          credits_per_cycle?: number
+          currency?: string
+          cycle_days?: number
+          dodo_product_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_artifacts: {
         Row: {
           artifact_type: string
@@ -350,6 +389,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      customer_memberships: {
+        Row: {
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          customer_email: string
+          customer_name: string | null
+          grace_ends_at: string | null
+          id: string
+          last_invoice_id: string | null
+          last_payment_id: string | null
+          next_invoice_at: string | null
+          plan_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          customer_email: string
+          customer_name?: string | null
+          grace_ends_at?: string | null
+          id?: string
+          last_invoice_id?: string | null
+          last_payment_id?: string | null
+          next_invoice_at?: string | null
+          plan_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          customer_email?: string
+          customer_name?: string | null
+          grace_ends_at?: string | null
+          id?: string
+          last_invoice_id?: string | null
+          last_payment_id?: string | null
+          next_invoice_at?: string | null
+          plan_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_memberships_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_quests: {
         Row: {
@@ -1506,6 +1604,62 @@ export type Database = {
         }
         Relationships: []
       }
+      renewal_invoices: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          currency: string
+          dodo_payment_id: string | null
+          dodo_payment_link: string | null
+          due_at: string
+          id: string
+          membership_id: string
+          metadata: Json
+          paid_at: string | null
+          reminder_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor?: number
+          created_at?: string
+          currency?: string
+          dodo_payment_id?: string | null
+          dodo_payment_link?: string | null
+          due_at?: string
+          id?: string
+          membership_id: string
+          metadata?: Json
+          paid_at?: string | null
+          reminder_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          currency?: string
+          dodo_payment_id?: string | null
+          dodo_payment_link?: string | null
+          due_at?: string
+          id?: string
+          membership_id?: string
+          metadata?: Json
+          paid_at?: string | null
+          reminder_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renewal_invoices_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "customer_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resources: {
         Row: {
           content: Json
@@ -2475,6 +2629,10 @@ export type Database = {
       get_usage_count: {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
+      }
+      has_active_billing_access: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       increment_study_minutes: {
         Args: { p_minutes: number; p_user_id: string }
