@@ -76,7 +76,7 @@ export async function classifyIntent(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: await authHeader() },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
+        model: "google/gemma-4-31b-it:free",
         stream: false,
         max_tokens: 80,
         messages: [
