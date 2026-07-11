@@ -78,8 +78,17 @@ export default function Billing() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#a78bfa] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#0a0a0f] text-[#e4e4e7]">
+        <div className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+          <div className="h-6 w-24 bg-[#12121a] rounded animate-pulse" />
+          <div className="h-8 w-48 bg-[#12121a] rounded animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-[#12121a] border border-[#1e1e2e] rounded-lg animate-pulse" />
+            ))}
+          </div>
+          <div className="h-40 bg-[#12121a] border border-[#1e1e2e] rounded-lg animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -107,8 +116,33 @@ export default function Billing() {
         {error && (
           <Alert variant="destructive" className="mb-6 bg-red-500/10 border-red-500/20 text-red-400">
             <AlertCircle className="w-4 h-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertTitle>We couldn't load your billing details</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p className="text-red-300/90">{error}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  size="sm"
+                  onClick={() => { setLoading(true); loadData(); }}
+                  className="bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retry
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate("/upgrade")}
+                  className="border-[#1e1e2e] text-[#e4e4e7] hover:bg-[#1e1e2e]"
+                >
+                  View plans
+                </Button>
+                <a
+                  href="mailto:support@luminaai.study?subject=Billing%20page%20error"
+                  className="inline-flex items-center px-3 py-1.5 rounded-md text-xs border border-[#1e1e2e] text-[#a1a1aa] hover:text-white hover:bg-[#1e1e2e]"
+                >
+                  Contact support
+                </a>
+              </div>
+            </AlertDescription>
           </Alert>
         )}
 
