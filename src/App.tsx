@@ -35,7 +35,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
-import LuminaComputer from "@/pages/LuminaComputer";
+
 import Documents from "@/pages/Documents";
 // Study Squads removed
 import Performance from "@/pages/Performance";
@@ -128,7 +128,8 @@ const App = () => (
                 <Route path="/hub" element={<LuminaHub />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/local-chat" element={<OllamaChatPage />} />
-                <Route path="/computer" element={<LuminaComputer />} />
+                <Route path="/computer" element={<Navigate to="/ai-tools" replace />} />
+                <Route path="/lumina-computer" element={<Navigate to="/ai-tools" replace />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/flashcards" element={<Flashcards />} />

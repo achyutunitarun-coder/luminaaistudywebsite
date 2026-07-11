@@ -21,7 +21,7 @@ const navGroups = [
     label: "Study",
     items: [
       { title: "AI Chat", url: "/chat", icon: MessageSquare },
-      { title: "Lumina Computer", url: "/lumina-computer", icon: Wand2 },
+      
       { title: "Documents", url: "/documents", icon: FileText },
       { title: "Doubt Solver", url: "/doubt-solver", icon: HelpCircle },
       { title: "Notes Generator", url: "/notes-generator", icon: FileText },
