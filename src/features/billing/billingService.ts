@@ -55,19 +55,45 @@ function billingUrl(path: string): string {
   return `${base}/functions/v1/billing-manage${path}`;
 }
 
-async function authedFetch(path: string, options: RequestInit = {}): Promise<Response> {
+async function authedFetch(path: string, options: RequestInit = {}, retries = 2): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error("Not authenticated");
   }
-  return fetch(billingUrl(path), {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-      ...options.headers,
-    },
-  });
+  const doFetch = async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20_000);
+    try {
+      return await fetch(billingUrl(path), {
+        ...options,
+        signal: options.signal ?? ctrl.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          ...options.headers,
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await doFetch();
+      // Retry only on transient server errors for idempotent GETs
+      if (res.status >= 500 && res.status < 600 && (!options.method || options.method === "GET") && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      lastErr = e;
+      if (attempt >= retries) break;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Network error");
 }
 
 export async function getMyMembership(): Promise<MyMembershipResponse> {
