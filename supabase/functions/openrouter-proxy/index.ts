@@ -12,7 +12,12 @@ const cors = {
 };
 
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FALLBACK_CHAIN = ["meta-llama/llama-3.3-70b-instruct:free", "openrouter/free", "openai/gpt-oss-20b:free"];
+const FALLBACK_CHAIN = [
+  "deepseek/deepseek-chat-v3.1:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+  "openai/gpt-oss-20b:free",
+];
 
 const ALL_KEYS: string[] = [
   Deno.env.get("OPENROUTER_API_KEY"),
