@@ -34,7 +34,7 @@ const STAGES: StageDef[] = [
   {
     stage: "planner",
     label: "Thinking",
-    models: ["nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra:free"],
+    models: ["nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
       `You are the ORCHESTRATOR for Lumina Computer. Break the user's request into a structured task list. Return ONLY JSON: {"subtasks":[...], "agent_assignments":{...}, "parallel_opportunities":[...], "success_criteria":[...]}. Be concise.`,
@@ -50,7 +50,7 @@ const STAGES: StageDef[] = [
   {
     stage: "research",
     label: "Research",
-    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
     maxTokens: 8192, temperature: 0.4,
     systemPrompt: () =>
       `You are the RESEARCH agent. Gather all context, facts, formulas, definitions, and edge cases the BUILDER will need. Return a structured Markdown context packet under headings: Facts, Formulas, Examples, Edge Cases, Citations.`,
@@ -58,7 +58,7 @@ const STAGES: StageDef[] = [
   {
     stage: "architect",
     label: "Architecture",
-    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
     maxTokens: 8192, temperature: 0.35,
     systemPrompt: () =>
       `You are the ARCHITECT. Define a production multi-file structure before coding. Return Markdown with: file tree, module responsibility, UI design system, runtime interactions, validation checklist. No code yet.`,
@@ -66,7 +66,7 @@ const STAGES: StageDef[] = [
   {
     stage: "builder",
     label: "Coding",
-    models: ["cohere/codex-north:free", "nvidia/nemotron-3-super:free", "qwen/qwen3-coder:free", "poolside/laguna:free", "openai/gpt-oss-120b:free"],
+    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super:free", "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free"],
     maxTokens: 65536, temperature: 0.55,
     systemPrompt: () =>
       `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,
@@ -82,7 +82,7 @@ const STAGES: StageDef[] = [
   {
     stage: "debugger",
     label: "Debugging",
-    models: ["cohere/codex-north:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
+    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
     maxTokens: 65536, temperature: 0.45,
     systemPrompt: () =>
       `You are the DEBUGGER. Apply minimal fixes for validator issues only. Keep the same FORMAT (HTML stays HTML, code stays code, Markdown stays Markdown). Output ONLY the repaired artifact — no commentary.`,
@@ -98,7 +98,7 @@ const STAGES: StageDef[] = [
   {
     stage: "assembler",
     label: "Assembling",
-    models: ["nvidia/nemotron-3-ultra:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super:free", "openai/gpt-oss-120b:free"],
     maxTokens: 65536, temperature: 0.42,
     systemPrompt: () =>
       `You are the ASSEMBLER. Combine the best previous stage output into the final coherent artifact. Strengthen clarity, remove generic language, preserve all working code, and output ONLY the final artifact.`,
