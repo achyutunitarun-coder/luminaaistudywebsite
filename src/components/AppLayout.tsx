@@ -42,7 +42,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="min-h-screen flex-col bg-background relative">
+    <div className="min-h-screen h-screen flex flex-col bg-background relative overflow-hidden">
       {/* Subtle mesh background — no floating orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-mesh" aria-hidden />
