@@ -3,14 +3,14 @@
 
 export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   "nvidia/nemotron-3-ultra-550b-a55b:free": 1_000_000,
-  "nvidia/nemotron-3-super:free": 1_000_000,
+  "nvidia/nemotron-3-super-120b-a12b:free": 1_000_000,
   "meta-llama/llama-3.3-70b-instruct:free": 131_000,
   "google/gemma-4-31b-it:free": 1_000_000,
   "google/gemma-4-31b-it:free": 262_000,
   "google/gemma-4-26b-a4b-it:free": 262_000,
   "cohere/north-mini-code:free": 256_000,
   "poolside/laguna-m.1:free": 262_000,
-  "poolside/laguna-xs.2:free": 262_000,
+  "poolside/laguna-xs-2.1:free": 262_000,
   "poolside/laguna-xs-2.1:free": 262_000,
   "qwen/qwen3-coder:free": 128_000,
   "qwen/qwen3-next-80b-a3b-instruct:free": 262_000,
@@ -32,14 +32,14 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 
 export const MODEL_OUTPUT_CAPS: Record<string, number> = {
   "nvidia/nemotron-3-ultra-550b-a55b:free": 32768,
-  "nvidia/nemotron-3-super:free": 32768,
+  "nvidia/nemotron-3-super-120b-a12b:free": 32768,
   "meta-llama/llama-3.3-70b-instruct:free": 32768,
   "google/gemma-4-31b-it:free": 1_000_000,
   "google/gemma-4-31b-it:free": 16384,
   "google/gemma-4-26b-a4b-it:free": 32768,
   "cohere/north-mini-code:free": 64000,
   "poolside/laguna-m.1:free": 32768,
-  "poolside/laguna-xs.2:free": 32768,
+  "poolside/laguna-xs-2.1:free": 32768,
   "poolside/laguna-xs-2.1:free": 32768,
   "qwen/qwen3-coder:free": 32768,
   "qwen/qwen3-next-80b-a3b-instruct:free": 32768,

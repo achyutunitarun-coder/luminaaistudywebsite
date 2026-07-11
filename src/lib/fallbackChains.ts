@@ -22,20 +22,20 @@ export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
   ],
   reasoning: [
     "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "nvidia/nemotron-3-super:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
     "meta-llama/llama-3.3-70b-instruct:free",
   ],
   coding: [
     "cohere/north-mini-code:free",
     "qwen/qwen3-coder:free",
     "poolside/laguna-m.1:free",
-    "poolside/laguna-xs.2:free",
+    "poolside/laguna-xs-2.1:free",
     "poolside/laguna-xs-2.1:free",
   ],
   long_ctx: [
     "google/gemma-4-31b-it:free",
     "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "nvidia/nemotron-3-super:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
   ],
   vision: [
     "google/gemma-4-31b-it:free",

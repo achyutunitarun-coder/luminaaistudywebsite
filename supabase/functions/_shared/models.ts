@@ -34,7 +34,7 @@ export const MODELS_CODE = [
   "cohere/north-mini-code:free",
   OWL,
   "poolside/laguna-m.1:free",
-  "poolside/laguna-xs.2:free",
+  "poolside/laguna-xs-2.1:free",
   "poolside/laguna-xs-2.1:free",
   "qwen/qwen3-coder:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
