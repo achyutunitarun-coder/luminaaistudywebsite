@@ -17,28 +17,30 @@ export type ModeChip =
 
 // Verified free-tier OpenRouter models (`:free` suffix). Names are the exact
 // slugs OpenRouter publishes — do not invent new ones.
+// Highest-quality free-tier OpenRouter models available. Slugs must match
+// OpenRouter's published `:free` model IDs exactly.
 const ROUTING: Record<string, string> = {
   "chat-low": "meta-llama/llama-3.3-70b-instruct:free",
   "chat-medium": "deepseek/deepseek-chat-v3.1:free",
   "chat-high": "deepseek/deepseek-r1:free",
-  "code": "qwen/qwen-2.5-coder-32b-instruct:free",
-  "build": "qwen/qwen-2.5-coder-32b-instruct:free",
+  "code": "qwen/qwen3-coder:free",
+  "build": "qwen/qwen3-coder:free",
   "reason": "deepseek/deepseek-r1:free",
   "research": "deepseek/deepseek-r1:free",
   "plan": "deepseek/deepseek-r1:free",
-  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
+  "creative": "deepseek/deepseek-chat-v3.1:free",
   "vision": "meta-llama/llama-3.2-11b-vision-instruct:free",
-  "data": "qwen/qwen-2.5-72b-instruct:free",
+  "data": "deepseek/deepseek-chat-v3.1:free",
   "agent": "deepseek/deepseek-chat-v3.1:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
   study: "deepseek/deepseek-chat-v3.1:free",
-  coding: "qwen/qwen-2.5-coder-32b-instruct:free",
+  coding: "qwen/qwen3-coder:free",
   reasoning: "deepseek/deepseek-r1:free",
   deepDive: "deepseek/deepseek-r1:free",
-  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
+  creative: "deepseek/deepseek-chat-v3.1:free",
   fast: "meta-llama/llama-3.3-70b-instruct:free",
   general: "deepseek/deepseek-chat-v3.1:free",
 };
