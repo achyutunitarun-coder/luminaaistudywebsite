@@ -17,32 +17,32 @@ export type ModeChip =
 
 // Verified free-tier OpenRouter models (`:free` suffix). Names are the exact
 // slugs OpenRouter publishes — do not invent new ones.
-// Highest-quality free-tier OpenRouter models available. Slugs must match
-// OpenRouter's published `:free` model IDs exactly.
+// Verified free-tier OpenRouter models (Nov 2026). Slugs match OpenRouter's
+// published `:free` IDs exactly — do not invent new ones.
 const ROUTING: Record<string, string> = {
-  "chat-low": "meta-llama/llama-3.3-70b-instruct:free",
-  "chat-medium": "deepseek/deepseek-chat-v3.1:free",
-  "chat-high": "deepseek/deepseek-r1:free",
+  "chat-low": "google/gemma-4-31b-it:free",
+  "chat-medium": "qwen/qwen3-next-80b-a3b-instruct:free",
+  "chat-high": "nvidia/nemotron-3-ultra-550b-a55b:free",
   "code": "qwen/qwen3-coder:free",
   "build": "qwen/qwen3-coder:free",
-  "reason": "deepseek/deepseek-r1:free",
-  "research": "deepseek/deepseek-r1:free",
-  "plan": "deepseek/deepseek-r1:free",
-  "creative": "deepseek/deepseek-chat-v3.1:free",
-  "vision": "meta-llama/llama-3.2-11b-vision-instruct:free",
-  "data": "deepseek/deepseek-chat-v3.1:free",
-  "agent": "deepseek/deepseek-chat-v3.1:free",
+  "reason": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "research": "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "plan": "nvidia/nemotron-3-super-120b-a12b:free",
+  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
+  "vision": "nvidia/nemotron-nano-12b-v2-vl:free",
+  "data": "qwen/qwen3-next-80b-a3b-instruct:free",
+  "agent": "nvidia/nemotron-3-super-120b-a12b:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
-  study: "deepseek/deepseek-chat-v3.1:free",
+  study: "qwen/qwen3-next-80b-a3b-instruct:free",
   coding: "qwen/qwen3-coder:free",
-  reasoning: "deepseek/deepseek-r1:free",
-  deepDive: "deepseek/deepseek-r1:free",
-  creative: "deepseek/deepseek-chat-v3.1:free",
-  fast: "meta-llama/llama-3.3-70b-instruct:free",
-  general: "deepseek/deepseek-chat-v3.1:free",
+  reasoning: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  deepDive: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
+  fast: "google/gemma-4-31b-it:free",
+  general: "qwen/qwen3-next-80b-a3b-instruct:free",
 };
 
 export function pickModel(opts: {
