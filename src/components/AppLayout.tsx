@@ -42,7 +42,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="min-h-screen flex-col bg-background relative">
+    <div className="min-h-screen h-screen flex flex-col bg-background relative overflow-hidden">
       {/* Subtle mesh background — no floating orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-mesh" aria-hidden />
@@ -139,7 +139,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       <LuminaHeader collapsed={collapsed} onToggle={toggleCollapsed} />
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto transition-[padding] duration-300 ease-out relative z-20 pt-14 md:pt-0 md:[padding-left:var(--app-sidebar-w,0px)]">
+      <main className="flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto transition-[padding] duration-300 ease-out relative z-20 pt-14 md:pt-0 md:[padding-left:var(--app-sidebar-w,0px)]">
         {isFullBleed ? (
           children
         ) : (
