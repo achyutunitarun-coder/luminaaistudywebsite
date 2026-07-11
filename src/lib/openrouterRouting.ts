@@ -15,30 +15,32 @@ export type ModeChip =
   | "auto" | "study" | "coding" | "reasoning" | "deepDive"
   | "creative" | "fast" | "general";
 
+// Verified free-tier OpenRouter models (`:free` suffix). Names are the exact
+// slugs OpenRouter publishes — do not invent new ones.
 const ROUTING: Record<string, string> = {
-  "chat-low": "openai/gpt-oss-20b:free",
-  "chat-medium": "nvidia/nemotron-3-super:free",
-  "chat-high": "nvidia/nemotron-3-ultra:free",
-  "code": "cohere/codex-north:free",
-  "build": "qwen/qwen3-coder:free",
-  "reason": "openai/gpt-oss-120b:free",
-  "research": "nvidia/nemotron-3-ultra:free",
-  "plan": "openai/gpt-oss-120b:free",
-  "creative": "nousresearch/hermes-3-405b-instruct:free",
-  "vision": "google/gemma-4-31b-it:free",
-  "data": "qwen/qwen3-next-80b-a3b-instruct:free",
-  "agent": "nvidia/nemotron-3-super:free",
+  "chat-low": "meta-llama/llama-3.3-70b-instruct:free",
+  "chat-medium": "deepseek/deepseek-chat-v3.1:free",
+  "chat-high": "deepseek/deepseek-r1:free",
+  "code": "qwen/qwen-2.5-coder-32b-instruct:free",
+  "build": "qwen/qwen-2.5-coder-32b-instruct:free",
+  "reason": "deepseek/deepseek-r1:free",
+  "research": "deepseek/deepseek-r1:free",
+  "plan": "deepseek/deepseek-r1:free",
+  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
+  "vision": "meta-llama/llama-3.2-11b-vision-instruct:free",
+  "data": "qwen/qwen-2.5-72b-instruct:free",
+  "agent": "deepseek/deepseek-chat-v3.1:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
-  study: "nvidia/nemotron-3-super:free",
-  coding: "cohere/codex-north:free",
-  reasoning: "nvidia/nemotron-3-ultra:free",
-  deepDive: "nvidia/nemotron-3-ultra:free",
-  creative: "nousresearch/hermes-3-405b-instruct:free",
-  fast: "openai/gpt-oss-20b:free",
-  general: "nvidia/nemotron-3-super:free",
+  study: "deepseek/deepseek-chat-v3.1:free",
+  coding: "qwen/qwen-2.5-coder-32b-instruct:free",
+  reasoning: "deepseek/deepseek-r1:free",
+  deepDive: "deepseek/deepseek-r1:free",
+  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
+  fast: "meta-llama/llama-3.3-70b-instruct:free",
+  general: "deepseek/deepseek-chat-v3.1:free",
 };
 
 export function pickModel(opts: {
@@ -72,7 +74,7 @@ export async function classifyIntent(
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: await authHeader() },
       body: JSON.stringify({
-        model: "nvidia/nemotron-nano-30b-a3b:free",
+        model: "meta-llama/llama-3.3-70b-instruct:free",
         stream: false,
         max_tokens: 80,
         messages: [
