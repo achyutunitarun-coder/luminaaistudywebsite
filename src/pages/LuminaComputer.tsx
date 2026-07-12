@@ -80,10 +80,28 @@ export default function LuminaComputer() {
 
       await updateProject(project.id, { status: "generating" });
 
-      for (const [i, block] of inserted.entries()) {
-        pushLog(`Creating block ${i + 1}/${inserted.length}: ${block.title}`, "info");
-        await generateBlock(project, block, g);
-      }
+      // Concurrency-limited generation: max 3 blocks in flight.
+      // Agent mode benefits most (mixed block types run in parallel),
+      // but every mode gets faster builds.
+      const CONCURRENCY = 3;
+      pushLog(`Generating ${inserted.length} blocks (max ${CONCURRENCY} in parallel)…`, "info");
+      let cursor = 0;
+      const total = inserted.length;
+      let completed = 0;
+      const runNext = async (): Promise<void> => {
+        while (true) {
+          const idx = cursor++;
+          if (idx >= total) return;
+          const block = inserted[idx];
+          pushLog(`↑ start ${idx + 1}/${total}: ${block.title}`, "info");
+          await generateBlock(project, block, g);
+          completed++;
+          pushLog(`✓ done ${completed}/${total}: ${block.title}`, "ok");
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, total) }, () => runNext())
+      );
 
       await updateProject(project.id, { status: "ready" });
       pushLog(`All blocks ready.`, "ok");
@@ -284,7 +302,8 @@ export default function LuminaComputer() {
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Build trace</div>
                   <button onClick={() => { setActive(null); setBlocks([]); }} className="text-xs text-muted-foreground hover:text-white">← Projects</button>
                 </div>
-                <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
+                <BuildProgress blocks={blocks} />
+                <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1 mt-2">
                   {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
                   {blocks.length === 0 && <div className="text-xs text-muted-foreground px-2 py-4">Waiting for planner…</div>}
                 </div>
@@ -347,6 +366,29 @@ function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; on
           <div className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString()}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function BuildProgress({ blocks }: { blocks: LcBlock[] }) {
+  if (blocks.length === 0) return null;
+  const total = blocks.length;
+  const done = blocks.filter((b) => b.status === "ready").length;
+  const err = blocks.filter((b) => b.status === "error").length;
+  const inFlight = blocks.filter((b) => b.status === "generating").length;
+  const pct = Math.round((done / total) * 100);
+  return (
+    <div className="px-1">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+        <span>{done}/{total} complete{err > 0 ? ` · ${err} failed` : ""}</span>
+        <span>{inFlight > 0 ? `${inFlight} in flight` : pct === 100 ? "ready" : ""}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-teal-400 to-indigo-500 transition-all duration-300"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
