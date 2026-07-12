@@ -188,22 +188,32 @@ export default function LuminaComputer() {
   async function exportProject() {
     if (!active) return;
     const mode = active.output_type;
-    if (mode === "doc" || mode === "agent") {
-      const md = blocks.map((b) => {
-        if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
-        if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
-        if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
-        if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
-        return "";
-      }).join("\n\n---\n\n");
-      downloadFile(`${active.title}.md`, md, "text/markdown");
-    } else if (mode === "website") {
-      const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(active.title)}</title><script src="https://cdn.tailwindcss.com"></script><style>${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
-      downloadFile(`${active.title}.html`, html, "text/html");
-    } else {
-      downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
+    try {
+      if (mode === "slides") {
+        const { exportSlidesToPptx } = await import("@/features/luminaComputer/exportSlides");
+        await exportSlidesToPptx(active.title, blocks);
+        toast.success("Exported .pptx");
+        return;
+      }
+      if (mode === "doc" || mode === "agent") {
+        const md = blocks.map((b) => {
+          if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
+          if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
+          if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
+          if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
+          return "";
+        }).join("\n\n---\n\n");
+        downloadFile(`${active.title}.md`, md, "text/markdown");
+      } else if (mode === "website") {
+        const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(active.title)}</title><script src="https://cdn.tailwindcss.com"></script><style>${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
+        downloadFile(`${active.title}.html`, html, "text/html");
+      } else {
+        downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
+      }
+      toast.success("Exported");
+    } catch (e: any) {
+      toast.error(`Export failed: ${e.message ?? e}`);
     }
-    toast.success("Exported");
   }
 
   return (
