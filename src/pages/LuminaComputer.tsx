@@ -116,16 +116,103 @@ export default function LuminaComputer() {
   }
 
   function systemFor(mode: OutputType, blockType: string): string {
+    // Shared craft directive — every artifact should feel editorial, elegant, considered.
+    const CRAFT = `
+You are a senior editorial designer + writer. Every artifact must feel like it was crafted for a design-forward publication (think The New Yorker, Stripe Press, Linear changelog, Apple keynote decks). Non-negotiable craft rules:
+- Writing: confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés.
+- Typography voice: prefer strong, concrete nouns and short sentences interleaved with one longer, rhythmic sentence. Use em-dashes — like this — sparingly for cadence.
+- Structure: one clear idea per unit. Lead with the sharpest sentence. End on a line that lands.
+- Never label the piece with its own scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked for that structure.
+`.trim();
+
     if (mode === "doc" || blockType === "doc_section")
-      return "You write one section of a document. Output MARKDOWN only, starting with a ## heading. 150–350 words. Clear, active voice, no filler. No preamble.";
+      return `${CRAFT}
+
+You write ONE section of a long-form document. Output MARKDOWN only.
+- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation.
+- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial.
+- Body: 180–320 words. 2–4 short paragraphs. Use **bold** for the 1–2 most important phrases in the section.
+- Use a blockquote (\`> \`) exactly once when there is a quotable insight, statistic, or principle worth pulling out. Never fabricate quotes from real people.
+- Optional: at most one tight bulleted list (3–5 items, ≤10 words each). Do not use lists as filler.
+- No horizontal rules, no code fences unless the content is literally code, no images.`;
+
     if (mode === "slides" || blockType === "slide")
-      return "You write one slide. Output ONLY valid JSON: {\"title\":\"punchy title\",\"bullets\":[\"3–5 tight bullets, max 12 words each\"],\"speaker_notes\":\"1–2 sentence talking point\"}. No prose outside JSON.";
+      return `${CRAFT}
+
+You design ONE slide of a keynote-quality deck. Output ONLY valid JSON matching:
+{
+  "eyebrow": "2–4 word section label in ALL CAPS (e.g. 'THE PROBLEM'). Optional, omit for title slides.",
+  "title": "The slide's headline. 3–9 words. Statement, not a topic. No trailing period unless it's a full sentence.",
+  "subtitle": "Optional single-sentence deck (≤ 18 words) that sharpens the title. Omit if it would dilute.",
+  "layout": "one of: 'statement' | 'bullets' | 'stat' | 'quote' | 'two_column'",
+  "bullets": ["3–5 bullets, each 5–10 words, parallel grammar, verbs up front"],
+  "stat": { "value": "the number itself, e.g. '73%' or '$4.2B'", "label": "≤ 8 words explaining what it measures" },
+  "quote": { "text": "the pulled quote, ≤ 24 words", "attribution": "Name, Role" },
+  "columns": [ { "heading": "≤ 4 words", "body": "≤ 20 words" }, { "heading": "…", "body": "…" } ],
+  "speaker_notes": "One or two sentences the presenter would actually say aloud."
+}
+Rules:
+- Populate ONLY the fields relevant to the chosen \`layout\`. Omit unused fields (do not send empty strings/arrays).
+- No emoji. No exclamation marks. No cliché business-speak ("synergy", "revolutionize", "unlock", "unleash", "seamless", "leverage").
+- Never repeat the same layout as the previous slide when you can help it — variety is the whole point.`;
+
     if (mode === "sheet" || blockType === "sheet_tab")
-      return "You design one spreadsheet tab. Output ONLY valid JSON: {\"tab_name\":\"...\",\"columns\":[\"col1\",\"col2\"],\"rows\":[[...],[...]],\"formulas\":{\"C2\":\"=B2*1.1\"}}. 3–8 columns, 4–12 rows. Use realistic sample data. No prose outside JSON.";
+      return `${CRAFT}
+
+You design ONE elegant, useful spreadsheet tab. Output ONLY valid JSON:
+{
+  "tab_name": "Short, human name (Title Case, no 'Sheet1').",
+  "description": "One-sentence explanation of what this tab is for.",
+  "columns": ["4–7 column headers, Title Case, no trailing units in the name — put units in parentheses if needed"],
+  "rows": [[...], [...]],
+  "formulas": { "C2": "=B2*1.1", "D2": "=SUM(B2:C2)" },
+  "totals_row": true
+}
+Rules:
+- 5–12 rows of realistic, non-toy sample data that a real analyst wouldn't be embarrassed to send.
+- Numbers with sensible magnitudes and consistent units per column. Currency as raw numbers (formatting happens on render).
+- Include at least ONE computed column driven by \`formulas\` (growth %, margin, running total, YoY, etc.).
+- If \`totals_row\` is true, the LAST row must be a totals/summary row where numeric columns are aggregated.
+- No placeholder text like 'foo', 'bar', 'lorem'.`;
+
     if (mode === "website" || blockType === "site_section")
-      return "You write one <section> of a single-page website. Output ONLY valid JSON: {\"section_name\":\"...\",\"html\":\"<section>...</section>\",\"css\":\".class{...}\",\"js\":null}. Use semantic HTML5, Tailwind-compatible utility classes are fine. Self-contained. No prose outside JSON.";
+      return `${CRAFT}
+
+You write ONE <section> of a single-page site that must look like a top-shelf 2025 landing page — think Vercel, Linear, Rauno, Attio, Framer template gallery. Output ONLY valid JSON:
+{ "section_name": "hero" | "features" | "logos" | "testimonial" | "pricing" | "faq" | "cta" | "footer" | "story" | "stats" | "how_it_works",
+  "html": "<section class=\\"...\\">…</section>",
+  "css": "/* scoped styles for this section only */",
+  "js": null | "small enhancement script, no external deps"
+}
+
+LOCKED design system (use ONLY these tokens across every section so the page feels cohesive):
+- Background: #0a0a0d. Section alt-background: #0f0f13.
+- Text: #f5f5f4 (primary), #a1a1aa (muted), #71717a (subtle).
+- Border: rgba(255,255,255,0.08). Card surface: rgba(255,255,255,0.02) with 1px border above.
+- Single accent color: #9d5cff (use sparingly — one accent per section max: a button, an underline, or a highlighted word).
+- NO gradients on text. NO neon glows. NO purple-blue AI-slop backgrounds. NO stock-photo images.
+- Radius: 12px on cards/buttons, 999px on pill chips.
+
+TYPOGRAPHY (this is the whole point — get it right):
+- Use Google Fonts loaded in the page-wide <head> (already available): \`Fraunces\` for display headings (weights 400/500/600, italic optic), \`Inter\` for body/UI (400/500/600), \`JetBrains Mono\` for tiny eyebrow labels.
+- Hero headline: Fraunces, 64–96px, weight 500, letter-spacing -0.03em, line-height 1.02. Allow one italic word for emphasis.
+- Section headline: Fraunces, 40–56px, weight 500, tracking tight.
+- Eyebrow labels above headlines: JetBrains Mono, 11–12px, uppercase, letter-spacing 0.18em, color #9d5cff or #71717a.
+- Body: Inter, 16–18px, line-height 1.65, color #a1a1aa. Max width 62ch on paragraph blocks.
+- Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent within the section.
+
+LAYOUT & CRAFT:
+- Generous vertical padding: py-24 to py-32. Never cram.
+- Use CSS grid for feature grids and stats; never inline styles that hardcode widths.
+- Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, it should be very subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
+- Use \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
+- Copywriting: same editorial standard as above. Every headline must be a claim, not a topic.
+- The HTML must be a single <section> element. All classes should be prefixed \`lc-<sectionname>-\` to avoid collisions.
+- Do NOT include <html>, <head>, <body>, or <script src=…> external tags in the html field. If you need JS behavior, put it in the js field.`;
+
     return "Write focused, useful content for the given block. Markdown output.";
   }
+
 
   async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, extraInstruction?: string) {
     const t0 = Date.now();
