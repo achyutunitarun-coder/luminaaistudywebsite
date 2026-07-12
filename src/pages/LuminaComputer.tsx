@@ -818,48 +818,161 @@ function formatNum(n: number): string {
 }
 
 function SlideCanvas({ c }: { c: any }) {
-  const layout = c?.layout ?? (c?.stat ? "stat" : c?.quote ? "quote" : c?.columns ? "two_column" : c?.bullets?.length ? "bullets" : "statement");
+  const layout = c?.layout ?? (
+    c?.kpis?.length ? "kpi_grid" :
+    c?.comparison ? "comparison" :
+    c?.timeline?.length ? "timeline" :
+    c?.agenda?.length ? "agenda" :
+    c?.closing ? "closing" :
+    c?.stat ? "stat" :
+    c?.quote ? "quote" :
+    c?.columns ? "two_column" :
+    c?.bullets?.length ? "bullets" :
+    "statement"
+  );
   const heading = { fontFamily: "'Fraunces', ui-serif, Georgia, serif", letterSpacing: "-0.03em" } as const;
   const body = { fontFamily: "'Inter', ui-sans-serif" } as const;
   const mono = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
+  const isCover = layout === "cover" || layout === "section_divider";
 
   return (
     <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-[#0d0d10]"
-         style={{ background: "radial-gradient(ellipse at 20% 0%, #16121e 0%, #0a0a0d 55%)" }}>
+         style={{
+           background: isCover
+             ? "radial-gradient(ellipse at 30% 20%, #1e1533 0%, #0a0a0d 65%), linear-gradient(180deg, #0d0a14 0%, #08080b 100%)"
+             : "radial-gradient(ellipse at 20% 0%, #14111c 0%, #0a0a0d 55%)"
+         }}>
+      {/* Hairline frame for extra polish */}
+      <div className="absolute inset-3 rounded-lg border border-white/[0.04] pointer-events-none" />
+
       {/* corner brand mark */}
       <div className="absolute top-5 left-6 flex items-center gap-2" style={mono}>
         <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
         <span className="text-[9px] uppercase tracking-[0.22em] text-zinc-500">Lumina</span>
       </div>
       <div className="absolute top-5 right-6 text-[9px] uppercase tracking-[0.22em] text-zinc-600" style={mono}>
-        {layout}
+        {layout.replace("_", " ")}
       </div>
 
-      <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-14 py-16">
-        {c.eyebrow && (
-          <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-4">{c.eyebrow}</div>
+      <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-16 py-16">
+        {c.eyebrow && layout !== "section_divider" && (
+          <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-5">{c.eyebrow}</div>
         )}
 
-        {layout === "stat" && c.stat ? (
+        {layout === "cover" ? (
+          <div className="max-w-[26ch]">
+            <h1 style={heading} className="text-[64px] md:text-[92px] font-medium leading-[0.98] text-zinc-50">{c.title}</h1>
+            {c.subtitle && <p style={body} className="mt-8 text-[19px] text-zinc-400 max-w-[48ch] leading-relaxed">{c.subtitle}</p>}
+            <div className="mt-12 h-px w-24 bg-[#9d5cff]" />
+          </div>
+        ) : layout === "section_divider" ? (
+          <div>
+            {c.eyebrow && <div style={mono} className="text-[64px] md:text-[80px] font-normal leading-none text-[#9d5cff]/70 mb-4">{c.eyebrow}</div>}
+            <h2 style={heading} className="text-[56px] md:text-[80px] font-medium leading-[1.02] text-zinc-50 max-w-[18ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="mt-6 text-[18px] text-zinc-500 max-w-[52ch]">{c.subtitle}</p>}
+          </div>
+        ) : layout === "agenda" && c.agenda?.length ? (
+          <>
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-10 max-w-[22ch]">{c.title ?? "Agenda"}</h2>
+            <ol className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
+              {c.agenda.map((a: any, i: number) => (
+                <li key={i} className="flex gap-4 items-baseline border-t border-zinc-800/70 pt-3">
+                  <span style={mono} className="text-[11px] text-[#9d5cff] tabular-nums pt-0.5">{a.n ?? String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <div style={heading} className="text-[20px] text-zinc-100 leading-tight">{a.title}</div>
+                    {a.note && <div style={body} className="text-[13px] text-zinc-500 mt-0.5">{a.note}</div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : layout === "kpi_grid" && c.kpis?.length ? (
+          <>
+            {c.title && <h2 style={heading} className="text-[34px] md:text-[44px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[24ch]">{c.title}</h2>}
+            <div className={`grid gap-4 ${c.kpis.length >= 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
+              {c.kpis.map((k: any, i: number) => (
+                <div key={i} className="border-t border-zinc-800 pt-4">
+                  <div style={heading} className="text-[44px] md:text-[56px] font-medium leading-none text-zinc-50">{k.value}</div>
+                  <div style={body} className="mt-3 text-[13px] text-zinc-400 leading-snug">{k.label}</div>
+                  {k.delta && <div style={mono} className="mt-1.5 text-[10px] uppercase tracking-widest text-[#9d5cff]">{k.delta}</div>}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : layout === "comparison" && c.comparison ? (
+          <>
+            <h2 style={heading} className="text-[36px] md:text-[48px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[24ch]">{c.title}</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {(["left", "right"] as const).map((side, i) => {
+                const col = c.comparison[side];
+                if (!col) return null;
+                const accent = i === 1;
+                return (
+                  <div key={side} className={`rounded-lg border p-5 ${accent ? "border-[#9d5cff]/30 bg-[#12101a]" : "border-zinc-800 bg-black/30"}`}>
+                    <div style={mono} className={`text-[10px] uppercase tracking-[0.22em] mb-3 ${accent ? "text-[#9d5cff]" : "text-zinc-500"}`}>
+                      {accent ? "After" : "Before"} · {col.heading}
+                    </div>
+                    <ul className="space-y-2">
+                      {(col.points ?? []).map((p: string, j: number) => (
+                        <li key={j} style={body} className="flex gap-2 text-[14px] text-zinc-300 leading-snug">
+                          <span className={`mt-1.5 w-3 h-px shrink-0 ${accent ? "bg-[#9d5cff]" : "bg-zinc-600"}`} />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : layout === "timeline" && c.timeline?.length ? (
+          <>
+            <h2 style={heading} className="text-[36px] md:text-[48px] font-medium leading-[1.05] text-zinc-50 mb-10 max-w-[24ch]">{c.title}</h2>
+            <div className="relative">
+              <div className="absolute left-0 right-0 top-2 h-px bg-zinc-800" />
+              <div className="grid" style={{ gridTemplateColumns: `repeat(${c.timeline.length}, minmax(0,1fr))` }}>
+                {c.timeline.map((t: any, i: number) => (
+                  <div key={i} className="relative pt-6 pr-4">
+                    <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
+                    <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{t.when}</div>
+                    <div style={body} className="text-[14px] text-zinc-200 leading-snug">{t.what}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : layout === "closing" && c.closing ? (
+          <div className="max-w-[28ch]">
+            <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-6">Closing</div>
+            <h2 style={heading} className="text-[52px] md:text-[68px] font-medium leading-[1.02] text-zinc-50">{c.closing.message}</h2>
+            {c.closing.cta && (
+              <div className="mt-10 inline-flex items-center gap-3 border border-zinc-700 rounded-full px-5 py-2" style={body}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
+                <span className="text-[14px] text-zinc-200">{c.closing.cta}</span>
+              </div>
+            )}
+          </div>
+        ) : layout === "stat" && c.stat ? (
           <div className="flex flex-col">
-            <div style={heading} className="text-[96px] md:text-[128px] font-medium leading-none text-zinc-50">{c.stat.value}</div>
-            <div style={body} className="mt-4 text-[18px] text-zinc-400 max-w-[48ch]">{c.stat.label}</div>
+            <div style={heading} className="text-[104px] md:text-[152px] font-medium leading-none text-zinc-50 tracking-[-0.04em]">{c.stat.value}</div>
+            <div style={body} className="mt-5 text-[19px] text-zinc-400 max-w-[46ch] leading-relaxed">{c.stat.label}</div>
+            {c.stat.source && <div style={mono} className="mt-4 text-[10px] uppercase tracking-widest text-zinc-600">Source · {c.stat.source}</div>}
             {c.title && <div style={heading} className="mt-8 text-2xl text-zinc-300 max-w-[24ch]">{c.title}</div>}
           </div>
         ) : layout === "quote" && c.quote ? (
-          <div className="max-w-[46ch]">
-            <div style={heading} className="text-[36px] md:text-[44px] italic font-normal leading-[1.15] text-zinc-100">
-              <span className="text-[#9d5cff] mr-1">"</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">"</span>
+          <div className="max-w-[48ch]">
+            <div style={heading} className="text-[36px] md:text-[48px] italic font-normal leading-[1.15] text-zinc-100">
+              <span className="text-[#9d5cff] mr-1">“</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">”</span>
             </div>
-            <div style={mono} className="mt-6 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
+            <div style={mono} className="mt-8 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
           </div>
         ) : layout === "two_column" && c.columns?.length ? (
           <>
-            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[22ch]">{c.title}</h2>
-            <div className="grid grid-cols-2 gap-8">
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[22ch]">{c.title}</h2>
+            <div className="grid grid-cols-2 gap-10">
               {c.columns.map((col: any, i: number) => (
                 <div key={i} className="border-l border-zinc-800 pl-5">
-                  <div style={heading} className="text-lg font-medium text-zinc-100 mb-1.5">{col.heading}</div>
+                  <div style={heading} className="text-[19px] font-medium text-zinc-100 mb-2">{col.heading}</div>
                   <div style={body} className="text-[14px] text-zinc-400 leading-relaxed">{col.body}</div>
                 </div>
               ))}
@@ -867,7 +980,7 @@ function SlideCanvas({ c }: { c: any }) {
           </>
         ) : layout === "bullets" && c.bullets?.length ? (
           <>
-            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-2 max-w-[24ch]">{c.title}</h2>
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-2 max-w-[24ch]">{c.title}</h2>
             {c.subtitle && <p style={body} className="text-[16px] text-zinc-400 mb-8 max-w-[52ch]">{c.subtitle}</p>}
             <ul className="space-y-3 mt-4">
               {c.bullets.map((b: string, i: number) => (
@@ -880,13 +993,18 @@ function SlideCanvas({ c }: { c: any }) {
           </>
         ) : (
           <>
-            <h2 style={heading} className="text-[52px] md:text-[68px] font-medium leading-[1.02] text-zinc-50 max-w-[20ch]">{c.title}</h2>
-            {c.subtitle && <p style={body} className="mt-5 text-[18px] text-zinc-400 max-w-[52ch] leading-relaxed">{c.subtitle}</p>}
+            <h2 style={heading} className="text-[56px] md:text-[76px] font-medium leading-[1.02] text-zinc-50 max-w-[20ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="mt-6 text-[19px] text-zinc-400 max-w-[54ch] leading-relaxed">{c.subtitle}</p>}
           </>
         )}
       </div>
 
-      {c.speaker_notes && (
+      {c.footnote && (
+        <div className="absolute bottom-4 left-10 right-10 text-[10px] uppercase tracking-widest text-zinc-600" style={mono}>
+          {c.footnote}
+        </div>
+      )}
+      {!c.footnote && c.speaker_notes && (
         <div className="absolute bottom-4 left-10 right-10 text-[11px] text-zinc-600 italic border-t border-zinc-800/60 pt-2" style={body}>
           <span style={mono} className="uppercase tracking-widest not-italic mr-2 text-zinc-700">Notes</span>{c.speaker_notes}
         </div>
