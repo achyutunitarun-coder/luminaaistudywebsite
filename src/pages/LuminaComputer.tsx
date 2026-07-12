@@ -128,9 +128,23 @@ WRITING VOICE
 - Never label scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked.
 - Real content only. No lorem ipsum, no "Example Corp", no obviously placeholder people/numbers. If a specific fact is needed and unknown, use a plausible, boring-but-realistic value.
 
-REFUSE THE GENERIC AI LOOK
-- No purple-to-pink hero gradients on a white card. No Inter+Poppins default stack. No hero → 3-column features → CTA cliché.
-- Commit to ONE distinctive visual direction per artifact. If a stranger could swap your artifact into a totally different project and it still "worked", you have not committed hard enough.
+REFUSE THE GENERIC AI LOOK ("AI Slop Test": if a stranger could look at the artifact and say "AI made this" — you failed.)
+Banned patterns — do not emit any of these:
+- Icon-in-a-rounded-box above every heading.
+- Identical N-card feature grids (icon + heading + text × 3 or × 4).
+- Gradient text on headlines, big metrics, or CTAs.
+- Cyan-on-dark, purple-to-blue, or teal-to-pink "AI" gradients as backgrounds.
+- Glassmorphism as decoration (blurred translucent card floating on gradient).
+- Every element centered. Every card wrapped in another card.
+- The Inter + Poppins + purple accent stack. The hero → 3-columns → CTA landing cliché.
+- Bounce/elastic easing, glow shadows used as decoration, sparklines that don't encode data.
+
+Positive direction:
+- Commit to ONE distinctive visual direction per artifact.
+- Colors: prefer OKLCH values. Tint neutrals slightly toward the brand hue — no pure #000 or #fff. Sharp, saturated accents used sparingly (1–2 per view) beat a timid, evenly-distributed palette.
+- Type: fluid \`clamp()\` scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
+- Spacing: rhythm through variance (tight groupings + generous separations). Never one repeated padding value everywhere. Prefer left-aligned + asymmetric over centered.
+- Motion: at most one orchestrated entrance with staggered reveals. Animate only \`transform\`/\`opacity\`. Ease-out (expo/quart).
 `.trim();
 
     if (mode === "doc" || blockType === "doc_section")
