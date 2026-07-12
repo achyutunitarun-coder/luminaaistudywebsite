@@ -304,10 +304,20 @@ export default function LuminaComputer() {
                 </div>
               </div>
               <div className="space-y-4">
-                {blocks.map((b) => (
-                  <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
-                ))}
-                {blocks.length === 0 && <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>}
+                {active.output_type === "website" ? (
+                  <WebsitePreview
+                    blocks={blocks}
+                    streamingText={streamingRef.current}
+                    onRegen={(b, r) => regenerate(b, r)}
+                  />
+                ) : (
+                  <>
+                    {blocks.map((b) => (
+                      <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
+                    ))}
+                    {blocks.length === 0 && <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>}
+                  </>
+                )}
               </div>
             </div>
           </div>
