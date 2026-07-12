@@ -80,10 +80,28 @@ export default function LuminaComputer() {
 
       await updateProject(project.id, { status: "generating" });
 
-      for (const [i, block] of inserted.entries()) {
-        pushLog(`Creating block ${i + 1}/${inserted.length}: ${block.title}`, "info");
-        await generateBlock(project, block, g);
-      }
+      // Concurrency-limited generation: max 3 blocks in flight.
+      // Agent mode benefits most (mixed block types run in parallel),
+      // but every mode gets faster builds.
+      const CONCURRENCY = 3;
+      pushLog(`Generating ${inserted.length} blocks (max ${CONCURRENCY} in parallel)…`, "info");
+      let cursor = 0;
+      const total = inserted.length;
+      let completed = 0;
+      const runNext = async (): Promise<void> => {
+        while (true) {
+          const idx = cursor++;
+          if (idx >= total) return;
+          const block = inserted[idx];
+          pushLog(`↑ start ${idx + 1}/${total}: ${block.title}`, "info");
+          await generateBlock(project, block, g);
+          completed++;
+          pushLog(`✓ done ${completed}/${total}: ${block.title}`, "ok");
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, total) }, () => runNext())
+      );
 
       await updateProject(project.id, { status: "ready" });
       pushLog(`All blocks ready.`, "ok");
