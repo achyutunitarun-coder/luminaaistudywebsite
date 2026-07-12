@@ -302,7 +302,8 @@ export default function LuminaComputer() {
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Build trace</div>
                   <button onClick={() => { setActive(null); setBlocks([]); }} className="text-xs text-muted-foreground hover:text-white">← Projects</button>
                 </div>
-                <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
+                <BuildProgress blocks={blocks} />
+                <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1 mt-2">
                   {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
                   {blocks.length === 0 && <div className="text-xs text-muted-foreground px-2 py-4">Waiting for planner…</div>}
                 </div>
