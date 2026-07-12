@@ -250,13 +250,20 @@ export default function LuminaComputer() {
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-400 to-indigo-500 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-400 to-indigo-500 flex items-center justify-center" aria-hidden="true">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Lumina Computer</h1>
             <p className="text-sm text-muted-foreground">One box. Five modes. Blocks stream in live — every one shows which model built it.</p>
           </div>
+          <a
+            href="/lumina-computer/admin"
+            className="text-xs text-muted-foreground hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-teal-400/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/60"
+            aria-label="Open routing and cooldowns dashboard"
+          >
+            Routing
+          </a>
         </div>
 
         {/* Command bar */}
