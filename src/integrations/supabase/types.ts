@@ -919,6 +919,195 @@ export type Database = {
         }
         Relationships: []
       }
+      lc_blocks: {
+        Row: {
+          block_type: string
+          content_json: Json | null
+          created_at: string
+          error_text: string | null
+          id: string
+          model_used: string | null
+          order_index: number
+          parent_block_id: string | null
+          project_id: string
+          prompt_seed: string | null
+          rendered_html: string | null
+          status: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          block_type: string
+          content_json?: Json | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          model_used?: string | null
+          order_index?: number
+          parent_block_id?: string | null
+          project_id: string
+          prompt_seed?: string | null
+          rendered_html?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          block_type?: string
+          content_json?: Json | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          model_used?: string | null
+          order_index?: number
+          parent_block_id?: string | null
+          project_id?: string
+          prompt_seed?: string | null
+          rendered_html?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lc_blocks_parent_block_id_fkey"
+            columns: ["parent_block_id"]
+            isOneToOne: false
+            referencedRelation: "lc_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lc_blocks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "lc_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lc_generation_log: {
+        Row: {
+          block_id: string | null
+          created_at: string
+          error_text: string | null
+          id: string
+          latency_ms: number | null
+          model_id: string
+          project_id: string | null
+          role: string
+          success: boolean
+        }
+        Insert: {
+          block_id?: string | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          latency_ms?: number | null
+          model_id: string
+          project_id?: string | null
+          role: string
+          success: boolean
+        }
+        Update: {
+          block_id?: string | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          latency_ms?: number | null
+          model_id?: string
+          project_id?: string | null
+          role?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lc_generation_log_block_id_fkey"
+            columns: ["block_id"]
+            isOneToOne: false
+            referencedRelation: "lc_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lc_generation_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "lc_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lc_model_cooldowns: {
+        Row: {
+          cooldown_until: string
+          model_id: string
+          reason: string | null
+        }
+        Insert: {
+          cooldown_until: string
+          model_id: string
+          reason?: string | null
+        }
+        Update: {
+          cooldown_until?: string
+          model_id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      lc_model_routing: {
+        Row: {
+          fallback_model_ids: string[]
+          notes: string | null
+          primary_model_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          fallback_model_ids?: string[]
+          notes?: string | null
+          primary_model_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          fallback_model_ids?: string[]
+          notes?: string | null
+          primary_model_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lc_projects: {
+        Row: {
+          created_at: string
+          id: string
+          output_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          output_type: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          output_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leaderboard_entries: {
         Row: {
           avatar_url: string | null

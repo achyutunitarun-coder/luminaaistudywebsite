@@ -35,6 +35,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
+import LuminaComputer from "@/pages/LuminaComputer";
 
 import Documents from "@/pages/Documents";
 // Study Squads removed
@@ -129,7 +130,7 @@ const App = () => (
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/local-chat" element={<OllamaChatPage />} />
                 <Route path="/computer" element={<Navigate to="/ai-tools" replace />} />
-                <Route path="/lumina-computer" element={<Navigate to="/ai-tools" replace />} />
+                <Route path="/lumina-computer" element={<LuminaComputer />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/flashcards" element={<Flashcards />} />
