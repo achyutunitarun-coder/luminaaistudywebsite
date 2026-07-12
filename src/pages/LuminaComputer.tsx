@@ -246,114 +246,218 @@ export default function LuminaComputer() {
     }
   }
 
+  // Load Space Grotesk once — locked heading typography for this workstation.
+  useEffect(() => {
+    const id = "lc-font-space-grotesk";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  const activeMode = MODES.find((m) => m.key === mode)!;
+  const heading = { fontFamily: "'Space Grotesk', ui-sans-serif, system-ui" } as const;
+  const mono = { fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" } as const;
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen w-full bg-[#08080c] text-zinc-300">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-400 to-indigo-500 flex items-center justify-center" aria-hidden="true">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Lumina Computer</h1>
-            <p className="text-sm text-muted-foreground">One box. Five modes. Blocks stream in live — every one shows which model built it.</p>
-          </div>
-          <a
-            href="/lumina-computer/admin"
-            className="text-xs text-muted-foreground hover:text-white px-3 py-1.5 rounded-full border border-white/10 hover:border-teal-400/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/60"
-            aria-label="Open routing and cooldowns dashboard"
-          >
-            Routing
-          </a>
-        </div>
-
-        {/* Command bar */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur p-4 md:p-5 mb-6">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {MODES.map((m) => {
-              const Icon = m.icon;
-              const on = mode === m.key;
-              return (
-                <button key={m.key} onClick={() => setMode(m.key)}
-                  className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 border transition
-                    ${on ? "bg-gradient-to-r from-teal-500/20 to-indigo-500/20 border-teal-400/40 text-white" : "border-white/10 text-muted-foreground hover:text-white hover:border-white/20"}`}>
-                  <Icon className="h-3.5 w-3.5" /> {m.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="text-xs text-muted-foreground mb-2">{MODES.find((m) => m.key === mode)?.sub}</div>
-          <div className="flex gap-2">
-            <textarea
-              value={goal} onChange={(e) => setGoal(e.target.value)}
-              placeholder={`Describe what to build (e.g. "Investor pitch for our Series A")`}
-              rows={2}
-              disabled={busy}
-              className="flex-1 rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-sm outline-none focus:border-teal-400/40 resize-none"
-              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleBuild(); }}
-            />
-            <Button onClick={handleBuild} disabled={busy} className="bg-gradient-to-r from-teal-500 to-indigo-500 hover:opacity-90 self-stretch px-5">
-              {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Building…</> : <>Build</>}
-            </Button>
-          </div>
-        </div>
-
-        {/* Body */}
-        {!active ? (
-          <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
-            {/* Left: build-trace rail + log */}
-            <div className="flex flex-col gap-3 min-h-0">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Build trace</div>
-                  <button onClick={() => { setActive(null); setBlocks([]); }} className="text-xs text-muted-foreground hover:text-white">← Projects</button>
-                </div>
-                <BuildProgress blocks={blocks} />
-                <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1 mt-2">
-                  {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
-                  {blocks.length === 0 && <div className="text-xs text-muted-foreground px-2 py-4">Waiting for planner…</div>}
-                </div>
+        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10] shadow-2xl shadow-black/60 overflow-hidden">
+          {/* Workstation header bar */}
+          <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114]">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="flex items-center gap-2.5 shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_10px_rgba(157,92,255,0.6)]" aria-hidden />
+                <span style={heading} className="text-[13px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">Lumina Computer</span>
               </div>
-              <LogPanel entries={log} />
-              <div className="flex gap-2">
-                <Button onClick={exportProject} variant="outline" size="sm" className="flex-1"><Download className="h-4 w-4 mr-1.5" /> Export</Button>
-                <Button onClick={() => removeProject(active)} variant="outline" size="sm"><Trash2 className="h-4 w-4" /></Button>
-              </div>
+              <div className="h-4 w-px bg-zinc-800" />
+              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v4</span>
             </div>
 
-            {/* Right: preview */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-6 min-h-[60vh]">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-lg font-semibold">{active.title}</div>
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider">{active.output_type}</div>
+            <div className="flex items-center gap-3">
+              <div role="tablist" aria-label="Output mode" className="flex bg-black/50 p-0.5 rounded-md border border-zinc-800">
+                {MODES.map((m) => {
+                  const on = mode === m.key;
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.key}
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => setMode(m.key)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-[3px] transition-all
+                        ${on
+                          ? "text-zinc-100 bg-zinc-900 border border-zinc-700/60 shadow-sm"
+                          : "text-zinc-600 hover:text-zinc-300 border border-transparent"}`}
+                    >
+                      <Icon className="h-3 w-3" aria-hidden />
+                      <span className="hidden md:inline">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <a
+                href="/lumina-computer/admin"
+                style={mono}
+                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800 hover:border-zinc-700 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9d5cff]/60"
+                aria-label="Open routing and cooldowns dashboard"
+              >
+                Routing
+              </a>
+            </div>
+          </header>
+
+          {/* Main workbench area */}
+          <main
+            className="relative"
+            style={{ background: "radial-gradient(ellipse at 50% 0%, #14141a 0%, #0a0a0d 60%)" }}
+          >
+            {/* Band 1: prompt console */}
+            <section className="px-4 md:px-8 pt-8 md:pt-10 pb-6">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/50" style={mono}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${busy ? "bg-[#9d5cff] animate-pulse" : "bg-emerald-500/80"}`} aria-hidden />
+                    <span className="text-[9px] uppercase tracking-widest text-zinc-500">
+                      {busy ? "Building" : "System Ready"}
+                    </span>
+                  </span>
+                  <span style={mono} className="text-[9px] uppercase tracking-widest text-zinc-600">
+                    Mode · {activeMode.label} — {activeMode.sub}
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute -inset-px bg-gradient-to-b from-zinc-700/40 to-zinc-900/0 rounded-xl opacity-40 group-focus-within:opacity-80 blur-[2px] transition duration-500 pointer-events-none" />
+                  <div className="relative bg-[#0f0f13] border border-zinc-800 rounded-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
+                    <textarea
+                      value={goal}
+                      onChange={(e) => setGoal(e.target.value)}
+                      placeholder={`Describe what to build (e.g. "Investor pitch for our Series A")`}
+                      rows={3}
+                      disabled={busy}
+                      style={heading}
+                      className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 text-[15px] leading-relaxed focus:ring-0 focus:outline-none resize-none px-5 pt-4 pb-3"
+                      onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleBuild(); }}
+                    />
+                    <div className="flex items-center justify-between border-t border-zinc-800/70 px-4 py-2.5">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span style={mono} className="text-[10px] uppercase tracking-widest text-zinc-600 truncate">
+                          {goal.trim().length} chars · block-streamed
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span style={mono} className="hidden md:inline text-[10px] text-zinc-600 tracking-wider">
+                          <span className="inline-flex items-center gap-1"><CornerDownLeft className="h-3 w-3" aria-hidden /> Cmd+Enter</span>
+                        </span>
+                        <button
+                          onClick={handleBuild}
+                          disabled={busy || !goal.trim()}
+                          className="inline-flex items-center gap-2 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-black text-sm font-medium px-4 py-1.5 rounded-md transition-all shadow-[0_0_20px_rgba(255,255,255,0.06)]"
+                        >
+                          {busy ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Building</>
+                          ) : (
+                            <>Build <ArrowUp className="h-3.5 w-3.5" /></>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                {active.output_type === "website" ? (
-                  <WebsitePreview
-                    blocks={blocks}
-                    streamingText={streamingRef.current}
-                    onRegen={(b, r) => regenerate(b, r)}
-                  />
+            </section>
+
+            {/* Band 2: workspace body */}
+            <section className="px-4 md:px-8 pb-8 border-t border-zinc-800/60 bg-[#09090c]/60">
+              <div className="pt-6">
+                {!active ? (
+                  <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
                 ) : (
-                  <>
-                    {blocks.map((b) => (
-                      <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
-                    ))}
-                    {blocks.length === 0 && <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>}
-                  </>
+                  <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
+                    {/* Left: build-trace rail + log */}
+                    <div className="flex flex-col gap-3 min-h-0">
+                      <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Build trace</div>
+                          <button onClick={() => { setActive(null); setBlocks([]); }} className="text-[10px] text-zinc-500 hover:text-zinc-200 transition">← Projects</button>
+                        </div>
+                        <BuildProgress blocks={blocks} />
+                        <div className="space-y-0.5 max-h-[42vh] overflow-y-auto pr-1 mt-2">
+                          {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
+                          {blocks.length === 0 && <div style={mono} className="text-[10px] uppercase tracking-wider text-zinc-600 px-2 py-4">Waiting for planner…</div>}
+                        </div>
+                      </div>
+                      <LogPanel entries={log} />
+                      <div className="flex gap-2">
+                        <Button onClick={exportProject} variant="outline" size="sm" className="flex-1 bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
+                          <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+                        </Button>
+                        <Button onClick={() => removeProject(active)} variant="outline" size="sm" className="bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Right: preview */}
+                    <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-4 md:p-6 min-h-[60vh]">
+                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/70">
+                        <div className="min-w-0">
+                          <div style={heading} className="text-lg font-semibold text-zinc-100 truncate">{active.title}</div>
+                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mt-0.5">{active.output_type}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        {active.output_type === "website" ? (
+                          <WebsitePreview
+                            blocks={blocks}
+                            streamingText={streamingRef.current}
+                            onRegen={(b, r) => regenerate(b, r)}
+                          />
+                        ) : (
+                          <>
+                            {blocks.map((b) => (
+                              <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
+                            ))}
+                            {blocks.length === 0 && (
+                              <div className="text-center py-16">
+                                <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-600">Awaiting artifact</div>
+                                <div style={heading} className="text-lg text-zinc-400 mt-2">Nothing built yet.</div>
+                                <p className="text-sm text-zinc-600 mt-1">Type what you want above and hit Build.</p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
+            </section>
+          </main>
+
+          {/* Status footer */}
+          <footer className="h-8 border-t border-zinc-800 bg-[#08080b] flex items-center justify-between px-4" style={mono}>
+            <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
+              <span className="flex items-center gap-1.5">
+                <span className={`w-1 h-1 rounded-full ${busy ? "bg-[#9d5cff]" : "bg-emerald-500"}`} />
+                Engine · {busy ? "Streaming" : "Idle"}
+              </span>
+              <span className="hidden sm:inline">Mode · {activeMode.label}</span>
             </div>
-          </div>
-        )}
+            <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
+              <span>Blocks · {blocks.length}</span>
+              <span className="text-zinc-500">v1.0 · Stable</span>
+            </div>
+          </footer>
+        </div>
       </div>
     </div>
   );
 }
+
 
 function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; onOpen: (p: LcProject) => void; onDelete: (p: LcProject) => void }) {
   if (projects.length === 0) return (
