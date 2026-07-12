@@ -14,6 +14,7 @@ import {
   insertBlocks, listBlocks, updateBlock, updateProject, deleteProject,
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
+import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
@@ -107,7 +108,7 @@ export default function LuminaComputer() {
     return "Write focused, useful content for the given block. Markdown output.";
   }
 
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, extraInstruction?: string) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
@@ -115,7 +116,10 @@ export default function LuminaComputer() {
 
     const role = block.block_type === "site_section" ? "code" : "content";
     const system = systemFor(project.output_type, block.block_type);
-    const prompt = `Overall goal: ${overallGoal}\nBlock title: ${block.title}\nIntent: ${block.prompt_seed ?? ""}\nProduce the block now.`;
+    const refineLine = extraInstruction?.trim()
+      ? `\nUser refinement for this block: ${extraInstruction.trim()}\nApply this refinement while keeping the same block type and JSON shape.`
+      : "";
+    const prompt = `Overall goal: ${overallGoal}\nBlock title: ${block.title}\nIntent: ${block.prompt_seed ?? ""}${refineLine}\nProduce the block now.`;
 
     try {
       const { text, model } = await streamRoute({
@@ -171,11 +175,12 @@ export default function LuminaComputer() {
     return null;
   }
 
-  async function regenerate(block: LcBlock) {
+  async function regenerate(block: LcBlock, refinement?: string) {
     if (!active) return;
-    pushLog(`Regenerating: ${block.title}`, "info");
-    await generateBlock(active, block, active.title);
+    pushLog(`Regenerating: ${block.title}${refinement ? ` — "${refinement.slice(0, 60)}"` : ""}`, "info");
+    await generateBlock(active, block, active.title, refinement);
   }
+
 
   async function removeProject(p: LcProject) {
     if (!confirm(`Delete "${p.title}"?`)) return;
@@ -300,10 +305,20 @@ export default function LuminaComputer() {
                 </div>
               </div>
               <div className="space-y-4">
-                {blocks.map((b) => (
-                  <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
-                ))}
-                {blocks.length === 0 && <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>}
+                {active.output_type === "website" ? (
+                  <WebsitePreview
+                    blocks={blocks}
+                    streamingText={streamingRef.current}
+                    onRegen={(b, r) => regenerate(b, r)}
+                  />
+                ) : (
+                  <>
+                    {blocks.map((b) => (
+                      <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
+                    ))}
+                    {blocks.length === 0 && <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>}
+                  </>
+                )}
               </div>
             </div>
           </div>
