@@ -461,21 +461,23 @@ export default function LuminaComputer() {
 
 function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; onOpen: (p: LcProject) => void; onDelete: (p: LcProject) => void }) {
   if (projects.length === 0) return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
-      <div className="text-sm text-muted-foreground">Nothing built yet. Type what you want above.</div>
+    <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-10 text-center">
+      <div className="text-[10px] uppercase tracking-widest text-zinc-600 font-mono">Awaiting artifact</div>
+      <div className="text-lg text-zinc-400 mt-2" style={{ fontFamily: "'Space Grotesk', ui-sans-serif" }}>Nothing built yet.</div>
+      <p className="text-sm text-zinc-600 mt-1">Type what you want above and hit Build.</p>
     </div>
   );
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {projects.map((p) => (
-        <div key={p.id} className="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 hover:border-teal-400/30 transition cursor-pointer"
+        <div key={p.id} className="group rounded-lg border border-zinc-800 bg-[#0c0c10] p-4 hover:border-zinc-700 hover:bg-[#101015] transition cursor-pointer"
           onClick={() => onOpen(p)}>
           <div className="flex items-start justify-between mb-2">
-            <div className="text-[10px] uppercase tracking-wider text-teal-300/80">{p.output_type}</div>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(p); }} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
+            <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">{p.output_type}</div>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(p); }} className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
-          <div className="font-medium mb-1 line-clamp-2">{p.title}</div>
-          <div className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString()}</div>
+          <div className="font-medium text-zinc-200 mb-1 line-clamp-2" style={{ fontFamily: "'Space Grotesk', ui-sans-serif" }}>{p.title}</div>
+          <div className="text-[11px] text-zinc-600 font-mono">{new Date(p.created_at).toLocaleString()}</div>
         </div>
       ))}
     </div>
@@ -491,13 +493,13 @@ function BuildProgress({ blocks }: { blocks: LcBlock[] }) {
   const pct = Math.round((done / total) * 100);
   return (
     <div className="px-1">
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+      <div className="flex items-center justify-between text-[10px] text-zinc-600 mb-1 font-mono uppercase tracking-wider">
         <span>{done}/{total} complete{err > 0 ? ` · ${err} failed` : ""}</span>
         <span>{inFlight > 0 ? `${inFlight} in flight` : pct === 100 ? "ready" : ""}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="h-1 rounded-full bg-zinc-900 overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-teal-400 to-indigo-500 transition-all duration-300"
+          className="h-full bg-[#9d5cff] shadow-[0_0_10px_rgba(157,92,255,0.5)] transition-all duration-300"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -512,21 +514,21 @@ function TraceRow({ idx, block, onRegen, reduce }: { idx: number; block: LcBlock
     : Clock;
   const iconClass = block.status === "ready" ? "text-emerald-400"
     : block.status === "error" ? "text-red-400"
-    : block.status === "generating" ? "text-teal-300"
-    : "text-muted-foreground";
+    : block.status === "generating" ? "text-[#c39aff]"
+    : "text-zinc-600";
 
   return (
     <motion.div layout={!reduce}
-      className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+      className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-zinc-900/60 transition">
       <StatusIcon className={`h-3.5 w-3.5 shrink-0 ${iconClass} ${block.status === "generating" && !reduce ? "animate-spin" : ""}`} />
       <div className="min-w-0 flex-1">
-        <div className="text-sm truncate">{idx + 1}. {block.title}</div>
-        <div className="text-[10px] text-muted-foreground truncate">
+        <div className="text-[13px] text-zinc-300 truncate">{idx + 1}. {block.title}</div>
+        <div className="text-[10px] text-zinc-600 truncate font-mono uppercase tracking-wider">
           {block.model_used ?? "queued"} · {block.status}
         </div>
       </div>
       {(block.status === "ready" || block.status === "error") && (
-        <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-white transition" title="Regenerate this block">
+        <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 transition" title="Regenerate this block">
           <RefreshCw className="h-3.5 w-3.5" />
         </button>
       )}
@@ -538,23 +540,24 @@ function LogPanel({ entries }: { entries: LogEntry[] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { ref.current?.scrollTo({ top: 9e9 }); }, [entries]);
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/40 p-3 font-mono text-[11px]">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 px-1">Progress log</div>
+    <div className="rounded-lg border border-zinc-800 bg-black/60 p-3 font-mono text-[11px]">
+      <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5 px-1">Progress log</div>
       <div ref={ref} className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
         {entries.map((e) => (
           <div key={e.id} className={
-            e.tone === "ok" ? "text-emerald-300" :
+            e.tone === "ok" ? "text-emerald-400" :
             e.tone === "warn" ? "text-amber-300" :
-            e.tone === "err" ? "text-red-400" : "text-muted-foreground"
+            e.tone === "err" ? "text-red-400" : "text-zinc-500"
           }>
             <span className="opacity-50">{new Date(e.ts).toLocaleTimeString()}</span>  {e.text}
           </div>
         ))}
-        {entries.length === 0 && <div className="text-muted-foreground opacity-60 px-1">idle</div>}
+        {entries.length === 0 && <div className="text-zinc-700 px-1">idle</div>}
       </div>
     </div>
   );
 }
+
 
 function BlockPreview({ block, streaming, onRegen }: { block: LcBlock; streaming?: string; onRegen: () => void }) {
   const content = block.content_json;
