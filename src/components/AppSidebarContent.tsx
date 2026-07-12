@@ -4,7 +4,7 @@ import {
   BarChart3, Sparkles, Brain, MessageSquare, Cpu, FileText,
   HelpCircle, Zap, Mic, PenTool, Target, Layers, Swords,
   Gamepad2, Calendar, Clock, BookOpen, ArrowUpCircle, Settings,
-  LogOut, Flame, Trophy, Crown,
+  LogOut, Flame, Trophy, Crown, Monitor,
 } from "lucide-react";
 
 type Profile = {
