@@ -36,6 +36,7 @@ import GameModes from "@/pages/GameModes";
 import AITools from "@/pages/AITools";
 import LuminaHub from "@/pages/LuminaHub";
 import LuminaComputer from "@/pages/LuminaComputer";
+import LuminaComputerAdmin from "@/pages/LuminaComputerAdmin";
 
 import Documents from "@/pages/Documents";
 // Study Squads removed
