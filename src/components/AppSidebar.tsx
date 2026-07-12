@@ -2,7 +2,7 @@ import {
   LayoutDashboard, MessageSquare, Sparkles, Brain,
   FileText, HelpCircle, Zap, Calendar, FileAudio,
   NotebookPen, Layers, Gamepad2, Trophy, BarChart3,
-  Target, BookOpen, Settings, LogOut, Wand2, Crown,
+  Target, BookOpen, Settings, LogOut, Wand2, Crown, Monitor,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
