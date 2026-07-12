@@ -4,8 +4,9 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  Loader2, RefreshCw, Trash2, Download, Sparkles, FileText, LayoutGrid,
-  Table as TableIcon, Globe, Bot, Circle, CheckCircle2, XCircle, Clock,
+  Loader2, RefreshCw, Trash2, Download, FileText, LayoutGrid,
+  Table as TableIcon, Globe, Bot, CheckCircle2, XCircle, Clock, ArrowUp,
+  CornerDownLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
