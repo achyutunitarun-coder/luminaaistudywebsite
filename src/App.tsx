@@ -132,6 +132,7 @@ const App = () => (
                 <Route path="/local-chat" element={<OllamaChatPage />} />
                 <Route path="/computer" element={<Navigate to="/ai-tools" replace />} />
                 <Route path="/lumina-computer" element={<LuminaComputer />} />
+                <Route path="/lumina-computer/admin" element={<LuminaComputerAdmin />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/flashcards" element={<Flashcards />} />
