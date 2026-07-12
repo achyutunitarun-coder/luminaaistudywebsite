@@ -107,7 +107,7 @@ export default function LuminaComputer() {
     return "Write focused, useful content for the given block. Markdown output.";
   }
 
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, extraInstruction?: string) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
@@ -115,7 +115,10 @@ export default function LuminaComputer() {
 
     const role = block.block_type === "site_section" ? "code" : "content";
     const system = systemFor(project.output_type, block.block_type);
-    const prompt = `Overall goal: ${overallGoal}\nBlock title: ${block.title}\nIntent: ${block.prompt_seed ?? ""}\nProduce the block now.`;
+    const refineLine = extraInstruction?.trim()
+      ? `\nUser refinement for this block: ${extraInstruction.trim()}\nApply this refinement while keeping the same block type and JSON shape.`
+      : "";
+    const prompt = `Overall goal: ${overallGoal}\nBlock title: ${block.title}\nIntent: ${block.prompt_seed ?? ""}${refineLine}\nProduce the block now.`;
 
     try {
       const { text, model } = await streamRoute({
