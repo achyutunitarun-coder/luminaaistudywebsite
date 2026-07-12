@@ -194,7 +194,9 @@ function SectionCard({ block, streaming, onRegen }: { block: LcBlock; streaming?
   const [busy, setBusy] = useState(false);
   const html = block.content_json?.html ?? "";
   const css = block.content_json?.css ?? "";
-  const src = `<!doctype html><html><head><script src="https://cdn.tailwindcss.com"></script><style>${css}</style></head><body>${html}</body></html>`;
+  const fontLink = `<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
+  const baseCss = `*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;color:#f5f5f4;margin:0}p{color:#a1a1aa;line-height:1.65;margin:0}`;
+  const src = `<!doctype html><html><head><meta charset="utf-8">${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}${css}</style></head><body>${html}</body></html>`;
 
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-3">
