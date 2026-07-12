@@ -370,6 +370,29 @@ function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; on
   );
 }
 
+function BuildProgress({ blocks }: { blocks: LcBlock[] }) {
+  if (blocks.length === 0) return null;
+  const total = blocks.length;
+  const done = blocks.filter((b) => b.status === "ready").length;
+  const err = blocks.filter((b) => b.status === "error").length;
+  const inFlight = blocks.filter((b) => b.status === "generating").length;
+  const pct = Math.round((done / total) * 100);
+  return (
+    <div className="px-1">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+        <span>{done}/{total} complete{err > 0 ? ` · ${err} failed` : ""}</span>
+        <span>{inFlight > 0 ? `${inFlight} in flight` : pct === 100 ? "ready" : ""}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-teal-400 to-indigo-500 transition-all duration-300"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function TraceRow({ idx, block, onRegen, reduce }: { idx: number; block: LcBlock; onRegen: () => void; reduce: boolean }) {
   const StatusIcon = block.status === "ready" ? CheckCircle2
     : block.status === "error" ? XCircle
