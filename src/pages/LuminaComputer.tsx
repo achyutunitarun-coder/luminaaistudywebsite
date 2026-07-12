@@ -116,13 +116,35 @@ export default function LuminaComputer() {
   }
 
   function systemFor(mode: OutputType, blockType: string): string {
-    // Shared craft directive — every artifact should feel editorial, elegant, considered.
+    // Shared craft directive — inspired by Claude's frontend-design skill and
+    // top-shelf editorial studios. Every artifact must feel distinctive, not AI-generic.
     const CRAFT = `
-You are a senior editorial designer + writer. Every artifact must feel like it was crafted for a design-forward publication (think The New Yorker, Stripe Press, Linear changelog, Apple keynote decks). Non-negotiable craft rules:
-- Writing: confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés.
-- Typography voice: prefer strong, concrete nouns and short sentences interleaved with one longer, rhythmic sentence. Use em-dashes — like this — sparingly for cadence.
-- Structure: one clear idea per unit. Lead with the sharpest sentence. End on a line that lands.
-- Never label the piece with its own scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked for that structure.
+You are a senior editorial designer + writer working at a studio-quality bar. Every artifact must feel crafted for a design-forward publication (Stripe Press, The New Yorker, Linear changelog, Apple keynote, Rauno.me, Vercel Ship).
+
+WRITING VOICE
+- Confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés ("delve", "leverage", "unlock", "seamless", "revolutionize", "synergy", "landscape", "tapestry", "unleash", "elevate").
+- Prefer strong concrete nouns and short sentences interleaved with one longer, rhythmic sentence. Em-dashes — used sparingly — for cadence.
+- One clear idea per unit. Lead with the sharpest sentence. End on a line that lands.
+- Never label scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked.
+- Real content only. No lorem ipsum, no "Example Corp", no obviously placeholder people/numbers. If a specific fact is needed and unknown, use a plausible, boring-but-realistic value.
+
+REFUSE THE GENERIC AI LOOK ("AI Slop Test": if a stranger could look at the artifact and say "AI made this" — you failed.)
+Banned patterns — do not emit any of these:
+- Icon-in-a-rounded-box above every heading.
+- Identical N-card feature grids (icon + heading + text × 3 or × 4).
+- Gradient text on headlines, big metrics, or CTAs.
+- Cyan-on-dark, purple-to-blue, or teal-to-pink "AI" gradients as backgrounds.
+- Glassmorphism as decoration (blurred translucent card floating on gradient).
+- Every element centered. Every card wrapped in another card.
+- The Inter + Poppins + purple accent stack. The hero → 3-columns → CTA landing cliché.
+- Bounce/elastic easing, glow shadows used as decoration, sparklines that don't encode data.
+
+Positive direction:
+- Commit to ONE distinctive visual direction per artifact.
+- Colors: prefer OKLCH values. Tint neutrals slightly toward the brand hue — no pure #000 or #fff. Sharp, saturated accents used sparingly (1–2 per view) beat a timid, evenly-distributed palette.
+- Type: fluid \`clamp()\` scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
+- Spacing: rhythm through variance (tight groupings + generous separations). Never one repeated padding value everywhere. Prefer left-aligned + asymmetric over centered.
+- Motion: at most one orchestrated entrance with staggered reveals. Animate only \`transform\`/\`opacity\`. Ease-out (expo/quart).
 `.trim();
 
     if (mode === "doc" || blockType === "doc_section")
@@ -131,30 +153,59 @@ You are a senior editorial designer + writer. Every artifact must feel like it w
 You write ONE section of a long-form document. Output MARKDOWN only.
 - Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation.
 - Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial.
-- Body: 180–320 words. 2–4 short paragraphs. Use **bold** for the 1–2 most important phrases in the section.
-- Use a blockquote (\`> \`) exactly once when there is a quotable insight, statistic, or principle worth pulling out. Never fabricate quotes from real people.
-- Optional: at most one tight bulleted list (3–5 items, ≤10 words each). Do not use lists as filler.
+- Body: 220–380 words. 2–4 short paragraphs. Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
+- Use a blockquote (\`> \`) exactly once when there is a genuinely quotable insight, statistic, or principle. Never fabricate quotes from real people. Attribute inline with an em-dash if attributed.
+- Optional: at most one tight list (3–5 items, ≤12 words each), parallel grammar, verbs up front. Do not use lists as filler.
 - No horizontal rules, no code fences unless the content is literally code, no images.`;
 
     if (mode === "slides" || blockType === "slide")
       return `${CRAFT}
 
-You design ONE slide of a keynote-quality deck. Output ONLY valid JSON matching:
+You design ONE slide of a keynote-quality deck (think Kimi OK Computer + Apple + Stripe Sessions + McKinsey final read-out). Output ONLY valid JSON.
+
+McKINSEY ACTION-TITLE RULE (non-negotiable): the \`title\` is the slide's *governing insight*, not its topic label. Say what the audience should conclude, not what the slide is about.
+  BAD:  "Market Overview"          GOOD:  "The market compounds 22% while margins collapse"
+  BAD:  "Our Roadmap"               GOOD:  "Ship the mobile app before Q3 or lose the wedge"
+  BAD:  "Customer Feedback"         GOOD:  "Buyers churn on billing, not features"
+
+DECK DISCIPLINE
+- One idea per slide. If two ideas need to be said, split them.
+- Never repeat the previous slide's \`layout\` when the same content can be told another way. Variety is the whole point.
+- Keep total deck length under 30 slides regardless of how much the user wants — compress instead of padding.
+
+CHOOSE the right \`layout\` for the idea — variety is the whole point. Never repeat the previous slide's layout when the content can be told another way. Available layouts:
+
 {
-  "eyebrow": "2–4 word section label in ALL CAPS (e.g. 'THE PROBLEM'). Optional, omit for title slides.",
-  "title": "The slide's headline. 3–9 words. Statement, not a topic. No trailing period unless it's a full sentence.",
-  "subtitle": "Optional single-sentence deck (≤ 18 words) that sharpens the title. Omit if it would dilute.",
-  "layout": "one of: 'statement' | 'bullets' | 'stat' | 'quote' | 'two_column'",
-  "bullets": ["3–5 bullets, each 5–10 words, parallel grammar, verbs up front"],
-  "stat": { "value": "the number itself, e.g. '73%' or '$4.2B'", "label": "≤ 8 words explaining what it measures" },
-  "quote": { "text": "the pulled quote, ≤ 24 words", "attribution": "Name, Role" },
-  "columns": [ { "heading": "≤ 4 words", "body": "≤ 20 words" }, { "heading": "…", "body": "…" } ],
+  "eyebrow": "2–4 word section label in ALL CAPS (e.g. 'THE PROBLEM'). Optional.",
+  "title": "The slide's headline. 3–10 words. A claim, not a topic. No trailing period unless a full sentence.",
+  "subtitle": "Optional single-sentence deck (≤ 22 words) that sharpens the title.",
+  "layout": "cover | section_divider | agenda | statement | bullets | stat | kpi_grid | quote | two_column | comparison | timeline | image_split | closing",
+  "bullets": ["3–5 bullets, 5–12 words each, parallel grammar, verbs up front"],
+  "stat": { "value": "the number itself, e.g. '73%' or '$4.2B' or '2.3×'", "label": "≤ 10 words explaining what it measures", "source": "optional short attribution" },
+  "kpis": [ { "value": "42%", "label": "≤ 6 words", "delta": "+8pp YoY" }, "3–4 total for a KPI grid" ],
+  "quote": { "text": "≤ 26 words", "attribution": "Name, Role" },
+  "columns": [ { "heading": "≤ 4 words", "body": "≤ 24 words" }, { "heading": "…", "body": "…" } ],
+  "comparison": { "left": { "heading": "Before", "points": ["3–4 items"] }, "right": { "heading": "After", "points": ["3–4 items"] } },
+  "timeline": [ { "when": "2019", "what": "≤ 10 words" }, "4–6 milestones total" ],
+  "agenda":  [ { "n": "01", "title": "≤ 5 words", "note": "optional ≤ 10 words" }, "3–6 items" ],
+  "closing": { "message": "the takeaway, ≤ 16 words", "cta": "optional short next step, ≤ 8 words" },
+  "footnote": "optional tiny source line, ≤ 10 words",
   "speaker_notes": "One or two sentences the presenter would actually say aloud."
 }
-Rules:
-- Populate ONLY the fields relevant to the chosen \`layout\`. Omit unused fields (do not send empty strings/arrays).
-- No emoji. No exclamation marks. No cliché business-speak ("synergy", "revolutionize", "unlock", "unleash", "seamless", "leverage").
-- Never repeat the same layout as the previous slide when you can help it — variety is the whole point.`;
+
+RULES
+- Populate ONLY the fields relevant to the chosen \`layout\`. Omit unused fields (no empty strings/arrays/nulls).
+- \`cover\` = the deck opener: eyebrow + title (long-form allowed, up to 14 words) + subtitle. No bullets.
+- \`section_divider\` = big number ("01") in eyebrow slot + section title. Minimal.
+- \`agenda\` = numbered outline of the deck.
+- \`statement\` = one bold claim, oversized. Optional subtitle.
+- \`stat\` = one hero number + one line of context. May include \`source\`.
+- \`kpi_grid\` = 3–4 KPI cards; use for dashboards / launch metrics / earnings.
+- \`quote\` = pulled quote with attribution.
+- \`comparison\` = before/after or option A vs option B.
+- \`timeline\` = chronological milestones.
+- \`closing\` = final "so what" slide. One line, plus optional CTA.
+- No emoji. No exclamation marks. No cliché business-speak.`;
 
     if (mode === "sheet" || blockType === "sheet_tab")
       return `${CRAFT}
@@ -169,16 +220,16 @@ You design ONE elegant, useful spreadsheet tab. Output ONLY valid JSON:
   "totals_row": true
 }
 Rules:
-- 5–12 rows of realistic, non-toy sample data that a real analyst wouldn't be embarrassed to send.
-- Numbers with sensible magnitudes and consistent units per column. Currency as raw numbers (formatting happens on render).
+- 6–14 rows of realistic, non-toy sample data that an analyst wouldn't be embarrassed to send.
+- Numbers with sensible magnitudes and consistent units per column. Currency as raw numbers (formatting on render).
 - Include at least ONE computed column driven by \`formulas\` (growth %, margin, running total, YoY, etc.).
 - If \`totals_row\` is true, the LAST row must be a totals/summary row where numeric columns are aggregated.
-- No placeholder text like 'foo', 'bar', 'lorem'.`;
+- No placeholder text like 'foo', 'bar', 'lorem', 'Example Corp'.`;
 
     if (mode === "website" || blockType === "site_section")
       return `${CRAFT}
 
-You write ONE <section> of a single-page site that must look like a top-shelf 2025 landing page — think Vercel, Linear, Rauno, Attio, Framer template gallery. Output ONLY valid JSON:
+You write ONE <section> of a single-page site that must look like a top-shelf 2025 landing page — Vercel, Linear, Rauno, Attio, Framer template gallery. Output ONLY valid JSON:
 { "section_name": "hero" | "features" | "logos" | "testimonial" | "pricing" | "faq" | "cta" | "footer" | "story" | "stats" | "how_it_works",
   "html": "<section class=\\"...\\">…</section>",
   "css": "/* scoped styles for this section only */",
@@ -189,26 +240,27 @@ LOCKED design system (use ONLY these tokens across every section so the page fee
 - Background: #0a0a0d. Section alt-background: #0f0f13.
 - Text: #f5f5f4 (primary), #a1a1aa (muted), #71717a (subtle).
 - Border: rgba(255,255,255,0.08). Card surface: rgba(255,255,255,0.02) with 1px border above.
-- Single accent color: #9d5cff (use sparingly — one accent per section max: a button, an underline, or a highlighted word).
-- NO gradients on text. NO neon glows. NO purple-blue AI-slop backgrounds. NO stock-photo images.
+- Single accent color: #9d5cff (use sparingly — one accent per section: a button, an underline, or a highlighted word).
+- NO gradients on text. NO neon glows. NO purple-blue AI-slop backgrounds. NO stock-photo hero images.
 - Radius: 12px on cards/buttons, 999px on pill chips.
 
 TYPOGRAPHY (this is the whole point — get it right):
-- Use Google Fonts loaded in the page-wide <head> (already available): \`Fraunces\` for display headings (weights 400/500/600, italic optic), \`Inter\` for body/UI (400/500/600), \`JetBrains Mono\` for tiny eyebrow labels.
-- Hero headline: Fraunces, 64–96px, weight 500, letter-spacing -0.03em, line-height 1.02. Allow one italic word for emphasis.
-- Section headline: Fraunces, 40–56px, weight 500, tracking tight.
+- Google Fonts available page-wide: \`Fraunces\` for display headings (weights 400/500/600, italic optic), \`Inter\` for body/UI (400/500/600), \`JetBrains Mono\` for tiny eyebrow labels.
+- Hero headline: Fraunces, clamp(48px, 8vw, 96px), weight 500, letter-spacing -0.03em, line-height 1.02. Allow ONE italic word for emphasis.
+- Section headline: Fraunces, clamp(36px, 5vw, 56px), weight 500, tracking tight.
 - Eyebrow labels above headlines: JetBrains Mono, 11–12px, uppercase, letter-spacing 0.18em, color #9d5cff or #71717a.
 - Body: Inter, 16–18px, line-height 1.65, color #a1a1aa. Max width 62ch on paragraph blocks.
-- Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent within the section.
+- Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent.
 
-LAYOUT & CRAFT:
+LAYOUT & CRAFT
 - Generous vertical padding: py-24 to py-32. Never cram.
-- Use CSS grid for feature grids and stats; never inline styles that hardcode widths.
-- Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, it should be very subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
-- Use \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
-- Copywriting: same editorial standard as above. Every headline must be a claim, not a topic.
-- The HTML must be a single <section> element. All classes should be prefixed \`lc-<sectionname>-\` to avoid collisions.
-- Do NOT include <html>, <head>, <body>, or <script src=…> external tags in the html field. If you need JS behavior, put it in the js field.`;
+- Use CSS grid for feature grids and stats; never inline hardcoded widths.
+- Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, keep it subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
+- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
+- BREAK THE GRID sometimes: asymmetric splits (5/7, 8/4), rules that extend past columns, one oversize element beside three small ones.
+- Every headline is a claim, not a topic. Every bullet earns its place.
+- HTML must be a single <section> element. Classes prefixed \`lc-<sectionname>-\` to avoid collisions.
+- Do NOT include <html>, <head>, <body>, or external <script src=…> tags. If you need JS behavior, put it in the js field.`;
 
     return "Write focused, useful content for the given block. Markdown output.";
   }
@@ -790,48 +842,161 @@ function formatNum(n: number): string {
 }
 
 function SlideCanvas({ c }: { c: any }) {
-  const layout = c?.layout ?? (c?.stat ? "stat" : c?.quote ? "quote" : c?.columns ? "two_column" : c?.bullets?.length ? "bullets" : "statement");
+  const layout = c?.layout ?? (
+    c?.kpis?.length ? "kpi_grid" :
+    c?.comparison ? "comparison" :
+    c?.timeline?.length ? "timeline" :
+    c?.agenda?.length ? "agenda" :
+    c?.closing ? "closing" :
+    c?.stat ? "stat" :
+    c?.quote ? "quote" :
+    c?.columns ? "two_column" :
+    c?.bullets?.length ? "bullets" :
+    "statement"
+  );
   const heading = { fontFamily: "'Fraunces', ui-serif, Georgia, serif", letterSpacing: "-0.03em" } as const;
   const body = { fontFamily: "'Inter', ui-sans-serif" } as const;
   const mono = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
+  const isCover = layout === "cover" || layout === "section_divider";
 
   return (
     <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-[#0d0d10]"
-         style={{ background: "radial-gradient(ellipse at 20% 0%, #16121e 0%, #0a0a0d 55%)" }}>
+         style={{
+           background: isCover
+             ? "radial-gradient(ellipse at 30% 20%, #1e1533 0%, #0a0a0d 65%), linear-gradient(180deg, #0d0a14 0%, #08080b 100%)"
+             : "radial-gradient(ellipse at 20% 0%, #14111c 0%, #0a0a0d 55%)"
+         }}>
+      {/* Hairline frame for extra polish */}
+      <div className="absolute inset-3 rounded-lg border border-white/[0.04] pointer-events-none" />
+
       {/* corner brand mark */}
       <div className="absolute top-5 left-6 flex items-center gap-2" style={mono}>
         <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
         <span className="text-[9px] uppercase tracking-[0.22em] text-zinc-500">Lumina</span>
       </div>
       <div className="absolute top-5 right-6 text-[9px] uppercase tracking-[0.22em] text-zinc-600" style={mono}>
-        {layout}
+        {layout.replace("_", " ")}
       </div>
 
-      <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-14 py-16">
-        {c.eyebrow && (
-          <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-4">{c.eyebrow}</div>
+      <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-16 py-16">
+        {c.eyebrow && layout !== "section_divider" && (
+          <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-5">{c.eyebrow}</div>
         )}
 
-        {layout === "stat" && c.stat ? (
+        {layout === "cover" ? (
+          <div className="max-w-[26ch]">
+            <h1 style={heading} className="text-[64px] md:text-[92px] font-medium leading-[0.98] text-zinc-50">{c.title}</h1>
+            {c.subtitle && <p style={body} className="mt-8 text-[19px] text-zinc-400 max-w-[48ch] leading-relaxed">{c.subtitle}</p>}
+            <div className="mt-12 h-px w-24 bg-[#9d5cff]" />
+          </div>
+        ) : layout === "section_divider" ? (
+          <div>
+            {c.eyebrow && <div style={mono} className="text-[64px] md:text-[80px] font-normal leading-none text-[#9d5cff]/70 mb-4">{c.eyebrow}</div>}
+            <h2 style={heading} className="text-[56px] md:text-[80px] font-medium leading-[1.02] text-zinc-50 max-w-[18ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="mt-6 text-[18px] text-zinc-500 max-w-[52ch]">{c.subtitle}</p>}
+          </div>
+        ) : layout === "agenda" && c.agenda?.length ? (
+          <>
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-10 max-w-[22ch]">{c.title ?? "Agenda"}</h2>
+            <ol className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4">
+              {c.agenda.map((a: any, i: number) => (
+                <li key={i} className="flex gap-4 items-baseline border-t border-zinc-800/70 pt-3">
+                  <span style={mono} className="text-[11px] text-[#9d5cff] tabular-nums pt-0.5">{a.n ?? String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <div style={heading} className="text-[20px] text-zinc-100 leading-tight">{a.title}</div>
+                    {a.note && <div style={body} className="text-[13px] text-zinc-500 mt-0.5">{a.note}</div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : layout === "kpi_grid" && c.kpis?.length ? (
+          <>
+            {c.title && <h2 style={heading} className="text-[34px] md:text-[44px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[24ch]">{c.title}</h2>}
+            <div className={`grid gap-4 ${c.kpis.length >= 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
+              {c.kpis.map((k: any, i: number) => (
+                <div key={i} className="border-t border-zinc-800 pt-4">
+                  <div style={heading} className="text-[44px] md:text-[56px] font-medium leading-none text-zinc-50">{k.value}</div>
+                  <div style={body} className="mt-3 text-[13px] text-zinc-400 leading-snug">{k.label}</div>
+                  {k.delta && <div style={mono} className="mt-1.5 text-[10px] uppercase tracking-widest text-[#9d5cff]">{k.delta}</div>}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : layout === "comparison" && c.comparison ? (
+          <>
+            <h2 style={heading} className="text-[36px] md:text-[48px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[24ch]">{c.title}</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {(["left", "right"] as const).map((side, i) => {
+                const col = c.comparison[side];
+                if (!col) return null;
+                const accent = i === 1;
+                return (
+                  <div key={side} className={`rounded-lg border p-5 ${accent ? "border-[#9d5cff]/30 bg-[#12101a]" : "border-zinc-800 bg-black/30"}`}>
+                    <div style={mono} className={`text-[10px] uppercase tracking-[0.22em] mb-3 ${accent ? "text-[#9d5cff]" : "text-zinc-500"}`}>
+                      {accent ? "After" : "Before"} · {col.heading}
+                    </div>
+                    <ul className="space-y-2">
+                      {(col.points ?? []).map((p: string, j: number) => (
+                        <li key={j} style={body} className="flex gap-2 text-[14px] text-zinc-300 leading-snug">
+                          <span className={`mt-1.5 w-3 h-px shrink-0 ${accent ? "bg-[#9d5cff]" : "bg-zinc-600"}`} />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : layout === "timeline" && c.timeline?.length ? (
+          <>
+            <h2 style={heading} className="text-[36px] md:text-[48px] font-medium leading-[1.05] text-zinc-50 mb-10 max-w-[24ch]">{c.title}</h2>
+            <div className="relative">
+              <div className="absolute left-0 right-0 top-2 h-px bg-zinc-800" />
+              <div className="grid" style={{ gridTemplateColumns: `repeat(${c.timeline.length}, minmax(0,1fr))` }}>
+                {c.timeline.map((t: any, i: number) => (
+                  <div key={i} className="relative pt-6 pr-4">
+                    <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
+                    <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{t.when}</div>
+                    <div style={body} className="text-[14px] text-zinc-200 leading-snug">{t.what}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : layout === "closing" && c.closing ? (
+          <div className="max-w-[28ch]">
+            <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-6">Closing</div>
+            <h2 style={heading} className="text-[52px] md:text-[68px] font-medium leading-[1.02] text-zinc-50">{c.closing.message}</h2>
+            {c.closing.cta && (
+              <div className="mt-10 inline-flex items-center gap-3 border border-zinc-700 rounded-full px-5 py-2" style={body}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
+                <span className="text-[14px] text-zinc-200">{c.closing.cta}</span>
+              </div>
+            )}
+          </div>
+        ) : layout === "stat" && c.stat ? (
           <div className="flex flex-col">
-            <div style={heading} className="text-[96px] md:text-[128px] font-medium leading-none text-zinc-50">{c.stat.value}</div>
-            <div style={body} className="mt-4 text-[18px] text-zinc-400 max-w-[48ch]">{c.stat.label}</div>
+            <div style={heading} className="text-[104px] md:text-[152px] font-medium leading-none text-zinc-50 tracking-[-0.04em]">{c.stat.value}</div>
+            <div style={body} className="mt-5 text-[19px] text-zinc-400 max-w-[46ch] leading-relaxed">{c.stat.label}</div>
+            {c.stat.source && <div style={mono} className="mt-4 text-[10px] uppercase tracking-widest text-zinc-600">Source · {c.stat.source}</div>}
             {c.title && <div style={heading} className="mt-8 text-2xl text-zinc-300 max-w-[24ch]">{c.title}</div>}
           </div>
         ) : layout === "quote" && c.quote ? (
-          <div className="max-w-[46ch]">
-            <div style={heading} className="text-[36px] md:text-[44px] italic font-normal leading-[1.15] text-zinc-100">
-              <span className="text-[#9d5cff] mr-1">"</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">"</span>
+          <div className="max-w-[48ch]">
+            <div style={heading} className="text-[36px] md:text-[48px] italic font-normal leading-[1.15] text-zinc-100">
+              <span className="text-[#9d5cff] mr-1">“</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">”</span>
             </div>
-            <div style={mono} className="mt-6 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
+            <div style={mono} className="mt-8 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
           </div>
         ) : layout === "two_column" && c.columns?.length ? (
           <>
-            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[22ch]">{c.title}</h2>
-            <div className="grid grid-cols-2 gap-8">
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[22ch]">{c.title}</h2>
+            <div className="grid grid-cols-2 gap-10">
               {c.columns.map((col: any, i: number) => (
                 <div key={i} className="border-l border-zinc-800 pl-5">
-                  <div style={heading} className="text-lg font-medium text-zinc-100 mb-1.5">{col.heading}</div>
+                  <div style={heading} className="text-[19px] font-medium text-zinc-100 mb-2">{col.heading}</div>
                   <div style={body} className="text-[14px] text-zinc-400 leading-relaxed">{col.body}</div>
                 </div>
               ))}
@@ -839,7 +1004,7 @@ function SlideCanvas({ c }: { c: any }) {
           </>
         ) : layout === "bullets" && c.bullets?.length ? (
           <>
-            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-2 max-w-[24ch]">{c.title}</h2>
+            <h2 style={heading} className="text-[40px] md:text-[54px] font-medium leading-[1.05] text-zinc-50 mb-2 max-w-[24ch]">{c.title}</h2>
             {c.subtitle && <p style={body} className="text-[16px] text-zinc-400 mb-8 max-w-[52ch]">{c.subtitle}</p>}
             <ul className="space-y-3 mt-4">
               {c.bullets.map((b: string, i: number) => (
@@ -852,13 +1017,18 @@ function SlideCanvas({ c }: { c: any }) {
           </>
         ) : (
           <>
-            <h2 style={heading} className="text-[52px] md:text-[68px] font-medium leading-[1.02] text-zinc-50 max-w-[20ch]">{c.title}</h2>
-            {c.subtitle && <p style={body} className="mt-5 text-[18px] text-zinc-400 max-w-[52ch] leading-relaxed">{c.subtitle}</p>}
+            <h2 style={heading} className="text-[56px] md:text-[76px] font-medium leading-[1.02] text-zinc-50 max-w-[20ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="mt-6 text-[19px] text-zinc-400 max-w-[54ch] leading-relaxed">{c.subtitle}</p>}
           </>
         )}
       </div>
 
-      {c.speaker_notes && (
+      {c.footnote && (
+        <div className="absolute bottom-4 left-10 right-10 text-[10px] uppercase tracking-widest text-zinc-600" style={mono}>
+          {c.footnote}
+        </div>
+      )}
+      {!c.footnote && c.speaker_notes && (
         <div className="absolute bottom-4 left-10 right-10 text-[11px] text-zinc-600 italic border-t border-zinc-800/60 pt-2" style={body}>
           <span style={mono} className="uppercase tracking-widest not-italic mr-2 text-zinc-700">Notes</span>{c.speaker_notes}
         </div>
