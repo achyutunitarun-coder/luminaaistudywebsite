@@ -195,6 +195,12 @@ export default function LuminaComputer() {
         toast.success("Exported .pptx");
         return;
       }
+      if (mode === "sheet") {
+        const { exportSheetsToXlsx } = await import("@/features/luminaComputer/exportSheets");
+        await exportSheetsToXlsx(active.title, blocks);
+        toast.success("Exported .xlsx");
+        return;
+      }
       if (mode === "doc" || mode === "agent") {
         const md = blocks.map((b) => {
           if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
