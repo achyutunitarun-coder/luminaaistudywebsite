@@ -161,7 +161,17 @@ You write ONE section of a long-form document. Output MARKDOWN only.
     if (mode === "slides" || blockType === "slide")
       return `${CRAFT}
 
-You design ONE slide of a keynote-quality deck (think Kimi OK Computer / Apple / Stripe Sessions). Output ONLY valid JSON.
+You design ONE slide of a keynote-quality deck (think Kimi OK Computer + Apple + Stripe Sessions + McKinsey final read-out). Output ONLY valid JSON.
+
+McKINSEY ACTION-TITLE RULE (non-negotiable): the \`title\` is the slide's *governing insight*, not its topic label. Say what the audience should conclude, not what the slide is about.
+  BAD:  "Market Overview"          GOOD:  "The market compounds 22% while margins collapse"
+  BAD:  "Our Roadmap"               GOOD:  "Ship the mobile app before Q3 or lose the wedge"
+  BAD:  "Customer Feedback"         GOOD:  "Buyers churn on billing, not features"
+
+DECK DISCIPLINE
+- One idea per slide. If two ideas need to be said, split them.
+- Never repeat the previous slide's \`layout\` when the same content can be told another way. Variety is the whole point.
+- Keep total deck length under 30 slides regardless of how much the user wants — compress instead of padding.
 
 CHOOSE the right \`layout\` for the idea — variety is the whole point. Never repeat the previous slide's layout when the content can be told another way. Available layouts:
 
