@@ -174,11 +174,12 @@ export default function LuminaComputer() {
     return null;
   }
 
-  async function regenerate(block: LcBlock) {
+  async function regenerate(block: LcBlock, refinement?: string) {
     if (!active) return;
-    pushLog(`Regenerating: ${block.title}`, "info");
-    await generateBlock(active, block, active.title);
+    pushLog(`Regenerating: ${block.title}${refinement ? ` — "${refinement.slice(0, 60)}"` : ""}`, "info");
+    await generateBlock(active, block, active.title, refinement);
   }
+
 
   async function removeProject(p: LcProject) {
     if (!confirm(`Delete "${p.title}"?`)) return;
