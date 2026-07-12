@@ -116,16 +116,103 @@ export default function LuminaComputer() {
   }
 
   function systemFor(mode: OutputType, blockType: string): string {
+    // Shared craft directive — every artifact should feel editorial, elegant, considered.
+    const CRAFT = `
+You are a senior editorial designer + writer. Every artifact must feel like it was crafted for a design-forward publication (think The New Yorker, Stripe Press, Linear changelog, Apple keynote decks). Non-negotiable craft rules:
+- Writing: confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés.
+- Typography voice: prefer strong, concrete nouns and short sentences interleaved with one longer, rhythmic sentence. Use em-dashes — like this — sparingly for cadence.
+- Structure: one clear idea per unit. Lead with the sharpest sentence. End on a line that lands.
+- Never label the piece with its own scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked for that structure.
+`.trim();
+
     if (mode === "doc" || blockType === "doc_section")
-      return "You write one section of a document. Output MARKDOWN only, starting with a ## heading. 150–350 words. Clear, active voice, no filler. No preamble.";
+      return `${CRAFT}
+
+You write ONE section of a long-form document. Output MARKDOWN only.
+- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation.
+- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial.
+- Body: 180–320 words. 2–4 short paragraphs. Use **bold** for the 1–2 most important phrases in the section.
+- Use a blockquote (\`> \`) exactly once when there is a quotable insight, statistic, or principle worth pulling out. Never fabricate quotes from real people.
+- Optional: at most one tight bulleted list (3–5 items, ≤10 words each). Do not use lists as filler.
+- No horizontal rules, no code fences unless the content is literally code, no images.`;
+
     if (mode === "slides" || blockType === "slide")
-      return "You write one slide. Output ONLY valid JSON: {\"title\":\"punchy title\",\"bullets\":[\"3–5 tight bullets, max 12 words each\"],\"speaker_notes\":\"1–2 sentence talking point\"}. No prose outside JSON.";
+      return `${CRAFT}
+
+You design ONE slide of a keynote-quality deck. Output ONLY valid JSON matching:
+{
+  "eyebrow": "2–4 word section label in ALL CAPS (e.g. 'THE PROBLEM'). Optional, omit for title slides.",
+  "title": "The slide's headline. 3–9 words. Statement, not a topic. No trailing period unless it's a full sentence.",
+  "subtitle": "Optional single-sentence deck (≤ 18 words) that sharpens the title. Omit if it would dilute.",
+  "layout": "one of: 'statement' | 'bullets' | 'stat' | 'quote' | 'two_column'",
+  "bullets": ["3–5 bullets, each 5–10 words, parallel grammar, verbs up front"],
+  "stat": { "value": "the number itself, e.g. '73%' or '$4.2B'", "label": "≤ 8 words explaining what it measures" },
+  "quote": { "text": "the pulled quote, ≤ 24 words", "attribution": "Name, Role" },
+  "columns": [ { "heading": "≤ 4 words", "body": "≤ 20 words" }, { "heading": "…", "body": "…" } ],
+  "speaker_notes": "One or two sentences the presenter would actually say aloud."
+}
+Rules:
+- Populate ONLY the fields relevant to the chosen \`layout\`. Omit unused fields (do not send empty strings/arrays).
+- No emoji. No exclamation marks. No cliché business-speak ("synergy", "revolutionize", "unlock", "unleash", "seamless", "leverage").
+- Never repeat the same layout as the previous slide when you can help it — variety is the whole point.`;
+
     if (mode === "sheet" || blockType === "sheet_tab")
-      return "You design one spreadsheet tab. Output ONLY valid JSON: {\"tab_name\":\"...\",\"columns\":[\"col1\",\"col2\"],\"rows\":[[...],[...]],\"formulas\":{\"C2\":\"=B2*1.1\"}}. 3–8 columns, 4–12 rows. Use realistic sample data. No prose outside JSON.";
+      return `${CRAFT}
+
+You design ONE elegant, useful spreadsheet tab. Output ONLY valid JSON:
+{
+  "tab_name": "Short, human name (Title Case, no 'Sheet1').",
+  "description": "One-sentence explanation of what this tab is for.",
+  "columns": ["4–7 column headers, Title Case, no trailing units in the name — put units in parentheses if needed"],
+  "rows": [[...], [...]],
+  "formulas": { "C2": "=B2*1.1", "D2": "=SUM(B2:C2)" },
+  "totals_row": true
+}
+Rules:
+- 5–12 rows of realistic, non-toy sample data that a real analyst wouldn't be embarrassed to send.
+- Numbers with sensible magnitudes and consistent units per column. Currency as raw numbers (formatting happens on render).
+- Include at least ONE computed column driven by \`formulas\` (growth %, margin, running total, YoY, etc.).
+- If \`totals_row\` is true, the LAST row must be a totals/summary row where numeric columns are aggregated.
+- No placeholder text like 'foo', 'bar', 'lorem'.`;
+
     if (mode === "website" || blockType === "site_section")
-      return "You write one <section> of a single-page website. Output ONLY valid JSON: {\"section_name\":\"...\",\"html\":\"<section>...</section>\",\"css\":\".class{...}\",\"js\":null}. Use semantic HTML5, Tailwind-compatible utility classes are fine. Self-contained. No prose outside JSON.";
+      return `${CRAFT}
+
+You write ONE <section> of a single-page site that must look like a top-shelf 2025 landing page — think Vercel, Linear, Rauno, Attio, Framer template gallery. Output ONLY valid JSON:
+{ "section_name": "hero" | "features" | "logos" | "testimonial" | "pricing" | "faq" | "cta" | "footer" | "story" | "stats" | "how_it_works",
+  "html": "<section class=\\"...\\">…</section>",
+  "css": "/* scoped styles for this section only */",
+  "js": null | "small enhancement script, no external deps"
+}
+
+LOCKED design system (use ONLY these tokens across every section so the page feels cohesive):
+- Background: #0a0a0d. Section alt-background: #0f0f13.
+- Text: #f5f5f4 (primary), #a1a1aa (muted), #71717a (subtle).
+- Border: rgba(255,255,255,0.08). Card surface: rgba(255,255,255,0.02) with 1px border above.
+- Single accent color: #9d5cff (use sparingly — one accent per section max: a button, an underline, or a highlighted word).
+- NO gradients on text. NO neon glows. NO purple-blue AI-slop backgrounds. NO stock-photo images.
+- Radius: 12px on cards/buttons, 999px on pill chips.
+
+TYPOGRAPHY (this is the whole point — get it right):
+- Use Google Fonts loaded in the page-wide <head> (already available): \`Fraunces\` for display headings (weights 400/500/600, italic optic), \`Inter\` for body/UI (400/500/600), \`JetBrains Mono\` for tiny eyebrow labels.
+- Hero headline: Fraunces, 64–96px, weight 500, letter-spacing -0.03em, line-height 1.02. Allow one italic word for emphasis.
+- Section headline: Fraunces, 40–56px, weight 500, tracking tight.
+- Eyebrow labels above headlines: JetBrains Mono, 11–12px, uppercase, letter-spacing 0.18em, color #9d5cff or #71717a.
+- Body: Inter, 16–18px, line-height 1.65, color #a1a1aa. Max width 62ch on paragraph blocks.
+- Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent within the section.
+
+LAYOUT & CRAFT:
+- Generous vertical padding: py-24 to py-32. Never cram.
+- Use CSS grid for feature grids and stats; never inline styles that hardcode widths.
+- Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, it should be very subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
+- Use \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
+- Copywriting: same editorial standard as above. Every headline must be a claim, not a topic.
+- The HTML must be a single <section> element. All classes should be prefixed \`lc-<sectionname>-\` to avoid collisions.
+- Do NOT include <html>, <head>, <body>, or <script src=…> external tags in the html field. If you need JS behavior, put it in the js field.`;
+
     return "Write focused, useful content for the given block. Markdown output.";
   }
+
 
   async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, extraInstruction?: string) {
     const t0 = Date.now();
@@ -235,7 +322,9 @@ export default function LuminaComputer() {
         }).join("\n\n---\n\n");
         downloadFile(`${active.title}.md`, md, "text/markdown");
       } else if (mode === "website") {
-        const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(active.title)}</title><script src="https://cdn.tailwindcss.com"></script><style>${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
+        const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
+        const baseCss = `*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;margin:0;color:#f5f5f4}p{color:#a1a1aa;line-height:1.65;margin:0}a{color:inherit}img{max-width:100%;display:block}`;
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(active.title)}</title>${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}\n${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
         downloadFile(`${active.title}.html`, html, "text/html");
       } else {
         downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
@@ -601,58 +690,183 @@ function BlockPreview({ block, streaming, onRegen }: { block: LcBlock; streaming
 
 
 function RenderedBlock({ type, content }: { type: string; content: any }) {
-  if (!content) return <div className="text-xs text-muted-foreground">Empty.</div>;
+  if (!content) return <div className="text-xs text-zinc-600">Empty.</div>;
 
   if (type === "doc_section") {
     return (
-      <div className="prose prose-invert prose-sm max-w-none">
+      <article
+        className="lc-doc max-w-[68ch] mx-auto"
+        style={{ fontFamily: "'Inter', ui-sans-serif, system-ui" }}
+      >
+        <style>{`
+          .lc-doc h2 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-weight: 500; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; color: #f5f5f4; margin: 0 0 0.5rem; }
+          .lc-doc h3 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-weight: 500; font-size: 22px; line-height: 1.25; color: #e5e5e4; margin: 2rem 0 0.5rem; }
+          .lc-doc p { font-size: 16px; line-height: 1.75; color: #b8b8b3; margin: 0 0 1.1rem; }
+          .lc-doc p > em:first-child:last-child, .lc-doc p:first-of-type > em { color: #a1a1aa; font-style: italic; font-size: 17px; }
+          .lc-doc strong { color: #f5f5f4; font-weight: 600; }
+          .lc-doc em { color: #d4d4d0; }
+          .lc-doc blockquote { border-left: 2px solid #9d5cff; margin: 1.5rem 0; padding: 0.25rem 0 0.25rem 1.25rem; font-family: 'Fraunces', ui-serif, serif; font-style: italic; font-size: 20px; line-height: 1.5; color: #e5e5e4; }
+          .lc-doc ul { list-style: none; padding: 0; margin: 1rem 0 1.4rem; }
+          .lc-doc ul li { position: relative; padding-left: 1.25rem; margin: 0.4rem 0; font-size: 16px; line-height: 1.65; color: #b8b8b3; }
+          .lc-doc ul li::before { content: ""; position: absolute; left: 0; top: 0.7rem; width: 0.5rem; height: 1px; background: #9d5cff; }
+          .lc-doc a { color: #c39aff; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+          .lc-doc code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; color: #e5e5e4; }
+        `}</style>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.markdown ?? ""}</ReactMarkdown>
-      </div>
+      </article>
     );
   }
-  if (type === "slide") {
-    return (
-      <div className="aspect-video rounded-lg bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 p-6 flex flex-col">
-        <div className="text-xl font-semibold text-white mb-3">{content.title}</div>
-        <ul className="space-y-1.5 flex-1">
-          {(content.bullets ?? []).map((b: string, i: number) => (
-            <li key={i} className="text-sm text-slate-200 flex gap-2"><span className="text-teal-400">▸</span>{b}</li>
-          ))}
-        </ul>
-        {content.speaker_notes && <div className="text-[11px] text-muted-foreground italic border-t border-white/10 pt-2 mt-2">Notes: {content.speaker_notes}</div>}
-      </div>
-    );
-  }
+
+  if (type === "slide") return <SlideCanvas c={content} />;
+
   if (type === "sheet_tab") {
-    const cols = content.columns ?? [];
-    const rows = content.rows ?? [];
-    const formulas = content.formulas ?? {};
+    const cols: string[] = content.columns ?? [];
+    const rows: any[][] = content.rows ?? [];
+    const formulas: Record<string, string> = content.formulas ?? {};
+    const totals = !!content.totals_row;
     return (
-      <div className="overflow-x-auto rounded-lg border border-white/10">
-        <div className="text-xs text-muted-foreground px-3 py-1.5 bg-white/5 border-b border-white/10 font-medium">{content.tab_name}</div>
-        <table className="min-w-full text-xs">
-          <thead className="bg-white/5"><tr>{cols.map((c: string, i: number) => <th key={i} className="text-left px-3 py-1.5 font-medium text-muted-foreground">{c}</th>)}</tr></thead>
-          <tbody>
-            {rows.map((r: any[], ri: number) => (
-              <tr key={ri} className="border-t border-white/5">
-                {r.map((cell, ci) => {
-                  const ref = String.fromCharCode(65 + ci) + (ri + 2);
-                  const isFormula = formulas[ref];
-                  return <td key={ci} className="px-3 py-1.5">{cell}{isFormula && <sup className="ml-1 text-teal-400 font-mono text-[9px]">fx</sup>}</td>;
-                })}
+      <div className="rounded-xl border border-zinc-800 bg-[#0a0a0d] overflow-hidden">
+        <div className="px-5 py-3 border-b border-zinc-800/80 bg-[#0d0d10]">
+          <div style={{ fontFamily: "'Fraunces', serif" }} className="text-lg font-medium text-zinc-100 tracking-tight">{content.tab_name}</div>
+          {content.description && <div className="text-[12px] text-zinc-500 mt-0.5 italic">{content.description}</div>}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-[13px]" style={{ fontFamily: "'Inter', ui-sans-serif" }}>
+            <thead>
+              <tr className="bg-zinc-900/40">
+                {cols.map((c, i) => (
+                  <th key={i} className="text-left px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest text-zinc-500 border-b border-zinc-800">{c}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => {
+                const isLast = totals && ri === rows.length - 1;
+                return (
+                  <tr key={ri} className={`${isLast ? "bg-[#100c18] border-t border-[#9d5cff]/30 font-medium text-zinc-100" : "border-t border-zinc-900 text-zinc-300"} hover:bg-zinc-900/30 transition-colors`}>
+                    {r.map((cell, ci) => {
+                      const ref = String.fromCharCode(65 + ci) + (ri + 2);
+                      const isFormula = formulas[ref];
+                      const isNum = typeof cell === "number";
+                      return (
+                        <td
+                          key={ci}
+                          className={`px-4 py-2 ${isNum ? "text-right tabular-nums" : ""} ${isFormula ? "text-[#c39aff]" : ""}`}
+                          title={isFormula ? `${ref}: ${isFormula}` : undefined}
+                        >
+                          {isNum ? formatNum(cell) : String(cell)}
+                          {isFormula && <sup className="ml-1 text-[#9d5cff] font-mono text-[9px]">fx</sup>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
+
   if (type === "site_section") {
-    const src = `<!doctype html><html><head><script src="https://cdn.tailwindcss.com"></script><style>${content.css ?? ""}</style></head><body>${content.html ?? ""}</body></html>`;
-    return <iframe srcDoc={src} sandbox="allow-scripts" className="w-full h-80 rounded-lg bg-white" title="preview" />;
+    const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
+    const baseCss = `*,*::before,*::after{box-sizing:border-box}body{margin:0;background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;margin:0;color:#f5f5f4}p{color:#a1a1aa;line-height:1.65;margin:0}a{color:inherit}img{max-width:100%;display:block}`;
+    const src = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}${content.css ?? ""}</style></head><body>${content.html ?? ""}${content.js ? `<script>${content.js}</script>` : ""}</body></html>`;
+    return (
+      <div className="rounded-xl border border-zinc-800 overflow-hidden bg-[#0a0a0d]">
+        <iframe srcDoc={src} sandbox="allow-scripts" className="w-full h-[520px] bg-[#0a0a0d]" title="preview" />
+      </div>
+    );
   }
-  return <pre className="text-xs text-muted-foreground overflow-x-auto">{JSON.stringify(content, null, 2)}</pre>;
+  return <pre className="text-xs text-zinc-600 overflow-x-auto">{JSON.stringify(content, null, 2)}</pre>;
 }
+
+function formatNum(n: number): string {
+  if (!isFinite(n)) return String(n);
+  if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (Number.isInteger(n)) return String(n);
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function SlideCanvas({ c }: { c: any }) {
+  const layout = c?.layout ?? (c?.stat ? "stat" : c?.quote ? "quote" : c?.columns ? "two_column" : c?.bullets?.length ? "bullets" : "statement");
+  const heading = { fontFamily: "'Fraunces', ui-serif, Georgia, serif", letterSpacing: "-0.03em" } as const;
+  const body = { fontFamily: "'Inter', ui-sans-serif" } as const;
+  const mono = { fontFamily: "'JetBrains Mono', ui-monospace, monospace" } as const;
+
+  return (
+    <div className="relative aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-[#0d0d10]"
+         style={{ background: "radial-gradient(ellipse at 20% 0%, #16121e 0%, #0a0a0d 55%)" }}>
+      {/* corner brand mark */}
+      <div className="absolute top-5 left-6 flex items-center gap-2" style={mono}>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
+        <span className="text-[9px] uppercase tracking-[0.22em] text-zinc-500">Lumina</span>
+      </div>
+      <div className="absolute top-5 right-6 text-[9px] uppercase tracking-[0.22em] text-zinc-600" style={mono}>
+        {layout}
+      </div>
+
+      <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-14 py-16">
+        {c.eyebrow && (
+          <div style={mono} className="text-[11px] uppercase tracking-[0.22em] text-[#9d5cff] mb-4">{c.eyebrow}</div>
+        )}
+
+        {layout === "stat" && c.stat ? (
+          <div className="flex flex-col">
+            <div style={heading} className="text-[96px] md:text-[128px] font-medium leading-none text-zinc-50">{c.stat.value}</div>
+            <div style={body} className="mt-4 text-[18px] text-zinc-400 max-w-[48ch]">{c.stat.label}</div>
+            {c.title && <div style={heading} className="mt-8 text-2xl text-zinc-300 max-w-[24ch]">{c.title}</div>}
+          </div>
+        ) : layout === "quote" && c.quote ? (
+          <div className="max-w-[46ch]">
+            <div style={heading} className="text-[36px] md:text-[44px] italic font-normal leading-[1.15] text-zinc-100">
+              <span className="text-[#9d5cff] mr-1">"</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">"</span>
+            </div>
+            <div style={mono} className="mt-6 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
+          </div>
+        ) : layout === "two_column" && c.columns?.length ? (
+          <>
+            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-8 max-w-[22ch]">{c.title}</h2>
+            <div className="grid grid-cols-2 gap-8">
+              {c.columns.map((col: any, i: number) => (
+                <div key={i} className="border-l border-zinc-800 pl-5">
+                  <div style={heading} className="text-lg font-medium text-zinc-100 mb-1.5">{col.heading}</div>
+                  <div style={body} className="text-[14px] text-zinc-400 leading-relaxed">{col.body}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : layout === "bullets" && c.bullets?.length ? (
+          <>
+            <h2 style={heading} className="text-[40px] md:text-[52px] font-medium leading-[1.05] text-zinc-50 mb-2 max-w-[24ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="text-[16px] text-zinc-400 mb-8 max-w-[52ch]">{c.subtitle}</p>}
+            <ul className="space-y-3 mt-4">
+              {c.bullets.map((b: string, i: number) => (
+                <li key={i} className="flex gap-4 items-baseline">
+                  <span style={mono} className="text-[10px] text-[#9d5cff] tabular-nums pt-1">{String(i + 1).padStart(2, "0")}</span>
+                  <span style={body} className="text-[17px] text-zinc-200 leading-snug">{b}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <>
+            <h2 style={heading} className="text-[52px] md:text-[68px] font-medium leading-[1.02] text-zinc-50 max-w-[20ch]">{c.title}</h2>
+            {c.subtitle && <p style={body} className="mt-5 text-[18px] text-zinc-400 max-w-[52ch] leading-relaxed">{c.subtitle}</p>}
+          </>
+        )}
+      </div>
+
+      {c.speaker_notes && (
+        <div className="absolute bottom-4 left-10 right-10 text-[11px] text-zinc-600 italic border-t border-zinc-800/60 pt-2" style={body}>
+          <span style={mono} className="uppercase tracking-widest not-italic mr-2 text-zinc-700">Notes</span>{c.speaker_notes}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function downloadFile(name: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
