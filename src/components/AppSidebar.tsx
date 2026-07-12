@@ -14,6 +14,7 @@ const navGroups = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
+      { title: "Lumina Computer", url: "/lumina-computer", icon: Monitor },
       { title: "Brain Hub", url: "/hub", icon: Brain },
     ],
   },
