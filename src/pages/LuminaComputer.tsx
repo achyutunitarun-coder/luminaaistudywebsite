@@ -14,6 +14,7 @@ import {
   insertBlocks, listBlocks, updateBlock, updateProject, deleteProject,
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
+import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
