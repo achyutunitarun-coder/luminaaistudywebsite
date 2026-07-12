@@ -2,7 +2,7 @@ import {
   LayoutDashboard, MessageSquare, Sparkles, Brain,
   FileText, HelpCircle, Zap, Calendar, FileAudio,
   NotebookPen, Layers, Gamepad2, Trophy, BarChart3,
-  Target, BookOpen, Settings, LogOut, Wand2, Crown,
+  Target, BookOpen, Settings, LogOut, Wand2, Crown, Monitor,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -14,6 +14,7 @@ const navGroups = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
+      { title: "Lumina Computer", url: "/lumina-computer", icon: Monitor },
       { title: "Brain Hub", url: "/hub", icon: Brain },
     ],
   },
