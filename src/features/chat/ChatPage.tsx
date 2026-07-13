@@ -30,9 +30,35 @@ import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/cr
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { extractToolCallFromText, type OllamaToolCall } from "@/lib/ollama";
-
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
+interface OllamaToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+function extractToolCallFromText(text: string): OllamaToolCall | null {
+  const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[1]);
+    if (parsed.name || parsed.function?.name) {
+      return {
+        id: `call_extracted_${Date.now()}`,
+        type: "function",
+        function: {
+          name: parsed.name || parsed.function?.name || "",
+          arguments: JSON.stringify(parsed.arguments || parsed.parameters || parsed),
+        },
+      };
+    }
+  } catch { /* not valid JSON */ }
+  return null;
+}
 
 // ─── Types ───
 export interface Message {
@@ -211,9 +237,6 @@ const ChatPage = () => {
     const [showArtifactPicker, setShowArtifactPicker] = useState(false);
     const [canvasOpen, setCanvasOpen] = useState(false);
     const [canvasVersions, setCanvasVersions] = useState<Array<{ code: string; html: string; ts: number }>>([]);
-    // (removed local-Ollama status — chat goes through the edge function)
-
-
     const abortRef = useRef<AbortController | null>(null);
     const loadingRef = useRef(false);
     const currentChatIdRef = useRef<string | null>(null);
@@ -231,8 +254,6 @@ const ChatPage = () => {
       const atBottom = parent.scrollHeight - parent.scrollTop - parent.clientHeight < 80;
       if (atBottom) el.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
-
-    // no-op: chat runs through the server edge function; no local status probe needed
 
     useEffect(() => {
       const ta = textareaRef.current;
@@ -355,6 +376,8 @@ const ChatPage = () => {
       setMessages(p => [...p, assistantPlaceholder]);
       let acc = "";
 
+      const aiMessages = history.filter(m => m.type === "text").slice(-12).map(m => ({ role: m.role, content: m.content }));
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         const final: Message = {
@@ -366,8 +389,6 @@ const ChatPage = () => {
         await persistMessage(chatId, final);
         return;
       }
-
-      const aiMessages = history.filter(m => m.type === "text").slice(-12).map(m => ({ role: m.role, content: m.content }));
 
       let fullText = "";
       try {
@@ -423,15 +444,12 @@ const ChatPage = () => {
         if (extracted) toolCalls = [extracted];
       }
 
-
       // Execute tool calls
       if (toolCalls && toolCalls.length > 0) {
         setMessages(p => p.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
         await executeToolCalls(toolCalls, history, chatId);
         return;
       }
-
-      // Plain text response
       const final: Message = acc.trim().length === 0
         ? { id: aId, role: "assistant", type: "error", content: "No response received.", timestamp: Date.now() }
         : { id: aId, role: "assistant", type: "text", content: acc, timestamp: Date.now() };

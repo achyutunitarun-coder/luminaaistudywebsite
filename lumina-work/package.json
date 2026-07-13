@@ -1,0 +1,43 @@
+{
+  "name": "lumina-work",
+  "version": "1.0.0",
+  "description": "AI company workforce simulator — multiple AI agents work together as departments on your projects",
+  "main": "src/index.js",
+  "bin": {
+    "lumina-work": "bin/lumina-work.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "keywords": [
+    "ai",
+    "agents",
+    "workforce",
+    "cli",
+    "openai",
+    "anthropic",
+    "google",
+    "gemini",
+    "groq",
+    "together"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "@google/generative-ai": "^0.12.0",
+    "chalk": "^5.3.0",
+    "date-fns": "^3.6.0",
+    "fs-extra": "^11.2.0",
+    "gpt-tokenizer": "^2.1.0",
+    "groq-sdk": "^0.5.0",
+    "highlight.js": "^11.9.0",
+    "ink": "^5.0.0",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
+    "inquirer": "^9.2.0",
+    "openai": "^4.47.0",
+    "react": "^18.2.0",
+    "uuid": "^9.0.0"
+  }
+}

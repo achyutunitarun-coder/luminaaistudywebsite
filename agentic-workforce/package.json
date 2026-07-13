@@ -1,0 +1,53 @@
+{
+  "name": "lumina-work",
+  "version": "0.3.1",
+  "description": "A multi-agent AI team in your terminal. Chat with experienced AI engineers, PMs, and security experts who collaborate to solve your problems.",
+  "type": "module",
+  "bin": {
+    "lumina-work": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepublishOnly": "tsc",
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "chat",
+    "terminal",
+    "cli",
+    "llm",
+    "multi-agent",
+    "productivity"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tarunkartikeya/lumina-work.git"
+  },
+  "homepage": "https://github.com/tarunkartikeya/lumina-work#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@clack/core": "^0.3.5",
+    "@clack/prompts": "^0.7.0",
+    "blessed": "^0.1.81",
+    "chalk": "^5.6.2"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.25",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

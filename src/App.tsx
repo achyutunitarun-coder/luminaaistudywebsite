@@ -12,7 +12,7 @@ import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/features/chat/ChatPage";
-import OllamaChatPage from "@/features/chat/OllamaChatPage";
+
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -146,7 +146,7 @@ const App = () => (
                 <Route path="/ai-tools" element={<AITools />} />
                 <Route path="/hub" element={<LuminaHub />} />
                 <Route path="/chat" element={<Chat />} />
-                <Route path="/local-chat" element={<OllamaChatPage />} />
+                <Route path="/local-chat" element={<Navigate to="/chat" replace />} />
                 <Route path="/computer" element={<Navigate to="/ai-tools" replace />} />
                 <Route path="/lumina-computer" element={<LuminaComputer />} />
                 <Route path="/lumina-computer/admin" element={<LuminaComputerAdmin />} />
