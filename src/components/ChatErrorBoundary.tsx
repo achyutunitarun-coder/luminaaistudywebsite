@@ -1,6 +1,6 @@
 import React, { Component, type ReactNode } from 'react';
 
-interface Props { children: ReactNode }
+interface Props { children: ReactNode; fallback?: ReactNode }
 interface State { error: string | null; showDetails: boolean }
 
 export class ChatErrorBoundary extends Component<Props, State> {
@@ -10,6 +10,8 @@ export class ChatErrorBoundary extends Component<Props, State> {
   }
   render() {
     if (this.state.error) {
+      if (this.props.fallback) return this.props.fallback;
+
       return (
         <div style={{ padding: '40px 20px', maxWidth: 600, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
           <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 12, padding: '24px' }}>

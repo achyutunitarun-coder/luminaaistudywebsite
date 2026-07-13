@@ -71,6 +71,22 @@ const PaymentReturnHandler = () => {
   return null;
 };
 
+const FullPageFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-lg">
+      <p className="text-sm font-semibold text-foreground">Lumina hit a temporary loading problem.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Refresh once to reconnect your session.</p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="mt-5 h-10 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        Refresh
+      </button>
+    </div>
+  </div>
+);
+
 const ProtectedLayout = () => {
   const { user, loading } = useAuth();
 
@@ -108,16 +124,17 @@ const AuthRoute = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <OfflineBanner />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <MemoryProvider>
-            <PaymentReturnHandler />
-            <CreditToast />
-            <Routes>
+      <TooltipProvider>
+        <ChatErrorBoundary fallback={<FullPageFallback />}>
+          <OfflineBanner />
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <MemoryProvider>
+                <PaymentReturnHandler />
+                <CreditToast />
+                <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<AuthRoute />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -166,10 +183,11 @@ const App = () => (
               </Route>
 
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MemoryProvider>
-        </AuthProvider>
-      </BrowserRouter>
+                </Routes>
+              </MemoryProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ChatErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
