@@ -47,7 +47,7 @@ export default function LuminaComputerAdmin() {
     setLoading(true);
     const [r, c, l] = await Promise.all([
       supabase.from("lc_model_routing" as any).select("*").order("role"),
-      supabase.from("lc_model_cooldowns" as any).select("*").order("cooling_until", { ascending: false }),
+      supabase.from("lc_model_cooldowns" as any).select("*").order("cooldown_until", { ascending: false }),
       supabase.from("lc_generation_log" as any).select("*").order("created_at", { ascending: false }).limit(60),
     ]);
     setRouting(((r.data as any[]) ?? []) as Routing[]);
