@@ -154,7 +154,7 @@ export default function LuminaComputerAdmin() {
             ) : (
               <ul className="space-y-2">
                 {activeCooldowns.map((c) => {
-                  const secs = Math.max(0, Math.round((new Date(c.cooling_until).getTime() - now) / 1000));
+                  const secs = Math.max(0, Math.round((new Date(c.cooldown_until).getTime() - now) / 1000));
                   return (
                     <li key={c.model_id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
