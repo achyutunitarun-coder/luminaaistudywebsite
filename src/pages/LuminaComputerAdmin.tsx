@@ -10,23 +10,23 @@ import { Button } from "@/components/ui/button";
 type Routing = {
   id: string;
   role: string;
-  models: string[] | null;
+  primary_model_id: string | null;
+  fallback_model_ids: string[] | null;
   updated_at?: string | null;
 };
 
 type Cooldown = {
   model_id: string;
-  cooling_until: string;
+  cooldown_until: string;
   reason?: string | null;
 };
 
 type GenLog = {
   id: string;
   block_id: string | null;
-  model_used: string | null;
-  status: string;
+  model_id: string | null;
+  success: boolean | null;
   latency_ms: number | null;
-  fallback: boolean | null;
   error_text: string | null;
   created_at: string;
 };
@@ -47,7 +47,7 @@ export default function LuminaComputerAdmin() {
     setLoading(true);
     const [r, c, l] = await Promise.all([
       supabase.from("lc_model_routing" as any).select("*").order("role"),
-      supabase.from("lc_model_cooldowns" as any).select("*").order("cooling_until", { ascending: false }),
+      supabase.from("lc_model_cooldowns" as any).select("*").order("cooldown_until", { ascending: false }),
       supabase.from("lc_generation_log" as any).select("*").order("created_at", { ascending: false }).limit(60),
     ]);
     setRouting(((r.data as any[]) ?? []) as Routing[]);
@@ -58,11 +58,11 @@ export default function LuminaComputerAdmin() {
 
   useEffect(() => { load(); }, []);
 
-  const activeCooldowns = cooldowns.filter((c) => new Date(c.cooling_until).getTime() > now);
+  const activeCooldowns = cooldowns.filter((c) => new Date(c.cooldown_until).getTime() > now);
 
   const successRate = (() => {
     if (logs.length === 0) return null;
-    const ok = logs.filter((l) => l.status === "ok" || l.status === "success" || l.status === "ready").length;
+    const ok = logs.filter((l) => l.success === true).length;
     return Math.round((ok / logs.length) * 100);
   })();
 
@@ -72,9 +72,9 @@ export default function LuminaComputerAdmin() {
     return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
   })();
 
-  const fallbackRate = (() => {
+  const errorRate = (() => {
     if (logs.length === 0) return null;
-    const fb = logs.filter((l) => l.fallback).length;
+    const fb = logs.filter((l) => l.success === false).length;
     return Math.round((fb / logs.length) * 100);
   })();
 
@@ -108,7 +108,7 @@ export default function LuminaComputerAdmin() {
           <StatCard label="Avg latency" value={avgLatency == null ? "—" : `${avgLatency} ms`} icon={Clock} />
           <StatCard label="Cooling down" value={String(activeCooldowns.length)}
             tone={activeCooldowns.length > 0 ? "warn" : "ok"} icon={ShieldAlert}
-            hint={fallbackRate != null ? `fallback ${fallbackRate}%` : undefined} />
+            hint={errorRate != null ? `errors ${errorRate}%` : undefined} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -121,7 +121,7 @@ export default function LuminaComputerAdmin() {
                 <div key={r.id} className="rounded-xl border border-white/10 p-3">
                   <div className="text-xs uppercase tracking-wider text-teal-300/80 mb-1.5">{r.role}</div>
                   <div className="flex flex-wrap gap-1.5">
-                    {(r.models ?? []).map((m, i) => {
+                    {[r.primary_model_id, ...(r.fallback_model_ids ?? [])].filter((m): m is string => !!m).map((m, i) => {
                       const cooling = activeCooldowns.find((c) => c.model_id === m);
                       return (
                         <span key={`${m}-${i}`}
@@ -132,7 +132,7 @@ export default function LuminaComputerAdmin() {
                                 ? "border-teal-400/40 bg-teal-400/10 text-teal-200"
                                 : "border-white/10 bg-white/5 text-muted-foreground"
                           }`}
-                          title={cooling ? `cooling until ${new Date(cooling.cooling_until).toLocaleTimeString()}` : i === 0 ? "primary" : "fallback"}
+                          title={cooling ? `cooling until ${new Date(cooling.cooldown_until).toLocaleTimeString()}` : i === 0 ? "primary" : "fallback"}
                         >
                           {i === 0 ? "▶ " : ""}{m}
                         </span>
@@ -154,7 +154,7 @@ export default function LuminaComputerAdmin() {
             ) : (
               <ul className="space-y-2">
                 {activeCooldowns.map((c) => {
-                  const secs = Math.max(0, Math.round((new Date(c.cooling_until).getTime() - now) / 1000));
+                  const secs = Math.max(0, Math.round((new Date(c.cooldown_until).getTime() - now) / 1000));
                   return (
                     <li key={c.model_id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -191,17 +191,16 @@ export default function LuminaComputerAdmin() {
                   {logs.map((l) => (
                     <tr key={l.id} className="border-t border-white/5">
                       <td className="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleTimeString()}</td>
-                      <td className="py-1.5 pr-3 font-mono truncate max-w-[220px]">{l.model_used ?? "—"}</td>
+                      <td className="py-1.5 pr-3 font-mono truncate max-w-[220px]">{l.model_id ?? "—"}</td>
                       <td className="py-1.5 pr-3">
-                        {l.status === "ok" || l.status === "success" || l.status === "ready" ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="h-3 w-3" /> {l.status}</span>
+                        {l.success ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="h-3 w-3" /> ok</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-red-300"><XCircle className="h-3 w-3" /> {l.status}</span>
+                          <span className="inline-flex items-center gap-1 text-red-300"><XCircle className="h-3 w-3" /> failed</span>
                         )}
                       </td>
                       <td className="py-1.5 pr-3 text-muted-foreground">{l.latency_ms ? `${l.latency_ms} ms` : "—"}</td>
                       <td className="py-1.5 pr-3 text-muted-foreground truncate max-w-[280px]">
-                        {l.fallback ? <span className="text-amber-300 mr-2">fallback</span> : null}
                         {l.error_text ?? ""}
                       </td>
                     </tr>
