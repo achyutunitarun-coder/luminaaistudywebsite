@@ -108,7 +108,7 @@ export default function LuminaComputerAdmin() {
           <StatCard label="Avg latency" value={avgLatency == null ? "—" : `${avgLatency} ms`} icon={Clock} />
           <StatCard label="Cooling down" value={String(activeCooldowns.length)}
             tone={activeCooldowns.length > 0 ? "warn" : "ok"} icon={ShieldAlert}
-            hint={fallbackRate != null ? `fallback ${fallbackRate}%` : undefined} />
+            hint={errorRate != null ? `errors ${errorRate}%` : undefined} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
