@@ -10,23 +10,23 @@ import { Button } from "@/components/ui/button";
 type Routing = {
   id: string;
   role: string;
-  models: string[] | null;
+  primary_model_id: string | null;
+  fallback_model_ids: string[] | null;
   updated_at?: string | null;
 };
 
 type Cooldown = {
   model_id: string;
-  cooling_until: string;
+  cooldown_until: string;
   reason?: string | null;
 };
 
 type GenLog = {
   id: string;
   block_id: string | null;
-  model_used: string | null;
-  status: string;
+  model_id: string | null;
+  success: boolean | null;
   latency_ms: number | null;
-  fallback: boolean | null;
   error_text: string | null;
   created_at: string;
 };
