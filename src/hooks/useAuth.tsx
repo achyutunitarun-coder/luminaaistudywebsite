@@ -23,13 +23,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let isMounted = true;
+    const loadingFailsafe = window.setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 4000);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isMounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!isMounted) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error) => {
+        console.error('Auth session restore failed:', error);
+        if (!isMounted) return;
+        setSession(null);
+        setUser(null);
+      })
+      .finally(() => {
+        window.clearTimeout(loadingFailsafe);
+        if (isMounted) setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
@@ -69,6 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
+      window.clearTimeout(loadingFailsafe);
       subscription.unsubscribe();
     };
   }, []);
