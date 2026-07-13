@@ -132,7 +132,7 @@ export default function LuminaComputerAdmin() {
                                 ? "border-teal-400/40 bg-teal-400/10 text-teal-200"
                                 : "border-white/10 bg-white/5 text-muted-foreground"
                           }`}
-                          title={cooling ? `cooling until ${new Date(cooling.cooling_until).toLocaleTimeString()}` : i === 0 ? "primary" : "fallback"}
+                          title={cooling ? `cooling until ${new Date(cooling.cooldown_until).toLocaleTimeString()}` : i === 0 ? "primary" : "fallback"}
                         >
                           {i === 0 ? "▶ " : ""}{m}
                         </span>
