@@ -191,17 +191,16 @@ export default function LuminaComputerAdmin() {
                   {logs.map((l) => (
                     <tr key={l.id} className="border-t border-white/5">
                       <td className="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleTimeString()}</td>
-                      <td className="py-1.5 pr-3 font-mono truncate max-w-[220px]">{l.model_used ?? "—"}</td>
+                      <td className="py-1.5 pr-3 font-mono truncate max-w-[220px]">{l.model_id ?? "—"}</td>
                       <td className="py-1.5 pr-3">
-                        {l.status === "ok" || l.status === "success" || l.status === "ready" ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="h-3 w-3" /> {l.status}</span>
+                        {l.success ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-300"><CheckCircle2 className="h-3 w-3" /> ok</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-red-300"><XCircle className="h-3 w-3" /> {l.status}</span>
+                          <span className="inline-flex items-center gap-1 text-red-300"><XCircle className="h-3 w-3" /> failed</span>
                         )}
                       </td>
                       <td className="py-1.5 pr-3 text-muted-foreground">{l.latency_ms ? `${l.latency_ms} ms` : "—"}</td>
                       <td className="py-1.5 pr-3 text-muted-foreground truncate max-w-[280px]">
-                        {l.fallback ? <span className="text-amber-300 mr-2">fallback</span> : null}
                         {l.error_text ?? ""}
                       </td>
                     </tr>
