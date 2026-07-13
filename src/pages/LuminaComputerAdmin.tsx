@@ -58,11 +58,11 @@ export default function LuminaComputerAdmin() {
 
   useEffect(() => { load(); }, []);
 
-  const activeCooldowns = cooldowns.filter((c) => new Date(c.cooling_until).getTime() > now);
+  const activeCooldowns = cooldowns.filter((c) => new Date(c.cooldown_until).getTime() > now);
 
   const successRate = (() => {
     if (logs.length === 0) return null;
-    const ok = logs.filter((l) => l.status === "ok" || l.status === "success" || l.status === "ready").length;
+    const ok = logs.filter((l) => l.success === true).length;
     return Math.round((ok / logs.length) * 100);
   })();
 
@@ -72,9 +72,9 @@ export default function LuminaComputerAdmin() {
     return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
   })();
 
-  const fallbackRate = (() => {
+  const errorRate = (() => {
     if (logs.length === 0) return null;
-    const fb = logs.filter((l) => l.fallback).length;
+    const fb = logs.filter((l) => l.success === false).length;
     return Math.round((fb / logs.length) * 100);
   })();
 
