@@ -121,7 +121,7 @@ export default function LuminaComputerAdmin() {
                 <div key={r.id} className="rounded-xl border border-white/10 p-3">
                   <div className="text-xs uppercase tracking-wider text-teal-300/80 mb-1.5">{r.role}</div>
                   <div className="flex flex-wrap gap-1.5">
-                    {(r.models ?? []).map((m, i) => {
+                    {[r.primary_model_id, ...(r.fallback_model_ids ?? [])].filter((m): m is string => !!m).map((m, i) => {
                       const cooling = activeCooldowns.find((c) => c.model_id === m);
                       return (
                         <span key={`${m}-${i}`}
