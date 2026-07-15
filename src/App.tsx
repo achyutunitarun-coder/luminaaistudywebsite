@@ -72,10 +72,10 @@ const PaymentReturnHandler = () => {
 };
 
 const FullPageFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background px-6">
+  <div className="min-h-screen flex items-center justify-center bg-background px-6" style={{ minHeight: "100vh" }}>
     <div className="max-w-md rounded-xl border border-border bg-card p-6 text-center shadow-lg">
-      <p className="text-sm font-semibold text-foreground">Lumina hit a temporary loading problem.</p>
-      <p className="mt-2 text-xs text-muted-foreground">Refresh once to reconnect your session.</p>
+      <p className="text-sm font-semibold text-foreground">Lumina is still running.</p>
+      <p className="mt-2 text-xs text-muted-foreground">A page render failed, so this recovery screen replaced the blank view.</p>
       <button
         type="button"
         onClick={() => window.location.reload()}
@@ -115,9 +115,18 @@ const ProtectedLayout = () => {
   );
 };
 
+const AuthLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6" style={{ minHeight: "100vh" }}>
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-xs text-muted-foreground">Restoring your session…</p>
+    </div>
+  </div>
+);
+
 const AuthRoute = () => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <AuthLoading />;
   if (user) return <Navigate to="/dashboard" replace />;
   return <Auth />;
 };
