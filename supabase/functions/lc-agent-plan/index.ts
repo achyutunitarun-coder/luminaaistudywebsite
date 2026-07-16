@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         order_index: Number.isFinite(b.order_index) ? b.order_index : i,
       }));
 
-    return new Response(JSON.stringify({ blocks, model_used: data.model_used }), {
+    return new Response(JSON.stringify({ blocks, model_used: modelUsed }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
