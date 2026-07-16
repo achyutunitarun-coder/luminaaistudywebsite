@@ -156,7 +156,7 @@ const App = () => (
                 <Route path="/hub" element={<LuminaHub />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/local-chat" element={<Navigate to="/chat" replace />} />
-                <Route path="/computer" element={<Navigate to="/ai-tools" replace />} />
+                <Route path="/computer" element={<Navigate to="/lumina-computer" replace />} />
                 <Route path="/lumina-computer" element={<LuminaComputer />} />
                 <Route path="/lumina-computer/admin" element={<LuminaComputerAdmin />} />
                 <Route path="/documents" element={<Documents />} />
