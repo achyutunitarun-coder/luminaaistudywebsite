@@ -18,7 +18,7 @@ const categories = [
 
 const tools = [
   { title: 'AI Chat', desc: 'Ask anything. Get clear explanations and examples.', icon: MessageSquare, path: '/chat', category: 'study', accent: '#7C5CFC' },
-  { title: 'Computer', desc: 'Build websites and apps with AI. Describe what you want, get working code.', icon: Code2, path: '/computer', category: 'create', accent: '#7C5CFC' },
+  { title: 'Computer', desc: 'Build websites and apps with AI. Describe what you want, get working code.', icon: Code2, path: '/lumina-computer', category: 'create', accent: '#7C5CFC' },
   { title: 'Doubt Solver', desc: 'Paste a question, get a step-by-step solution.', icon: HelpCircle, path: '/doubt-solver', category: 'study', accent: '#A78BFA' },
   { title: 'Notes', desc: 'Generate study notes in different styles.', icon: FileText, path: '/notes-generator', category: 'create', accent: '#2DD4BF' },
   { title: 'Quick Study', desc: 'Quick topic breakdowns with key points and practice questions.', icon: Zap, path: '/quick-study', category: 'study', accent: '#FBBF24' },
