@@ -28,40 +28,63 @@ Deno.serve(async (req) => {
     }
 
     const system = SYSTEM[output_type] ?? SYSTEM.doc;
-
     const routerUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/lc-llm-router`;
-    const res = await fetch(routerUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: req.headers.get("Authorization") ?? "",
-      },
-      body: JSON.stringify({
-        role: "orchestrator",
-        stream: false,
-        max_tokens: 1400,
-        temperature: 0.6,
-        system,
-        prompt: `Goal: ${goal}\nOutput type: ${output_type}\nReturn the JSON plan now.`,
-        response_format: { type: "json_object" },
-      }),
-    });
 
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      return new Response(JSON.stringify({ error: "planner_failed", detail: t.slice(0, 300) }), {
-        status: 502, headers: { ...cors, "Content-Type": "application/json" },
+    function extractJSON(raw: string): any {
+      if (!raw) return null;
+      let cleaned = raw
+        .replace(/^```json\s*/im, "")
+        .replace(/^```\s*/im, "")
+        .replace(/```\s*$/im, "")
+        .trim();
+      try { return JSON.parse(cleaned); } catch { /* */ }
+      const objStart = cleaned.indexOf("{");
+      const objEnd = cleaned.lastIndexOf("}");
+      if (objStart !== -1 && objEnd > objStart) {
+        try { return JSON.parse(cleaned.slice(objStart, objEnd + 1)); } catch { /* */ }
+      }
+      return null;
+    }
+
+    async function callRouter(useJsonFormat: boolean) {
+      return await fetch(routerUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: req.headers.get("Authorization") ?? "",
+        },
+        body: JSON.stringify({
+          role: "orchestrator",
+          stream: false,
+          max_tokens: 1400,
+          temperature: 0.6,
+          system,
+          prompt: `Goal: ${goal}\nOutput type: ${output_type}\nReturn the JSON plan now.`,
+          ...(useJsonFormat ? { response_format: { type: "json_object" } } : {}),
+        }),
       });
     }
-    const data = await res.json();
-    const raw = data.content ?? "";
+
+    let raw = "";
+    let modelUsed: string | undefined;
     let parsed: any = null;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) { try { parsed = JSON.parse(m[0]); } catch { /* */ } }
+
+    for (const useJsonFormat of [true, false]) {
+      const res = await callRouter(useJsonFormat);
+      if (!res.ok) {
+        if (useJsonFormat) continue;
+        const t = await res.text().catch(() => "");
+        return new Response(JSON.stringify({ error: "planner_failed", detail: t.slice(0, 300) }), {
+          status: 502, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      const data = await res.json();
+      raw = data.content ?? "";
+      modelUsed = data.model_used;
+      parsed = extractJSON(raw);
+      if (parsed?.blocks && Array.isArray(parsed.blocks)) break;
     }
+
     if (!parsed?.blocks || !Array.isArray(parsed.blocks)) {
       return new Response(JSON.stringify({ error: "plan_parse_failed", raw: raw.slice(0, 400) }), {
         status: 502, headers: { ...cors, "Content-Type": "application/json" },
@@ -76,7 +99,7 @@ Deno.serve(async (req) => {
         order_index: Number.isFinite(b.order_index) ? b.order_index : i,
       }));
 
-    return new Response(JSON.stringify({ blocks, model_used: data.model_used }), {
+    return new Response(JSON.stringify({ blocks, model_used: modelUsed }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
