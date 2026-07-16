@@ -148,8 +148,13 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...cors, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({
+      blocks: FALLBACK_BLOCKS.doc,
+      model_used: "fallback",
+      is_fallback: true,
+      error_detail: { error: String(e) },
+    }), {
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 });
