@@ -14,6 +14,7 @@ const KEYS = [
   Deno.env.get("OPENROUTER_API_KEY"),
   Deno.env.get("OPENROUTER_KEY_2"),
   Deno.env.get("OPENROUTER_KEY_3"),
+  Deno.env.get("OPENROUTER_KEY_4"),
   Deno.env.get("OPENROUTER_KEY_5"),
   Deno.env.get("OPENROUTER_KEY_6"),
   Deno.env.get("OPENROUTER_KEY_7"),
@@ -21,6 +22,7 @@ const KEYS = [
 
 let keyCursor = 0;
 function nextKey() {
+  if (KEYS.length === 0) return null;
   const k = KEYS[keyCursor % KEYS.length];
   keyCursor++;
   return k;
@@ -87,12 +89,17 @@ Deno.serve(async (req) => {
       { role: "user", content: prompt },
     ];
 
+    const errors: string[] = [];
+
     // 3. Try each candidate
     for (let i = 0; i < chain.length; i++) {
       const model = chain[i];
       const start = Date.now();
       const key = nextKey();
-      if (!key) continue;
+      if (!key) {
+        errors.push("No API keys configured");
+        break;
+      }
 
       try {
         const upstream = await fetch(OR_URL, {
@@ -123,6 +130,7 @@ Deno.serve(async (req) => {
             project_id, block_id, role, model_id: model, success: false,
             latency_ms: Date.now() - start, error_text: "429",
           });
+          errors.push(`${model}: 429 Rate Limit`);
           try { await upstream.body?.cancel(); } catch { /* */ }
           continue;
         }
@@ -132,6 +140,7 @@ Deno.serve(async (req) => {
             project_id, block_id, role, model_id: model, success: false,
             latency_ms: Date.now() - start, error_text: `${upstream.status} ${errTxt}`,
           });
+          errors.push(`${model}: ${upstream.status} ${errTxt}`);
           continue;
         }
 
@@ -189,10 +198,11 @@ Deno.serve(async (req) => {
           project_id, block_id, role, model_id: model, success: false,
           latency_ms: Date.now() - start, error_text: String(e).slice(0, 200),
         });
+        errors.push(`${model}: ${String(e).slice(0, 100)}`);
       }
     }
 
-    return new Response(JSON.stringify({ error: "all_candidates_failed" }), {
+    return new Response(JSON.stringify({ error: "all_candidates_failed", details: errors }), {
       status: 502,
       headers: { ...cors, "Content-Type": "application/json" },
     });

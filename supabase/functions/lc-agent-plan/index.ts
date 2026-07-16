@@ -14,6 +14,39 @@ const SYSTEM: Record<string, string> = {
   agent: "You plan mixed artifacts. Decide the best mix of block_type values from ['slide','doc_section','sheet_tab','site_section'] for this goal. Output ONLY valid JSON: {\"blocks\":[{\"block_type\":\"...\",\"title\":\"...\",\"prompt_seed\":\"...\",\"order_index\":0}]}. 4–10 blocks. No prose outside JSON.",
 };
 
+const FALLBACK_BLOCKS: Record<string, any[]> = {
+  slides: [
+    { block_type: "slide", title: "Project Overview", prompt_seed: "High-level summary of the goals and scope.", order_index: 0 },
+    { block_type: "slide", title: "Problem Statement", prompt_seed: "The specific pain points we are addressing.", order_index: 1 },
+    { block_type: "slide", title: "Proposed Solution", prompt_seed: "How we solve the identified problems.", order_index: 2 },
+    { block_type: "slide", title: "Market Impact", prompt_seed: "The potential reach and results of this project.", order_index: 3 },
+    { block_type: "slide", title: "Next Steps", prompt_seed: "Immediate actions and future roadmap.", order_index: 4 },
+  ],
+  doc: [
+    { block_type: "doc_section", title: "Executive Summary", prompt_seed: "Concise overview of the entire document.", order_index: 0 },
+    { block_type: "doc_section", title: "Background & Context", prompt_seed: "The history and current situation.", order_index: 1 },
+    { block_type: "doc_section", title: "Core Strategy", prompt_seed: "The main approach and methodology.", order_index: 2 },
+    { block_type: "doc_section", title: "Implementation Plan", prompt_seed: "Step-by-step guide to execution.", order_index: 3 },
+    { block_type: "doc_section", title: "Conclusion", prompt_seed: "Final thoughts and call to action.", order_index: 4 },
+  ],
+  sheet: [
+    { block_type: "sheet_tab", title: "Financial Model", prompt_seed: "Core revenue and expense projections.", order_index: 0 },
+    { block_type: "sheet_tab", title: "Market Data", prompt_seed: "Comparative analysis of market segments.", order_index: 1 },
+  ],
+  website: [
+    { block_type: "site_section", title: "Hero Section", prompt_seed: "Impactful headline and clear value proposition.", order_index: 0 },
+    { block_type: "site_section", title: "Features", prompt_seed: "Key benefits and capabilities of the product.", order_index: 1 },
+    { block_type: "site_section", title: "Social Proof", prompt_seed: "Testimonials or logos from trusted partners.", order_index: 2 },
+    { block_type: "site_section", title: "Contact / CTA", prompt_seed: "Final drive to convert or get in touch.", order_index: 3 },
+  ],
+  agent: [
+    { block_type: "doc_section", title: "Project Vision", prompt_seed: "Long-form vision statement.", order_index: 0 },
+    { block_type: "slide", title: "Key Metrics", prompt_seed: "Slide showing core performance indicators.", order_index: 1 },
+    { block_type: "site_section", title: "Landing Preview", prompt_seed: "Hero section for the project website.", order_index: 2 },
+    { block_type: "sheet_tab", title: "Budget Outline", prompt_seed: "Tabular view of estimated costs.", order_index: 3 },
+  ],
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -68,29 +101,36 @@ Deno.serve(async (req) => {
     let raw = "";
     let modelUsed: string | undefined;
     let parsed: any = null;
+    let routerError: any = null;
 
     for (const useJsonFormat of [true, false]) {
-      const res = await callRouter(useJsonFormat);
-      if (!res.ok) {
+      try {
+        const res = await callRouter(useJsonFormat);
+        if (!res.ok) {
+          routerError = await res.json().catch(() => ({ error: "unknown_router_error" }));
+          if (useJsonFormat) continue;
+          break; // Stop if the non-JSON call also fails
+        }
+        const data = await res.json();
+        raw = data.content ?? "";
+        modelUsed = data.model_used;
+        parsed = extractJSON(raw);
+        if (parsed?.blocks && Array.isArray(parsed.blocks)) break;
+      } catch (e) {
+        routerError = { error: String(e) };
         if (useJsonFormat) continue;
-        const t = await res.text().catch(() => "");
-        return new Response(JSON.stringify({ error: "planner_failed", detail: t.slice(0, 300) }), {
-          status: 502, headers: { ...cors, "Content-Type": "application/json" },
-        });
       }
-      const data = await res.json();
-      raw = data.content ?? "";
-      modelUsed = data.model_used;
-      parsed = extractJSON(raw);
-      if (parsed?.blocks && Array.isArray(parsed.blocks)) break;
     }
 
-    if (!parsed?.blocks || !Array.isArray(parsed.blocks)) {
-      return new Response(JSON.stringify({ error: "plan_parse_failed", raw: raw.slice(0, 400) }), {
-        status: 502, headers: { ...cors, "Content-Type": "application/json" },
-      });
+    let blocks = parsed?.blocks;
+    let isFallback = false;
+
+    if (!blocks || !Array.isArray(blocks)) {
+      isFallback = true;
+      blocks = FALLBACK_BLOCKS[output_type] ?? FALLBACK_BLOCKS.doc;
     }
-    const blocks = parsed.blocks
+
+    const finalBlocks = blocks
       .filter((b: any) => b && b.title && b.block_type)
       .map((b: any, i: number) => ({
         block_type: String(b.block_type),
@@ -99,7 +139,12 @@ Deno.serve(async (req) => {
         order_index: Number.isFinite(b.order_index) ? b.order_index : i,
       }));
 
-    return new Response(JSON.stringify({ blocks, model_used: modelUsed }), {
+    return new Response(JSON.stringify({ 
+      blocks: finalBlocks, 
+      model_used: modelUsed ?? "fallback",
+      is_fallback: isFallback,
+      error_detail: isFallback ? routerError : null
+    }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (e) {

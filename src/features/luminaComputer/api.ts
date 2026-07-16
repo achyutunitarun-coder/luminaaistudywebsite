@@ -45,8 +45,8 @@ export async function planBlocks(goal: string, output_type: OutputType) {
     headers: { "Content-Type": "application/json", Authorization: await authHeader() },
     body: JSON.stringify({ goal, output_type }),
   });
-  if (!res.ok) throw new Error(`plan_failed: ${await res.text()}`);
-  return res.json() as Promise<{ blocks: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number }>; model_used: string }>;
+  if (!res.ok) { const text = await res.text(); try { const json = JSON.parse(text); throw new Error(json.error || json.message || text); } catch { throw new Error(text); } }
+  return res.json() as Promise<{ blocks: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number }>; model_used: string; is_fallback?: boolean; error_detail?: any }>;
 }
 
 export interface StreamCallbacks {

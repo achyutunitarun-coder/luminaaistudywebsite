@@ -74,6 +74,10 @@ export default function LuminaComputer() {
 
       pushLog(`Planning ${mode} blocks with orchestrator…`, "info");
       const plan = await planBlocks(g, mode);
+      if (plan.is_fallback) {
+        pushLog("Model failed to plan; using a structured fallback.", "warn");
+        toast.info("Using a fallback plan due to model unavailability");
+      }
       pushLog(`Plan ready — ${plan.blocks.length} blocks (via ${plan.model_used ?? "orchestrator"})`, "ok");
 
       const inserted = await insertBlocks(project.id, plan.blocks);
