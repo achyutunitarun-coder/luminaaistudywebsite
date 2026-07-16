@@ -28,6 +28,36 @@ function nextKey() {
   return k;
 }
 
+function normalizeModelId(model: string) {
+  return model.replace(/:free$/i, "");
+}
+
+function jsonResponse(payload: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}
+
+function streamFailure(error: string, detail?: string) {
+  const enc = new TextEncoder();
+  const out = new ReadableStream({
+    start(ctrl) {
+      ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ lumina_error: error, detail })}\n\n`));
+      ctrl.enqueue(enc.encode("data: [DONE]\n\n"));
+      ctrl.close();
+    },
+  });
+  return new Response(out, {
+    headers: {
+      ...cors,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -48,10 +78,13 @@ Deno.serve(async (req) => {
     } = body;
 
     if (!role || !prompt) {
-      return new Response(JSON.stringify({ error: "role + prompt required" }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "role + prompt required", fallback: false }, 400);
+    }
+
+    if (KEYS.length === 0) {
+      return stream
+        ? streamFailure("router_unavailable", "No model keys are configured")
+        : jsonResponse({ content: "", error: "router_unavailable", fallback: true, model_used: null });
     }
 
     const admin = createClient(
@@ -67,13 +100,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (!routing) {
-      return new Response(JSON.stringify({ error: `no routing for role ${role}` }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: `no routing for role ${role}`, fallback: false }, 400);
     }
 
-    const candidates = [routing.primary_model_id, ...(routing.fallback_model_ids ?? [])];
+    const candidates = [routing.primary_model_id, ...(routing.fallback_model_ids ?? [])]
+      .filter((m): m is string => typeof m === "string" && m.trim().length > 0)
+      .map(normalizeModelId);
 
     // 2. Drop cooling models
     const { data: cd } = await admin
@@ -202,14 +234,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: "all_candidates_failed", details: errors }), {
-      status: 502,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return stream
+      ? streamFailure("all_candidates_failed", errors.slice(0, 5).join(" | "))
+      : jsonResponse({ content: "", error: "all_candidates_failed", details: errors, fallback: true, model_used: null });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "router_exception", detail: String(e), fallback: true });
   }
 });
