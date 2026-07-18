@@ -154,13 +154,15 @@ Positive direction:
     if (mode === "doc" || blockType === "doc_section")
       return `${CRAFT}
 
-You write ONE section of a long-form document. Output MARKDOWN only.
-- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation.
-- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial.
-- Body: 220–380 words. 2–4 short paragraphs. Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
-- Use a blockquote (\`> \`) exactly once when there is a genuinely quotable insight, statistic, or principle. Never fabricate quotes from real people. Attribute inline with an em-dash if attributed.
-- Optional: at most one tight list (3–5 items, ≤12 words each), parallel grammar, verbs up front. Do not use lists as filler.
-- No horizontal rules, no code fences unless the content is literally code, no images.`;
+You write ONE section of a long-form document that will be typeset as a book-quality PDF. Output MARKDOWN only.
+- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation. Sharp, specific — not "Introduction".
+- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial, ≤ 22 words.
+- Body: 380–620 words. 3–5 paragraphs of varying length. The first paragraph opens with a strong concrete sentence (it will receive a drop cap). Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
+- Include ONE pull-quote as a blockquote (\`> \`) — a genuinely quotable line drawn from the section's own argument, not a decorative aphorism. Never fabricate quotes from real people.
+- Optional: at most one tight list (3–5 items, ≤14 words each), parallel grammar, verbs up front. Do not use lists as filler.
+- May include ONE \`### \` sub-heading if the section has two distinct movements.
+- No horizontal rules, no code fences unless the content is literally code, no images, no meta-labels ("Introduction", "Summary").
+- End on a landed sentence — a claim, an image, or a turn — never "In conclusion".`;
 
     if (mode === "slides" || blockType === "slide")
       return `${CRAFT}
@@ -257,11 +259,19 @@ TYPOGRAPHY (this is the whole point — get it right):
 - Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent.
 
 LAYOUT & CRAFT
-- Generous vertical padding: py-24 to py-32. Never cram.
-- Use CSS grid for feature grids and stats; never inline hardcoded widths.
+- Generous vertical padding: py-24 to py-32. Never cram. Never center everything.
+- Use CSS grid for feature grids and stats; never inline hardcoded widths. Prefer asymmetric splits (5/7, 8/4, 7/5) over 50/50.
 - Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, keep it subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
-- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
-- BREAK THE GRID sometimes: asymmetric splits (5/7, 8/4), rules that extend past columns, one oversize element beside three small ones.
+- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor, 20–24px). Never emoji. Never icon-in-rounded-box mounted above every heading.
+- BREAK THE GRID: rules that extend past their columns; one oversize element beside three small ones; a headline that spans wide while its supporting copy stays narrow (≤ 48ch); numbers used as typography (giant 01 / 02 numerals in eyebrow slot).
+- SECTION-SPECIFIC MOVES:
+  · hero: a real headline (a claim, up to 14 words) + a supporting line, ONE primary CTA + ONE tertiary link, and a bespoke visual element on the right (an abstract SVG diagram, a code snippet in a mono-styled surface, a small dashboard mock, a set of stacked cards, a floating quote — pick ONE, never a stock photo).
+  · features: 3–4 features with distinct visual weights — one feature can be a larger showcase card and the rest smaller companions, not a symmetric 4-up grid.
+  · stats: numbers first, huge (Fraunces, clamp(56px,7vw,120px), weight 500), with tiny mono labels underneath.
+  · testimonial: pulled quote in Fraunces italic, oversized, with a thin attribution line — no photo cards.
+  · pricing: 2–3 plans as vertical borders/columns (no drop shadows), one plan marked with a single 1px accent border.
+  · faq: definition-list style (question left, answer right in narrow column), not accordions.
+  · footer: minimal — a wordmark, one sitemap column, one legal line.
 - Every headline is a claim, not a topic. Every bullet earns its place.
 - HTML must be a single <section> element. Classes prefixed \`lc-<sectionname>-\` to avoid collisions.
 - Do NOT include <html>, <head>, <body>, or external <script src=…> tags. If you need JS behavior, put it in the js field.`;
@@ -287,8 +297,8 @@ LAYOUT & CRAFT
       const { text, model } = await streamRoute({
         role, system, prompt,
         project_id: project.id, block_id: block.id,
-        max_tokens: role === "code" ? 3500 : 2000,
-        temperature: 0.7,
+        max_tokens: role === "code" ? 5200 : 2800,
+        temperature: 0.72,
         onMeta: (m) => {
           pushLog(`↪ streaming from ${m.model}${m.fallback ? " (fallback)" : ""}`, m.fallback ? "warn" : "info");
           setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, model_used: m.model } : b));
@@ -369,8 +379,16 @@ LAYOUT & CRAFT
         return;
       }
       if (mode === "doc" || mode === "agent") {
+        // Beautiful print-to-PDF using the browser's native engine.
+        // Falls back to markdown download if no doc_section blocks exist.
+        const docBlocks = blocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
+        if (docBlocks.length > 0) {
+          const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
+          exportDocToPdf(active.title, docBlocks);
+          toast.success("Opening print dialog — save as PDF");
+          return;
+        }
         const md = blocks.map((b) => {
-          if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
           if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
           if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
           if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
@@ -538,7 +556,7 @@ LAYOUT & CRAFT
                       <LogPanel entries={log} />
                       <div className="flex gap-2">
                         <Button onClick={exportProject} variant="outline" size="sm" className="flex-1 bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
-                          <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+                          <Download className="h-3.5 w-3.5 mr-1.5" /> {active.output_type === "doc" || active.output_type === "agent" ? "Export PDF" : active.output_type === "slides" ? "Export .pptx" : active.output_type === "sheet" ? "Export .xlsx" : active.output_type === "website" ? "Export .html" : "Export"}
                         </Button>
                         <Button onClick={() => removeProject(active)} variant="outline" size="sm" className="bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300">
                           <Trash2 className="h-3.5 w-3.5" />
