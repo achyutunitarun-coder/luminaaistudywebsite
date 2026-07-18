@@ -150,9 +150,9 @@ export async function runOnboarding(existingConfig = null) {
     name: 'tokenBudget',
     message: 'Token budget preference?',
     choices: [
-      { name: 'Efficient (512 tokens)', value: 512 },
-      { name: 'Balanced (1024 tokens)', value: 1024 },
-      { name: 'Expansive (2048 tokens)', value: 2048 },
+      { name: 'Compact (2048 tokens)', value: 2048 },
+      { name: 'Balanced (8192 tokens)', value: 8192 },
+      { name: 'Expansive (8192 tokens)', value: 8192 },
       { name: 'Unlimited', value: 'unlimited' },
     ],
     default: defaults.tokenBudget || 1024

@@ -3,7 +3,7 @@ import { Box, Text } from 'ink';
 
 const { createElement: h } = React;
 
-function StatusBar({ model, persona, tokensUsed, tokenBudget, cost, isStreaming }) {
+function StatusBar({ model, persona, mode, tokensUsed, tokenBudget, cost, isStreaming }) {
   const budgetStr = tokenBudget === 'unlimited' ? '\u221E' : String(tokenBudget);
   const usedPct = tokenBudget === 'unlimited'
     ? '--'
@@ -14,7 +14,8 @@ function StatusBar({ model, persona, tokensUsed, tokenBudget, cost, isStreaming 
     h(Box, { key: 'left', flexGrow: 1 },
       h(Text, null,
         h(Text, { color: 'cyan' }, 'Model:'), ' ' + model + ' ',
-        h(Text, { color: 'cyan' }, 'Persona:'), ' ' + persona
+        h(Text, { color: 'cyan' }, 'Persona:'), ' ' + persona + ' ',
+        h(Text, { color: 'magenta' }, 'Mode:'), ' ' + mode
       )
     ),
     h(Box, { key: 'center' },

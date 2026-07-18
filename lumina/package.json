@@ -1,7 +1,7 @@
 {
   "name": "lumina-ai-cli",
-  "version": "1.0.0",
-  "description": "Personal AI Assistant CLI — chat with AI models from OpenAI, Anthropic, Google, Groq, Together AI and custom endpoints",
+  "version": "1.8.1",
+  "description": "AI CLI for software engineering — chat with OpenAI, Anthropic, Google, Groq, Together AI and custom endpoints",
   "main": "src/index.js",
   "bin": {
     "lumina": "bin/lumina.js",
@@ -22,9 +22,18 @@
     "groq",
     "together",
     "assistant",
-    "terminal"
+    "terminal",
+    "software-engineering"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/achyutunitarun-coder/luminaaistudywebsite.git"
+  },
+  "homepage": "https://github.com/achyutunitarun-coder/luminaaistudywebsite/tree/main/lumina",
+  "bugs": {
+    "url": "https://github.com/achyutunitarun-coder/luminaaistudywebsite/issues"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@google/generative-ai": "^0.12.0",

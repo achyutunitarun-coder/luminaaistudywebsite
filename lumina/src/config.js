@@ -12,7 +12,7 @@ const DEFAULTS = {
   defaultModel: null,
   availableModels: [],
   persona: 'general',
-  tokenBudget: 1024,
+  tokenBudget: 8192,
   firstRun: true,
   version: '1.0.0'
 };
