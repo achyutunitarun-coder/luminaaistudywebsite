@@ -259,11 +259,19 @@ TYPOGRAPHY (this is the whole point — get it right):
 - Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent.
 
 LAYOUT & CRAFT
-- Generous vertical padding: py-24 to py-32. Never cram.
-- Use CSS grid for feature grids and stats; never inline hardcoded widths.
+- Generous vertical padding: py-24 to py-32. Never cram. Never center everything.
+- Use CSS grid for feature grids and stats; never inline hardcoded widths. Prefer asymmetric splits (5/7, 8/4, 7/5) over 50/50.
 - Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, keep it subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
-- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor). Never emoji.
-- BREAK THE GRID sometimes: asymmetric splits (5/7, 8/4), rules that extend past columns, one oversize element beside three small ones.
+- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor, 20–24px). Never emoji. Never icon-in-rounded-box mounted above every heading.
+- BREAK THE GRID: rules that extend past their columns; one oversize element beside three small ones; a headline that spans wide while its supporting copy stays narrow (≤ 48ch); numbers used as typography (giant 01 / 02 numerals in eyebrow slot).
+- SECTION-SPECIFIC MOVES:
+  · hero: a real headline (a claim, up to 14 words) + a supporting line, ONE primary CTA + ONE tertiary link, and a bespoke visual element on the right (an abstract SVG diagram, a code snippet in a mono-styled surface, a small dashboard mock, a set of stacked cards, a floating quote — pick ONE, never a stock photo).
+  · features: 3–4 features with distinct visual weights — one feature can be a larger showcase card and the rest smaller companions, not a symmetric 4-up grid.
+  · stats: numbers first, huge (Fraunces, clamp(56px,7vw,120px), weight 500), with tiny mono labels underneath.
+  · testimonial: pulled quote in Fraunces italic, oversized, with a thin attribution line — no photo cards.
+  · pricing: 2–3 plans as vertical borders/columns (no drop shadows), one plan marked with a single 1px accent border.
+  · faq: definition-list style (question left, answer right in narrow column), not accordions.
+  · footer: minimal — a wordmark, one sitemap column, one legal line.
 - Every headline is a claim, not a topic. Every bullet earns its place.
 - HTML must be a single <section> element. Classes prefixed \`lc-<sectionname>-\` to avoid collisions.
 - Do NOT include <html>, <head>, <body>, or external <script src=…> tags. If you need JS behavior, put it in the js field.`;
