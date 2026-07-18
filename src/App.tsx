@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { lazy, Suspense, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -9,52 +10,47 @@ import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { StudyTimerProvider } from "@/hooks/useStudyTimer";
 import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
-import Auth from "@/pages/Auth";
-import Dashboard from "@/pages/Dashboard";
-import Chat from "@/features/chat/ChatPage";
-
-import Tests from "@/pages/Tests";
-import Flashcards from "@/pages/Flashcards";
-import DoubtSolver from "@/pages/DoubtSolver";
-import Quest from "@/pages/Quest";
-import WeaknessRadar from "@/pages/WeaknessRadar";
-import SettingsPage from "@/pages/SettingsPage";
-import StudyPlanner from "@/pages/StudyPlanner";
-
-import QuickStudy from "@/pages/QuickStudy";
-// Guided Lesson removed
-import StudySession from "@/pages/StudySession";
-import Pulse from "@/pages/Pulse";
-import NotesGenerator from "@/pages/NotesGenerator";
-import LectureAI from "@/pages/LectureAI";
-import SmartNotebook from "@/pages/SmartNotebook";
-import Upgrade from "@/pages/Upgrade";
-import Billing from "@/pages/Billing";
-import Resources from "@/pages/Resources";
-import Leaderboard from "@/pages/Leaderboard";
-import GameModes from "@/pages/GameModes";
-import AITools from "@/pages/AITools";
-import LuminaHub from "@/pages/LuminaHub";
-import LuminaComputer from "@/pages/LuminaComputer";
-import LuminaComputerAdmin from "@/pages/LuminaComputerAdmin";
-
-import Documents from "@/pages/Documents";
-// Study Squads removed
-import Performance from "@/pages/Performance";
-import PrivacySettings from "@/pages/PrivacySettings";
-import TrainingData from "@/pages/TrainingData";
-// Connectors disabled
-import OAuthCallback from "@/pages/OAuthCallback";
-import Privacy from "@/pages/Privacy";
-import Terms from "@/pages/Terms";
-import ArtifactGallery from "@/pages/ArtifactGallery";
-import Landing from "@/pages/Landing";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import { MemoryProvider } from "@/contexts/MemoryContext";
-import NotFound from "./pages/NotFound";
 import { ChatErrorBoundary } from "./components/ChatErrorBoundary";
+
+const Auth = lazy(() => import("@/pages/Auth"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Chat = lazy(() => import("@/features/chat/ChatPage"));
+const Tests = lazy(() => import("@/pages/Tests"));
+const Flashcards = lazy(() => import("@/pages/Flashcards"));
+const DoubtSolver = lazy(() => import("@/pages/DoubtSolver"));
+const Quest = lazy(() => import("@/pages/Quest"));
+const WeaknessRadar = lazy(() => import("@/pages/WeaknessRadar"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const StudyPlanner = lazy(() => import("@/pages/StudyPlanner"));
+const QuickStudy = lazy(() => import("@/pages/QuickStudy"));
+const StudySession = lazy(() => import("@/pages/StudySession"));
+const Pulse = lazy(() => import("@/pages/Pulse"));
+const NotesGenerator = lazy(() => import("@/pages/NotesGenerator"));
+const LectureAI = lazy(() => import("@/pages/LectureAI"));
+const SmartNotebook = lazy(() => import("@/pages/SmartNotebook"));
+const Upgrade = lazy(() => import("@/pages/Upgrade"));
+const Billing = lazy(() => import("@/pages/Billing"));
+const Resources = lazy(() => import("@/pages/Resources"));
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const GameModes = lazy(() => import("@/pages/GameModes"));
+const AITools = lazy(() => import("@/pages/AITools"));
+const LuminaHub = lazy(() => import("@/pages/LuminaHub"));
+const LuminaComputer = lazy(() => import("@/pages/LuminaComputer"));
+const LuminaComputerAdmin = lazy(() => import("@/pages/LuminaComputerAdmin"));
+const Documents = lazy(() => import("@/pages/Documents"));
+const Performance = lazy(() => import("@/pages/Performance"));
+const PrivacySettings = lazy(() => import("@/pages/PrivacySettings"));
+const TrainingData = lazy(() => import("@/pages/TrainingData"));
+const OAuthCallback = lazy(() => import("@/pages/OAuthCallback"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const ArtifactGallery = lazy(() => import("@/pages/ArtifactGallery"));
+const Landing = lazy(() => import("@/pages/Landing"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +66,23 @@ const PaymentReturnHandler = () => {
   usePaymentReturn();
   return null;
 };
+
+const PageLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6" style={{ minHeight: "100vh" }}>
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-xs text-muted-foreground">Loading Lumina…</p>
+    </div>
+  </div>
+);
+
+const PageBoundary = ({ children }: { children: ReactNode }) => (
+  <ChatErrorBoundary>
+    <Suspense fallback={<PageLoading />}>
+      {children}
+    </Suspense>
+  </ChatErrorBoundary>
+);
 
 const FullPageFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background px-6" style={{ minHeight: "100vh" }}>
@@ -106,9 +119,9 @@ const ProtectedLayout = () => {
         <ConsentBanner />
         <MonthlyReportModal />
         <AppLayout>
-          <ChatErrorBoundary>
+          <PageBoundary>
             <Outlet />
-          </ChatErrorBoundary>
+          </PageBoundary>
         </AppLayout>
       </StudyTimerProvider>
     </SubscriptionProvider>
@@ -143,7 +156,8 @@ const App = () => (
               <MemoryProvider>
                 <PaymentReturnHandler />
                 <CreditToast />
-                <Routes>
+                <Suspense fallback={<PageLoading />}>
+                  <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<AuthRoute />} />
               <Route path="/privacy" element={<Privacy />} />
@@ -192,7 +206,8 @@ const App = () => (
               </Route>
 
               <Route path="*" element={<NotFound />} />
-                </Routes>
+                  </Routes>
+                </Suspense>
               </MemoryProvider>
             </AuthProvider>
           </BrowserRouter>
