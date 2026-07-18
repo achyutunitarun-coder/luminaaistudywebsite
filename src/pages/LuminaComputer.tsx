@@ -287,8 +287,8 @@ LAYOUT & CRAFT
       const { text, model } = await streamRoute({
         role, system, prompt,
         project_id: project.id, block_id: block.id,
-        max_tokens: role === "code" ? 3500 : 2000,
-        temperature: 0.7,
+        max_tokens: role === "code" ? 5200 : 2800,
+        temperature: 0.72,
         onMeta: (m) => {
           pushLog(`↪ streaming from ${m.model}${m.fallback ? " (fallback)" : ""}`, m.fallback ? "warn" : "info");
           setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, model_used: m.model } : b));
