@@ -23,9 +23,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let isMounted = true;
-    const loadingFailsafe = window.setTimeout(() => {
-      if (isMounted) setLoading(false);
-    }, 4000);
 
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
@@ -40,21 +37,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
       })
       .finally(() => {
-        window.clearTimeout(loadingFailsafe);
         if (isMounted) setLoading(false);
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
 
-      // INITIAL_SESSION is already handled by getSession() above — ignore it
-      // to prevent a second render that remounts the entire app tree.
       if (event === 'INITIAL_SESSION') return;
 
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
-
 
       if (event === 'SIGNED_IN' && session?.user) {
         setTimeout(async () => {
@@ -82,7 +74,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
-      window.clearTimeout(loadingFailsafe);
       subscription.unsubscribe();
     };
   }, []);
@@ -91,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: 'https://luminaai.co.in' },
+        options: { redirectTo: `${window.location.origin}/auth` },
       });
     } catch {
       toast.error('Google sign-in failed');

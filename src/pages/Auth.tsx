@@ -3,6 +3,7 @@
  * Centered, minimal, beautiful. No particles, no 3D tilt. Just clean.
  */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const Auth = () => {
+  const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -40,8 +42,9 @@ const Auth = () => {
     setLoading(true);
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (data?.session) navigate('/dashboard', { replace: true });
       } else {
         if (!name.trim()) return toast.error('Enter your name');
         const { error } = await supabase.auth.signUp({
