@@ -369,8 +369,16 @@ LAYOUT & CRAFT
         return;
       }
       if (mode === "doc" || mode === "agent") {
+        // Beautiful print-to-PDF using the browser's native engine.
+        // Falls back to markdown download if no doc_section blocks exist.
+        const docBlocks = blocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
+        if (docBlocks.length > 0) {
+          const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
+          exportDocToPdf(active.title, docBlocks);
+          toast.success("Opening print dialog — save as PDF");
+          return;
+        }
         const md = blocks.map((b) => {
-          if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
           if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
           if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
           if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
