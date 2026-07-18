@@ -154,13 +154,15 @@ Positive direction:
     if (mode === "doc" || blockType === "doc_section")
       return `${CRAFT}
 
-You write ONE section of a long-form document. Output MARKDOWN only.
-- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation.
-- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial.
-- Body: 220–380 words. 2–4 short paragraphs. Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
-- Use a blockquote (\`> \`) exactly once when there is a genuinely quotable insight, statistic, or principle. Never fabricate quotes from real people. Attribute inline with an em-dash if attributed.
-- Optional: at most one tight list (3–5 items, ≤12 words each), parallel grammar, verbs up front. Do not use lists as filler.
-- No horizontal rules, no code fences unless the content is literally code, no images.`;
+You write ONE section of a long-form document that will be typeset as a book-quality PDF. Output MARKDOWN only.
+- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation. Sharp, specific — not "Introduction".
+- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial, ≤ 22 words.
+- Body: 380–620 words. 3–5 paragraphs of varying length. The first paragraph opens with a strong concrete sentence (it will receive a drop cap). Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
+- Include ONE pull-quote as a blockquote (\`> \`) — a genuinely quotable line drawn from the section's own argument, not a decorative aphorism. Never fabricate quotes from real people.
+- Optional: at most one tight list (3–5 items, ≤14 words each), parallel grammar, verbs up front. Do not use lists as filler.
+- May include ONE \`### \` sub-heading if the section has two distinct movements.
+- No horizontal rules, no code fences unless the content is literally code, no images, no meta-labels ("Introduction", "Summary").
+- End on a landed sentence — a claim, an image, or a turn — never "In conclusion".`;
 
     if (mode === "slides" || blockType === "slide")
       return `${CRAFT}
