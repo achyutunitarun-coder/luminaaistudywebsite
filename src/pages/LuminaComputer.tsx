@@ -556,7 +556,7 @@ LAYOUT & CRAFT
                       <LogPanel entries={log} />
                       <div className="flex gap-2">
                         <Button onClick={exportProject} variant="outline" size="sm" className="flex-1 bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
-                          <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+                          <Download className="h-3.5 w-3.5 mr-1.5" /> {active.output_type === "doc" || active.output_type === "agent" ? "Export PDF" : active.output_type === "slides" ? "Export .pptx" : active.output_type === "sheet" ? "Export .xlsx" : active.output_type === "website" ? "Export .html" : "Export"}
                         </Button>
                         <Button onClick={() => removeProject(active)} variant="outline" size="sm" className="bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300">
                           <Trash2 className="h-3.5 w-3.5" />
