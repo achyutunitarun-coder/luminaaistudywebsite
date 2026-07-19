@@ -59,7 +59,7 @@ function mdToHtml(md: string): string {
   return out.join("\n");
 }
 
-export function exportDocToPdf(title: string, blocks: LcBlock[]) {
+export function exportDocToPdf(title: string, blocks: LcBlock[], preOpenedWin?: Window | null) {
   const sections = blocks
     .filter((b) => b.block_type === "doc_section" && b.content_json?.markdown)
     .map((b, idx) => {
