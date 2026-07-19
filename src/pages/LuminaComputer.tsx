@@ -1,4 +1,3 @@
-// Lumina Computer — streaming, block-based, multi-mode generation.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -6,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import {
   Loader2, RefreshCw, Trash2, Download, FileText, LayoutGrid,
   Table as TableIcon, Globe, Bot, CheckCircle2, XCircle, Clock, ArrowUp,
-  CornerDownLeft,
+  CornerDownLeft, Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -25,11 +24,33 @@ const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; su
   { key: "agent",   label: "Agent",    icon: Bot,        role: "content", sub: "Mixed artifact — planner decides" },
 ];
 
+const DESIGN_STYLES = [
+  { id: "auto",       label: "Auto",       desc: "Let the AI choose" },
+  { id: "editorial",  label: "Editorial",  desc: "Stripe Press, New Yorker — authoritative" },
+  { id: "minimal",    label: "Minimal",    desc: "Clean, sparse, high whitespace" },
+  { id: "bold",       label: "Bold",       desc: "Big type, high contrast, saturated accents" },
+  { id: "technical",  label: "Technical",  desc: "Structured, code-friendly, precise" },
+  { id: "warm",       label: "Warm",       desc: "Earthy tones, approachable, organic" },
+  { id: "dark",       label: "Dark",       desc: "Deep backgrounds, neon accents, cyber" },
+];
+
 interface LogEntry { id: string; ts: number; text: string; tone: "info" | "ok" | "warn" | "err" }
 
 function nowStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
+function styleDirective(styleId: string): string {
+  const directives: Record<string, string> = {
+    editorial: `VISUAL DIRECTION: Editorial publication style. Type-driven layouts with pull quotes, drop caps, and asymmetric compositions. Palette: warm paper tones, dark ink, one saturated accent. Think Stripe Press, The New Yorker, Vanity Fair.`,
+    minimal: `VISUAL DIRECTION: Extreme minimalism. Maximum whitespace, thin borders, monochrome palette with a single muted accent. Small type, generous leading. Think Linear, Raycast, Clean.`,
+    bold: `VISUAL DIRECTION: Bold and loud. Oversize type, high-contrast color (dark bg + bright accent or light bg + deep accent), saturated gradients used sparingly. Think Apple keynote, Nike, Stripe Sessions.`,
+    technical: `VISUAL DIRECTION: Technical/developer aesthetic. Monospace-heavy, structured grids, code-friendly, subtle color palette with blue or teal accent. Documentation-quality. Think Vercel, Supabase docs, Read the Docs.`,
+    warm: `VISUAL DIRECTION: Warm and organic. Earth tones (amber, ochre, warm gray), soft borders, serif display type, generous whitespace. Think meditation app, craft brand, indie publishing.`,
+    dark: `VISUAL DIRECTION: Dark mode cyber. Deep #0a0a0d backgrounds, neon accent (cyan, magenta, or lime), glow effects on accent elements, glassmorphism only on overlays. Think synthwave, cyberpunk, dark dashboard.`,
+  };
+  return directives[styleId] ?? "";
 }
 
 export default function LuminaComputer() {
@@ -40,6 +61,7 @@ export default function LuminaComputer() {
   const [blocks, setBlocks] = useState<LcBlock[]>([]);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [designStyle, setDesignStyle] = useState("auto");
   const streamingRef = useRef<Record<string, string>>({});
   const [, force] = useState(0);
   const reduce = useReducedMotion();
@@ -65,6 +87,7 @@ export default function LuminaComputer() {
     if (busy) return;
     setBusy(true);
     setLog([]);
+    const chosenStyle = designStyle === "auto" ? null : designStyle;
     try {
       pushLog(`Creating project…`, "info");
       const project = await createProject(g.slice(0, 80), mode);
@@ -85,9 +108,6 @@ export default function LuminaComputer() {
 
       await updateProject(project.id, { status: "generating" });
 
-      // Concurrency-limited generation: max 3 blocks in flight.
-      // Agent mode benefits most (mixed block types run in parallel),
-      // but every mode gets faster builds.
       const CONCURRENCY = 3;
       pushLog(`Generating ${inserted.length} blocks (max ${CONCURRENCY} in parallel)…`, "info");
       let cursor = 0;
@@ -99,7 +119,7 @@ export default function LuminaComputer() {
           if (idx >= total) return;
           const block = inserted[idx];
           pushLog(`↑ start ${idx + 1}/${total}: ${block.title}`, "info");
-          await generateBlock(project, block, g);
+          await generateBlock(project, block, g, chosenStyle);
           completed++;
           pushLog(`✓ done ${completed}/${total}: ${block.title}`, "ok");
         }
@@ -119,9 +139,10 @@ export default function LuminaComputer() {
     }
   }
 
-  function systemFor(mode: OutputType, blockType: string): string {
-    // Shared craft directive — inspired by Claude's frontend-design skill and
-    // top-shelf editorial studios. Every artifact must feel distinctive, not AI-generic.
+  function systemFor(mode: OutputType, blockType: string, overrideStyle?: string | null): string {
+    const styleId = overrideStyle ?? designStyle;
+    const styleDir = styleId !== "auto" ? `\n${styleDirective(styleId)}` : "";
+
     const CRAFT = `
 You are a senior editorial designer + writer working at a studio-quality bar. Every artifact must feel crafted for a design-forward publication (Stripe Press, The New Yorker, Linear changelog, Apple keynote, Rauno.me, Vercel Ship).
 
@@ -146,44 +167,38 @@ Banned patterns — do not emit any of these:
 Positive direction:
 - Commit to ONE distinctive visual direction per artifact.
 - Colors: prefer OKLCH values. Tint neutrals slightly toward the brand hue — no pure #000 or #fff. Sharp, saturated accents used sparingly (1–2 per view) beat a timid, evenly-distributed palette.
-- Type: fluid \`clamp()\` scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
+- Type: fluid clamp() scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
 - Spacing: rhythm through variance (tight groupings + generous separations). Never one repeated padding value everywhere. Prefer left-aligned + asymmetric over centered.
-- Motion: at most one orchestrated entrance with staggered reveals. Animate only \`transform\`/\`opacity\`. Ease-out (expo/quart).
-`.trim();
+- Motion: at most one orchestrated entrance with staggered reveals. Animate only transform/opacity. Ease-out (expo/quart).
+`.trim() + styleDir;
 
     if (mode === "doc" || blockType === "doc_section")
       return `${CRAFT}
 
-You write ONE section of a long-form document that will be typeset as a book-quality PDF. Output MARKDOWN only.
-- Begin with a single \`##\` heading. Title Case. 3–7 words. No trailing punctuation. Sharp, specific — not "Introduction".
-- Optional short italic dek/subhead on the next line in \`_italics_\` — one sentence, editorial, ≤ 22 words.
-- Body: 380–620 words. 3–5 paragraphs of varying length. The first paragraph opens with a strong concrete sentence (it will receive a drop cap). Use **bold** for the 1–2 sharpest phrases in the section (never bold entire sentences).
-- Include ONE pull-quote as a blockquote (\`> \`) — a genuinely quotable line drawn from the section's own argument, not a decorative aphorism. Never fabricate quotes from real people.
-- Optional: at most one tight list (3–5 items, ≤14 words each), parallel grammar, verbs up front. Do not use lists as filler.
-- May include ONE \`### \` sub-heading if the section has two distinct movements.
-- No horizontal rules, no code fences unless the content is literally code, no images, no meta-labels ("Introduction", "Summary").
+You write ONE section of a long-form document. Output MARKDOWN only.
+- Begin with a single ## heading. Title Case. 3–7 words. No trailing punctuation. Sharp, specific.
+- Optional short italic dek/subhead on the next line in _italics_ — one sentence, editorial, ≤ 22 words.
+- Body: 380–620 words. 3–5 paragraphs of varying length. The first paragraph opens with a strong concrete sentence.
+- Include ONE pull-quote as a blockquote (> ) — a genuinely quotable line drawn from the section's own argument.
+- Optional: at most one tight list (3–5 items, ≤14 words each), parallel grammar, verbs up front.
+- May include ONE ### sub-heading if the section has two distinct movements.
+- VARY your structural approach from section to section. Don't follow the same formula every time. Some sections can be narrative, some analytical, some argument-driven.
 - End on a landed sentence — a claim, an image, or a turn — never "In conclusion".`;
 
     if (mode === "slides" || blockType === "slide")
       return `${CRAFT}
 
-You design ONE slide of a keynote-quality deck (think Kimi OK Computer + Apple + Stripe Sessions + McKinsey final read-out). Output ONLY valid JSON.
+You design ONE slide of a keynote-quality deck. Output ONLY valid JSON.
 
-McKINSEY ACTION-TITLE RULE (non-negotiable): the \`title\` is the slide's *governing insight*, not its topic label. Say what the audience should conclude, not what the slide is about.
+McKINSEY ACTION-TITLE RULE (non-negotiable): the title is the slide's governing insight, not its topic label. Say what the audience should conclude, not what the slide is about.
   BAD:  "Market Overview"          GOOD:  "The market compounds 22% while margins collapse"
   BAD:  "Our Roadmap"               GOOD:  "Ship the mobile app before Q3 or lose the wedge"
-  BAD:  "Customer Feedback"         GOOD:  "Buyers churn on billing, not features"
 
-DECK DISCIPLINE
-- One idea per slide. If two ideas need to be said, split them.
-- Never repeat the previous slide's \`layout\` when the same content can be told another way. Variety is the whole point.
-- Keep total deck length under 30 slides regardless of how much the user wants — compress instead of padding.
-
-CHOOSE the right \`layout\` for the idea — variety is the whole point. Never repeat the previous slide's layout when the content can be told another way. Available layouts:
+CHOOSE the right layout for the idea — variety is the whole point. Never repeat the previous slide's layout. Available layouts:
 
 {
-  "eyebrow": "2–4 word section label in ALL CAPS (e.g. 'THE PROBLEM'). Optional.",
-  "title": "The slide's headline. 3–10 words. A claim, not a topic. No trailing period unless a full sentence.",
+  "eyebrow": "2–4 word section label in ALL CAPS. Optional.",
+  "title": "The slide's headline. 3–10 words. A claim, not a topic.",
   "subtitle": "Optional single-sentence deck (≤ 22 words) that sharpens the title.",
   "layout": "cover | section_divider | agenda | statement | bullets | stat | kpi_grid | quote | two_column | comparison | timeline | image_split | closing",
   "bullets": ["3–5 bullets, 5–12 words each, parallel grammar, verbs up front"],
@@ -200,17 +215,19 @@ CHOOSE the right \`layout\` for the idea — variety is the whole point. Never r
 }
 
 RULES
-- Populate ONLY the fields relevant to the chosen \`layout\`. Omit unused fields (no empty strings/arrays/nulls).
-- \`cover\` = the deck opener: eyebrow + title (long-form allowed, up to 14 words) + subtitle. No bullets.
-- \`section_divider\` = big number ("01") in eyebrow slot + section title. Minimal.
-- \`agenda\` = numbered outline of the deck.
-- \`statement\` = one bold claim, oversized. Optional subtitle.
-- \`stat\` = one hero number + one line of context. May include \`source\`.
-- \`kpi_grid\` = 3–4 KPI cards; use for dashboards / launch metrics / earnings.
-- \`quote\` = pulled quote with attribution.
-- \`comparison\` = before/after or option A vs option B.
-- \`timeline\` = chronological milestones.
-- \`closing\` = final "so what" slide. One line, plus optional CTA.
+- Populate ONLY the fields relevant to the chosen layout. Omit unused fields.
+- VARY your layout choices across the deck. Don't use the same layout type twice in a row unless it's the only fitting choice.
+- cover = the deck opener: eyebrow + title (long-form allowed, up to 14 words) + subtitle. No bullets.
+- section_divider = big number ("01") in eyebrow slot + section title.
+- agenda = numbered outline of the deck.
+- statement = one bold claim, oversized. Optional subtitle.
+- stat = one hero number + one line of context. May include source.
+- kpi_grid = 3–4 KPI cards; use for dashboards / launch metrics / earnings.
+- quote = pulled quote with attribution.
+- comparison = before/after or option A vs option B.
+- timeline = chronological milestones.
+- closing = final "so what" slide. One line, plus optional CTA.
+- image_split = one bold claim next to a visual description.
 - No emoji. No exclamation marks. No cliché business-speak.`;
 
     if (mode === "sheet" || blockType === "sheet_tab")
@@ -226,68 +243,59 @@ You design ONE elegant, useful spreadsheet tab. Output ONLY valid JSON:
   "totals_row": true
 }
 Rules:
-- 6–14 rows of realistic, non-toy sample data that an analyst wouldn't be embarrassed to send.
-- Numbers with sensible magnitudes and consistent units per column. Currency as raw numbers (formatting on render).
-- Include at least ONE computed column driven by \`formulas\` (growth %, margin, running total, YoY, etc.).
-- If \`totals_row\` is true, the LAST row must be a totals/summary row where numeric columns are aggregated.
-- No placeholder text like 'foo', 'bar', 'lorem', 'Example Corp'.`;
+- 6–14 rows of realistic, non-toy sample data.
+- Numbers with sensible magnitudes and consistent units per column.
+- Include at least ONE computed column driven by formulas.
+- VARY the data scenario — don't always do revenue projections. Try budget tracking, cohort analysis, A/B test results, resource allocation, timeline estimation, or other real-world use cases.`;
 
     if (mode === "website" || blockType === "site_section")
       return `${CRAFT}
 
-You write ONE <section> of a single-page site that must look like a top-shelf 2025 landing page — Vercel, Linear, Rauno, Attio, Framer template gallery. Output ONLY valid JSON:
+You write ONE <section> of a single-page site. Output ONLY valid JSON:
 { "section_name": "hero" | "features" | "logos" | "testimonial" | "pricing" | "faq" | "cta" | "footer" | "story" | "stats" | "how_it_works",
   "html": "<section class=\\"...\\">…</section>",
   "css": "/* scoped styles for this section only */",
   "js": null | "small enhancement script, no external deps"
 }
 
-LOCKED design system (use ONLY these tokens across every section so the page feels cohesive):
-- Background: #0a0a0d. Section alt-background: #0f0f13.
-- Text: #f5f5f4 (primary), #a1a1aa (muted), #71717a (subtle).
-- Border: rgba(255,255,255,0.08). Card surface: rgba(255,255,255,0.02) with 1px border above.
-- Single accent color: #9d5cff (use sparingly — one accent per section: a button, an underline, or a highlighted word).
-- NO gradients on text. NO neon glows. NO purple-blue AI-slop backgrounds. NO stock-photo hero images.
+VARY YOUR DESIGN APPROACH with each section. Don't use the same layout pattern for every section. Mix:
+- Asymmetric vs symmetric grids
+- Light vs dark section backgrounds
+- Image-heavy vs type-heavy compositions
+- Different accent placements (buttons, underlines, highlights)
+- For the hero section, pick ONE distinctive visual element: an abstract SVG diagram, a code snippet in a mono-styled surface, a small dashboard mock, a set of stacked cards, a floating quote.
+
+Use a cohesive but not repetitive design system:
+- Background: prefer dark (#0a0a0d range) or light (#fafaf8 range). Pick ONE direction and stay consistent.
+- Text hierarchy: one display face + one body face. Fluid clamp() sizing.
+- Single accent color used sparingly (1–2 elements per view).
 - Radius: 12px on cards/buttons, 999px on pill chips.
 
-TYPOGRAPHY (this is the whole point — get it right):
-- Google Fonts available page-wide: \`Fraunces\` for display headings (weights 400/500/600, italic optic), \`Inter\` for body/UI (400/500/600), \`JetBrains Mono\` for tiny eyebrow labels.
-- Hero headline: Fraunces, clamp(48px, 8vw, 96px), weight 500, letter-spacing -0.03em, line-height 1.02. Allow ONE italic word for emphasis.
-- Section headline: Fraunces, clamp(36px, 5vw, 56px), weight 500, tracking tight.
-- Eyebrow labels above headlines: JetBrains Mono, 11–12px, uppercase, letter-spacing 0.18em, color #9d5cff or #71717a.
-- Body: Inter, 16–18px, line-height 1.65, color #a1a1aa. Max width 62ch on paragraph blocks.
-- Buttons: Inter 500, 14px, uppercase tracking 0.06em OR sentence-case — pick one and stay consistent.
+TYPIOGRAPHY
+- Google Fonts: Fraunces for display (weights 400/500/600), Inter for body/UI, JetBrains Mono for tiny eyebrow labels.
+- Hero headline: Fraunces, clamp(48px, 8vw, 96px), weight 500, letter-spacing -0.03em.
+- Section headline: Fraunces, clamp(36px, 5vw, 56px), weight 500.
+- Body: Inter, 16–18px, line-height 1.65, max-width 62ch.
+- Eyebrow labels: JetBrains Mono, 11–12px, uppercase.
 
-LAYOUT & CRAFT
-- Generous vertical padding: py-24 to py-32. Never cram. Never center everything.
-- Use CSS grid for feature grids and stats; never inline hardcoded widths. Prefer asymmetric splits (5/7, 8/4, 7/5) over 50/50.
-- Prefer thin 1px borders and whitespace over drop shadows. If shadow is used, keep it subtle (0 30px 60px -30px rgba(0,0,0,0.5)).
-- Use inline \`<svg>\` for icons (line-icons, 1.5px stroke, currentColor, 20–24px). Never emoji. Never icon-in-rounded-box mounted above every heading.
-- BREAK THE GRID: rules that extend past their columns; one oversize element beside three small ones; a headline that spans wide while its supporting copy stays narrow (≤ 48ch); numbers used as typography (giant 01 / 02 numerals in eyebrow slot).
-- SECTION-SPECIFIC MOVES:
-  · hero: a real headline (a claim, up to 14 words) + a supporting line, ONE primary CTA + ONE tertiary link, and a bespoke visual element on the right (an abstract SVG diagram, a code snippet in a mono-styled surface, a small dashboard mock, a set of stacked cards, a floating quote — pick ONE, never a stock photo).
-  · features: 3–4 features with distinct visual weights — one feature can be a larger showcase card and the rest smaller companions, not a symmetric 4-up grid.
-  · stats: numbers first, huge (Fraunces, clamp(56px,7vw,120px), weight 500), with tiny mono labels underneath.
-  · testimonial: pulled quote in Fraunces italic, oversized, with a thin attribution line — no photo cards.
-  · pricing: 2–3 plans as vertical borders/columns (no drop shadows), one plan marked with a single 1px accent border.
-  · faq: definition-list style (question left, answer right in narrow column), not accordions.
-  · footer: minimal — a wordmark, one sitemap column, one legal line.
-- Every headline is a claim, not a topic. Every bullet earns its place.
-- HTML must be a single <section> element. Classes prefixed \`lc-<sectionname>-\` to avoid collisions.
-- Do NOT include <html>, <head>, <body>, or external <script src=…> tags. If you need JS behavior, put it in the js field.`;
+LAYOUT
+- Generous vertical padding: py-24 to py-32. Never cram.
+- Use CSS grid for feature grids and stats.
+- Break the grid: rules that extend past their columns; oversized elements beside small ones.
+- HTML must be a single <section> element. Classes prefixed lc-<sectionname>-.
+- Do NOT include <html>, <head>, <body>, or external <script src=…> tags.`;
 
     return "Write focused, useful content for the given block. Markdown output.";
   }
 
-
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, extraInstruction?: string) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
     streamingRef.current[block.id] = "";
 
     const role = block.block_type === "site_section" ? "code" : "content";
-    const system = systemFor(project.output_type, block.block_type);
+    const system = systemFor(project.output_type, block.block_type, overrideStyle);
     const refineLine = extraInstruction?.trim()
       ? `\nUser refinement for this block: ${extraInstruction.trim()}\nApply this refinement while keeping the same block type and JSON shape.`
       : "";
@@ -298,7 +306,7 @@ LAYOUT & CRAFT
         role, system, prompt,
         project_id: project.id, block_id: block.id,
         max_tokens: role === "code" ? 5200 : 2800,
-        temperature: 0.72,
+        temperature: 0.82,
         onMeta: (m) => {
           pushLog(`↪ streaming from ${m.model}${m.fallback ? " (fallback)" : ""}`, m.fallback ? "warn" : "info");
           setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, model_used: m.model } : b));
@@ -310,7 +318,6 @@ LAYOUT & CRAFT
         onError: (msg) => pushLog(`stream warning: ${msg}`, "warn"),
       });
 
-      // Parse per mode
       const parsed = parseContent(project.output_type, block.block_type, text);
       await updateBlock(block.id, {
         status: parsed ? "ready" : "error",
@@ -340,7 +347,6 @@ LAYOUT & CRAFT
     if (mode === "doc" || blockType === "doc_section") {
       return clean.length > 20 ? { markdown: clean } : null;
     }
-    // JSON modes
     try { return JSON.parse(clean); } catch { /* */ }
     const m = clean.match(/\{[\s\S]*\}/);
     if (m) { try { return JSON.parse(m[0]); } catch { /* */ } }
@@ -350,9 +356,8 @@ LAYOUT & CRAFT
   async function regenerate(block: LcBlock, refinement?: string) {
     if (!active) return;
     pushLog(`Regenerating: ${block.title}${refinement ? ` — "${refinement.slice(0, 60)}"` : ""}`, "info");
-    await generateBlock(active, block, active.title, refinement);
+    await generateBlock(active, block, active.title, designStyle === "auto" ? null : designStyle, refinement);
   }
-
 
   async function removeProject(p: LcProject) {
     if (!confirm(`Delete "${p.title}"?`)) return;
@@ -368,7 +373,7 @@ LAYOUT & CRAFT
     try {
       if (mode === "slides") {
         const { exportSlidesToPptx } = await import("@/features/luminaComputer/exportSlides");
-        await exportSlidesToPptx(active.title, blocks);
+        await exportSlidesToPptx(active.title, blocks, active.title + (designStyle !== "auto" ? designStyle : ""));
         toast.success("Exported .pptx");
         return;
       }
@@ -379,43 +384,63 @@ LAYOUT & CRAFT
         return;
       }
       if (mode === "doc" || mode === "agent") {
-        const docBlocks = blocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
+        const readyBlocks = blocks.filter((b) => b.content_json);
+        if (readyBlocks.length === 0) {
+          toast.error("No blocks to export");
+          return;
+        }
+        const docBlocks = readyBlocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
         if (docBlocks.length > 0) {
-          // Open the popup SYNCHRONOUSLY inside the click handler so browsers
-          // preserve user activation. The dynamic import + write happens after.
           const win = window.open("", "_blank");
           if (!win) {
-            toast.error("Popup blocked — downloading markdown instead");
+            toast.error("Popup blocked");
           } else {
             const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
-            exportDocToPdf(active.title, docBlocks, win);
+            exportDocToPdf(active.title, readyBlocks, active.title + (designStyle !== "auto" ? designStyle : ""), win);
             toast.success("Opening print dialog — save as PDF");
             return;
           }
         }
-        const md = blocks.map((b) => {
-          if (b.block_type === "doc_section") return String(b.content_json?.markdown ?? "");
-          if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
-          if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
-          if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
+        const md = readyBlocks.map((b) => {
+          if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
+          if (b.block_type === "slide") {
+            const c = b.content_json;
+            let body = "";
+            if (c?.bullets?.length) body = `\n${c.bullets.map((x: string) => `- ${x}`).join("\n")}`;
+            if (c?.stat) body = `\n**${c.stat.value}** — ${c.stat.label}`;
+            if (c?.quote) body = `\n> "${c.quote.text}" — ${c.quote.attribution}`;
+            return `## ${c?.title ?? b.title}\n${body}`;
+          }
+          if (b.block_type === "site_section") return `### ${b.title}\n\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
+          if (b.block_type === "sheet_tab") {
+            const c = b.content_json;
+            if (!c?.columns?.length) return "";
+            const header = `| ${c.columns.join(" | ")} |`;
+            const sep = `| ${c.columns.map(() => "---").join(" | ")} |`;
+            const rows = (c.rows ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n");
+            return `### ${c.tab_name ?? b.title}\n${header}\n${sep}\n${rows}`;
+          }
           return "";
         }).filter(Boolean).join("\n\n---\n\n");
-        downloadFile(`${active.title}.md`, md, "text/markdown");
-      } else if (mode === "website") {
+        downloadFile(`${active.title}.md`, md || "# Empty document", "text/markdown");
+        toast.success("Exported .md");
+        return;
+      }
+      if (mode === "website") {
         const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
         const baseCss = `*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;margin:0;color:#f5f5f4}p{color:#a1a1aa;line-height:1.65;margin:0}a{color:inherit}img{max-width:100%;display:block}`;
         const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(active.title)}</title>${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}\n${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
         downloadFile(`${active.title}.html`, html, "text/html");
-      } else {
-        downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
+        toast.success("Exported .html");
+        return;
       }
+      downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
       toast.success("Exported");
     } catch (e: any) {
       toast.error(`Export failed: ${e.message ?? e}`);
     }
   }
 
-  // Load Space Grotesk once — locked heading typography for this workstation.
   useEffect(() => {
     const id = "lc-font-space-grotesk";
     if (document.getElementById(id)) return;
@@ -442,7 +467,7 @@ LAYOUT & CRAFT
                 <span style={heading} className="text-[13px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">Lumina Computer</span>
               </div>
               <div className="h-4 w-px bg-zinc-800" />
-              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v4</span>
+              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v5</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -561,12 +586,39 @@ LAYOUT & CRAFT
                       </div>
                       <LogPanel entries={log} />
                       <div className="flex gap-2">
-                        <Button onClick={exportProject} variant="outline" size="sm" className="flex-1 bg-transparent border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100">
-                          <Download className="h-3.5 w-3.5 mr-1.5" /> {active.output_type === "doc" || active.output_type === "agent" ? "Export PDF" : active.output_type === "slides" ? "Export .pptx" : active.output_type === "sheet" ? "Export .xlsx" : active.output_type === "website" ? "Export .html" : "Export"}
-                        </Button>
-                        <Button onClick={() => removeProject(active)} variant="outline" size="sm" className="bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300">
+                        <button
+                          onClick={exportProject}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-[11px] px-3 py-2 rounded-md border border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {active.output_type === "doc" || active.output_type === "agent" ? "Export PDF/MD" : active.output_type === "slides" ? "Export .pptx" : active.output_type === "sheet" ? "Export .xlsx" : active.output_type === "website" ? "Export .html" : "Export"}
+                        </button>
+                        <button onClick={() => removeProject(active)} className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300 transition">
                           <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        </button>
+                      </div>
+                      {/* Style selector */}
+                      <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                          <Palette className="h-3 w-3 text-zinc-500" />
+                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Design mood</div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {DESIGN_STYLES.map((s) => (
+                            <button
+                              key={s.id}
+                              onClick={() => setDesignStyle(s.id)}
+                              title={s.desc}
+                              className={`text-[10px] px-2 py-1 rounded transition ${
+                                designStyle === s.id
+                                  ? "bg-zinc-800 text-zinc-100 border border-zinc-600"
+                                  : "bg-zinc-900/50 text-zinc-500 hover:text-zinc-300 border border-transparent"
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -615,6 +667,7 @@ LAYOUT & CRAFT
                 Engine · {busy ? "Streaming" : "Idle"}
               </span>
               <span className="hidden sm:inline">Mode · {activeMode.label}</span>
+              {designStyle !== "auto" && <span className="hidden sm:inline">Mood · {DESIGN_STYLES.find((s) => s.id === designStyle)?.label}</span>}
             </div>
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
               <span>Blocks · {blocks.length}</span>
@@ -626,7 +679,6 @@ LAYOUT & CRAFT
     </div>
   );
 }
-
 
 function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; onOpen: (p: LcProject) => void; onDelete: (p: LcProject) => void }) {
   if (projects.length === 0) return (
@@ -727,7 +779,6 @@ function LogPanel({ entries }: { entries: LogEntry[] }) {
   );
 }
 
-
 function BlockPreview({ block, streaming, onRegen }: { block: LcBlock; streaming?: string; onRegen: () => void }) {
   const content = block.content_json;
   const isStreaming = block.status === "generating";
@@ -767,7 +818,6 @@ function BlockPreview({ block, streaming, onRegen }: { block: LcBlock; streaming
     </motion.div>
   );
 }
-
 
 function RenderedBlock({ type, content }: { type: string; content: any }) {
   if (!content) return <div className="text-xs text-zinc-600">Empty.</div>;
@@ -894,10 +944,8 @@ function SlideCanvas({ c }: { c: any }) {
              ? "radial-gradient(ellipse at 30% 20%, #1e1533 0%, #0a0a0d 65%), linear-gradient(180deg, #0d0a14 0%, #08080b 100%)"
              : "radial-gradient(ellipse at 20% 0%, #14111c 0%, #0a0a0d 55%)"
          }}>
-      {/* Hairline frame for extra polish */}
       <div className="absolute inset-3 rounded-lg border border-white/[0.04] pointer-events-none" />
 
-      {/* corner brand mark */}
       <div className="absolute top-5 left-6 flex items-center gap-2" style={mono}>
         <span className="w-1.5 h-1.5 rounded-full bg-[#9d5cff]" />
         <span className="text-[9px] uppercase tracking-[0.22em] text-zinc-500">Lumina</span>
@@ -1014,7 +1062,7 @@ function SlideCanvas({ c }: { c: any }) {
         ) : layout === "quote" && c.quote ? (
           <div className="max-w-[48ch]">
             <div style={heading} className="text-[36px] md:text-[48px] italic font-normal leading-[1.15] text-zinc-100">
-              <span className="text-[#9d5cff] mr-1">“</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">”</span>
+              <span className="text-[#9d5cff] mr-1">\u201C</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">\u201D</span>
             </div>
             <div style={mono} className="mt-8 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
           </div>
@@ -1064,7 +1112,6 @@ function SlideCanvas({ c }: { c: any }) {
     </div>
   );
 }
-
 
 function downloadFile(name: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
