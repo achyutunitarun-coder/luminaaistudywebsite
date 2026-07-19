@@ -1,1 +1,0 @@
-CREATE POLICY "Users insert own safety events" ON public.safety_events FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);

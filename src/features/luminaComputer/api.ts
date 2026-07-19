@@ -46,7 +46,7 @@ export async function planBlocks(goal: string, output_type: OutputType) {
     body: JSON.stringify({ goal, output_type }),
   });
   if (!res.ok) { const text = await res.text(); try { const json = JSON.parse(text); throw new Error(json.error || json.message || text); } catch { throw new Error(text); } }
-  return res.json() as Promise<{ blocks: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number }>; model_used: string; is_fallback?: boolean; error_detail?: any }>;
+  return res.json() as Promise<{ blocks: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number; layout_hint?: string; narrative_beat?: string }>; model_used: string; is_fallback?: boolean; error_detail?: any }>;
 }
 
 export interface StreamCallbacks {
@@ -158,8 +158,16 @@ export async function updateProject(id: string, patch: Partial<LcProject>) {
   if (error) throw error;
 }
 
-export async function insertBlocks(project_id: string, plans: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number }>) {
-  const rows = plans.map((p) => ({ ...p, project_id, status: "queued" as const }));
+export async function insertBlocks(project_id: string, plans: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number; layout_hint?: string; narrative_beat?: string }>) {
+  const rows = plans.map((p) => ({
+    project_id,
+    block_type: p.block_type,
+    title: p.title,
+    prompt_seed: p.prompt_seed,
+    order_index: p.order_index,
+    status: "queued" as const,
+    content_json: { layout_hint: p.layout_hint, narrative_beat: p.narrative_beat },
+  }));
   const { data, error } = await supabase.from("lc_blocks" as any).insert(rows).select();
   if (error) throw error;
   return (data ?? []) as unknown as LcBlock[];

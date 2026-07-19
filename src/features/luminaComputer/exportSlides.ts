@@ -22,44 +22,44 @@ interface SlideTheme {
 
 const SLIDE_THEMES: SlideTheme[] = [
   {
-    name: "Deep Vault",
-    bg: "0A0A0D", bgAlt: "0F0F13", surface: "12101A", border: "27272A",
-    accent: "9D5CFF", accentSoft: "C39AFF",
-    text: "F5F5F4", textMute: "A1A1AA", textDim: "71717A",
+    name: "Studio",
+    bg: "181614", bgAlt: "211F1C", surface: "2B2824", border: "33302C",
+    accent: "C49B3F", accentSoft: "E8C97A",
+    text: "EFEAE1", textMute: "A0988C", textDim: "6B655B",
     displayFont: "Georgia", bodyFont: "Calibri", monoFont: "Consolas",
-    coverBg: "0D0A14", dramaticBg: "0D0A14", isDark: true,
+    coverBg: "14120E", dramaticBg: "100E0B", isDark: true,
   },
   {
     name: "Light Board",
     bg: "FAFAF8", bgAlt: "F0F0ED", surface: "FFFFFF", border: "E4E4E0",
-    accent: "6D28D9", accentSoft: "8B5CF6",
+    accent: "B8860B", accentSoft: "DAA520",
     text: "1A1A1A", textMute: "525252", textDim: "878787",
     displayFont: "Georgia", bodyFont: "Calibri", monoFont: "Consolas",
-    coverBg: "F5F3FF", dramaticBg: "F0ECFF", isDark: false,
+    coverBg: "F5F0E6", dramaticBg: "F0EADE", isDark: false,
   },
   {
-    name: "Ocean",
-    bg: "08101A", bgAlt: "0C1622", surface: "0E1A2A", border: "1E2D42",
-    accent: "38BDF8", accentSoft: "7DD3FC",
-    text: "F0F9FF", textMute: "94A3B8", textDim: "64748B",
+    name: "Deep Blue",
+    bg: "0E1218", bgAlt: "13181F", surface: "181E26", border: "242C36",
+    accent: "C49B3F", accentSoft: "E8C97A",
+    text: "E8ECF0", textMute: "88929E", textDim: "5C6670",
     displayFont: "Georgia", bodyFont: "Calibri", monoFont: "Consolas",
-    coverBg: "06101E", dramaticBg: "040D1A", isDark: true,
+    coverBg: "0B0F14", dramaticBg: "090C11", isDark: true,
   },
   {
     name: "Warm Earth",
     bg: "100E0C", bgAlt: "161412", surface: "1A1715", border: "2D2824",
-    accent: "D97706", accentSoft: "F59E0B",
+    accent: "C49B3F", accentSoft: "E8C97A",
     text: "FDF5E6", textMute: "A8A29E", textDim: "78716C",
     displayFont: "Georgia", bodyFont: "Calibri", monoFont: "Consolas",
     coverBg: "0F0C09", dramaticBg: "0D0A07", isDark: true,
   },
   {
-    name: "Forest",
-    bg: "0A0F0A", bgAlt: "0E140E", surface: "121A12", border: "1F2A1F",
-    accent: "4ADE80", accentSoft: "86EFAC",
-    text: "F0FDF4", textMute: "A3BFA3", textDim: "6F8F6F",
+    name: "Mineral",
+    bg: "0F0F0F", bgAlt: "161616", surface: "1C1C1C", border: "2A2A2A",
+    accent: "C49B3F", accentSoft: "D4B06A",
+    text: "F0F0F0", textMute: "909090", textDim: "606060",
     displayFont: "Georgia", bodyFont: "Calibri", monoFont: "Consolas",
-    coverBg: "080D08", dramaticBg: "060B06", isDark: true,
+    coverBg: "0A0A0A", dramaticBg: "080808", isDark: true,
   },
 ];
 
@@ -166,10 +166,6 @@ function inferLayout(c: any): string {
 
 function paintBackground(s: Slide, dramatic: boolean, theme: SlideTheme) {
   s.background = { color: dramatic ? theme.dramaticBg : theme.bg };
-  s.addShape("rect" as any, {
-    x: 0.2, y: 0.2, w: W - 0.4, h: H - 0.4,
-    line: { color: theme.isDark ? "1a1a20" : "e0e0e0", width: 0.5 }, fill: { type: "none" as any },
-  });
 }
 
 function addBrandMark(s: Slide, theme: SlideTheme) {
@@ -192,26 +188,25 @@ function addSlideIndex(s: Slide, i: number, total: number, theme: SlideTheme) {
   });
 }
 
-function addAccentRule(s: Slide, x: number, y: number, theme: SlideTheme, w = 1.2) {
-  s.addShape("rect" as any, {
-    x, y, w, h: 0.04,
-    fill: { color: theme.accent }, line: { color: theme.accent, width: 0 },
-  });
-}
+// accent lines are intentionally omitted — they read as AI-generated filler.
+// Use whitespace, background contrast, or typography to separate content.
 
 function renderCover(s: Slide, c: any, theme: SlideTheme) {
+  s.addShape("rect" as any, {
+    x: 0.7, y: 1.8, w: 1.5, h: 0.03,
+    fill: { color: theme.accent },
+  });
   s.addText(c.title ?? "", {
-    x: 0.7, y: 2.6, w: 11, h: 2.4,
-    fontSize: 60, bold: false, color: theme.text, fontFace: theme.displayFont,
-    charSpacing: -2,
+    x: 0.7, y: 2.0, w: 11, h: 2.6,
+    fontSize: 52, bold: false, color: theme.text, fontFace: theme.displayFont,
+    charSpacing: -1,
   });
   if (c.subtitle) {
     s.addText(c.subtitle, {
-      x: 0.7, y: 5.2, w: 10, h: 1,
+      x: 0.7, y: 5.0, w: 10, h: 1,
       fontSize: 18, color: theme.textMute, fontFace: theme.bodyFont,
     });
   }
-  addAccentRule(s, 0.7, 6.5, theme, 1.6);
 }
 
 function renderSectionDivider(s: Slide, c: any, theme: SlideTheme) {
@@ -414,7 +409,6 @@ function renderQuote(s: Slide, c: any, theme: SlideTheme) {
     fontSize: 40, italic: true, color: theme.text, fontFace: theme.displayFont,
     charSpacing: -1,
   });
-  addAccentRule(s, 0.9, 5.9, theme, 0.5);
   s.addText(`— ${c.quote?.attribution ?? ""}`.toUpperCase(), {
     x: 0.9, y: 6.05, w: 11, h: 0.35,
     fontSize: 10, color: theme.textDim, fontFace: theme.monoFont, charSpacing: 4,
@@ -485,27 +479,27 @@ function renderStatement(s: Slide, c: any, theme: SlideTheme) {
 function addCoverSlide(pptx: PptxGenJS, title: string, theme: SlideTheme) {
   const s = pptx.addSlide();
   s.background = { color: theme.coverBg };
-  s.addShape("rect" as any, {
-    x: 0.2, y: 0.2, w: W - 0.4, h: H - 0.4,
-    line: { color: theme.isDark ? "1a1a20" : "d0d0d0", width: 0.5 }, fill: { type: "none" as any },
-  });
   addBrandMark(s, theme);
   s.addText("DECK", {
     x: W - 2.2, y: 0.5, w: 1.5, h: 0.25,
     fontSize: 9, color: theme.textDim, fontFace: theme.monoFont,
     align: "right", charSpacing: 4,
   });
+  // accent line
+  s.addShape("rect" as any, {
+    x: 0.7, y: 1.8, w: 1.5, h: 0.03,
+    fill: { color: theme.accent },
+  });
   s.addText(title, {
-    x: 0.7, y: 2.6, w: 11, h: 2.6,
-    fontSize: 62, color: theme.text, fontFace: theme.displayFont, charSpacing: -2,
+    x: 0.7, y: 2.0, w: 11, h: 2.8,
+    fontSize: 54, color: theme.text, fontFace: theme.displayFont, charSpacing: -1,
   });
   s.addText(`Generated with Lumina Computer · ${theme.name}`, {
     x: 0.7, y: 5.4, w: 10, h: 0.5,
-    fontSize: 15, color: theme.textMute, fontFace: theme.bodyFont,
+    fontSize: 14, color: theme.textMute, fontFace: theme.bodyFont,
   });
-  addAccentRule(s, 0.7, 6.4, theme, 1.8);
   s.addText(new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }).toUpperCase(), {
-    x: 0.7, y: 6.6, w: 6, h: 0.3,
-    fontSize: 10, color: theme.textDim, fontFace: theme.monoFont, charSpacing: 4,
+    x: 0.7, y: 6.8, w: 6, h: 0.3,
+    fontSize: 9, color: theme.textDim, fontFace: theme.monoFont, charSpacing: 4,
   });
 }

@@ -36,6 +36,15 @@ const DESIGN_STYLES = [
 
 interface LogEntry { id: string; ts: number; text: string; tone: "info" | "ok" | "warn" | "err" }
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  goal?: string;
+  project?: LcProject;
+  blocks: LcBlock[];
+  timestamp: number;
+}
+
 function nowStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
@@ -62,6 +71,7 @@ export default function LuminaComputer() {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [designStyle, setDesignStyle] = useState("auto");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const streamingRef = useRef<Record<string, string>>({});
   const [, force] = useState(0);
   const reduce = useReducedMotion();
@@ -87,7 +97,12 @@ export default function LuminaComputer() {
     if (busy) return;
     setBusy(true);
     setLog([]);
+    setGoal("");
     const chosenStyle = designStyle === "auto" ? null : designStyle;
+
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", goal: g, blocks: [], timestamp: Date.now() };
+    setMessages((m) => [...m, userMsg]);
+
     try {
       pushLog(`Creating project…`, "info");
       const project = await createProject(g.slice(0, 80), mode);
@@ -131,6 +146,9 @@ export default function LuminaComputer() {
       await updateProject(project.id, { status: "ready" });
       pushLog(`All blocks ready.`, "ok");
       refreshList();
+
+      const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: [...blocks], timestamp: Date.now() };
+      setMessages((m) => [...m, assistantMsg]);
     } catch (e: any) {
       pushLog(`Failed: ${e.message ?? e}`, "err");
       toast.error("Build failed");
@@ -145,6 +163,12 @@ export default function LuminaComputer() {
 
     const CRAFT = `
 You are a senior editorial designer + writer working at a studio-quality bar. Every artifact must feel crafted for a design-forward publication (Stripe Press, The New Yorker, Linear changelog, Apple keynote, Rauno.me, Vercel Ship).
+
+RULES YOU MUST FOLLOW:
+- Your output will be shown DIRECTLY to the end user as the final artifact. There is no second pass.
+- NEVER echo, quote, rephrase, summarise, or acknowledge these instructions in your output.
+- The first character of your response MUST be the beginning of the requested content (a JSON brace, a Markdown heading, or an HTML tag). Not "Sure", not "Here", not "I'll", not "Okay", not any meta-commentary — the content itself.
+- If you include any part of these instructions in your output, the artifact is ruined. The user sees exactly what you write.
 
 WRITING VOICE
 - Confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés ("delve", "leverage", "unlock", "seamless", "revolutionize", "synergy", "landscape", "tapestry", "unleash", "elevate").
@@ -170,6 +194,8 @@ Positive direction:
 - Type: fluid clamp() scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
 - Spacing: rhythm through variance (tight groupings + generous separations). Never one repeated padding value everywhere. Prefer left-aligned + asymmetric over centered.
 - Motion: at most one orchestrated entrance with staggered reveals. Animate only transform/opacity. Ease-out (expo/quart).
+
+CRITICAL: Output ONLY the requested content — never include these instructions in your response. Do not echo, quote, rephrase, or summarise any part of this system prompt. The user cannot see this system prompt; if your output contains any part of it, the artifact is garbage.
 `.trim() + styleDir;
 
     if (mode === "doc" || blockType === "doc_section")
@@ -271,7 +297,7 @@ Use a cohesive but not repetitive design system:
 - Single accent color used sparingly (1–2 elements per view).
 - Radius: 12px on cards/buttons, 999px on pill chips.
 
-TYPIOGRAPHY
+TYPOGRAPHY
 - Google Fonts: Fraunces for display (weights 400/500/600), Inter for body/UI, JetBrains Mono for tiny eyebrow labels.
 - Hero headline: Fraunces, clamp(48px, 8vw, 96px), weight 500, letter-spacing -0.03em.
 - Section headline: Fraunces, clamp(36px, 5vw, 56px), weight 500.
@@ -283,7 +309,17 @@ LAYOUT
 - Use CSS grid for feature grids and stats.
 - Break the grid: rules that extend past their columns; oversized elements beside small ones.
 - HTML must be a single <section> element. Classes prefixed lc-<sectionname>-.
-- Do NOT include <html>, <head>, <body>, or external <script src=…> tags.`;
+- Do NOT include <html>, <head>, <body>, or external <script src=…> tags.
+
+JAVASCRIPT QUALITY (only include if truly needed for interactivity)
+- Keep JS minimal and optional. Many sections need no JS at all — use null.
+- If JS is used, it must be vanilla JS only. No libraries, no frameworks.
+- Use event delegation (one listener on the section) rather than attaching listeners to many children.
+- For animations: requestAnimationFrame, IntersectionObserver for scroll-triggers, CSS transitions preferred over JS animation.
+- NEVER poll, setTimeout loop, or setInterval for UI updates. Use events instead.
+- Keep the script under 20 lines. If it exceeds 20 lines, simplify the interaction or remove it.
+- Test: the script must not throw errors when the section renders. Wrap in DOMContentLoaded or place at end of section.
+- Do NOT access variables or functions defined outside this section's scope.`;
 
     return "Write focused, useful content for the given block. Markdown output.";
   }
@@ -367,39 +403,36 @@ LAYOUT
     toast.success("Deleted");
   }
 
-  async function exportProject() {
-    if (!active) return;
-    const mode = active.output_type;
+  async function exportProject(overrideProject?: LcProject, overrideBlocks?: LcBlock[]) {
+    const p = overrideProject ?? active;
+    const bs = overrideBlocks ?? blocks;
+    if (!p) return;
+    const mode = p.output_type;
     try {
       if (mode === "slides") {
         const { exportSlidesToPptx } = await import("@/features/luminaComputer/exportSlides");
-        await exportSlidesToPptx(active.title, blocks, active.title + (designStyle !== "auto" ? designStyle : ""));
+        await exportSlidesToPptx(p.title, bs, p.title + (designStyle !== "auto" ? designStyle : ""));
         toast.success("Exported .pptx");
         return;
       }
       if (mode === "sheet") {
         const { exportSheetsToXlsx } = await import("@/features/luminaComputer/exportSheets");
-        await exportSheetsToXlsx(active.title, blocks);
+        await exportSheetsToXlsx(p.title, bs);
         toast.success("Exported .xlsx");
         return;
       }
       if (mode === "doc" || mode === "agent") {
-        const readyBlocks = blocks.filter((b) => b.content_json);
+        const readyBlocks = bs.filter((b) => b.content_json);
         if (readyBlocks.length === 0) {
           toast.error("No blocks to export");
           return;
         }
         const docBlocks = readyBlocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
         if (docBlocks.length > 0) {
-          const win = window.open("", "_blank");
-          if (!win) {
-            toast.error("Popup blocked");
-          } else {
-            const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
-            exportDocToPdf(active.title, readyBlocks, active.title + (designStyle !== "auto" ? designStyle : ""), win);
-            toast.success("Opening print dialog — save as PDF");
-            return;
-          }
+          const { exportDocToDocx } = await import("@/features/luminaComputer/exportDoc");
+          await exportDocToDocx(p.title, readyBlocks, p.title + (designStyle !== "auto" ? designStyle : ""));
+          toast.success("Exported .docx");
+          return;
         }
         const md = readyBlocks.map((b) => {
           if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
@@ -422,19 +455,19 @@ LAYOUT
           }
           return "";
         }).filter(Boolean).join("\n\n---\n\n");
-        downloadFile(`${active.title}.md`, md || "# Empty document", "text/markdown");
+        downloadFile(`${p.title}.md`, md || "# Empty document", "text/markdown");
         toast.success("Exported .md");
         return;
       }
       if (mode === "website") {
         const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
         const baseCss = `*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;margin:0;color:#f5f5f4}p{color:#a1a1aa;line-height:1.65;margin:0}a{color:inherit}img{max-width:100%;display:block}`;
-        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(active.title)}</title>${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}\n${blocks.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${blocks.map((b) => b.content_json?.html ?? "").join("\n")}<script>${blocks.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
-        downloadFile(`${active.title}.html`, html, "text/html");
+        const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(p.title)}</title>${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}\n${bs.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${bs.map((b) => b.content_json?.html ?? "").join("\n")}<script>${bs.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
+        downloadFile(`${p.title}.html`, html, "text/html");
         toast.success("Exported .html");
         return;
       }
-      downloadFile(`${active.title}.json`, JSON.stringify(blocks.map((b) => b.content_json), null, 2), "application/json");
+      downloadFile(`${p.title}.json`, JSON.stringify(bs.map((b) => b.content_json), null, 2), "application/json");
       toast.success("Exported");
     } catch (e: any) {
       toast.error(`Export failed: ${e.message ?? e}`);
@@ -458,9 +491,9 @@ LAYOUT
   return (
     <div className="min-h-screen w-full bg-[#08080c] text-zinc-300">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8">
-        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10] shadow-2xl shadow-black/60 overflow-hidden">
-          {/* Workstation header bar */}
-          <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114]">
+        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10] shadow-2xl shadow-black/60 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+          {/* Header bar */}
+          <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114] shrink-0">
             <div className="flex items-center gap-4 min-w-0">
               <div className="flex items-center gap-2.5 shrink-0">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_10px_rgba(157,92,255,0.6)]" aria-hidden />
@@ -503,164 +536,195 @@ LAYOUT
             </div>
           </header>
 
-          {/* Main workbench area */}
-          <main
-            className="relative"
-            style={{ background: "radial-gradient(ellipse at 50% 0%, #14141a 0%, #0a0a0d 60%)" }}
-          >
-            {/* Band 1: prompt console */}
-            <section className="px-4 md:px-8 pt-8 md:pt-10 pb-6">
-              <div className="max-w-3xl mx-auto">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/50" style={mono}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${busy ? "bg-[#9d5cff] animate-pulse" : "bg-emerald-500/80"}`} aria-hidden />
-                    <span className="text-[9px] uppercase tracking-widest text-zinc-500">
-                      {busy ? "Building" : "System Ready"}
-                    </span>
-                  </span>
-                  <span style={mono} className="text-[9px] uppercase tracking-widest text-zinc-600">
-                    Mode · {activeMode.label} — {activeMode.sub}
-                  </span>
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute -inset-px bg-gradient-to-b from-zinc-700/40 to-zinc-900/0 rounded-xl opacity-40 group-focus-within:opacity-80 blur-[2px] transition duration-500 pointer-events-none" />
-                  <div className="relative bg-[#0f0f13] border border-zinc-800 rounded-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
-                    <textarea
-                      value={goal}
-                      onChange={(e) => setGoal(e.target.value)}
-                      placeholder={`Describe what to build (e.g. "Investor pitch for our Series A")`}
-                      rows={3}
-                      disabled={busy}
-                      style={heading}
-                      className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 text-[15px] leading-relaxed focus:ring-0 focus:outline-none resize-none px-5 pt-4 pb-3"
-                      onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleBuild(); }}
-                    />
-                    <div className="flex items-center justify-between border-t border-zinc-800/70 px-4 py-2.5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span style={mono} className="text-[10px] uppercase tracking-widest text-zinc-600 truncate">
-                          {goal.trim().length} chars · block-streamed
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span style={mono} className="hidden md:inline text-[10px] text-zinc-600 tracking-wider">
-                          <span className="inline-flex items-center gap-1"><CornerDownLeft className="h-3 w-3" aria-hidden /> Cmd+Enter</span>
-                        </span>
-                        <button
-                          onClick={handleBuild}
-                          disabled={busy || !goal.trim()}
-                          className="inline-flex items-center gap-2 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-black text-sm font-medium px-4 py-1.5 rounded-md transition-all shadow-[0_0_20px_rgba(255,255,255,0.06)]"
-                        >
-                          {busy ? (
-                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Building</>
-                          ) : (
-                            <>Build <ArrowUp className="h-3.5 w-3.5" /></>
-                          )}
+          {/* Chat messages */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+            <div className="max-w-3xl mx-auto space-y-8">
+              {messages.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 mb-6" style={mono}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
+                    <span className="text-[9px] uppercase tracking-widest text-zinc-500">System Ready</span>
+                  </div>
+                  <div style={heading} className="text-2xl text-zinc-200 mb-3">What are you building today?</div>
+                  <p className="text-sm text-zinc-500 max-w-md mx-auto leading-relaxed">
+                    Describe your project and I&apos;ll generate structured content, slides, sheets, or websites.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    {MODES.map((m) => {
+                      const Icon = m.icon;
+                      return (
+                        <button key={m.key} onClick={() => setMode(m.key)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-md border transition ${
+                            mode === m.key
+                              ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                              : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
+                          }`}>
+                          <Icon className="h-3 w-3" />
+                          {m.label}
                         </button>
+                      );
+                    })}
+                  </div>
+                  {projects.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-zinc-800/60">
+                      <div className="text-[10px] uppercase tracking-widest text-zinc-600 mb-4 font-mono">Previous projects</div>
+                      <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                messages.map((msg, mi) => (
+                  <div key={msg.id}>
+                    {msg.role === "user" ? (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-xs font-semibold text-zinc-400">U</span>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">You</span>
+                            <span className="text-[9px] text-zinc-700 font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="text-zinc-100 text-[15px] leading-relaxed whitespace-pre-wrap">{msg.goal}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#9d5cff]/15 flex items-center justify-center shrink-0 mt-0.5">
+                          <Bot className="h-4 w-4 text-[#9d5cff]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Lumina</span>
+                            <span className="text-[9px] text-zinc-700 font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                            {msg.project && (
+                              <span className="text-[9px] text-zinc-700 font-mono">· {msg.project.output_type}</span>
+                            )}
+                          </div>
+
+                          {msg.project?.output_type === "website" ? (
+                            <WebsitePreview blocks={msg.blocks} streamingText={streamingRef.current} onRegen={(b, r) => regenerate(b, r)} />
+                          ) : (
+                            <div className="space-y-4">
+                              {msg.blocks.map((b) => (
+                                <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
+                              ))}
+                            </div>
+                          )}
+
+                          {msg.project && (
+                            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-zinc-800/50">
+                              <button onClick={() => exportProject(msg.project, msg.blocks)}
+                                className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition"
+                              >
+                                <Download className="h-3 w-3" />
+                                Export
+                              </button>
+                              <button onClick={() => removeProject(msg.project!)}
+                                className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-red-300 transition"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => { setActive(msg.project!); setBlocks(msg.blocks); }}
+                                className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-100 transition"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                Open
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+
+              {busy && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#9d5cff]/15 flex items-center justify-center shrink-0 mt-0.5">
+                    <Loader2 className="h-4 w-4 text-[#9d5cff] animate-spin" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Lumina</span>
+                      <span className="text-[9px] text-zinc-700 font-mono">building…</span>
+                    </div>
+                    <BuildProgress blocks={blocks} />
+                    <div className="mt-3 rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
+                      <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 px-1">Build trace</div>
+                      <div className="space-y-0.5 max-h-[30vh] overflow-y-auto">
+                        {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
+                        {blocks.length === 0 && <div style={mono} className="text-[10px] text-zinc-600 px-2 py-4">Planning…</div>}
                       </div>
                     </div>
+                    <LogPanel entries={log} />
                   </div>
                 </div>
-              </div>
-            </section>
+              )}
+            </div>
+          </div>
 
-            {/* Band 2: workspace body */}
-            <section className="px-4 md:px-8 pb-8 border-t border-zinc-800/60 bg-[#09090c]/60">
-              <div className="pt-6">
-                {!active ? (
-                  <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
-                    {/* Left: build-trace rail + log */}
-                    <div className="flex flex-col gap-3 min-h-0">
-                      <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
-                        <div className="flex items-center justify-between mb-2 px-1">
-                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Build trace</div>
-                          <button onClick={() => { setActive(null); setBlocks([]); }} className="text-[10px] text-zinc-500 hover:text-zinc-200 transition">← Projects</button>
-                        </div>
-                        <BuildProgress blocks={blocks} />
-                        <div className="space-y-0.5 max-h-[42vh] overflow-y-auto pr-1 mt-2">
-                          {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
-                          {blocks.length === 0 && <div style={mono} className="text-[10px] uppercase tracking-wider text-zinc-600 px-2 py-4">Waiting for planner…</div>}
-                        </div>
-                      </div>
-                      <LogPanel entries={log} />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={exportProject}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-[11px] px-3 py-2 rounded-md border border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100 transition"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          {active.output_type === "doc" || active.output_type === "agent" ? "Export PDF/MD" : active.output_type === "slides" ? "Export .pptx" : active.output_type === "sheet" ? "Export .xlsx" : active.output_type === "website" ? "Export .html" : "Export"}
-                        </button>
-                        <button onClick={() => removeProject(active)} className="inline-flex items-center justify-center px-3 py-2 rounded-md border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-red-300 transition">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      {/* Style selector */}
-                      <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                          <Palette className="h-3 w-3 text-zinc-500" />
-                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500">Design mood</div>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {DESIGN_STYLES.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={() => setDesignStyle(s.id)}
-                              title={s.desc}
-                              className={`text-[10px] px-2 py-1 rounded transition ${
-                                designStyle === s.id
-                                  ? "bg-zinc-800 text-zinc-100 border border-zinc-600"
-                                  : "bg-zinc-900/50 text-zinc-500 hover:text-zinc-300 border border-transparent"
-                              }`}
-                            >
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right: preview */}
-                    <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-4 md:p-6 min-h-[60vh]">
-                      <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/70">
-                        <div className="min-w-0">
-                          <div style={heading} className="text-lg font-semibold text-zinc-100 truncate">{active.title}</div>
-                          <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mt-0.5">{active.output_type}</div>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        {active.output_type === "website" ? (
-                          <WebsitePreview
-                            blocks={blocks}
-                            streamingText={streamingRef.current}
-                            onRegen={(b, r) => regenerate(b, r)}
-                          />
-                        ) : (
-                          <>
-                            {blocks.map((b) => (
-                              <BlockPreview key={b.id} block={b} streaming={streamingRef.current[b.id]} onRegen={() => regenerate(b)} />
-                            ))}
-                            {blocks.length === 0 && (
-                              <div className="text-center py-16">
-                                <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-600">Awaiting artifact</div>
-                                <div style={heading} className="text-lg text-zinc-400 mt-2">Nothing built yet.</div>
-                                <p className="text-sm text-zinc-600 mt-1">Type what you want above and hit Build.</p>
-                              </div>
-                            )}
-                          </>
+          {/* Input bar */}
+          <div className="shrink-0 px-4 md:px-8 pb-4 pt-3 border-t border-zinc-800/60 bg-[#0a0a0d]/80">
+            <div className="max-w-3xl mx-auto">
+              <div className="relative group">
+                <div className="absolute -inset-px bg-gradient-to-b from-zinc-700/40 to-zinc-900/0 rounded-xl opacity-40 group-focus-within:opacity-80 blur-[2px] transition duration-500 pointer-events-none" />
+                <div className="relative bg-[#0f0f13] border border-zinc-800 rounded-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
+                  <textarea
+                    value={goal}
+                    onChange={(e) => setGoal(e.target.value)}
+                    placeholder={`Describe what to build (e.g. "Investor pitch for our Series A")`}
+                    rows={3}
+                    disabled={busy}
+                    style={heading}
+                    className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 text-[15px] leading-relaxed focus:ring-0 focus:outline-none resize-none px-5 pt-4 pb-3"
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleBuild(); }}
+                  />
+                  <div className="flex items-center justify-between border-t border-zinc-800/70 px-4 py-2.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        {DESIGN_STYLES.filter((s) => s.id !== "auto").slice(0, 4).map((s) => (
+                          <button key={s.id} onClick={() => setDesignStyle(s.id)}
+                            title={s.desc}
+                            className={`text-[9px] px-1.5 py-0.5 rounded transition ${
+                              designStyle === s.id
+                                ? "bg-zinc-800 text-zinc-300 border border-zinc-600"
+                                : "bg-zinc-900/50 text-zinc-600 hover:text-zinc-400 border border-transparent"
+                            }`}
+                          >{s.label}</button>
+                        ))}
+                        {designStyle !== "auto" && (
+                          <button onClick={() => setDesignStyle("auto")}
+                            className="text-[9px] px-1.5 py-0.5 rounded text-zinc-600 hover:text-zinc-400 border border-transparent"
+                          ><span aria-hidden>x</span></button>
                         )}
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <span style={mono} className="hidden md:inline text-[10px] text-zinc-600 tracking-wider">
+                        <span className="inline-flex items-center gap-1"><CornerDownLeft className="h-3 w-3" aria-hidden /> Cmd+Enter</span>
+                      </span>
+                      <button
+                        onClick={handleBuild}
+                        disabled={busy || !goal.trim()}
+                        className="inline-flex items-center gap-2 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-black text-sm font-medium px-4 py-1.5 rounded-md transition-all shadow-[0_0_20px_rgba(255,255,255,0.06)]"
+                      >
+                        {busy ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Building</>
+                        ) : (
+                          <>Build <ArrowUp className="h-3.5 w-3.5" /></>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
-            </section>
-          </main>
+            </div>
+          </div>
 
-          {/* Status footer */}
-          <footer className="h-8 border-t border-zinc-800 bg-[#08080b] flex items-center justify-between px-4" style={mono}>
+          {/* Footer */}
+          <footer className="h-8 border-t border-zinc-800 bg-[#08080b] flex items-center justify-between px-4 shrink-0" style={mono}>
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
               <span className="flex items-center gap-1.5">
                 <span className={`w-1 h-1 rounded-full ${busy ? "bg-[#9d5cff]" : "bg-emerald-500"}`} />
@@ -670,7 +734,7 @@ LAYOUT
               {designStyle !== "auto" && <span className="hidden sm:inline">Mood · {DESIGN_STYLES.find((s) => s.id === designStyle)?.label}</span>}
             </div>
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
-              <span>Blocks · {blocks.length}</span>
+              <span>Messages · {messages.length}</span>
               <span className="text-zinc-500">v1.0 · Stable</span>
             </div>
           </footer>

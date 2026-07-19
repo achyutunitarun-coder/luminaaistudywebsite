@@ -29,7 +29,7 @@ function nextKey() {
 }
 
 function normalizeModelId(model: string) {
-  return model.replace(/:free$/i, "");
+  return model;
 }
 
 function jsonResponse(payload: Record<string, unknown>, status = 200) {

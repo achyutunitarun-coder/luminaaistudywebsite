@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
     let retries = 0;
+    console.log('[Auth] mount session restore');
 
     function restoreSession() {
       supabase.auth.getSession()

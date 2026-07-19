@@ -1,2 +1,0 @@
-DROP POLICY IF EXISTS "Block client writes to user_unlocked_packs" ON public.user_unlocked_packs;
-CREATE POLICY "Block client writes to user_unlocked_packs" ON public.user_unlocked_packs AS RESTRICTIVE FOR ALL TO authenticated, anon USING (false) WITH CHECK (false);
