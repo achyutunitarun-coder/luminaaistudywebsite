@@ -80,12 +80,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
-      await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${window.location.origin}/auth` },
       });
-    } catch {
-      toast.error('Google sign-in failed');
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Google sign-in failed');
     }
   };
 
