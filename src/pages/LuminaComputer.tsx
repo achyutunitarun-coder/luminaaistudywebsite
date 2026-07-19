@@ -379,21 +379,27 @@ LAYOUT & CRAFT
         return;
       }
       if (mode === "doc" || mode === "agent") {
-        // Beautiful print-to-PDF using the browser's native engine.
-        // Falls back to markdown download if no doc_section blocks exist.
         const docBlocks = blocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
         if (docBlocks.length > 0) {
-          const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
-          exportDocToPdf(active.title, docBlocks);
-          toast.success("Opening print dialog — save as PDF");
-          return;
+          // Open the popup SYNCHRONOUSLY inside the click handler so browsers
+          // preserve user activation. The dynamic import + write happens after.
+          const win = window.open("", "_blank");
+          if (!win) {
+            toast.error("Popup blocked — downloading markdown instead");
+          } else {
+            const { exportDocToPdf } = await import("@/features/luminaComputer/exportDoc");
+            exportDocToPdf(active.title, docBlocks, win);
+            toast.success("Opening print dialog — save as PDF");
+            return;
+          }
         }
         const md = blocks.map((b) => {
+          if (b.block_type === "doc_section") return String(b.content_json?.markdown ?? "");
           if (b.block_type === "slide") return `## ${b.content_json?.title ?? b.title}\n\n${(b.content_json?.bullets ?? []).map((x: string) => `- ${x}`).join("\n")}`;
           if (b.block_type === "site_section") return `\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
           if (b.block_type === "sheet_tab") return `### ${b.content_json?.tab_name ?? b.title}\n\n${((b.content_json?.rows) ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n")}`;
           return "";
-        }).join("\n\n---\n\n");
+        }).filter(Boolean).join("\n\n---\n\n");
         downloadFile(`${active.title}.md`, md, "text/markdown");
       } else if (mode === "website") {
         const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
