@@ -224,7 +224,7 @@ export function exportDocToPdf(title: string, blocks: LcBlock[], preOpenedWin?: 
 </body>
 </html>`;
 
-  const win = window.open("", "_blank");
+  const win = preOpenedWin ?? window.open("", "_blank");
   if (!win) throw new Error("Popup blocked — allow popups to export PDF");
   win.document.open();
   win.document.write(doc);
