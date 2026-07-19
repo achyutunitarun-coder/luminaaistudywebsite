@@ -59,7 +59,7 @@ function mdToHtml(md: string): string {
   return out.join("\n");
 }
 
-export function exportDocToPdf(title: string, blocks: LcBlock[]) {
+export function exportDocToPdf(title: string, blocks: LcBlock[], preOpenedWin?: Window | null) {
   const sections = blocks
     .filter((b) => b.block_type === "doc_section" && b.content_json?.markdown)
     .map((b, idx) => {
@@ -224,7 +224,7 @@ export function exportDocToPdf(title: string, blocks: LcBlock[]) {
 </body>
 </html>`;
 
-  const win = window.open("", "_blank");
+  const win = preOpenedWin ?? window.open("", "_blank");
   if (!win) throw new Error("Popup blocked — allow popups to export PDF");
   win.document.open();
   win.document.write(doc);
