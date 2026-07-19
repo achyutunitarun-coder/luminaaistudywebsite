@@ -23,22 +23,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let isMounted = true;
+    let retries = 0;
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!isMounted) return;
-        setSession(session);
-        setUser(session?.user ?? null);
-      })
-      .catch((error) => {
-        console.error('Auth session restore failed:', error);
-        if (!isMounted) return;
-        setSession(null);
-        setUser(null);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
+    function restoreSession() {
+      supabase.auth.getSession()
+        .then(({ data: { session } }) => {
+          if (!isMounted) return;
+          if (!session && window.location.hash.includes('access_token=') && retries < 5) {
+            retries++;
+            setTimeout(restoreSession, 300);
+            return;
+          }
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (session && window.location.hash.includes('access_token=')) {
+            window.location.hash = '';
+          }
+        })
+        .catch((error) => {
+          console.error('Auth session restore failed:', error);
+          if (!isMounted) return;
+          setSession(null);
+          setUser(null);
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    }
+
+    restoreSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
