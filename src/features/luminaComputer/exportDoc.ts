@@ -40,7 +40,7 @@ function mdToDocx(md: string): (Paragraph | Table)[] {
     return runs;
   };
 
-  const buildParagraph = (text: string, heading?: HeadingLevel): Paragraph => {
+  const buildParagraph = (text: string, heading?: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph => {
     const runs = inline(text);
     const children = runs.map((r) => r instanceof TextRun ? r : new TextRun({ text: r as string }));
     return new Paragraph({
