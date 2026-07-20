@@ -326,27 +326,47 @@ export default function LuminaComputer() {
     document.head.appendChild(link);
   }, []);
 
+  useEffect(() => {
+    const id = "lc-animations";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+      @keyframes breathe { 0%,100%{transform:scale(1);opacity:0.15} 50%{transform:scale(1.08);opacity:0.25} }
+      @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+      @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+      @keyframes pulse-ring { 0%{box-shadow:0 0 0 0 rgba(157,92,255,0.4)} 70%{box-shadow:0 0 0 8px rgba(157,92,255,0)} 100%{box-shadow:0 0 0 0 rgba(157,92,255,0)} }
+      @keyframes gradient-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+      @keyframes border-glow { 0%,100%{border-color:rgba(157,92,255,0.15)} 50%{border-color:rgba(157,92,255,0.4)} }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   const activeMode = MODES.find((m) => m.key === mode)!;
   const heading = { fontFamily: "'Space Grotesk', ui-sans-serif, system-ui" } as const;
   const mono = { fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" } as const;
 
   return (
-    <div className="min-h-screen w-full bg-[#08080c] text-zinc-300">
-      <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8">
-        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10] shadow-2xl shadow-black/60 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="min-h-screen w-full text-zinc-300 relative overflow-hidden" style={{background:'radial-gradient(ellipse at 50% 0%, #0f0d18 0%, #08080c 50%, #06060a 100%)'}}>
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage:'radial-gradient(circle at 1px 1px, #9d5cff 1px, transparent 0)', backgroundSize:'40px 40px'}} />
+      <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8 relative z-10">
+        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10]/95 backdrop-blur-sm shadow-2xl shadow-black/60 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
           {/* Header bar */}
-          <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114] shrink-0">
+          <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114] shrink-0 relative">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#9d5cff]/30 to-transparent" />
             <div className="flex items-center gap-4 min-w-0">
               <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_10px_rgba(157,92,255,0.6)]" aria-hidden />
-                <span style={heading} className="text-[13px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">Lumina Computer</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_12px_rgba(157,92,255,0.7)] relative" aria-hidden style={{animation:'pulse-ring 2s ease-in-out infinite'}}>
+                  <div className="absolute inset-0 rounded-full bg-[#9d5cff] animate-ping opacity-30" />
+                </div>
+                <span style={heading} className="text-[13px] font-semibold tracking-[0.18em] uppercase bg-gradient-to-r from-zinc-200 via-[#c39aff] to-zinc-200 bg-clip-text text-transparent">Lumina Computer</span>
               </div>
-              <div className="h-4 w-px bg-zinc-800" />
-              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v5</span>
+              <div className="h-4 w-px bg-gradient-to-b from-zinc-800/80 via-zinc-800 to-zinc-800/80" />
+              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v6</span>
             </div>
 
             <div className="flex items-center gap-3">
-              <div role="tablist" aria-label="Output mode" className="flex bg-black/50 p-0.5 rounded-md border border-zinc-800">
+              <div role="tablist" aria-label="Output mode" className="flex bg-black/60 p-0.5 rounded-lg border border-zinc-800/80 backdrop-blur-sm">
                 {MODES.map((m) => {
                   const on = mode === m.key;
                   const Icon = m.icon;
@@ -356,12 +376,12 @@ export default function LuminaComputer() {
                       role="tab"
                       aria-selected={on}
                       onClick={() => setMode(m.key)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-[3px] transition-all
+                      className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-[4px] transition-all duration-200
                         ${on
-                          ? "text-zinc-100 bg-zinc-900 border border-zinc-700/60 shadow-sm"
-                          : "text-zinc-600 hover:text-zinc-300 border border-transparent"}`}
+                          ? "text-zinc-100 bg-gradient-to-b from-zinc-800 to-zinc-900 border border-zinc-700/60 shadow-sm shadow-black/30"
+                          : "text-zinc-600 hover:text-zinc-300 border border-transparent hover:bg-zinc-900/40"}`}
                     >
-                      <Icon className="h-3 w-3" aria-hidden />
+                      <Icon className={`h-3 w-3 ${on ? 'text-[#c39aff]' : ''}`} aria-hidden />
                       <span className="hidden md:inline">{m.label}</span>
                     </button>
                   );
@@ -370,7 +390,7 @@ export default function LuminaComputer() {
               <a
                 href="/lumina-computer/admin"
                 style={mono}
-                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800 hover:border-zinc-700 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9d5cff]/60"
+                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800/80 hover:border-[#9d5cff]/40 hover:bg-[#9d5cff]/5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9d5cff]/60"
                 aria-label="Open routing and cooldowns dashboard"
               >
                 Routing
@@ -382,26 +402,27 @@ export default function LuminaComputer() {
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
             <div className="max-w-3xl mx-auto space-y-8">
               {messages.length === 0 ? (
-                <div className="text-center py-20">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 mb-6" style={mono}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-                    <span className="text-[9px] uppercase tracking-widest text-zinc-500">System Ready</span>
+                <div className="text-center py-24 relative">
+                  <div className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[#9d5cff] opacity-[0.04] blur-3xl" style={{animation:'breathe 5s ease-in-out infinite'}} />
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-800/40 bg-emerald-900/15 mb-6 shadow-[0_0_15px_rgba(16,185,129,0.1)]" style={mono}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                    <span className="text-[9px] uppercase tracking-widest text-emerald-300/80">System Ready</span>
                   </div>
-                  <div style={heading} className="text-2xl text-zinc-200 mb-3">What are you building today?</div>
+                  <div style={heading} className="text-3xl text-zinc-100 mb-3 tracking-tight">What are you building today?</div>
                   <p className="text-sm text-zinc-500 max-w-md mx-auto leading-relaxed">
                     Describe your project and I&apos;ll generate structured content, slides, sheets, or websites.
                   </p>
-                  <div className="flex items-center justify-center gap-2 mt-6">
+                  <div className="flex items-center justify-center gap-2 mt-8">
                     {MODES.map((m) => {
                       const Icon = m.icon;
                       return (
                         <button key={m.key} onClick={() => setMode(m.key)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-md border transition ${
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-[11px] rounded-md border transition-all duration-200 ${
                             mode === m.key
-                              ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                              : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
+                              ? "border-[#9d5cff]/50 bg-[#9d5cff]/10 text-zinc-200 shadow-[0_0_12px_rgba(157,92,255,0.15)]"
+                              : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/30"
                           }`}>
-                          <Icon className="h-3 w-3" />
+                          <Icon className={`h-3 w-3 ${mode === m.key ? 'text-[#c39aff]' : ''}`} />
                           {m.label}
                         </button>
                       );
@@ -494,7 +515,10 @@ export default function LuminaComputer() {
                     </div>
                     <BuildProgress blocks={blocks} />
                     <div className="mt-3 rounded-lg border border-zinc-800 bg-[#0c0c10] p-3">
-                      <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 px-1">Build trace</div>
+                      <div style={mono} className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 px-1 flex items-center gap-2">
+                      <span className="w-1 h-1 rounded-full bg-[#9d5cff] shadow-[0_0_4px_rgba(157,92,255,0.6)]" />
+                      Build trace
+                    </div>
                       <div className="space-y-0.5 max-h-[30vh] overflow-y-auto">
                         {blocks.map((b, i) => <TraceRow key={b.id} idx={i} block={b} onRegen={() => regenerate(b)} reduce={!!reduce} />)}
                         {blocks.length === 0 && <div style={mono} className="text-[10px] text-zinc-600 px-2 py-4">Planning…</div>}
@@ -508,11 +532,13 @@ export default function LuminaComputer() {
           </div>
 
           {/* Input bar */}
-          <div className="shrink-0 px-4 md:px-8 pb-4 pt-3 border-t border-zinc-800/60 bg-[#0a0a0d]/80">
+          <div className="shrink-0 px-4 md:px-8 pb-4 pt-3 border-t border-zinc-800/60 bg-[#0a0a0d]/80 relative">
+            <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-zinc-700/40 to-transparent" />
             <div className="max-w-3xl mx-auto">
               <div className="relative group">
                 <div className="absolute -inset-px bg-gradient-to-b from-zinc-700/40 to-zinc-900/0 rounded-xl opacity-40 group-focus-within:opacity-80 blur-[2px] transition duration-500 pointer-events-none" />
-                <div className="relative bg-[#0f0f13] border border-zinc-800 rounded-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
+                <div className="absolute -inset-px rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 pointer-events-none" style={{background:'linear-gradient(135deg, rgba(157,92,255,0.15), rgba(195,154,255,0.08), rgba(157,92,255,0.15))', backgroundSize:'200% 200%', animation:'gradient-shift 4s ease infinite'}} />
+                <div className="relative bg-[#0f0f13]/90 backdrop-blur-sm border border-zinc-800 rounded-xl shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] group-focus-within:border-zinc-700/60 transition-colors duration-500">
                   <textarea
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
@@ -520,19 +546,19 @@ export default function LuminaComputer() {
                     rows={3}
                     disabled={busy}
                     style={heading}
-                    className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600 text-[15px] leading-relaxed focus:ring-0 focus:outline-none resize-none px-5 pt-4 pb-3"
+                    className="w-full bg-transparent border-none text-zinc-100 placeholder-zinc-600/70 text-[15px] leading-relaxed focus:ring-0 focus:outline-none resize-none px-5 pt-4 pb-3"
                     onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleBuild(); }}
                   />
-                  <div className="flex items-center justify-between border-t border-zinc-800/70 px-4 py-2.5">
+                  <div className="flex items-center justify-between border-t border-zinc-800/60 px-4 py-2.5">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex flex-wrap gap-1.5">
                         {DESIGN_STYLES.filter((s) => s.id !== "auto").slice(0, 4).map((s) => (
                           <button key={s.id} onClick={() => setDesignStyle(s.id)}
                             title={s.desc}
-                            className={`text-[9px] px-1.5 py-0.5 rounded transition ${
+                            className={`text-[9px] px-1.5 py-0.5 rounded transition-all duration-150 ${
                               designStyle === s.id
-                                ? "bg-zinc-800 text-zinc-300 border border-zinc-600"
-                                : "bg-zinc-900/50 text-zinc-600 hover:text-zinc-400 border border-transparent"
+                                ? "bg-[#9d5cff]/10 text-[#c39aff] border border-[#9d5cff]/30"
+                                : "bg-zinc-900/50 text-zinc-600 hover:text-zinc-400 border border-transparent hover:bg-zinc-800/30"
                             }`}
                           >{s.label}</button>
                         ))}
@@ -550,7 +576,7 @@ export default function LuminaComputer() {
                       <button
                         onClick={handleBuild}
                         disabled={busy || !goal.trim()}
-                        className="inline-flex items-center gap-2 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-black text-sm font-medium px-4 py-1.5 rounded-md transition-all shadow-[0_0_20px_rgba(255,255,255,0.06)]"
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-zinc-100 via-zinc-50 to-zinc-100 hover:from-white hover:via-white hover:to-white disabled:from-zinc-800 disabled:via-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-black text-sm font-medium px-5 py-1.5 rounded-md transition-all duration-200 shadow-[0_0_20px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(157,92,255,0.15)] disabled:shadow-none active:scale-[0.97]"
                       >
                         {busy ? (
                           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Building</>
@@ -566,10 +592,11 @@ export default function LuminaComputer() {
           </div>
 
           {/* Footer */}
-          <footer className="h-8 border-t border-zinc-800 bg-[#08080b] flex items-center justify-between px-4 shrink-0" style={mono}>
+          <footer className="h-8 border-t border-zinc-800 bg-[#08080b] flex items-center justify-between px-4 shrink-0 relative" style={mono}>
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/20 to-transparent" />
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
               <span className="flex items-center gap-1.5">
-                <span className={`w-1 h-1 rounded-full ${busy ? "bg-[#9d5cff]" : "bg-emerald-500"}`} />
+                <span className={`w-1 h-1 rounded-full ${busy ? "bg-[#9d5cff] shadow-[0_0_6px_rgba(157,92,255,0.6)]" : "bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.4)]"}`} />
                 Engine · {busy ? "Streaming" : "Idle"}
               </span>
               <span className="hidden sm:inline">Mode · {activeMode.label}</span>
@@ -577,7 +604,7 @@ export default function LuminaComputer() {
             </div>
             <div className="flex items-center gap-4 text-[9px] uppercase tracking-wider text-zinc-600">
               <span>Messages · {messages.length}</span>
-              <span className="text-zinc-500">v1.0 · Stable</span>
+              <span className="bg-gradient-to-r from-zinc-400 to-zinc-500 bg-clip-text text-transparent">v1.1 · Polished</span>
             </div>
           </footer>
         </div>
@@ -588,8 +615,11 @@ export default function LuminaComputer() {
 
 function ProjectList({ projects, onOpen, onDelete }: { projects: LcProject[]; onOpen: (p: LcProject) => void; onDelete: (p: LcProject) => void }) {
   if (projects.length === 0) return (
-    <div className="rounded-lg border border-zinc-800 bg-[#0c0c10] p-10 text-center">
-      <div className="text-[10px] uppercase tracking-widest text-zinc-600 font-mono">Awaiting artifact</div>
+    <div className="rounded-lg border border-zinc-800/80 bg-[#0c0c10]/80 backdrop-blur-sm p-12 text-center">
+      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-zinc-800 bg-zinc-900/50 mb-4">
+        <span className="w-1 h-1 rounded-full bg-zinc-600" />
+        <span className="text-[9px] uppercase tracking-widest text-zinc-600 font-mono">Awaiting artifact</span>
+      </div>
       <div className="text-lg text-zinc-400 mt-2" style={{ fontFamily: "'Space Grotesk', ui-sans-serif" }}>Nothing built yet.</div>
       <p className="text-sm text-zinc-600 mt-1">Type what you want above and hit Build.</p>
     </div>
@@ -624,10 +654,10 @@ function BuildProgress({ blocks }: { blocks: LcBlock[] }) {
         <span>{done}/{total} complete{err > 0 ? ` · ${err} failed` : ""}</span>
         <span>{inFlight > 0 ? `${inFlight} in flight` : pct === 100 ? "ready" : ""}</span>
       </div>
-      <div className="h-1 rounded-full bg-zinc-900 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-zinc-900 overflow-hidden ring-1 ring-zinc-800/50">
         <div
-          className="h-full bg-[#9d5cff] shadow-[0_0_10px_rgba(157,92,255,0.5)] transition-all duration-300"
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(157,92,255,0.4)]"
+          style={{ width: `${pct}%`, background:'linear-gradient(90deg, #9d5cff, #c39aff, #9d5cff)', backgroundSize:'200% 100%', animation:'gradient-shift 2s linear infinite' }}
         />
       </div>
     </div>
@@ -646,16 +676,22 @@ function TraceRow({ idx, block, onRegen, reduce }: { idx: number; block: LcBlock
 
   return (
     <motion.div layout={!reduce}
-      className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-zinc-900/60 transition">
-      <StatusIcon className={`h-3.5 w-3.5 shrink-0 ${iconClass} ${block.status === "generating" && !reduce ? "animate-spin" : ""}`} />
+      className="group flex items-center gap-2.5 rounded px-2 py-1.5 hover:bg-zinc-900/60 transition-all duration-150">
+      <div className="relative shrink-0">
+        <StatusIcon className={`h-3.5 w-3.5 ${iconClass} ${block.status === "generating" && !reduce ? "animate-spin" : ""}`} />
+        {block.status === "generating" && <div className="absolute inset-0 rounded-full bg-[#c39aff] animate-ping opacity-20" />}
+      </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] text-zinc-300 truncate">{idx + 1}. {block.title}</div>
+        <div className="text-[13px] text-zinc-300 truncate group-hover:text-zinc-100 transition-colors">{idx + 1}. {block.title}</div>
         <div className="text-[10px] text-zinc-600 truncate font-mono uppercase tracking-wider">
-          {block.model_used ?? "queued"} · {block.status}
+          <span className={block.status === "generating" ? "text-[#c39aff]/70" : block.status === "ready" ? "text-emerald-500/60" : block.status === "error" ? "text-red-400/60" : "text-zinc-600"}>
+            {block.status}
+          </span>
+          {block.model_used && <span> · {block.model_used.split("/")[1]?.split(":")[0] ?? block.model_used}</span>}
         </div>
       </div>
       {(block.status === "ready" || block.status === "error") && (
-        <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-200 transition" title="Regenerate this block">
+        <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-[#c39aff] transition-all duration-150" title="Regenerate this block">
           <RefreshCw className="h-3.5 w-3.5" />
         </button>
       )}
@@ -666,20 +702,29 @@ function TraceRow({ idx, block, onRegen, reduce }: { idx: number; block: LcBlock
 function LogPanel({ entries }: { entries: LogEntry[] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { ref.current?.scrollTo({ top: 9e9 }); }, [entries]);
+  const toneColors: Record<string, string> = {
+    ok: 'bg-emerald-400',
+    warn: 'bg-amber-400',
+    err: 'bg-red-400',
+    info: 'bg-zinc-500',
+  };
   return (
-    <div className="rounded-lg border border-zinc-800 bg-black/60 p-3 font-mono text-[11px]">
-      <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5 px-1">Progress log</div>
+    <div className="rounded-lg border border-zinc-800/80 bg-black/70 backdrop-blur-sm p-3 font-mono text-[11px]">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-zinc-500 mb-2 px-1">
+        <span>Progress log</span>
+        {entries.length > 0 && <span className="text-zinc-700">· {entries.length}</span>}
+      </div>
       <div ref={ref} className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
         {entries.map((e) => (
-          <div key={e.id} className={
-            e.tone === "ok" ? "text-emerald-400" :
-            e.tone === "warn" ? "text-amber-300" :
-            e.tone === "err" ? "text-red-400" : "text-zinc-500"
-          }>
-            <span className="opacity-50">{new Date(e.ts).toLocaleTimeString()}</span>  {e.text}
+          <div key={e.id} className="flex items-start gap-2 px-1 py-0.5 rounded hover:bg-zinc-900/40 transition-colors">
+            <span className={`mt-[5px] w-1.5 h-1.5 rounded-full shrink-0 ${toneColors[e.tone] ?? 'bg-zinc-500'} shadow-[0_0_4px_var(--tw-shadow-color)]`}
+              style={e.tone === 'ok' ? {boxShadow:'0 0 4px rgba(52,211,153,0.4)'} : e.tone === 'err' ? {boxShadow:'0 0 4px rgba(248,113,113,0.4)'} : e.tone === 'warn' ? {boxShadow:'0 0 4px rgba(251,191,36,0.4)'} : {}} />
+            <span className={e.tone === "ok" ? "text-emerald-300" : e.tone === "warn" ? "text-amber-300" : e.tone === "err" ? "text-red-300" : "text-zinc-400"}>
+              <span className="opacity-40 text-zinc-600">{new Date(e.ts).toLocaleTimeString()}</span>  {e.text}
+            </span>
           </div>
         ))}
-        {entries.length === 0 && <div className="text-zinc-700 px-1">idle</div>}
+        {entries.length === 0 && <div className="text-zinc-700 px-2 py-1">idle</div>}
       </div>
     </div>
   );
@@ -690,20 +735,21 @@ function BlockPreview({ block, streaming, onRegen }: { block: LcBlock; streaming
   const isStreaming = block.status === "generating";
 
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="group relative rounded-lg border border-zinc-800 bg-[#0a0a0d] hover:border-zinc-700/80 p-4 transition">
-      <div className="flex items-center justify-between mb-3 gap-2 pb-2 border-b border-zinc-800/60">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+      className="group relative rounded-xl border border-zinc-800/80 bg-[#0a0a0d]/80 backdrop-blur-sm hover:border-zinc-700/60 p-4 transition-all duration-300 hover:shadow-[0_0_25px_rgba(157,92,255,0.05)]">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="flex items-center justify-between mb-3 gap-2 pb-2 border-b border-zinc-800/50">
         <div className="flex items-center gap-2 min-w-0">
           <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">{block.block_type}</div>
           <div className="text-sm text-zinc-200 truncate" style={{ fontFamily: "'Space Grotesk', ui-sans-serif" }}>{block.title}</div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {block.model_used && (
-            <span title={`Generated by ${block.model_used}`} className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-500 font-mono">
+            <span title={`Generated by ${block.model_used}`} className="text-[10px] px-2 py-0.5 rounded bg-gradient-to-r from-zinc-900 to-zinc-900/80 border border-zinc-800 text-zinc-400 font-mono">
               {block.model_used.split("/")[1]?.split(":")[0] ?? block.model_used}
             </span>
           )}
-          <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-[11px] text-zinc-500 hover:text-zinc-100 flex items-center gap-1 transition">
+          <button onClick={onRegen} className="opacity-0 group-hover:opacity-100 text-[11px] text-zinc-500 hover:text-[#c39aff] flex items-center gap-1 transition-all duration-200">
             <RefreshCw className="h-3 w-3" /> Regenerate
           </button>
         </div>
