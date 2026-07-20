@@ -975,7 +975,7 @@ function SlideCanvas({ c }: { c: any }) {
         ) : layout === "quote" && c.quote ? (
           <div className="max-w-[48ch]">
             <div style={heading} className="text-[36px] md:text-[48px] italic font-normal leading-[1.15] text-zinc-100">
-              <span className="text-[#9d5cff] mr-1">\u201C</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">\u201D</span>
+              <span className="text-[#9d5cff] mr-1">“</span>{c.quote.text}<span className="text-[#9d5cff] ml-0.5">”</span>
             </div>
             <div style={mono} className="mt-8 text-[11px] uppercase tracking-[0.2em] text-zinc-500">— {c.quote.attribution}</div>
           </div>
