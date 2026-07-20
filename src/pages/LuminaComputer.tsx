@@ -137,7 +137,7 @@ export default function LuminaComputer() {
       pushLog(`All blocks ready.`, "ok");
       refreshList();
 
-      // Re-fetch to capture final content_json from generation — local `blocks` state is stale in this closure.
+      await new Promise((r) => setTimeout(r, 500));
       const finalBlocks = await listBlocks(project.id).catch(() => [] as LcBlock[]);
       if (finalBlocks.length) setBlocks(finalBlocks);
       const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: finalBlocks, timestamp: Date.now() };
@@ -224,10 +224,24 @@ export default function LuminaComputer() {
     }
   }
 
+  function stripPreamble(s: string): string {
+    return s.replace(/^(Here(?:'s| is).*?(\n|$))/i, "")
+            .replace(/^(Sure[.!]?.*?(\n|$))/i, "")
+            .replace(/^(I'll.*?(\n|$))/i, "")
+            .replace(/^(Below.*?(\n|$))/i, "")
+            .replace(/^(Let me.*?(\n|$))/i, "")
+            .replace(/^```[\w]*\n?/, "")
+            .replace(/\n```\s*$/, "")
+            .replace(/^(Okay|Ok)[,.!]?\s*/i, "")
+            .trim();
+  }
+
   function parseContent(mode: OutputType, blockType: string, text: string): any {
-    const clean = text.trim();
+    const clean = stripPreamble(text.trim());
     if (mode === "doc" || blockType === "doc_section") {
-      return clean.length > 20 ? { markdown: clean } : null;
+      if (clean.length <= 20) return null;
+      const hasContent = /[a-zA-Z]{4,}/.test(clean) && (clean.includes(" ") || clean.includes("\n"));
+      return hasContent ? { markdown: clean } : null;
     }
     try { return JSON.parse(clean); } catch { /* */ }
     const m = clean.match(/\{[\s\S]*\}/);
@@ -275,9 +289,67 @@ export default function LuminaComputer() {
         }
         const docBlocks = readyBlocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
         if (docBlocks.length > 0) {
-          const { exportDocToDocx } = await import("@/features/luminaComputer/exportDoc");
-          await exportDocToDocx(p.title, readyBlocks, p.title + (designStyle !== "auto" ? designStyle : ""));
-          toast.success("Exported .docx");
+          const markdown = docBlocks.map((b) => b.content_json!.markdown).join("\n\n");
+          const lines = markdown.split("\n");
+          const htmlParts: string[] = [];
+          let i = 0;
+          const inline = (t: string) =>
+            t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.+?)\*/g, '<em>$1</em>')
+              .replace(/`(.+?)`/g, '<code>$1</code>');
+          while (i < lines.length) {
+            const line = lines[i];
+            if (!line.trim()) { i++; continue; }
+            if (/^###\s/.test(line)) { htmlParts.push(`<h3>${inline(line.replace(/^###\s+/, ''))}</h3>`); i++; continue; }
+            if (/^##\s/.test(line)) { htmlParts.push(`<h2>${inline(line.replace(/^##\s+/, ''))}</h2>`); i++; continue; }
+            if (/^#\s/.test(line)) { htmlParts.push(`<h1>${inline(line.replace(/^#\s+/, ''))}</h1>`); i++; continue; }
+            if (/^>\s/.test(line)) {
+              const buf: string[] = [];
+              while (i < lines.length && /^>\s/.test(lines[i])) { buf.push(inline(lines[i].replace(/^>\s?/, ''))); i++; }
+              htmlParts.push(`<blockquote>${buf.join(' ')}</blockquote>`);
+              continue;
+            }
+            if (/^[-*]\s/.test(line)) {
+              const buf: string[] = [];
+              while (i < lines.length && /^[-*]\s/.test(lines[i])) { buf.push(`<li>${inline(lines[i].replace(/^[-*]\s+/, ''))}</li>`); i++; }
+              htmlParts.push(`<ul>${buf.join('')}</ul>`);
+              continue;
+            }
+            if (/^\d+\.\s/.test(line)) {
+              const buf: string[] = [];
+              while (i < lines.length && /^\d+\.\s/.test(lines[i])) { buf.push(`<li>${inline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`); i++; }
+              htmlParts.push(`<ol>${buf.join('')}</ol>`);
+              continue;
+            }
+            const para: string[] = [line]; i++;
+            while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s)/.test(lines[i])) {
+              para.push(lines[i]); i++;
+            }
+            htmlParts.push(`<p>${inline(para.join(' '))}</p>`);
+          }
+          const contentHtml = htmlParts.join('\n');
+          const styledHtml = `<div style="font-family: 'Inter', sans-serif; font-size: 10pt; line-height: 1.45; color: #1d1d1d; padding: 42px 52px">
+<div style="font-weight:700;font-size:20pt;color:#0a1f3f;margin-bottom:24px">${escapeHtml(p.title)}</div>
+${contentHtml}
+</div>`;
+          const { default: html2pdf } = await import("html2pdf.js");
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = `<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#fff}*{box-sizing:border-box}h1{font-size:13pt;font-weight:600;color:#0a1f3f;margin:24px 0 8px}h2{font-size:11pt;font-weight:600;color:#0a1f3f;margin:18px 0 6px}h3{font-size:10pt;font-weight:600;color:#2c3e5c;margin:14px 0 4px}p{margin:0 0 8px}strong{color:#0a1f3f}ul,ol{margin:4px 0 10px 20px}li{margin-bottom:3px}blockquote{color:#5a6a82;border-left:2px solid #bac3d1;padding:4px 0 4px 16px;margin:12px 0;font-style:italic}code{font-family:'JetBrains Mono',monospace;font-size:0.85em;background:#f5f6f8;padding:1px 4px;border-radius:2px}pre{background:#f5f6f8;border:1px solid #e2e6ed;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:8.5pt;margin:10px 0}</style></head><body>${styledHtml}</body></html>`;
+          wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:816px;background:#fff;z-index:-1";
+          document.body.appendChild(wrapper);
+          try {
+            await html2pdf().set({
+              margin: [0.4, 0.5, 0.5, 0.5],
+              filename: `${p.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "document"}.pdf`,
+              image: { type: "jpeg", quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true, letterRendering: true, width: 816, windowWidth: 816 },
+              jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+              pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+            }).from(wrapper).save();
+            toast.success("Exported .pdf");
+          } finally {
+            document.body.removeChild(wrapper);
+          }
           return;
         }
         const md = readyBlocks.map((b) => {
@@ -780,26 +852,34 @@ function RenderedBlock({ type, content }: { type: string; content: any }) {
 
   if (type === "doc_section") {
     return (
-      <article
-        className="lc-doc max-w-[68ch] mx-auto"
-        style={{ fontFamily: "'Inter', ui-sans-serif, system-ui" }}
-      >
-        <style>{`
-          .lc-doc h2 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-weight: 500; font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; color: #f5f5f4; margin: 0 0 0.5rem; }
-          .lc-doc h3 { font-family: 'Fraunces', ui-serif, Georgia, serif; font-weight: 500; font-size: 22px; line-height: 1.25; color: #e5e5e4; margin: 2rem 0 0.5rem; }
-          .lc-doc p { font-size: 16px; line-height: 1.75; color: #b8b8b3; margin: 0 0 1.1rem; }
-          .lc-doc p > em:first-child:last-child, .lc-doc p:first-of-type > em { color: #a1a1aa; font-style: italic; font-size: 17px; }
-          .lc-doc strong { color: #f5f5f4; font-weight: 600; }
-          .lc-doc em { color: #d4d4d0; }
-          .lc-doc blockquote { border-left: 2px solid #9d5cff; margin: 1.5rem 0; padding: 0.25rem 0 0.25rem 1.25rem; font-family: 'Fraunces', ui-serif, serif; font-style: italic; font-size: 20px; line-height: 1.5; color: #e5e5e4; }
-          .lc-doc ul { list-style: none; padding: 0; margin: 1rem 0 1.4rem; }
-          .lc-doc ul li { position: relative; padding-left: 1.25rem; margin: 0.4rem 0; font-size: 16px; line-height: 1.65; color: #b8b8b3; }
-          .lc-doc ul li::before { content: ""; position: absolute; left: 0; top: 0.7rem; width: 0.5rem; height: 1px; background: #9d5cff; }
-          .lc-doc a { color: #c39aff; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-          .lc-doc code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; color: #e5e5e4; }
-        `}</style>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.markdown ?? ""}</ReactMarkdown>
-      </article>
+      <div className="rounded-xl border border-zinc-800/70 bg-[#111115] overflow-hidden">
+        <div className="p-6 md:p-8">
+          <article className="lc-doc max-w-[72ch] mx-auto" style={{ fontFamily: "'Inter', ui-sans-serif, system-ui" }}>
+            <style>{`
+              .lc-doc { color: #d4d4d0; }
+              .lc-doc h1 { font-family: 'Inter', ui-sans-serif, sans-serif; font-weight: 700; font-size: 28px; line-height: 1.15; color: #f5f5f4; margin: 1.5em 0 0.4em; letter-spacing: -0.01em; }
+              .lc-doc h2 { font-family: 'Inter', ui-sans-serif, sans-serif; font-weight: 600; font-size: 22px; line-height: 1.2; color: #f5f5f4; margin: 1.3em 0 0.35em; }
+              .lc-doc h3 { font-family: 'Inter', ui-sans-serif, sans-serif; font-weight: 600; font-size: 18px; line-height: 1.25; color: #e8e8e5; margin: 1em 0 0.3em; }
+              .lc-doc h4 { font-family: 'Inter', ui-sans-serif, sans-serif; font-weight: 600; font-size: 15px; color: #d4d4d0; margin: 0.8em 0 0.25em; }
+              .lc-doc p { font-size: 15px; line-height: 1.7; color: #c5c5c0; margin: 0 0 0.9em; }
+              .lc-doc strong { color: #f5f5f4; font-weight: 600; }
+              .lc-doc em { color: #d8d8d4; }
+              .lc-doc blockquote { border-left: 2px solid #6366f1; margin: 1.2em 0; padding: 0.15em 0 0.15em 1.2em; font-style: italic; font-size: 16px; line-height: 1.6; color: #d4d4d0; }
+              .lc-doc ul, .lc-doc ol { padding-left: 1.25em; margin: 0.6em 0 0.9em; }
+              .lc-doc li { margin: 0.25em 0; font-size: 15px; line-height: 1.65; color: #c5c5c0; }
+              .lc-doc a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
+              .lc-doc code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; background: rgba(255,255,255,0.04); padding: 1px 5px; border-radius: 3px; color: #d8d8d4; border: 1px solid rgba(255,255,255,0.06); }
+              .lc-doc pre { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 0.9em 0; }
+              .lc-doc pre code { background: none; border: none; padding: 0; }
+              .lc-doc hr { border: none; height: 1px; background: rgba(255,255,255,0.06); margin: 1.5em 0; }
+              .lc-doc table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 14px; }
+              .lc-doc th { background: rgba(255,255,255,0.04); color: #e8e8e5; font-weight: 600; text-align: left; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.06); }
+              .lc-doc td { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.06); color: #c5c5c0; }
+            `}</style>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.markdown ?? ""}</ReactMarkdown>
+          </article>
+        </div>
+      </div>
     );
   }
 

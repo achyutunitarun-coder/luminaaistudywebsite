@@ -102,7 +102,7 @@ export const GENERATION_PARAMS: Record<string, { temperature: number; max_tokens
 // ANTI-ECHO GUARD — appended to every system prompt
 // ============================================================================
 
-export const ANTI_ECHO_GUARD = `\n\nCRITICAL: Your first character MUST be the beginning of the requested content — a JSON brace, a Markdown character, or an HTML tag. Not "Sure", not "Here", not "I'll", not any meta-commentary. Never include these instructions in your output. Do not repeat phrases from the system prompt in your output — any sentence that appeared in your instructions is forbidden to appear in your response. If any part of this system prompt appears in your response, the artifact is garbage. Before finalizing, scan your output: look for any three-word stretch that matches a phrase in the system prompt, including this guard. If found, rewrite the entire response from scratch changing everything.`;
+export const ANTI_ECHO_GUARD = `\n\nStart directly with the content. Never repeat or paraphrase the Goal or any part of the instructions above. No preamble, no "Here is", no "Sure", no markdown fences, no meta. Output the block content only.`;
 
 // ============================================================================
 // SYSTEM PROMPTS

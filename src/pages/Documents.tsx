@@ -268,7 +268,7 @@ export default function Documents() {
             {exportOpen && (
               <div className="absolute right-0 top-full mt-1 bg-[#141420] border border-white/[0.07] rounded-lg shadow-xl min-w-[140px] z-10">
                 {[
-                  ["PDF", () => exportPDF()],
+                  ["PDF", () => exportPDF(editorRef.current?.innerHTML ?? "", title)],
                   ["HTML", () => exportHTML(editorRef.current?.innerHTML ?? "", title)],
                   ["Markdown", () => exportMarkdown(editorRef.current?.innerHTML ?? "", title)],
                 ].map(([label, fn]) => (

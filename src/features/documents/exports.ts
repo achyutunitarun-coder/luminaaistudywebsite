@@ -1,3 +1,5 @@
+import html2pdf from "html2pdf.js";
+
 function dl(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -41,18 +43,195 @@ export function exportMarkdown(editorHtml: string, title: string) {
   dl(new Blob([md], { type: "text/markdown" }), `${slug(title)}.md`);
 }
 
-export function exportHTML(editorHtml: string, title: string) {
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif&family=JetBrains+Mono&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
-<style>body{background:#0a0a0f;color:rgba(255,255,255,0.88);font-family:'Instrument Sans',system-ui,sans-serif;line-height:1.85;padding:56px 24px;max-width:740px;margin:0 auto}h1,h2,h3{font-family:'Instrument Serif',serif}h1{font-size:32px}h2{font-size:24px}h3{font-family:'Instrument Sans',sans-serif;font-weight:500;font-size:18px}pre{font-family:'JetBrains Mono',monospace;background:#141420;padding:16px;border-radius:8px;overflow:auto}</style>
-</head><body><h1>${escapeHtml(title)}</h1>${editorHtml}</body></html>`;
-  dl(new Blob([html], { type: "text/html" }), `${slug(title)}.html`);
+function mckinseyStyles() {
+  return `
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+      font-size: 10pt;
+      line-height: 1.45;
+      color: #1d1d1d;
+      background: #fff;
+      width: 100%;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      padding: 42px 52px 52px;
+    }
+    .doc-title {
+      font-weight: 700;
+      font-size: 20pt;
+      line-height: 1.15;
+      color: #0a1f3f;
+      margin-bottom: 2px;
+      letter-spacing: -0.01em;
+    }
+    .doc-meta {
+      font-size: 8pt;
+      color: #8f9bae;
+      margin-bottom: 24px;
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      font-weight: 600;
+      font-size: 13pt;
+      line-height: 1.2;
+      color: #0a1f3f;
+      margin: 28px 0 10px;
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 11pt;
+      line-height: 1.25;
+      color: #1a2b4e;
+      margin: 20px 0 6px;
+    }
+    h3 {
+      font-weight: 600;
+      font-size: 10pt;
+      line-height: 1.3;
+      color: #2c3e5c;
+      margin: 16px 0 4px;
+    }
+    p { margin: 0 0 8px; text-align: left; }
+    strong { color: #0a1f3f; }
+    ul, ol { margin: 4px 0 10px 20px; }
+    li { margin-bottom: 3px; }
+    blockquote {
+      font-style: italic;
+      color: #5a6a82;
+      border-left: 2px solid #bac3d1;
+      padding: 4px 0 4px 16px;
+      margin: 12px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 9pt;
+    }
+    table th {
+      background: #eef1f6;
+      color: #0a1f3f;
+      font-weight: 600;
+      text-align: left;
+      padding: 6px 10px;
+      font-size: 8pt;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #e2e6ed;
+      vertical-align: top;
+    }
+    table tr:last-child td { border-bottom: none; }
+    pre {
+      background: #f5f6f8;
+      border: 1px solid #e2e6ed;
+      border-radius: 3px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 8.5pt;
+      line-height: 1.5;
+      margin: 10px 0;
+      color: #1d1d1d;
+    }
+    code {
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 0.85em;
+      background: #f5f6f8;
+      padding: 1px 4px;
+      border-radius: 2px;
+      color: #b91c1c;
+    }
+    hr { border: none; height: 1px; background: #e2e6ed; margin: 20px 0; }
+  `;
 }
 
-export function exportPDF() {
-  window.print();
+function mckinseyPage(title: string, content: string) {
+  return `<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>${mckinseyStyles()}</style>
+</head><body>
+<div class="page">
+<div class="doc-title">${escapeHtml(title)}</div>
+<div class="doc-meta">${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+${content}
+</div>
+</body></html>`;
+}
+
+export async function exportPDF(editorHtml: string, title: string) {
+  const content = editorHtml
+    .replace(/<h1>/gi, '<h1>')
+    .replace(/<h2>/gi, '<h2>')
+    .replace(/<h3>/gi, '<h3>')
+    .replace(/<blockquote>/gi, '<blockquote>')
+    .replace(/<table[^>]*>/gi, '<table>')
+    .replace(/<pre>/gi, '<pre>')
+    .replace(/<code>/gi, '<code>');
+
+  const html = mckinseyPage(title, content);
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:816px;background:#fff;z-index:-1";
+  document.body.appendChild(wrapper);
+
+  try {
+    await html2pdf()
+      .set({
+        margin: [0.4, 0.5, 0.5, 0.5],
+        filename: `${slug(title)}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, width: 816, windowWidth: 816 },
+        jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      })
+      .from(wrapper)
+      .save();
+  } finally {
+    document.body.removeChild(wrapper);
+  }
+}
+
+export function exportHTML(editorHtml: string, title: string) {
+  const content = editorHtml
+    .replace(/<h1>/gi, '<h1>')
+    .replace(/<h2>/gi, '<h2>')
+    .replace(/<h3>/gi, '<h3>')
+    .replace(/<blockquote>/gi, '<blockquote>')
+    .replace(/<table[^>]*>/gi, '<table>')
+    .replace(/<pre>/gi, '<pre>')
+    .replace(/<code>/gi, '<code>');
+
+  const html = `<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  ${mckinseyStyles()}
+  .page { max-width: 740px; margin: 0 auto; }
+  @media print {
+    body { color: #000; }
+    h1, h2, h3 { page-break-after: avoid; }
+    pre, table, blockquote { page-break-inside: avoid; }
+  }
+</style>
+</head><body>
+<div class="page">
+<div class="doc-title">${escapeHtml(title)}</div>
+<div class="doc-meta">${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</div>
+${content}
+</div>
+</body></html>`;
+  dl(new Blob([html], { type: "text/html" }), `${slug(title)}.html`);
 }
 
 function slug(s: string): string {
