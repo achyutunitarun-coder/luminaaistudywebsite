@@ -237,11 +237,11 @@ export default function LuminaComputer() {
   }
 
   function parseContent(mode: OutputType, blockType: string, text: string): any {
-    const clean = stripPreamble(text.trim());
+    const raw = text.trim();
+    const clean = stripPreamble(raw) || raw;
     if (mode === "doc" || blockType === "doc_section") {
-      if (clean.length <= 20) return null;
-      const hasContent = /[a-zA-Z]{4,}/.test(clean) && (clean.includes(" ") || clean.includes("\n"));
-      return hasContent ? { markdown: clean } : null;
+      if (clean.length <= 5) return raw.length > 5 ? { markdown: raw } : null;
+      return { markdown: clean };
     }
     try { return JSON.parse(clean); } catch { /* */ }
     const m = clean.match(/\{[\s\S]*\}/);
