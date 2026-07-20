@@ -82,6 +82,14 @@ export async function streamRoute(opts: {
   });
   if (!res.ok || !res.body) throw new Error(`route_failed: ${res.status}`);
 
+  const ct = res.headers.get("content-type") ?? "";
+  if (ct.includes("application/json")) {
+    const body = await res.json().catch(() => ({}));
+    const errMsg = body.error ?? body.detail ?? JSON.stringify(body);
+    opts.onError?.(`router_error: ${errMsg}`);
+    return { text: "", model: null };
+  }
+
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = "";

@@ -143,8 +143,10 @@ export default function LuminaComputer() {
       const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: finalBlocks, timestamp: Date.now() };
       setMessages((m) => [...m, assistantMsg]);
     } catch (e: any) {
-      pushLog(`Failed: ${e.message ?? e}`, "err");
-      toast.error("Build failed");
+      const msg = e?.message ?? String(e ?? "unknown");
+      console.error("[Lumina Build Error]", msg, e);
+      pushLog(`Failed: ${msg}`, "err");
+      toast.error(`Build failed: ${msg.slice(0, 200)}`);
     } finally {
       setBusy(false);
     }
@@ -211,9 +213,11 @@ export default function LuminaComputer() {
       } : b));
       pushLog(`Block ready: ${block.title} (${Date.now() - t0}ms)`, parsed ? "ok" : "warn");
     } catch (e: any) {
-      await updateBlock(block.id, { status: "error", error_text: String(e.message ?? e).slice(0, 300) });
-      setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "error", error_text: String(e) } : b));
-      pushLog(`Block failed: ${block.title} — ${e.message ?? e}`, "err");
+      const msg = e?.message ?? String(e ?? "unknown");
+      console.error(`[Lumina Block Error] ${block.title}:`, msg, e);
+      await updateBlock(block.id, { status: "error", error_text: msg.slice(0, 300) });
+      setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "error", error_text: msg } : b));
+      pushLog(`Block failed: ${block.title} — ${msg}`, "err");
     } finally {
       delete streamingRef.current[block.id];
       force((n) => n + 1);
