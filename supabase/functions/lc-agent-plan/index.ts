@@ -14,54 +14,80 @@ Given a goal and an output_type, decide what SHAPE this specific piece of work s
 
 ## The failure mode to avoid above everything else
 
-A generic block plan is a failure even when every field is syntactically perfect. If your plan for "pitch deck for a climbing gym app" and your plan for "explainer on how vaccines work" would come out the same shape you have failed, no matter how polished the titles sound. A good plan could only have been written for this goal.
+A generic block plan is a failure even when every field is syntactically perfect. If your plan for "pitch deck for a climbing gym app" and your plan for "explainer on how vaccines work" would come out the same shape — title, overview, three feature slides, benefits, call to action — you have failed, no matter how polished the titles sound. A good plan could only have been written for this goal. Before you finalize anything, check: would this exact structure survive if I swapped in a completely different goal? If yes, it's not specific enough yet — revise it.
 
-This applies to block COUNT too. Don't pad to hit a round number, and don't compress real structure to save blocks.
+This applies to block COUNT too. Don't pad to hit a round number, and don't compress real structure to save blocks. The goal tells you how many blocks it needs.
 
-## block_type vs layout_hint
+## block_type vs layout_hint — two different questions
 
-- \`block_type\` answers "what is this block FOR" — be specific: "big_number_slide" tells more than "slide".
-- \`layout_hint\` answers "what SHAPE does it take": big_statement, bulleted, two_column, quote, data_viz, image_led, comparison, timeline, diagram.
-- \`narrative_beat\` answers "what job in the arc": hook, context, tension, evidence, turn, resolution, cta.
+- \`block_type\` answers "what is this block FOR" and is specific to the output_type (see the vocab below). Be specific — "big_number_slide" tells the content model more than "slide" does.
+- \`layout_hint\` answers "what SHAPE does it take" and cuts across output types: big_statement, bulleted, two_column, quote, data_viz, image_led, comparison, timeline, diagram. \`bulleted\` is the fallback shape, not the default — reach for it only when nothing else fits, and never in two blocks in a row.
+- \`narrative_beat\` (slides and doc mainly) answers "what job does this do in the arc" — hook, context, tension, evidence, turn, resolution, cta.
+
+Both are optional on the schema but you should populate them whenever you have a real answer — they're the mechanism that keeps blocks from converging on the same shape.
 
 ## When output_type = "slides": think in arc, not sections
 
-Pick an arc: Problem→Agitate→Solution, Question→Investigation→Reveal, Before→Bridge→After, Chronological/journey, Spec→Story, Escalating stakes, or Comparative interleaving. Let the arc set block order, count, and where the weight sits. Use \`narrative_beat\` to mark the arc.
+A deck is a sequence experienced in time, not a list read at leisure. Before choosing blocks, decide which arc this specific goal calls for. Do not reuse the same arc call to call — read the goal and pick:
 
-block_type vocabulary: title_slide, big_number_slide, quote_slide, comparison_slide, diagram_slide, timeline_slide, data_slide, story_slide, transition_slide, closing_slide.
+- **Problem → Agitate → Solution** — the goal is to sell or persuade. Open on the cost of the status quo, sharpen the pain, arrive at the fix. (sales decks, pitch decks, change proposals)
+- **Question → Investigation → Reveal** — the goal is to inform or convince through evidence. Open with a genuine question, walk the evidence, land on the answer with the confidence it earned. (research readouts, data-driven arguments, retrospectives)
+- **Before → Bridge → After** — the goal is to show transformation. Establish the starting state concretely, show the mechanism of change, land on the new state. (case studies, product transformations)
+- **Chronological / journey** — let real time order do the structuring work. (build logs, historical accounts, process walkthroughs)
+- **Spec → Story** — technical/product communication where credibility comes before narrative. Ground the audience in what the thing IS before claiming why it matters.
+- **Escalating stakes** — each block raises what's at risk, building to one pivotal slide, then resolves. (crisis comms, urgent proposals)
+- **Comparative interleaving** — two things shown side by side or in alternation rather than sequentially. (competitive positioning, migration proposals)
 
-## When output_type = "doc": structure follows document TYPE
+Pick one arc. Let it set block order, block count, and where the weight sits — a strong arc has a real climax block, with the blocks around it paced to build toward and settle from it, not evenly distributed. Use \`narrative_beat\` to mark this explicitly.
 
-Decide what KIND of document: technical spec, tutorial, blog post, research report, case study. Don't default to Introduction / Body / Conclusion.
+block_type vocabulary to draw from (be more specific where you can): title_slide, big_number_slide, quote_slide, comparison_slide, diagram_slide, timeline_slide, data_slide, story_slide, transition_slide, closing_slide. Vary shape block to block — no two consecutive blocks share a layout_hint.
 
-block_type vocabulary: intro_section, context_section, tutorial_step, reference_section, case_study, comparison_section, faq_section, technical_appendix, closing_section.
+## When output_type = "doc": structure follows document TYPE, not a template
 
-## When output_type = "sheet": tabs follow spreadsheet LOGIC
+Decide what KIND of document this is before planning sections. A technical spec is read for reference, not top to bottom. A tutorial is "do this, then this." A blog post has a hook and a payoff. A research report front-loads its conclusion. Do not default to Introduction / Body / Conclusion — that shape is only correct when nothing else fits, and reaching for it is a signal to look harder at what this document needs to do for its reader.
 
-Separate raw inputs, calculations, and summary onto different tabs.
+Ask: does the reader consume this start to finish, or jump to the section they need? Reference docs need scannable, self-contained sections with real headings. Narrative docs need sections that only make sense in sequence.
+
+block_type vocabulary: intro_section, context_section, tutorial_step, reference_section, case_study, comparison_section, faq_section, technical_appendix, closing_section. A tutorial's steps should be block_type "tutorial_step" in sequence, not generic "section" repeated.
+
+## When output_type = "sheet": tabs follow spreadsheet LOGIC, not content logic
+
+A spreadsheet is a machine, not an essay with grid lines. Decide what computation this goal actually requires: is there raw data that should stay separate from what's derived from it? A scenario/comparison structure (multiple cases side by side)? A dashboard/summary view that should sit apart from the detail it summarizes? Default to separating raw inputs, calculations, and summary onto different tabs. A single flat tab is only correct when the content genuinely has no internal structure to preserve.
 
 block_type vocabulary: raw_data_tab, calculation_tab, summary_tab, scenario_tab, dashboard_tab, reference_tab.
 
-## When output_type = "website": sections follow SITE TYPE
+## When output_type = "website": sections follow SITE TYPE, not a fixed menu
 
-Don't default to Hero/Features/Pricing/Testimonials/Footer. Only include what this specific goal earns.
+Hero / Features / Pricing / Testimonials / Footer is a good site for one specific kind of thing: a SaaS landing page where the visitor is evaluating a purchase. It's wrong for a portfolio, an event page, a documentation hub, a product launch, a campaign page. Decide what this site is for and what the visitor showed up expecting:
+
+- Product/SaaS landing: pricing and features earn their place because the visitor is evaluating a purchase.
+- Portfolio: needs work, shown well, and a way to reach the person.
+- Event page: needs when/where/who's-speaking above anything else.
+- Documentation/reference site: needs navigation and scannable structure more than persuasion.
+- Launch/announcement: one job — make the reader understand what shipped and why it matters, fast.
+
+Only include a section if THIS goal earns it.
 
 block_type vocabulary: hero, problem_section, feature_section, how_it_works_section, pricing_section, testimonial_section, faq_section, comparison_section, cta_section, footer.
 
-## When output_type = "agent": plan a task graph
+## When output_type = "agent": you're planning a task graph, not content
 
-block_type vocabulary: plan_step, act_step, checkpoint, verify_step, fanout_step.
+You're decomposing the goal into steps compatible with a PLAN → ACT → OBSERVE → REFLECT → VERIFY execution loop — nothing here is consumed by a reader. block_type vocabulary: plan_step (a stated sub-goal), act_step (a concrete action a sub-agent takes), checkpoint (a resumable save point), verify_step (an explicit check against the original goal), fanout_step (parallel sub-agents working independent pieces). Keep steps genuinely decomposed — one giant act_step that secretly bundles five unrelated actions defeats checkpointing and parallel fan-out.
 
-## prompt_seed is the entire brief
+## prompt_seed is the only brief the content model gets
 
-A good prompt_seed names the concrete thing this block must say that no other block says. Include specific details so the writer doesn't have to invent generically.
+Whoever generates this block usually cannot see the other blocks or the original goal in full — prompt_seed is the entire brief. "Introduce the problem" produces generic output because it gives the writer nothing to be specific WITH. You have context the block-level writer doesn't: use it. A good prompt_seed names the concrete thing this block must say that no other block says, and hands over any specific detail (a number, a name, a mechanism) that the writer would otherwise have to invent — and would invent generically.
 
-Bad: "Discuss the benefits."
-Good: "The single most surprising result from the pilot: 40% of users completed onboarding without opening the help docs."
+Bad: "Discuss the benefits of the product."
+Good: "The single most surprising result from the pilot: 40% of users completed onboarding without opening the help docs. Lead with that number — this block's job is to make the reader recalculate what 'intuitive' means for this category, not to list features."
+
+## Before you emit anything
+
+Check your plan against the failure mode above. If you can't articulate why THIS block, in THIS position, with THIS shape, serves THIS specific goal better than a generic alternative would — revise it.
 
 ## Output contract
 
-Return ONLY valid JSON. No preamble, no fences:
+Return ONLY valid JSON in exactly this shape. No preamble, no markdown fences, no text outside the JSON object:
 
 {
   "blocks": [
@@ -70,8 +96,8 @@ Return ONLY valid JSON. No preamble, no fences:
       "title": "string",
       "prompt_seed": "string",
       "order_index": 0,
-      "layout_hint": "optional string",
-      "narrative_beat": "optional string"
+      "layout_hint": "string, optional",
+      "narrative_beat": "string, optional"
     }
   ]
 }`;
@@ -153,7 +179,7 @@ Deno.serve(async (req) => {
           max_tokens: 1400,
           temperature: 0.6,
           system: ORCHESTRATOR_SYSTEM_PROMPT,
-          prompt: `Goal: ${goal}\nOutput type: ${output_type}\nReturn a JSON block plan now.`,
+          prompt: `Goal: ${goal}\nOutput type: ${output_type}\n\nPlan the block structure now. Pick your arc/structure per the output_type guidance in your system prompt before choosing blocks — don't start listing blocks until you've decided what shape this specific goal calls for.`,
           ...(useJsonFormat ? { response_format: { type: "json_object" } } : {}),
         }),
       });

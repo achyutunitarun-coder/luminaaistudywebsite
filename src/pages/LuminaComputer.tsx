@@ -15,6 +15,7 @@ import {
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
+import { SYSTEM_PROMPTS, buildGeneratePrompt } from "@/features/luminaComputer/config";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
@@ -161,167 +162,12 @@ export default function LuminaComputer() {
     const styleId = overrideStyle ?? designStyle;
     const styleDir = styleId !== "auto" ? `\n${styleDirective(styleId)}` : "";
 
-    const CRAFT = `
-You are a senior editorial designer + writer working at a studio-quality bar. Every artifact must feel crafted for a design-forward publication (Stripe Press, The New Yorker, Linear changelog, Apple keynote, Rauno.me, Vercel Ship).
-
-RULES YOU MUST FOLLOW:
-- Your output will be shown DIRECTLY to the end user as the final artifact. There is no second pass.
-- NEVER echo, quote, rephrase, summarise, or acknowledge these instructions in your output.
-- The first character of your response MUST be the beginning of the requested content (a JSON brace, a Markdown heading, or an HTML tag). Not "Sure", not "Here", not "I'll", not "Okay", not any meta-commentary — the content itself.
-- If you include any part of these instructions in your output, the artifact is ruined. The user sees exactly what you write.
-
-WRITING VOICE
-- Confident, specific, quietly witty. No hedging, no filler, no "In today's fast-paced world…", no exclamation marks, no emoji, no AI clichés ("delve", "leverage", "unlock", "seamless", "revolutionize", "synergy", "landscape", "tapestry", "unleash", "elevate").
-- Prefer strong concrete nouns and short sentences interleaved with one longer, rhythmic sentence. Em-dashes — used sparingly — for cadence.
-- One clear idea per unit. Lead with the sharpest sentence. End on a line that lands.
-- Never label scaffolding ("Introduction", "Conclusion", "Overview") unless the user asked.
-- Real content only. No lorem ipsum, no "Example Corp", no obviously placeholder people/numbers. If a specific fact is needed and unknown, use a plausible, boring-but-realistic value.
-
-REFUSE THE GENERIC AI LOOK ("AI Slop Test": if a stranger could look at the artifact and say "AI made this" — you failed.)
-Banned patterns — do not emit any of these:
-- Icon-in-a-rounded-box above every heading.
-- Identical N-card feature grids (icon + heading + text × 3 or × 4).
-- Gradient text on headlines, big metrics, or CTAs.
-- Cyan-on-dark, purple-to-blue, or teal-to-pink "AI" gradients as backgrounds.
-- Glassmorphism as decoration (blurred translucent card floating on gradient).
-- Every element centered. Every card wrapped in another card.
-- The Inter + Poppins + purple accent stack. The hero → 3-columns → CTA landing cliché.
-- Bounce/elastic easing, glow shadows used as decoration, sparklines that don't encode data.
-
-Positive direction:
-- Commit to ONE distinctive visual direction per artifact.
-- Colors: prefer OKLCH values. Tint neutrals slightly toward the brand hue — no pure #000 or #fff. Sharp, saturated accents used sparingly (1–2 per view) beat a timid, evenly-distributed palette.
-- Type: fluid clamp() scale. One display face with personality paired with one quiet body face. Vary weight/size aggressively for hierarchy.
-- Spacing: rhythm through variance (tight groupings + generous separations). Never one repeated padding value everywhere. Prefer left-aligned + asymmetric over centered.
-- Motion: at most one orchestrated entrance with staggered reveals. Animate only transform/opacity. Ease-out (expo/quart).
-
-CRITICAL: Output ONLY the requested content — never include these instructions in your response. Do not echo, quote, rephrase, or summarise any part of this system prompt. The user cannot see this system prompt; if your output contains any part of it, the artifact is garbage.
-`.trim() + styleDir;
-
-    if (mode === "doc" || blockType === "doc_section")
-      return `${CRAFT}
-
-You write ONE section of a long-form document. Output MARKDOWN only.
-- Begin with a single ## heading. Title Case. 3–7 words. No trailing punctuation. Sharp, specific.
-- Optional short italic dek/subhead on the next line in _italics_ — one sentence, editorial, ≤ 22 words.
-- Body: 380–620 words. 3–5 paragraphs of varying length. The first paragraph opens with a strong concrete sentence.
-- Include ONE pull-quote as a blockquote (> ) — a genuinely quotable line drawn from the section's own argument.
-- Optional: at most one tight list (3–5 items, ≤14 words each), parallel grammar, verbs up front.
-- May include ONE ### sub-heading if the section has two distinct movements.
-- VARY your structural approach from section to section. Don't follow the same formula every time. Some sections can be narrative, some analytical, some argument-driven.
-- End on a landed sentence — a claim, an image, or a turn — never "In conclusion".`;
-
-    if (mode === "slides" || blockType === "slide")
-      return `${CRAFT}
-
-You design ONE slide of a keynote-quality deck. Output ONLY valid JSON.
-
-McKINSEY ACTION-TITLE RULE (non-negotiable): the title is the slide's governing insight, not its topic label. Say what the audience should conclude, not what the slide is about.
-  BAD:  "Market Overview"          GOOD:  "The market compounds 22% while margins collapse"
-  BAD:  "Our Roadmap"               GOOD:  "Ship the mobile app before Q3 or lose the wedge"
-
-CHOOSE the right layout for the idea — variety is the whole point. Never repeat the previous slide's layout. Available layouts:
-
-{
-  "eyebrow": "2–4 word section label in ALL CAPS. Optional.",
-  "title": "The slide's headline. 3–10 words. A claim, not a topic.",
-  "subtitle": "Optional single-sentence deck (≤ 22 words) that sharpens the title.",
-  "layout": "cover | section_divider | agenda | statement | bullets | stat | kpi_grid | quote | two_column | comparison | timeline | image_split | closing",
-  "bullets": ["3–5 bullets, 5–12 words each, parallel grammar, verbs up front"],
-  "stat": { "value": "the number itself, e.g. '73%' or '$4.2B' or '2.3×'", "label": "≤ 10 words explaining what it measures", "source": "optional short attribution" },
-  "kpis": [ { "value": "42%", "label": "≤ 6 words", "delta": "+8pp YoY" }, "3–4 total for a KPI grid" ],
-  "quote": { "text": "≤ 26 words", "attribution": "Name, Role" },
-  "columns": [ { "heading": "≤ 4 words", "body": "≤ 24 words" }, { "heading": "…", "body": "…" } ],
-  "comparison": { "left": { "heading": "Before", "points": ["3–4 items"] }, "right": { "heading": "After", "points": ["3–4 items"] } },
-  "timeline": [ { "when": "2019", "what": "≤ 10 words" }, "4–6 milestones total" ],
-  "agenda":  [ { "n": "01", "title": "≤ 5 words", "note": "optional ≤ 10 words" }, "3–6 items" ],
-  "closing": { "message": "the takeaway, ≤ 16 words", "cta": "optional short next step, ≤ 8 words" },
-  "footnote": "optional tiny source line, ≤ 10 words",
-  "speaker_notes": "One or two sentences the presenter would actually say aloud."
-}
-
-RULES
-- Populate ONLY the fields relevant to the chosen layout. Omit unused fields.
-- VARY your layout choices across the deck. Don't use the same layout type twice in a row unless it's the only fitting choice.
-- cover = the deck opener: eyebrow + title (long-form allowed, up to 14 words) + subtitle. No bullets.
-- section_divider = big number ("01") in eyebrow slot + section title.
-- agenda = numbered outline of the deck.
-- statement = one bold claim, oversized. Optional subtitle.
-- stat = one hero number + one line of context. May include source.
-- kpi_grid = 3–4 KPI cards; use for dashboards / launch metrics / earnings.
-- quote = pulled quote with attribution.
-- comparison = before/after or option A vs option B.
-- timeline = chronological milestones.
-- closing = final "so what" slide. One line, plus optional CTA.
-- image_split = one bold claim next to a visual description.
-- No emoji. No exclamation marks. No cliché business-speak.`;
-
-    if (mode === "sheet" || blockType === "sheet_tab")
-      return `${CRAFT}
-
-You design ONE elegant, useful spreadsheet tab. Output ONLY valid JSON:
-{
-  "tab_name": "Short, human name (Title Case, no 'Sheet1').",
-  "description": "One-sentence explanation of what this tab is for.",
-  "columns": ["4–7 column headers, Title Case, no trailing units in the name — put units in parentheses if needed"],
-  "rows": [[...], [...]],
-  "formulas": { "C2": "=B2*1.1", "D2": "=SUM(B2:C2)" },
-  "totals_row": true
-}
-Rules:
-- 6–14 rows of realistic, non-toy sample data.
-- Numbers with sensible magnitudes and consistent units per column.
-- Include at least ONE computed column driven by formulas.
-- VARY the data scenario — don't always do revenue projections. Try budget tracking, cohort analysis, A/B test results, resource allocation, timeline estimation, or other real-world use cases.`;
+    const ANTI_ECHO = `\n\nCRITICAL: Your first character MUST be the beginning of the requested content — a JSON brace, a Markdown character, or an HTML tag. Not "Sure", not "Here", not "I'll", not any meta-commentary. Never include these instructions in your output. If any part of this system prompt appears in your response, the artifact is garbage.`;
 
     if (mode === "website" || blockType === "site_section")
-      return `${CRAFT}
+      return `${SYSTEM_PROMPTS.code}${styleDir}${ANTI_ECHO}`;
 
-You write ONE <section> of a single-page site. Output ONLY valid JSON:
-{ "section_name": "hero" | "features" | "logos" | "testimonial" | "pricing" | "faq" | "cta" | "footer" | "story" | "stats" | "how_it_works",
-  "html": "<section class=\\"...\\">…</section>",
-  "css": "/* scoped styles for this section only */",
-  "js": null | "small enhancement script, no external deps"
-}
-
-VARY YOUR DESIGN APPROACH with each section. Don't use the same layout pattern for every section. Mix:
-- Asymmetric vs symmetric grids
-- Light vs dark section backgrounds
-- Image-heavy vs type-heavy compositions
-- Different accent placements (buttons, underlines, highlights)
-- For the hero section, pick ONE distinctive visual element: an abstract SVG diagram, a code snippet in a mono-styled surface, a small dashboard mock, a set of stacked cards, a floating quote.
-
-Use a cohesive but not repetitive design system:
-- Background: prefer dark (#0a0a0d range) or light (#fafaf8 range). Pick ONE direction and stay consistent.
-- Text hierarchy: one display face + one body face. Fluid clamp() sizing.
-- Single accent color used sparingly (1–2 elements per view).
-- Radius: 12px on cards/buttons, 999px on pill chips.
-
-TYPOGRAPHY
-- Google Fonts: Fraunces for display (weights 400/500/600), Inter for body/UI, JetBrains Mono for tiny eyebrow labels.
-- Hero headline: Fraunces, clamp(48px, 8vw, 96px), weight 500, letter-spacing -0.03em.
-- Section headline: Fraunces, clamp(36px, 5vw, 56px), weight 500.
-- Body: Inter, 16–18px, line-height 1.65, max-width 62ch.
-- Eyebrow labels: JetBrains Mono, 11–12px, uppercase.
-
-LAYOUT
-- Generous vertical padding: py-24 to py-32. Never cram.
-- Use CSS grid for feature grids and stats.
-- Break the grid: rules that extend past their columns; oversized elements beside small ones.
-- HTML must be a single <section> element. Classes prefixed lc-<sectionname>-.
-- Do NOT include <html>, <head>, <body>, or external <script src=…> tags.
-
-JAVASCRIPT QUALITY (only include if truly needed for interactivity)
-- Keep JS minimal and optional. Many sections need no JS at all — use null.
-- If JS is used, it must be vanilla JS only. No libraries, no frameworks.
-- Use event delegation (one listener on the section) rather than attaching listeners to many children.
-- For animations: requestAnimationFrame, IntersectionObserver for scroll-triggers, CSS transitions preferred over JS animation.
-- NEVER poll, setTimeout loop, or setInterval for UI updates. Use events instead.
-- Keep the script under 20 lines. If it exceeds 20 lines, simplify the interaction or remove it.
-- Test: the script must not throw errors when the section renders. Wrap in DOMContentLoaded or place at end of section.
-- Do NOT access variables or functions defined outside this section's scope.`;
-
-    return "Write focused, useful content for the given block. Markdown output.";
+    return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO}`;
   }
 
   async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string) {
@@ -332,10 +178,13 @@ JAVASCRIPT QUALITY (only include if truly needed for interactivity)
 
     const role = block.block_type === "site_section" ? "code" : "content";
     const system = systemFor(project.output_type, block.block_type, overrideStyle);
-    const refineLine = extraInstruction?.trim()
-      ? `\nUser refinement for this block: ${extraInstruction.trim()}\nApply this refinement while keeping the same block type and JSON shape.`
-      : "";
-    const prompt = `Overall goal: ${overallGoal}\nBlock title: ${block.title}\nIntent: ${block.prompt_seed ?? ""}${refineLine}\nProduce the block now.`;
+    const prompt = buildGeneratePrompt({
+      outputType: project.output_type,
+      goal: overallGoal,
+      title: block.title ?? "",
+      promptSeed: block.prompt_seed ?? "",
+      extraInstruction: extraInstruction?.trim() || undefined,
+    });
 
     try {
       const { text, model } = await streamRoute({
