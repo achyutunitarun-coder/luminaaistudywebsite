@@ -217,16 +217,35 @@ Deno.serve(async (req) => {
       blocks = FALLBACK_BLOCKS[output_type] ?? FALLBACK_BLOCKS.doc;
     }
 
+    // Map the planner's fine-grained block_type vocabulary onto the four legacy
+    // families the client renderer + exporters key off (slide / doc_section /
+    // sheet_tab / site_section). Preserve the specific type as layout_hint so
+    // downstream renderers still get the shape signal.
+    const canonicalForOutput = (outputType: string, raw: string): string => {
+      const t = String(raw ?? "").toLowerCase();
+      if (outputType === "slides") return "slide";
+      if (outputType === "doc")    return "doc_section";
+      if (outputType === "sheet")  return "sheet_tab";
+      if (outputType === "website") return "site_section";
+      // agent: heuristics on the specific type
+      if (t.includes("slide")) return "slide";
+      if (t.includes("tab") || t.includes("sheet")) return "sheet_tab";
+      if (t === "hero" || t === "footer" || t.endsWith("_section") && (t.includes("feature") || t.includes("pricing") || t.includes("testimonial") || t.includes("cta") || t.includes("hero") || t.includes("problem"))) return "site_section";
+      return "doc_section";
+    };
+
     const finalBlocks = blocks
       .filter((b: any) => b && b.title && b.block_type)
       .map((b: any, i: number) => {
+        const rawType = String(b.block_type);
+        const canonical = canonicalForOutput(output_type, rawType);
         const block: Record<string, unknown> = {
-          block_type: String(b.block_type),
+          block_type: canonical,
           title: String(b.title).slice(0, 200),
           prompt_seed: String(b.prompt_seed ?? "").slice(0, 600),
           order_index: Number.isFinite(b.order_index) ? b.order_index : i,
         };
-        const layoutHint = String(b.layout_hint ?? "");
+        const layoutHint = String(b.layout_hint ?? "").trim() || (rawType !== canonical ? rawType : "");
         const narrativeBeat = String(b.narrative_beat ?? "");
         if (layoutHint) block.layout_hint = layoutHint;
         if (narrativeBeat) block.narrative_beat = narrativeBeat;
