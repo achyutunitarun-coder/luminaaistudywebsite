@@ -29,3 +29,4 @@ hf.env
 !.env.example
 .vercel
 UsersTarunluminaaistudywebsite/
+.env*
