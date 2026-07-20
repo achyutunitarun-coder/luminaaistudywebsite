@@ -148,7 +148,10 @@ export default function LuminaComputer() {
       pushLog(`All blocks ready.`, "ok");
       refreshList();
 
-      const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: [...blocks], timestamp: Date.now() };
+      // Re-fetch to capture final content_json from generation — local `blocks` state is stale in this closure.
+      const finalBlocks = await listBlocks(project.id).catch(() => [] as LcBlock[]);
+      if (finalBlocks.length) setBlocks(finalBlocks);
+      const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: finalBlocks, timestamp: Date.now() };
       setMessages((m) => [...m, assistantMsg]);
     } catch (e: any) {
       pushLog(`Failed: ${e.message ?? e}`, "err");
