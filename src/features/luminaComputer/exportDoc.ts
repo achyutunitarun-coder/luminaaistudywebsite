@@ -126,7 +126,10 @@ export async function exportDocToDocx(title: string, blocks: LcBlock[], themeSee
       footers: {
         default: new Footer({
           children: [new Paragraph({
-            children: [new TextRun({ text: "Page ", size: 18 }), PageNumber.CURRENT],
+            children: [
+              new TextRun({ text: "Page ", size: 18 }),
+              new TextRun({ children: [PageNumber.CURRENT], size: 18 }),
+            ],
             alignment: AlignmentType.CENTER,
           })],
         }),
@@ -137,7 +140,7 @@ export async function exportDocToDocx(title: string, blocks: LcBlock[], themeSee
         new Paragraph({
           children: [],
           spacing: { before: 60, after: 300 },
-          border: { bottom: { color: "C49B3F", size: 6, space: 1 } },
+          border: { bottom: { style: BorderStyle.SINGLE, color: "C49B3F", size: 6, space: 1 } },
         }),
         new Paragraph({ children: [new TextRun({ text: today, font: FONT_BODY, size: 22, color: "666666" })], spacing: { after: 80 } }),
         new Paragraph({ children: [new TextRun({ text: `${blocks.length} sections`, font: FONT_BODY, size: 20, color: "999999" })], spacing: { after: 600 } }),
