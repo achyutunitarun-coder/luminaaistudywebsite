@@ -20,7 +20,7 @@ const STATUS_MAP: Record<string, string> = {
   data: "Creating spreadsheet...",
   computer: "Processing...",
 };
-const MAX_CONTINUATION_ROUNDS = 20;
+const MAX_CONTINUATION_ROUNDS = 5;
 const CONT_SHORT = "The response was cut short. Continue from where you stopped. Output ONLY the continuation \u2014 no prefixes, no explanations, no markdown.";
 const CONT_LONG = "Continue exactly where you left off. Do NOT repeat ANYTHING already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation \u2014 no prefixes, no explanations.";
 

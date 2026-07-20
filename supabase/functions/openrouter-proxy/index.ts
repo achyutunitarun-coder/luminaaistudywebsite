@@ -127,7 +127,7 @@ serve(async (req) => {
         }
         if (res.status >= 500) {
           try { await res.body?.cancel(); } catch { /* */ }
-          await new Promise((r) => setTimeout(r, 400));
+          await new Promise((r) => setTimeout(r, 100));
           res = null;
           continue;
         }

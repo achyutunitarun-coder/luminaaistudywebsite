@@ -889,7 +889,7 @@ export async function callWithFallback(
     return res;
   };
 
-  const scaledTimeout = (base: number) => Math.min(90_000, Math.max(25_000, base ?? 30_000));
+  const scaledTimeout = (base: number) => Math.min(45_000, Math.max(12_000, base ?? 15_000));
 
   // Phase 1: Try model list in order
   for (const model of models) {
@@ -900,7 +900,7 @@ export async function callWithFallback(
   }
 
   // Phase 2: Try openrouter/free router
-  const routerTimeout = Math.min(90_000, Math.max(20_000, timeoutMs ?? 30_000));
+  const routerTimeout = Math.min(30_000, Math.max(10_000, timeoutMs ?? 15_000));
   if (routerTimeout >= 1000) {
     const routerBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(MODEL_FREE_ROUTER)) };
     const res = await callModel(MODEL_FREE_ROUTER, routerBody, routerTimeout, `${tag}/free`);
@@ -910,7 +910,7 @@ export async function callWithFallback(
   // Phase 3: Cross-provider fallback — try Google AI Studio Gemini
   if (GOOGLE_KEYS.length > 0) {
     const geminiModel = isArtifact || isComputer ? "gemini-2.0-flash-thinking-exp" : "gemini-2.0-flash-exp";
-    const geminiTimeout = Math.min(120_000, Math.max(20_000, timeoutMs ?? 30_000));
+    const geminiTimeout = Math.min(45_000, Math.max(12_000, timeoutMs ?? 20_000));
     const geminiBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(geminiModel)) };
     const res = await callGoogleGemini(geminiModel, geminiBody, geminiTimeout, tag);
     if (res) return { response: res, model: `google/${geminiModel}` };
@@ -919,7 +919,7 @@ export async function callWithFallback(
   // Phase 3.5: Cross-provider fallback — try Moonshot direct Kimi models
   if (KIMI_KEYS.length > 0) {
     const moonshotModels = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2"];
-    const moonshotTimeout = Math.min(120_000, Math.max(20_000, timeoutMs ?? 30_000));
+    const moonshotTimeout = Math.min(45_000, Math.max(12_000, timeoutMs ?? 20_000));
     for (const moonshotModel of moonshotModels) {
       const moonshotBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(moonshotModel)) };
       const res = await callModel(moonshotModel, moonshotBody, moonshotTimeout, `${tag}/moonshot`);
@@ -938,7 +938,7 @@ export async function callWithFallback(
     }
   }
   for (const model of models) {
-    const timeout = Math.min(120_000, Math.max(25_000, timeoutMs ?? 30_000));
+    const timeout = Math.min(60_000, Math.max(12_000, timeoutMs ?? 20_000));
     const perModelBody = { ...baseBody, max_tokens: Math.min(maxTokens, getModelOutputLimit(model)) };
     const tryModelReset = async (m: string, t: number): Promise<Response | null> => {
       // In force-retry, the module-level _deadModels set is respected
@@ -1070,7 +1070,7 @@ function getModelOutputLimit(modelId: string): number {
 // When a model stops because it hit its output cap (finish_reason = "length"),
 // transparently fire a follow-up "continue" request and stitch the result.
 // This gives every caller "infinite generation" without changing their code.
-const CONTINUATION_MAX_ROUNDS = 20;       // up to 21 total chunks per response — ensures even tiny models produce enough
+const CONTINUATION_MAX_ROUNDS = 5;        // up to 6 chunks — balance speed vs completeness
 const CONTINUATION_PROMPT_LENGTH =
   "Continue exactly where you left off. Do NOT repeat ANYTHING already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation \u2014 no prefixes, no explanations.";
 
