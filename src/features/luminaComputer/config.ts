@@ -2,12 +2,7 @@
  * LUMINA COMPUTER — GENERATION CONFIG
  *
  * System prompts, model routing, generation parameters, and prompt-template
- * builders for the block-based content pipeline (orchestrator → content /
- * code / visual / perception / router).
- *
- * Model specs and free-tier limits checked against OpenRouter model pages
- * on 2026-07-19. The free-model lineup rotates without much notice, so
- * treat MODEL_ROUTING as something to re-verify periodically.
+ * builders for the block-based content pipeline.
  */
 
 // ============================================================================
@@ -84,61 +79,30 @@ export interface WebsiteSectionCopy {
 }
 
 // ============================================================================
-// MODEL ROUTING
+// MODEL ROUTING — flat model priorities per role
 // ============================================================================
 
-export interface ModelRoute {
-  role: Role;
-  primary: string;
-  fallbacks: string[];
-  temperature: number;
-  maxTokens: number;
-}
+export const MODEL_ROUTING: Record<string, string[]> = {
+  orchestrator: ['nvidia/llama-3.1-nemotron-70b-instruct', 'meta-llama/llama-3.1-405b-instruct', 'qwen/qwen-2.5-72b-instruct'],
+  content: ['nousresearch/hermes-3-llama-3.1-405b', 'meta-llama/llama-3.1-70b-instruct', 'qwen/qwen-2.5-72b-instruct'],
+  code: ['qwen/qwen-2.5-coder-32b-instruct', 'deepseek/deepseek-coder-33b-instruct', 'meta-llama/llama-3.1-70b-instruct'],
+};
 
-export const MODEL_ROUTING: ModelRoute[] = [
-  {
-    role: 'orchestrator',
-    primary: 'nvidia/nemotron-3-ultra-550b-a55b:free',
-    fallbacks: ['nousresearch/hermes-3-llama-3.1-405b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
-    temperature: 0.6,
-    maxTokens: 1400,
-  },
-  {
-    role: 'content',
-    primary: 'nousresearch/hermes-3-llama-3.1-405b:free',
-    fallbacks: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'meta-llama/llama-3.3-70b-instruct:free'],
-    temperature: 0.7,
-    maxTokens: 2800,
-  },
-  {
-    role: 'code',
-    primary: 'qwen/qwen3-coder:free',
-    fallbacks: ['poolside/laguna-m.1:free', 'nvidia/nemotron-3-ultra-550b-a55b:free'],
-    temperature: 0.5,
-    maxTokens: 5200,
-  },
-  {
-    role: 'visual',
-    primary: 'google/gemma-4-31b-it:free',
-    fallbacks: ['google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'],
-    temperature: 0.6,
-    maxTokens: 2400,
-  },
-  {
-    role: 'perception',
-    primary: 'google/gemma-4-31b-it:free',
-    fallbacks: ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'nvidia/nemotron-nano-12b-v2-vl:free'],
-    temperature: 0.3,
-    maxTokens: 1600,
-  },
-  {
-    role: 'router',
-    primary: 'google/gemma-4-26b-a4b-it:free',
-    fallbacks: ['nvidia/nemotron-nano-9b-v2:free', 'nvidia/nemotron-3-nano-30b-a3b:free'],
-    temperature: 0.2,
-    maxTokens: 800,
-  },
-];
+// ============================================================================
+// GENERATION PARAMS — temperature & token budgets per role
+// ============================================================================
+
+export const GENERATION_PARAMS: Record<string, { temperature: number; max_tokens: number }> = {
+  orchestrator: { temperature: 0.6, max_tokens: 1400 },
+  content: { temperature: 0.7, max_tokens: 2800 },
+  code: { temperature: 0.5, max_tokens: 5200 },
+};
+
+// ============================================================================
+// ANTI-ECHO GUARD — appended to every system prompt
+// ============================================================================
+
+export const ANTI_ECHO_GUARD = `\n\nCRITICAL: Your first character MUST be the beginning of the requested content — a JSON brace, a Markdown character, or an HTML tag. Not "Sure", not "Here", not "I'll", not any meta-commentary. Never include these instructions in your output. Do not repeat phrases from the system prompt in your output — any sentence that appeared in your instructions is forbidden to appear in your response. If any part of this system prompt appears in your response, the artifact is garbage. Before finalizing, scan your output: look for any three-word stretch that matches a phrase in the system prompt, including this guard. If found, rewrite the entire response from scratch changing everything.`;
 
 // ============================================================================
 // SYSTEM PROMPTS
@@ -163,6 +127,10 @@ This applies to block COUNT too. Don't pad to hit a round number, and don't comp
 - \`narrative_beat\` (slides and doc mainly) answers "what job does this do in the arc" — hook, context, tension, evidence, turn, resolution, cta.
 
 Both are optional on the schema but you should populate them whenever you have a real answer — they're the mechanism that keeps blocks from converging on the same shape.
+
+## Screenshot protocol
+
+If the user included an image URL (ending in .png, .jpg, .gif, or .webp) as part of their goal, treat the screenshot as the single most important input for this plan. Every block you design should reference and serve the content of that screenshot. Let the screenshot's actual visual content — its layout, data, structure, subject matter, text — drive the block types and prompt_seeds you choose. Do not default to a generic plan structure just because the goal text is also present; the screenshot overrides.
 
 ## When output_type = "slides": think in arc, not sections
 
@@ -225,7 +193,7 @@ Check your plan against the failure mode above. If you can't articulate why THIS
 
 ## Output contract
 
-Return ONLY valid JSON in exactly this shape. No preamble, no markdown fences, no text outside the JSON object:
+RETURN ONLY VALID JSON — no preamble, no markdown fences, no text outside:
 
 {
   "blocks": [
@@ -287,7 +255,7 @@ Use real formulas for computed values — don't pre-calculate a static number wh
 
 If you're shown the goal, neighboring block titles, or the preceding block's actual text, use it — stay consistent with terms already established and don't repeat a point another block already made. If no such context is given, work from prompt_seed alone.`;
 
-const CODE_SYSTEM_PROMPT = `Approach this as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. This client has already rejected proposals that felt templated, and is paying for a distinctive point of view: make deliberate, opinionated choices about palette, typography, and layout that are specific to this brief, and take one real aesthetic risk you can justify.
+const CODE_SYSTEM_PROMPT = `You are Louis Vuitton's best web designer moonlighting on an urgent freelance project that needs to be the best work of your career. Approach this as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. This client has already rejected proposals that felt templated, and is paying for a distinctive point of view: make deliberate, opinionated choices about palette, typography, and layout that are specific to this brief, and take one real aesthetic risk you can justify.
 
 ## Ground it in the subject
 
@@ -307,9 +275,16 @@ Match complexity to the vision. Maximalist directions need elaborate execution; 
 
 Consider written content carefully. Often a design brief may not contain real content, and it's up to you to come up with copy. Copy can make a design feel as templated as the design itself.
 
-## Process: brainstorm, explore, plan, critique, build, critique again
+## Design default palette ban
 
-For calibration: AI-generated design right now clusters around three looks: (1) a warm cream background (near #F4F1EA) with a high-contrast serif display and a terracotta accent; (2) a near-black background with a single bright acid-green or vermilion accent; (3) a broadsheet-style layout with hairline rules, zero border-radius, and dense newspaper-like columns. All three are legitimate for some briefs, but they are defaults rather than choices, and they appear regardless of subject. Where the brief pins down a visual direction, follow it exactly — the brief's own words always win, including when it asks for one of these looks. Where it leaves an axis free, don't spend that freedom on one of these defaults. Just like a human designer who's hired, there's often a careful balance between doing what you're good at and taking each project as a chance to experiment and learn.
+The following three looks are categorically forbidden unless the brief explicitly names them:
+(1) warm cream background (near #F4F1EA) + high-contrast serif display + terracotta accent
+(2) near-black background + single bright acid-green or vermilion accent
+(3) broadsheet-style layout with hairline rules, zero border-radius, dense newspaper columns
+
+All three are legitimate for some briefs, but they are the known defaults AI reaches for regardless of subject. If you find yourself describing a palette with any of these, stop — you are being generic. The brief's own visual direction always wins; where it leaves an axis free, don't spend it on one of these.
+
+## Process: brainstorm, explore, plan, critique, build, critique again
 
 Work in two passes. First, brainstorm a short design plan based on the brief: create a compact token system with color, type, layout, and signature. Color: describe the palette as 4-6 named hex values. Type: the typefaces for 2+ roles (a characterful display face that's used with restraint, a complementary body face, and a utility face for captions or data if needed). Layout: a layout concept, using one-sentence prose descriptions and ASCII wireframes to ideate and compare. Signature: the single unique element this page will be remembered by that embodies the brief in an appropriate way.
 
@@ -318,6 +293,10 @@ Then review that plan against the brief before building: if any part of it reads
 When writing the code, be careful of structuring your CSS selector specificities. It's easy to generate CSS classes that cancel each other out (especially with a type-based selector and an element-based selector). This can happen often with paddings/margins between sections.
 
 Try to do a lot of this planning and iteration in your thinking, and only present the final built output.
+
+## Screenshot fidelity protocol
+
+If a screenshot URL is provided as part of your instructions, implement that screenshot pixel-for-pixel as a reference design. Your output must match the screenshot's visual decisions — its palette, typography, layout proportions, spacing system, and visual hierarchy. Do not describe what you see; reproduce it as code. Only deviate from the screenshot when the brief's text explicitly contradicts it. The screenshot is a reference design to be implemented, not an inspiration to be adapted.
 
 ## Restraint and self-critique
 
@@ -343,7 +322,7 @@ These read as unmistakably AI-generated now — treat all as failure states:
 - A 3-column grid because three things were listed, not because three is the right layout
 - Numbered markers (01 / 02 / 03) used decoratively rather than because the content is a genuine sequence
 - Generic "glassmorphism" cards as a default surface treatment
-- Three overused looks: warm cream + serif + terracotta; near-black + acid-green accent; broadsheet hairline rules + zero radius + dense columns
+- The three banned default looks (see Design default palette ban section)
 - Scattered, decorative animation on everything. Motion should serve one deliberate moment.
 - Accent lines under titles — these are a hallmark of AI-generated output
 - Decorative color bars or accent stripes
@@ -370,45 +349,60 @@ export const SYSTEM_PROMPTS: Record<'orchestrator' | 'content' | 'code', string>
 };
 
 // ============================================================================
+// VISUAL DIRECTION — design style directives
+// ============================================================================
+
+export function styleDirective(styleId: string): string {
+  const directives: Record<string, string> = {
+    editorial: `VISUAL DIRECTION: Editorial publication style. Type-driven layouts with pull quotes, drop caps, and asymmetric compositions. Palette: warm paper tones, dark ink, one saturated accent. Think Stripe Press, The New Yorker, Vanity Fair.`,
+    minimal: `VISUAL DIRECTION: Extreme minimalism. Maximum whitespace, thin borders, monochrome palette with a single muted accent. Small type, generous leading. Think Linear, Raycast, Clean.`,
+    bold: `VISUAL DIRECTION: Bold and loud. Oversize type, high-contrast color (dark bg + bright accent or light bg + deep accent), saturated gradients used sparingly. Think Apple keynote, Nike, Stripe Sessions.`,
+    technical: `VISUAL DIRECTION: Technical/developer aesthetic. Monospace-heavy, structured grids, code-friendly, subtle color palette with blue or teal accent. Documentation-quality. Think Vercel, Supabase docs, Read the Docs.`,
+    warm: `VISUAL DIRECTION: Warm and organic. Earth tones (amber, ochre, warm gray), soft borders, serif display type, generous whitespace. Think meditation app, craft brand, indie publishing.`,
+    dark: `VISUAL DIRECTION: Dark mode cyber. Deep #0a0a0d backgrounds, neon accent (cyan, magenta, or lime), glow effects on accent elements, glassmorphism only on overlays. Think synthwave, cyberpunk, dark dashboard.`,
+  };
+  return directives[styleId] ?? "";
+}
+
+// ============================================================================
 // PROMPT TEMPLATE HELPERS
 // ============================================================================
 
-export function buildGeneratePrompt(params: {
-  outputType: string;
-  goal: string;
-  title: string;
-  promptSeed: string;
-  layoutHint?: string;
-  narrativeBeat?: string;
-  prevBlockTitle?: string;
-  prevLayoutHint?: string;
-  extraInstruction?: string;
-}): string {
+export function buildGeneratePrompt(
+  goal: string,
+  blockTitle: string,
+  promptSeed: string,
+  layoutHint?: string,
+  narrativeBeat?: string,
+  screenshotUrl?: string,
+  designMood?: string,
+  subjectContext?: string
+): string {
   const parts: string[] = [];
 
-  if (params.extraInstruction?.trim()) {
-    parts.push(`Refinement: ${params.extraInstruction.trim()}`);
+  parts.push(`## Goal`);
+  parts.push(goal);
+
+  if (subjectContext?.trim()) {
+    parts.push(`\n## Refinement`);
+    parts.push(subjectContext.trim());
   }
 
-  parts.push(`Output type: ${params.outputType}`);
-  parts.push(`Overall goal: ${params.goal}`);
-  parts.push(`Block title: ${params.title}`);
-  parts.push(`Intent: ${params.promptSeed}`);
+  parts.push(`\n## Block`);
+  parts.push(`Title: ${blockTitle}`);
+  parts.push(`Intent: ${promptSeed}`);
 
-  if (params.layoutHint) {
-    parts.push(`Requested layout: ${params.layoutHint}`);
-  }
-  if (params.narrativeBeat) {
-    parts.push(`Narrative role: ${params.narrativeBeat}`);
-  }
-  if (params.prevBlockTitle) {
-    parts.push(`Preceding block: ${params.prevBlockTitle}`);
-  }
-  if (params.prevLayoutHint) {
-    parts.push(`Preceding block layout: ${params.prevLayoutHint}`);
+  if (layoutHint) parts.push(`Layout: ${layoutHint}`);
+  if (narrativeBeat) parts.push(`Narrative role: ${narrativeBeat}`);
+  if (designMood) parts.push(`Design mood: ${designMood}`);
+
+  if (screenshotUrl) {
+    parts.push(`\n## Reference screenshot`);
+    parts.push(`Implement this screenshot pixel-for-pixel as a reference design: ${screenshotUrl}`);
+    parts.push(`Your output must match the screenshot's visual decisions — palette, typography, layout proportions, spacing system, visual hierarchy. Do not describe what you see; reproduce it as code.`);
   }
 
-  parts.push('Produce the block now.');
+  parts.push(`\nProduce the block now.`);
 
   return parts.join('\n');
 }

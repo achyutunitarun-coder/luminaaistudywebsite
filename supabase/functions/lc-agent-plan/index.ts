@@ -26,6 +26,10 @@ This applies to block COUNT too. Don't pad to hit a round number, and don't comp
 
 Both are optional on the schema but you should populate them whenever you have a real answer — they're the mechanism that keeps blocks from converging on the same shape.
 
+## Screenshot protocol
+
+If the user included an image URL (ending in .png, .jpg, .gif, or .webp) as part of their goal, treat the screenshot as the single most important input for this plan. Every block you design should reference and serve the content of that screenshot. Let the screenshot's actual visual content — its layout, data, structure, subject matter, text — drive the block types and prompt_seeds you choose. Do not default to a generic plan structure just because the goal text is also present; the screenshot overrides.
+
 ## When output_type = "slides": think in arc, not sections
 
 A deck is a sequence experienced in time, not a list read at leisure. Before choosing blocks, decide which arc this specific goal calls for. Do not reuse the same arc call to call — read the goal and pick:
@@ -87,7 +91,7 @@ Check your plan against the failure mode above. If you can't articulate why THIS
 
 ## Output contract
 
-Return ONLY valid JSON in exactly this shape. No preamble, no markdown fences, no text outside the JSON object:
+RETURN ONLY VALID JSON — no preamble, no markdown fences, no text outside:
 
 {
   "blocks": [
@@ -135,6 +139,15 @@ const FALLBACK_BLOCKS: Record<string, any[]> = {
   ],
 };
 
+function buildUserPrompt(goal: string, outputType: string): string {
+  const screenshotUrl = goal.match(/https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp)/i)?.[0];
+  let prompt = `Goal: ${goal}\nOutput type: ${outputType}\n\nPlan the block structure now. Pick your arc/structure per the output_type guidance in your system prompt before choosing blocks — don't start listing blocks until you've decided what shape this specific goal calls for.`;
+  if (screenshotUrl) {
+    prompt += `\n\nReference screenshot to implement: ${screenshotUrl}. Let the screenshot's visual content drive your block types and prompt_seeds. The screenshot overrides generic structure.`;
+  }
+  return prompt;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -179,7 +192,7 @@ Deno.serve(async (req) => {
           max_tokens: 1400,
           temperature: 0.6,
           system: ORCHESTRATOR_SYSTEM_PROMPT,
-          prompt: `Goal: ${goal}\nOutput type: ${output_type}\n\nPlan the block structure now. Pick your arc/structure per the output_type guidance in your system prompt before choosing blocks — don't start listing blocks until you've decided what shape this specific goal calls for.`,
+          prompt: buildUserPrompt(goal, output_type),
           ...(useJsonFormat ? { response_format: { type: "json_object" } } : {}),
         }),
       });

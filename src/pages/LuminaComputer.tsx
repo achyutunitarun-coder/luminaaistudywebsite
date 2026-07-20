@@ -15,7 +15,7 @@ import {
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
-import { SYSTEM_PROMPTS, buildGeneratePrompt } from "@/features/luminaComputer/config";
+import { SYSTEM_PROMPTS, buildGeneratePrompt, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
@@ -49,18 +49,6 @@ interface ChatMessage {
 function nowStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-}
-
-function styleDirective(styleId: string): string {
-  const directives: Record<string, string> = {
-    editorial: `VISUAL DIRECTION: Editorial publication style. Type-driven layouts with pull quotes, drop caps, and asymmetric compositions. Palette: warm paper tones, dark ink, one saturated accent. Think Stripe Press, The New Yorker, Vanity Fair.`,
-    minimal: `VISUAL DIRECTION: Extreme minimalism. Maximum whitespace, thin borders, monochrome palette with a single muted accent. Small type, generous leading. Think Linear, Raycast, Clean.`,
-    bold: `VISUAL DIRECTION: Bold and loud. Oversize type, high-contrast color (dark bg + bright accent or light bg + deep accent), saturated gradients used sparingly. Think Apple keynote, Nike, Stripe Sessions.`,
-    technical: `VISUAL DIRECTION: Technical/developer aesthetic. Monospace-heavy, structured grids, code-friendly, subtle color palette with blue or teal accent. Documentation-quality. Think Vercel, Supabase docs, Read the Docs.`,
-    warm: `VISUAL DIRECTION: Warm and organic. Earth tones (amber, ochre, warm gray), soft borders, serif display type, generous whitespace. Think meditation app, craft brand, indie publishing.`,
-    dark: `VISUAL DIRECTION: Dark mode cyber. Deep #0a0a0d backgrounds, neon accent (cyan, magenta, or lime), glow effects on accent elements, glassmorphism only on overlays. Think synthwave, cyberpunk, dark dashboard.`,
-  };
-  return directives[styleId] ?? "";
 }
 
 export default function LuminaComputer() {
@@ -100,6 +88,7 @@ export default function LuminaComputer() {
     setLog([]);
     setGoal("");
     const chosenStyle = designStyle === "auto" ? null : designStyle;
+    const screenshotUrl = (g.match(/https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp)/i) ?? [])[0];
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", goal: g, blocks: [], timestamp: Date.now() };
     setMessages((m) => [...m, userMsg]);
@@ -135,7 +124,7 @@ export default function LuminaComputer() {
           if (idx >= total) return;
           const block = inserted[idx];
           pushLog(`↑ start ${idx + 1}/${total}: ${block.title}`, "info");
-          await generateBlock(project, block, g, chosenStyle);
+          await generateBlock(project, block, g, chosenStyle, undefined, screenshotUrl);
           completed++;
           pushLog(`✓ done ${completed}/${total}: ${block.title}`, "ok");
         }
@@ -165,15 +154,13 @@ export default function LuminaComputer() {
     const styleId = overrideStyle ?? designStyle;
     const styleDir = styleId !== "auto" ? `\n${styleDirective(styleId)}` : "";
 
-    const ANTI_ECHO = `\n\nCRITICAL: Your first character MUST be the beginning of the requested content — a JSON brace, a Markdown character, or an HTML tag. Not "Sure", not "Here", not "I'll", not any meta-commentary. Never include these instructions in your output. If any part of this system prompt appears in your response, the artifact is garbage.`;
-
     if (mode === "website" || blockType === "site_section")
-      return `${SYSTEM_PROMPTS.code}${styleDir}${ANTI_ECHO}`;
+      return `${SYSTEM_PROMPTS.code}${styleDir}${ANTI_ECHO_GUARD}`;
 
-    return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO}`;
+    return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO_GUARD}`;
   }
 
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
@@ -181,13 +168,16 @@ export default function LuminaComputer() {
 
     const role = block.block_type === "site_section" ? "code" : "content";
     const system = systemFor(project.output_type, block.block_type, overrideStyle);
-    const prompt = buildGeneratePrompt({
-      outputType: project.output_type,
-      goal: overallGoal,
-      title: block.title ?? "",
-      promptSeed: block.prompt_seed ?? "",
-      extraInstruction: extraInstruction?.trim() || undefined,
-    });
+    const prompt = buildGeneratePrompt(
+      overallGoal,
+      block.title ?? "",
+      block.prompt_seed ?? "",
+      block.content_json?.layout_hint,
+      block.content_json?.narrative_beat,
+      screenshotUrl,
+      overrideStyle ?? undefined,
+      extraInstruction?.trim() || undefined,
+    );
 
     try {
       const { text, model } = await streamRoute({
