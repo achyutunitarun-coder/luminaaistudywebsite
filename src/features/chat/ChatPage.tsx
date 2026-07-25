@@ -32,7 +32,7 @@ import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-interface OllamaToolCall {
+interface ToolCall {
   id: string;
   type: "function";
   function: {
@@ -41,7 +41,7 @@ interface OllamaToolCall {
   };
 }
 
-function extractToolCallFromText(text: string): OllamaToolCall | null {
+function extractToolCallFromText(text: string): ToolCall | null {
   const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (!jsonMatch) return null;
   try {
@@ -339,7 +339,7 @@ const ChatPage = () => {
       if (currentChatIdRef.current === id) startNewChat();
     }, [startNewChat, user]);
 
-    const executeToolCalls = useCallback(async (toolCalls: OllamaToolCall[], history: Message[], chatId: string | null) => {
+    const executeToolCalls = useCallback(async (toolCalls: ToolCall[], history: Message[], chatId: string | null) => {
       for (const tc of toolCalls) {
         if (tc.function.name === "create_artifact") {
           try {
@@ -438,7 +438,7 @@ const ChatPage = () => {
       }
 
       // Optional: extract inline tool-call JSON emitted as text
-      let toolCalls: OllamaToolCall[] | undefined;
+      let toolCalls: ToolCall[] | undefined;
       if (fullText) {
         const extracted = extractToolCallFromText(fullText);
         if (extracted) toolCalls = [extracted];
