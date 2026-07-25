@@ -66,11 +66,12 @@ const SmartNotebook = () => {
   };
 
   const fetchResponse = async (body: Record<string, unknown>, onText?: (text: string) => void): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession();
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
       body: JSON.stringify(body),
     });
@@ -133,11 +134,12 @@ const SmartNotebook = () => {
     setFlowNodes([]);
     setFlowEdges([]);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ fileContent, fileName: file?.name || 'document', mode: 'flowchart' }),
       });

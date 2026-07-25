@@ -10,8 +10,10 @@ import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import Onboarding from "@/components/Onboarding";
 import Auth from "@/pages/Auth";
+import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import Chat from "@/pages/Chat";
+import OllamaChat from "@/pages/OllamaChat";
 import Tests from "@/pages/Tests";
 import Flashcards from "@/pages/Flashcards";
 import DoubtSolver from "@/pages/DoubtSolver";
@@ -74,7 +76,7 @@ const ProtectedLayout = () => {
 const AuthRoute = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <Auth />;
 };
 
@@ -86,13 +88,15 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthRoute />} />
 
             <Route element={<ProtectedLayout />}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/ai-tools" element={<AITools />} />
               <Route path="/hub" element={<LuminaHub />} />
               <Route path="/chat" element={<Chat />} />
+              <Route path="/ollama-chat" element={<OllamaChat />} />
               <Route path="/tests" element={<Tests />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/doubt-solver" element={<DoubtSolver />} />

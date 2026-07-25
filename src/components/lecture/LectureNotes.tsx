@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Loader2, Copy, Check, BookOpen, Send, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { Textarea } from '@/components/ui/textarea';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
@@ -50,9 +51,10 @@ const LectureNotes = ({ transcript, notes, setNotes, notesGenerated, setNotesGen
       }
       userPrompt += `\n\nLecture content:\n${transcript}`;
 
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({ topic: 'Lecture Analysis', sourceText: userPrompt, style: selectedStyle, isRefinement: isRefine }),
       });
 

@@ -7,6 +7,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
+import { supabase } from '@/integrations/supabase/client';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
 
@@ -96,11 +97,12 @@ const AudioAnalysis = () => {
     setState('processing');
     setNotes('');
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           topic: 'Lecture Analysis',

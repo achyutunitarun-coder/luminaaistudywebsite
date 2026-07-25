@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Loader2, Podcast, Play, Square, RotateCcw, Pause, Download, FileVideo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 interface Props {
@@ -88,11 +89,13 @@ const LecturePodcast = ({ notes, onScriptChange, onBeforeGenerate }: Props) => {
     setCurrentLineIdx(-1);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-podcast-script`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ notes }),
       });

@@ -107,11 +107,12 @@ const GameModes = () => {
     setLoading(true);
     try {
       const count = selectedMode === 'velocity_run' ? 20 : selectedMode === 'neural_heist' ? 9 : selectedMode === 'mind_dungeon' ? 15 : 10;
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-resources`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           curriculum: 'general',

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, Users } from 'lucide-react';
+import { GraduationCap, Users, Cpu } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -57,6 +57,7 @@ const sidebarSections = [
     label: 'Study',
     items: [
       { title: 'AI Chat', url: '/chat', icon: MessageSquare },
+      { title: 'Ollama Chat', url: '/ollama-chat', icon: Cpu },
       { title: 'Doubt Solver', url: '/doubt-solver', icon: HelpCircle },
       { title: 'Notes Generator', url: '/notes-generator', icon: FileText },
       { title: 'Quick Study', url: '/quick-study', icon: Zap },

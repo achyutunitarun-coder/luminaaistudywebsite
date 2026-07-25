@@ -114,12 +114,13 @@ export function getNextKeyIndex(): number {
       return i;
     }
   }
-  // All keys cooling — pick the one closest to recovery
+  // All keys cooling — pick the one closest to recovery AND reset it
   let best = 0, bestUntil = _cooledUntil[0];
   for (let i = 1; i < ALL_KEYS.length; i++) {
     if (_cooledUntil[i] < bestUntil) { best = i; bestUntil = _cooledUntil[i]; }
   }
-  console.warn(`[keys] all cooling, forcing key ${best + 1} (recovers in ${Math.round((bestUntil - Date.now()) / 1000)}s)`);
+  console.warn(`[keys] all cooling, forcing reset on key ${best + 1} (was cooling ${Math.round((bestUntil - Date.now()) / 1000)}s more)`);
+  _cooledUntil[best] = Date.now();
   _keyCursor = (best + 1) % ALL_KEYS.length;
   return best;
 }

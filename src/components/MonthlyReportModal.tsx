@@ -66,11 +66,12 @@ export const MonthlyReportModal = () => {
       const tests = testsRes.data || [];
       const avgScore = tests.length ? tests.reduce((s, t) => s + (t.score || 0), 0) / tests.length : 0;
 
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/monthly-report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           userData: {

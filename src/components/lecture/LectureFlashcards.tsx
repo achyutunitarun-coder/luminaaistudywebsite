@@ -3,6 +3,7 @@ import { Loader2, Layers, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/integrations/supabase/client';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface Flashcard { front: string; back: string; }
@@ -21,9 +22,10 @@ const LectureFlashcards = ({ notes, onBeforeGenerate }: Props) => {
     if (onBeforeGenerate) { const allowed = await onBeforeGenerate(); if (!allowed) return; }
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lecture-tools`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({ notes, type: 'flashcards' }),
       });
       if (!resp.ok) throw new Error('Failed');
