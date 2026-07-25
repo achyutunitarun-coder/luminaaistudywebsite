@@ -1,5 +1,5 @@
 // Lumina Agent Planner — LLM-based 360° intent detection.
-// Uses Lovable AI Gateway (gemini-3-flash) with structured JSON output to extract
+// Uses OpenRouter free models with structured JSON output to extract
 // concrete tool calls from natural language + recent conversation context.
 //
 // POST { message, history?: [{role,content}], connected: {google,notion,gmail,calendar,drive}, route? }
@@ -115,8 +115,8 @@ serve(async (req) => {
       await req.json();
     if (!message || typeof message !== "string") return j(400, { error: "message required" });
 
-    const key = Deno.env.get("LOVABLE_API_KEY");
-    if (!key) return j(500, { error: "missing_lovable_key" });
+    const key = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2");
+    if (!key) return j(500, { error: "missing_openrouter_key" });
 
     const ctxHistory = (Array.isArray(history) ? history : [])
       .slice(-8)
@@ -156,17 +156,16 @@ serve(async (req) => {
       `Reminder: datetimes for calendar actions MUST be naive local ISO like "${localTomorrow}T09:00:00" — no Z, no offset.\n` +
       `Return JSON: { "kind": "...", "params": {...}, "summary": "...", "confirmation_required": bool }`;
 
-    const orKey = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENROUTER_KEY_2") ?? "";
     const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${orKey || key}`,
+        Authorization: `Bearer ${key}`,
         "HTTP-Referer": "https://luminaai.co.in",
         "X-Title": "Lumina AI",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
+        model: "openrouter/free",
         messages: [
           { role: "system", content: SYSTEM },
           ...ctxHistory,

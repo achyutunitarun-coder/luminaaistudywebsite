@@ -116,16 +116,8 @@ if (ALL_KEYS.length === 0) {
 console.log(`[keys] ${ALL_KEYS.length} OpenRouter key(s) loaded`);
 
 // ── Google AI Studio key pool (Gemini models, fallback when OpenRouter exhausted) ──
-const GOOGLE_KEYS: string[] = [
-  Deno.env.get("GOOGLE_AI_STUDIO_API_KEY"),
-  Deno.env.get("GOOGLE_KEY_2"),
-  Deno.env.get("GOOGLE_KEY_3"),
-  Deno.env.get("GOOGLE_KEY_4"),
-  Deno.env.get("GOOGLE_AI_STUDIO_KEY_2"),
-  Deno.env.get("GOOGLE_AI_STUDIO_KEY_3"),
-  Deno.env.get("GOOGLE_AI_STUDIO_KEY_4"),
-].filter(Boolean) as string[];
-const KIMI_KEYS: string[] = [Deno.env.get("KIMI_API_KEY")].filter(Boolean) as string[];
+const GOOGLE_KEYS: string[] = [];
+const KIMI_KEYS: string[] = [];
 const GOOGLE_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 if (GOOGLE_KEYS.length > 0) {
   console.log(`[keys] ${GOOGLE_KEYS.length} Google AI Studio key(s) loaded`);
