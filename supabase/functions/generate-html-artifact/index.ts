@@ -194,33 +194,7 @@ serve(async (req) => {
             // HARD REINFORCEMENT — prevents placeholder/skeleton output
             const contentReinforcement = `
 
-═══════════════════════════════════════════════════
-ABSOLUTE OUTPUT CONTRACT — VIOLATION = FAILURE
-═══════════════════════════════════════════════════
-
-You are NOT a template generator. You are a CONTENT creator.
-
-FORBIDDEN (instant failure if present):
-- "Click here to view", "Open the file to see", "Your content will appear here"
-- "Instructions on how to use this", "How to navigate", "Welcome to your"
-- Lorem ipsum, placeholder text, "TODO", "coming soon", "rest of content here"
-- Any meta-commentary about what the artifact IS — just BE the artifact
-- Emoji of any kind (🚀⚡🎯🔥💡✅❌🎉🌟📝📚 etc.) — use SVG icons or text labels
-
-REQUIRED (instant failure if missing):
-- The HTML MUST contain REAL, SUBSTANTIVE educational content for "${topic}"
-- Real definitions with explanations, not just term names
-- Real worked examples with actual numbers and step-by-step solutions
-- Real formulas with variable explanations
-- Real practice questions with complete answers and explanations
-- Minimum 800 lines of actual HTML content
-- Every section must have substantial text — not just headers
-
-IDENTITY: You are writing a real textbook chapter / exam paper / presentation that a student will actually study from. A teacher would be proud to distribute this. A student would learn from this.
-
-OUTPUT: ONLY raw HTML starting with <!DOCTYPE html> and ending with </html>. No markdown fences. No preamble. No commentary. The HTML file IS the deliverable — it must be complete, self-contained, and immediately useful.
-
-UNIQUENESS: This artifact must feel like a custom-designed product, not a template. Choose a distinctive visual approach that fits the topic. Make one design decision that makes this artifact memorable and different from any other.`;
+[Applies the artifact engine (section 6) and code writer (section 3) logic.] Build the HTML artifact to the same design-quality bar and the same complexity-matches-role logic — no fixed section template, structure driven by what this specific artifact is actually for. Include real educational content with definitions, worked examples, formulas, and practice questions that are specific to the topic — not placeholders. Every section must have substantial text. Output ONLY raw HTML starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no preamble, no commentary. Make one design decision that makes this artifact specific to its topic.`;
 
             if (type === "notes") {
               themeKey = notesTheme;

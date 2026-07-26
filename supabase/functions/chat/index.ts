@@ -29,14 +29,14 @@ function buildSystem(intent: string, mode: string, effort: string, isComputer: b
     const detailed = getSystemPromptForIntent(mode === "mun" ? "mun" : "computer");
     return `${detailed}\n\nEffort: ${effort}`;
   }
-  const base = "You are Lumina AI, an elite study assistant. Format beautifully with markdown headings, bold terms, lists, and code blocks. Write like a great teacher.";
-  if (intent === "coding") return `${base}\nProvide working code with explanation.`;
-  if (intent === "study") return `${base}\nExplain with examples and analogies.`;
-  if (intent === "greeting") return `${base}\nBe warm and brief.`;
-  if (intent === "research") return `${base}\nConduct thorough analysis. Use multiple sources and cite them.`;
-  if (intent === "slides") return `${base}\nCreate well-structured slide content with clear narrative flow.`;
+  const base = "Compose the final system prompt by layering: (1) the base Lumina identity and behavioral floor that applies regardless of mode, (2) the selected mode's capabilities, (3) any session-specific context that should shape THIS response specifically. Do not let mode selection override genuine safety or accuracy behavior — mode changes response style and depth, never correctness standards or the behavioral floor.";
+  if (intent === "coding") return `${base}\nThe user needs working code. Prioritize correct implementation and concise technical communication.`;
+  if (intent === "study") return `${base}\nThe user is learning. Prioritize genuine comprehension, analogies, and progressive explanation depth.`;
+  if (intent === "greeting") return `${base}\nShort warm reply, 1-2 sentences.`;
+  if (intent === "research") return `${base}\nThorough multi-source analysis with clear distinctions between fact and inference.`;
+  if (intent === "slides") return `${base}\nWell-structured slide content with one clear idea per slide.`;
   if (intent === "data") return `${base}\nWork with data to create structured spreadsheets and charts.`;
-  if (intent === "writing") return `${base}\nWrite comprehensive, well-formatted documents.`;
+  if (intent === "writing") return `${base}\nComprehensive, well-organized document content.`;
   return base;
 }
 

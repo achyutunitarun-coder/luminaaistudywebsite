@@ -24,9 +24,9 @@ serve(async (req) => {
     }
 
     const prompts: Record<string, string> = {
-      flashcards: `Generate 10-15 flashcards. Return ONLY JSON array: [{"front": "question", "back": "answer"}]. Do NOT include thinking tags.`,
-      quiz: `Generate 8-10 MCQ questions. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. Do NOT include thinking tags.`,
-      summary: `Create a powerful "Exam Revision" summary with headers, **bold** terms, bullet points, formulas, mnemonics. Keep under 600 words.`,
+      flashcards: `Generate flashcards from this lecture. Let the actual content determine how many cards are needed and what each card tests. Return ONLY JSON array: [{"front": "question", "back": "answer"}]. Do NOT include thinking tags.`,
+      quiz: `Generate MCQ questions from this lecture. Let the content's actual complexity and coverage determine question count and difficulty distribution. Return ONLY JSON array: [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]. Do NOT include thinking tags.`,
+      summary: `Create an exam revision summary from this lecture. Structure and depth should match what the lecture actually covered — emphasize what the lecturer emphasized, don't give equal treatment to asides. Use headers, **bold** terms, bullet points, formulas where applicable.`,
     };
     const text = await callAIText(
       [{ role: "system", content: prompts[type] || prompts.summary }, { role: "user", content: `Notes:\n${notes}` }],

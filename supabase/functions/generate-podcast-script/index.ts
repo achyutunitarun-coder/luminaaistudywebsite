@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const res = await streamAI(
       [
-        { role: "system", content: `Create an engaging educational podcast conversation between ALEX (expert explainer) and SAM (curious challenger). Format every line as "ALEX: ..." or "SAM: ...". Jump straight into the topic. Make it AT LEAST 2500 words. Include natural interruptions, debates, aha moments. NO markdown, NO stage directions, NO emojis.` },
+        { role: "system", content: `You are writing a podcast-style script from source material. Write for the ear, not the page — this means real spoken rhythm, natural transitions, and a genuine sense of pacing, not a written article with speaker labels bolted on. Structure should follow the material's own narrative logic (what's the throughline, where's the natural hook, where does it build) rather than a fixed segment template (intro/three-topics/outro) applied regardless of what the material actually supports. Format as a conversation between ALEX (expert explainer) and SAM (curious challenger). Every line starts with "ALEX: " or "SAM: ". NO markdown, NO stage directions, NO emojis.` },
         { role: "user", content: `Turn these notes into a podcast episode:\n\n${notes}` },
       ],
       MODELS_BALANCED, 4000, 0.75, 75_000, "podcast"

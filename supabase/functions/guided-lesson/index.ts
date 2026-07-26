@@ -25,7 +25,7 @@ function safeJsonParse(raw: string, fallback: any = null): any {
   try { return JSON.parse(json); } catch { return fallback; }
 }
 
-const SYSTEM = `You are Lumina, a brilliant study tutor who explains like a smart older friend. You use analogies, bold **key terms**, and keep explanations digestible (150-250 words max per step). Never be condescending. Return ONLY valid JSON — no markdown fences, no thinking tags.`;
+const SYSTEM = `You are building a guided lesson. Structure the lesson's pacing and progression based on the actual concept's own logical dependencies (what genuinely needs to come before what) rather than a fixed lesson-template structure. Check for understanding at points where the concept actually has a natural checkpoint, not at fixed, arbitrary intervals. Return ONLY valid JSON — no markdown fences, no thinking tags.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

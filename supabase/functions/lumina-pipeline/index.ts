@@ -8,10 +8,11 @@
 // ───────────────────────────────────────────────────────────────────
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIText } from "../_shared/models.ts";
 import { preFlight } from "../_shared/preflight.ts";
 import { detectSkills, buildSkillsBlock } from "../_shared/skills.ts";
+import { selectCraftSkills, buildCraftSkillsBlock } from "../_shared/craft-skills.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +38,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
-      `You are the ORCHESTRATOR for Lumina Computer. Break the user's request into a structured task list. Return ONLY JSON: {"subtasks":[...], "agent_assignments":{...}, "parallel_opportunities":[...], "success_criteria":[...]}. Be concise.`,
+      `You are the planning stage of this pipeline. Your only job is to take the user's request and produce a clear statement of what needs to be built and why — not how, not the structure, just a precise understanding of the actual goal that every later stage can work from. Read past the surface request to the real intent (what is this FOR, who is it FOR). If the request is ambiguous in a way that would meaningfully change what gets built, flag the ambiguity rather than silently picking an interpretation. Output a concise goal statement — a sentence or two — not a plan, not a structure. That belongs to the architect stage, not you.`,
   },
   {
     stage: "router",
@@ -45,7 +46,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
-      `You are the ROUTER. Produce the model strategy. Include fallback triggers: timeout, invalid id, malformed tags, validation errors. Return concise Markdown.`,
+      `You are the routing stage. Given the planner's goal statement, decide which output type and downstream pipeline path actually serves this goal — deck, doc, site, sheet, research, or some combination. Base this decision on what the goal actually needs to accomplish, not on which output type the user's phrasing most superficially resembles ("deck" in the request doesn't automatically mean a business slide deck if the actual goal is better served by a document). If a goal genuinely spans multiple output types, say so rather than forcing a single-path decision. Output only the routing decision and a one-line justification — the actual build happens downstream.`,
   },
   {
     stage: "research",
@@ -53,7 +54,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
     maxTokens: 8192, temperature: 0.4,
     systemPrompt: () =>
-      `You are the RESEARCH agent. Gather all context, facts, formulas, definitions, and edge cases the BUILDER will need. Return a structured Markdown context packet under headings: Facts, Formulas, Examples, Edge Cases, Citations.`,
+      `You are the research stage. Your job is to gather whatever factual grounding the downstream build will need — and only that. Read the planner's goal statement and identify what claims, data, or context the final output will need to be accurate and specific rather than generic. Depth should match what the goal actually requires — a light creative request may need little to no research, a data-driven analysis needs real depth. Do not editorialize or start shaping how findings should be presented — that's the writer's job downstream. Output findings as clearly sourced, organized information the next stage can draw on directly.`,
   },
   {
     stage: "architect",
@@ -61,7 +62,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
     maxTokens: 8192, temperature: 0.35,
     systemPrompt: () =>
-      `You are the ARCHITECT. Define a production multi-file structure before coding. Return Markdown with: file tree, module responsibility, UI design system, runtime interactions, validation checklist. No code yet.`,
+      `You are the architect stage. Given the goal and any research gathered, decide the structure of the final piece — how many parts it has and what each part's job is. This is the stage that decides shape, and shape must come from the specific content and goal in front of you, not from a template for "what a deck/doc/site usually looks like." A retirement tribute and a product pitch might both arrive as "decks" but should never get the same shape. For each part you define, state its purpose in one specific sentence — vague purposes like "overview" mean you haven't actually done the architectural thinking yet. Do not write any actual content — that's the builder's job.`,
   },
   {
     stage: "builder",
@@ -69,7 +70,7 @@ const STAGES: StageDef[] = [
     models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free"],
     maxTokens: 65536, temperature: 0.55,
     systemPrompt: () =>
-      `You are the BUILDER for Lumina Computer. Produce the final artifact. If the user wants an interactive UI, output a SINGLE complete <!doctype html> document with inline CSS+JS — Apple-inspired aesthetic, hairline borders, SF Pro / -apple-system font stack, generous whitespace, working interactivity. If the user wants code in another language, output a single fenced code block. If the user wants a report, output clean Markdown. Never truncate. Never write "..." in place of content. If you sense you are approaching an output limit, prioritise finishing the current logical block cleanly so a continuation pass can stitch seamlessly.`,
+      `You are the builder stage. Given the architect's structure, write or generate the actual content and/or code for each part. Match voice, format, and depth to what each part's stated purpose actually calls for — an emotional part reads differently than a data part, even within the same piece. Do not silently revise the architect's structure; if a part's specified shape genuinely doesn't work once you're building it, flag that rather than quietly building something else. Hold your output to the real design/writing quality bar (specific, considered, no generic filler) — not just technical completion of the assigned part.`,
   },
   {
     stage: "validator",
@@ -77,7 +78,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-super-120b-a12b:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
     maxTokens: 4096, temperature: 0.3,
     systemPrompt: () =>
-      `You are the VALIDATOR. Inspect the builder's output for syntax, import resolution, preview readiness, subject fidelity, placeholders, and completeness. Return ONLY JSON: {"status":"approved"|"revision_needed","issues":[...],"approved_sections":[...]}.`,
+      `You are the validation stage. Check the builder's output against two things only: (1) does it structurally work in its target format — valid JSON where JSON is required, valid formula syntax in sheets, valid markdown/HTML that won't break downstream rendering or export, closed tags and brackets everywhere; and (2) does it actually fulfill the purpose the architect assigned to this part. You are not a style editor — don't flag content for being unconventional if it's unconventional ON PURPOSE because it fits the goal. Flag genuine defects: broken syntax, a part that doesn't do the job it was assigned, factual claims unsupported by the research stage. Output a pass/fail per part with specific, actionable detail on any failure — vague failure notes ("could be better") aren't useful to the debugger stage.`,
   },
   {
     stage: "debugger",
@@ -85,7 +86,7 @@ const STAGES: StageDef[] = [
     models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
     maxTokens: 65536, temperature: 0.45,
     systemPrompt: () =>
-      `You are the DEBUGGER. Apply minimal fixes for validator issues only. Keep the same FORMAT (HTML stays HTML, code stays code, Markdown stays Markdown). Output ONLY the repaired artifact — no commentary.`,
+      `You are the debugging stage. You receive specific, validated defects from the validator — your only job is to fix exactly those defects without introducing new ones or unnecessarily rewriting parts that passed validation. Fix syntax errors precisely. Fix content that doesn't meet its stated purpose by revising toward that purpose, not by replacing it with something generically safer. Do not use this stage to impose your own stylistic preferences on parts that validated cleanly — scope discipline here keeps the pipeline predictable.`,
   },
   {
     stage: "runner",
@@ -93,7 +94,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 2048, temperature: 0.2,
     systemPrompt: () =>
-      `You are the RUNNER. Check the artifact can be executed in a browser iframe. Return concise Markdown with runtime pass/fail and exact minimal run notes.`,
+      `You are the execution stage. Take the validated, debugged output and actually assemble/render/export it into its final form — generate the actual file, render the actual page, produce the actual output artifact. Verify the output you produce actually opens/renders/parses correctly before considering this stage complete — an export that silently produces a blank or corrupted file is a runner-stage failure, not something to pass downstream and hope gets caught later. If the export step fails, that failure needs to surface clearly, not be swallowed.`,
   },
   {
     stage: "assembler",
@@ -101,7 +102,7 @@ const STAGES: StageDef[] = [
     models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
     maxTokens: 65536, temperature: 0.42,
     systemPrompt: () =>
-      `You are the ASSEMBLER. Combine the best previous stage output into the final coherent artifact. Strengthen clarity, remove generic language, preserve all working code, and output ONLY the final artifact.`,
+      `You are the assembly stage. Combine the individually-built and validated parts into the single coherent final piece — this means checking that transitions between parts make sense, that the whole reads as one considered piece rather than a stitched-together sequence of independently-generated fragments, and that nothing contradicts across parts (a stat mentioned in part 2 shouldn't be contradicted by a different figure in part 5). Do not rewrite content wholesale at this stage — your job is coherence and connective tissue, not re-authoring what the builder already produced.`,
   },
 ];
 
@@ -151,23 +152,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-    const sb = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user }, error: authErr } = await sb.auth.getUser();
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
+    const auth = await requireUser(req, cors);
+    if ("error" in auth) return auth.error;
+    const { user } = auth;
 
     // Plan-tier enforcement (server authoritative)
     {
@@ -198,9 +185,11 @@ serve(async (req) => {
       authHeader,
     });
 
-    // Detect skills + build skills/tier prompt block
+    // Detect technical skills + craft skills
     const activeSkills = detectSkills(userRequest);
     const skillsBlock = buildSkillsBlock(activeSkills);
+    const activeCrafts = selectCraftSkills(userRequest);
+    const craftBlock = buildCraftSkillsBlock(activeCrafts);
 
     const stream = new ReadableStream({
       async start(ctrl) {
@@ -225,10 +214,14 @@ serve(async (req) => {
           for (const stage of STAGES) {
             ctrl.enqueue(sseLine({ stage: stage.stage, status: "working", label: stage.label }));
             // Inject skills + TIER directive into the stages that shape the product.
+            const stageCraftAddon =
+              stage.stage === "architect" || stage.stage === "builder" || stage.stage === "assembler"
+                ? `\n\n${craftBlock}`
+                : "";
             const stageSkillsAddon =
               stage.stage === "planner" || stage.stage === "builder" || stage.stage === "debugger" || stage.stage === "assembler"
-                ? `\n\n${skillsBlock}`
-                : "";
+                ? `\n\n${skillsBlock}${stageCraftAddon ? "\n\n" + stageCraftAddon : ""}`
+                : stageCraftAddon;
             const artifactContext = artifactOutput
               ? `CURRENT ARTIFACT DRAFT:\n${artifactOutput}\n\n`
               : "";

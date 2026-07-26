@@ -70,33 +70,17 @@ serve(async (req) => {
       [
         {
           role: "system",
-          content: `You are an expert exam question generator. Create ${num} high-quality multiple-choice questions that test DEEP UNDERSTANDING, not just recall.
-
-QUESTION QUALITY STANDARDS:
-- Each question must test a specific concept, principle, or application
-- Include conceptual questions ("Why does...?", "What happens if...?", "Which best explains...?")
-- Include application questions ("Given this scenario...", "How would you apply...")
-- Include analysis questions ("Compare...", "What is the relationship between...")
-- Avoid trivial factual recall ("What is the definition of...")
-- Questions should be exam-grade difficulty (JEE/NEET/CBSE Board level)
-
-DISTRACTOR QUALITY:
-- All 4 options should be plausible
-- Distractors should reflect common student misconceptions
-- No obviously wrong options
-- Options should be similar in length and style
+          content: `[Applies the same logic as the EXAM_PROMPT in artifact-prompts.ts.] Generate ${num} high-quality multiple-choice questions from this material. The functional requirement: each question needs well-formed distractors with one unambiguously correct answer and a clear explanation. What's open: difficulty distribution, specific question types, and coverage breadth — all driven by what the source material actually supports, not a fixed template.
 
 FORMAT: Return ONLY valid JSON (no markdown, no thinking tags):
 {"questions": [
   {
-    "question": "The question text. Use LaTeX for math: $E=mc^2$",
+    "question": "The question text",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct": 0,
-    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong. Include the underlying concept."
+    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong."
   }
-]}
-
-CRITICAL: Every question MUST have a unique, non-trivial concept being tested. The explanation MUST teach something.`
+]}`
         },
         {
           role: "user",

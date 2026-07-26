@@ -22,9 +22,9 @@ serve(async (req) => {
     const { fileContent, fileName, mode, language } = JSON.parse(body);
 
     const prompts: Record<string, { system: string; user: string }> = {
-      notes: { system: `Create study notes with headings, **bold** terms, real-world analogies, formulas, and a "Quick Review" summary.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
-      flowchart: { system: `Return ONLY JSON (no fences): {"nodes": [{"id": "1", "label": "Title", "description": "Brief", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. 6-12 nodes. Do NOT include thinking tags.`, user: `Create concept flowchart for "${fileName}":\n\n${fileContent}` },
-      overview: { system: `Create overview in ${language || "Spanish"}. Include key concepts, bullets, conclusion.`, user: `Create overview in ${language || "Spanish"} of "${fileName}":\n\n${fileContent}` },
+      notes: { system: `Organize content into study notes. Let the actual content's own structure drive organization — don't force content into a fixed set of sections that may not fit what's actually there. Use headings, **bold** terms, analogies, and formulas where the content calls for them.`, user: `Create notes from "${fileName}":\n\n${fileContent}` },
+      flowchart: { system: `Create a concept map from the content. Let the actual relationships in the material determine structure and node count. Return ONLY JSON (no fences): {"nodes": [{"id": "1", "label": "Title", "description": "Brief", "type": "start", "status": "completed"}], "edges": [{"from": "1", "to": "2", "label": "relationship"}]}. Do NOT include thinking tags.`, user: `Create concept flowchart for "${fileName}":\n\n${fileContent}` },
+      overview: { system: `Create overview in ${language || "Spanish"}. Let the actual content determine what key concepts to cover and how to organize them.`, user: `Create overview in ${language || "Spanish"} of "${fileName}":\n\n${fileContent}` },
     };
     const p = prompts[mode];
     if (!p) throw new Error("Invalid mode");

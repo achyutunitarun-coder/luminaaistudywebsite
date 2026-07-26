@@ -1,5 +1,6 @@
 // Lumina Computer — client SDK
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken, fetchWithAuth } from "@/lib/auth-helper";
 
 export type BlockType = "slide" | "doc_section" | "sheet_tab" | "site_section";
 export type OutputType = "slides" | "doc" | "sheet" | "website" | "agent";
@@ -34,18 +35,22 @@ export interface LcProject {
 
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
-async function authHeader() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
-}
-
 export async function planBlocks(goal: string, output_type: OutputType) {
-  const res = await fetch(`${FN_BASE}/lc-agent-plan`, {
+  const res = await fetchWithAuth(`${FN_BASE}/lc-agent-plan`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: await authHeader() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ goal, output_type }),
   });
-  if (!res.ok) { const text = await res.text(); try { const json = JSON.parse(text); throw new Error(json.error || json.message || text); } catch { throw new Error(text); } }
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || json.message || `HTTP ${res.status}`);
+    } catch (e) {
+      if (e instanceof SyntaxError) throw new Error(text);
+      throw e;
+    }
+  }
   return res.json() as Promise<{ blocks: Array<{ block_type: string; title: string; prompt_seed: string; order_index: number; layout_hint?: string; narrative_beat?: string }>; model_used: string; is_fallback?: boolean; error_detail?: any }>;
 }
 
@@ -65,9 +70,9 @@ export async function streamRoute(opts: {
   max_tokens?: number;
   temperature?: number;
 } & StreamCallbacks): Promise<{ text: string; model: string | null }> {
-  const res = await fetch(`${FN_BASE}/lc-llm-router`, {
+  const res = await fetchWithAuth(`${FN_BASE}/lc-llm-router`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: await authHeader() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       role: opts.role,
       prompt: opts.prompt,

@@ -172,17 +172,7 @@ function makeSystemPrompt(type: string, topic: string, _provided: string) {
   void _provided;
   return `Generate a complete, self-contained HTML ${type} about "${topic}".
 
-RULES:
-- Start with <!DOCTYPE html> and end with </html>. NOTHING else.
-- No markdown fences, no commentary, no preamble.
-- Include real educational content, not placeholders.
-- Dark theme (#0a0a0f bg, #12121a surface, teal/purple accents).
-- Use Google Fonts: Syne (headings), Inter (body), Space Mono (code).
-- Glassmorphism cards, gradient accents, smooth animations.
-- Include working JS: collapsible sections, quiz with feedback, tabs.
-- Sections: hero with title + overview, table of contents, key concepts with detailed explanations, worked examples step-by-step, formula reference, practice questions with full answers, summary.
-- Minimum 400 lines of HTML.
-- No emoji, no lorem ipsum, no "click here to view".`;
+[Applies the artifact engine and slides/notes/exam logic from the shared artifact-prompts, depending on the artifact type requested.] Let the medium constraints (slides: glance-length, doc: sustained reading, exam: assessable answers) determine structure — not a fixed section template. Include real educational content, not placeholders. Working interactivity where it serves the content. Start with <!DOCTYPE html> and end with </html>. NOTHING else. No markdown fences, no commentary, no preamble.`;
 }
 
 // ── Main generation logic ───────────────────────────────────────────

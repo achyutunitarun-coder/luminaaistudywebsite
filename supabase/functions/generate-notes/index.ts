@@ -8,15 +8,15 @@ const corsHeaders = {
 };
 
 const STYLE_PROMPTS: Record<string, string> = {
-  bullet: `Use numbered sections (1, 2, 3...) with bold key terms and em-dashes for definitions. Include Common Mistakes, Quick Revision Checklist, and Memory Aids sections.`,
-  hyphen: `Use Roman numerals for major sections. Bold all subtopic headers. Include a definitions table and revision checklist.`,
-  paragraph: `Write in formal academic prose with flowing paragraphs. Bold key terms on first use. Include Summary and Key Takeaways sections.`,
-  mindmap: `Start with a text-based concept map tree, then expand each branch. Show cross-connections. Include a summary table.`,
-  root_cause: `Focus on WHY students fail. Include Core Principles, Common Misconceptions with root causes, Diagnostic Self-Test, and Corrective Study Plan.`,
-  detailed: `Be exhaustive. Include Definition, Explanation, Formula, Example for each concept. Use tables for comparisons. Include Chapter Summary.`,
-  exam: `Focus on what's testable. Include Key Definitions table, Worked Examples, Common Mistakes (Mark Killers), Predicted Exam Questions, Last-Minute Revision, Pre-Exam Checklist.`,
-  simple: `Explain like talking to a friend. Use analogies for every abstract concept. Include Common Confusions Q&A, Cheat Sheet table, Memory Tricks.`,
-  cornell: `Use two-column Cornell format: left = cue questions, right = comprehensive answers. Every section ends with a summary. Include Master Summary and Key Terms Glossary.`,
+  bullet: `Prioritize scannability with numbered sections and bold key terms. Structure should follow whatever the source material's own divisions are — not a fixed set of sections imposed regardless of content.`,
+  hyphen: `Use Roman numerals for major sections, bold subtopic headers. Let the material's natural divisions determine the section count and ordering.`,
+  paragraph: `Formal academic prose. Bold key terms on first use. Section count and structure driven by the content's own logic, not a fixed template.`,
+  mindmap: `Start with a text-based concept map tree, then expand each branch. Show cross-connections where the material actually has them.`,
+  root_cause: `Focus on WHY students fail on this specific material. Include diagnosis and corrective plan tailored to the actual concepts being covered.`,
+  detailed: `Be exhaustive within the bounds of what the material actually covers. Include definitions, explanations, formulas, and examples for each concept the material addresses.`,
+  exam: `Focus on what's testable from this specific material. Include worked examples, common mistakes, and practice opportunities driven by the actual content.`,
+  simple: `Explain like talking to a friend. Use analogies for abstract concepts. Structure follows the material's logic, not a fixed outline.`,
+  cornell: `Use two-column Cornell format. Left = cue questions derived from the actual content, right = comprehensive answers. Summary at the end.`,
 };
 
 serve(async (req) => {
@@ -37,7 +37,7 @@ serve(async (req) => {
     const stylePrompt = STYLE_PROMPTS[style || "bullet"] || STYLE_PROMPTS.bullet;
     const systemPrompt = isRefinement
       ? `You are Lumina AI's study notes assistant. Refine the existing notes per user instructions. Output COMPLETE updated notes.`
-      : `You are Lumina AI — a world-class academic notes generator. Create formal, precise, beautifully structured notes.\n\nSTYLE: ${stylePrompt}\n\nRULES:\n- Bold every key term. Use proper spacing.\n- Include worked examples, common mistakes, mnemonics.\n- Use tables for comparisons. Use blockquotes for key insights.\n- Be EXHAUSTIVE. Never output placeholder text.`;
+      : `[Applies the NOTES_PROMPT logic — see artifact-prompts.ts.] Let the source material's own structure lead your notes organization. Style: ${stylePrompt}`;
 
     const userContent = sourceText ? `Create comprehensive study notes from this material:\n\n${sourceText}` : `Create thorough study notes on "${topic}".`;
 

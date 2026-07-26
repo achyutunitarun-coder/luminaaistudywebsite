@@ -10,11 +10,11 @@ const corsHeaders = {
 
 function buildPrompts(type: string, curriculum: string, subject: string, topic: string, count?: number) {
   const cur = curriculum || "general";
-  if (type === "notes") return { system: `Generate comprehensive study notes in Markdown for ${cur} curriculum. Use headings, bold terms, tables, LaTeX, worked examples, exam tips, and summary.`, user: `Notes for: ${subject} - ${topic} (${cur})` };
-  if (type === "flashcards") return { system: `Generate 15 flashcards. Return ONLY JSON: [{"front":"question","back":"answer"}]. Do NOT include thinking tags.`, user: `Flashcards for: ${subject} - ${topic} (${cur})` };
-  if (type === "questions") return { system: `Generate 10 mixed-difficulty questions. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"...","difficulty":"Easy|Medium|Hard"}]. Do NOT include thinking tags.`, user: `Questions for: ${subject} - ${topic} (${cur})` };
-  if (type === "test") return { system: `Generate 10 exam-style questions for ${cur}. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]. Do NOT include thinking tags.`, user: `Practice test: ${subject} - ${topic} (${cur})` };
-  return { system: `Generate ${count||10} quiz questions. Return ONLY JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"answer":0}]}. Do NOT include thinking tags.`, user: `${count||10} quiz questions about: ${topic || subject}` };
+  if (type === "notes") return { system: `Generate study notes for ${cur} curriculum. Let the subject matter determine structure and depth — a topic with rich substructure gets more sections, a narrow topic gets a tighter treatment. Use headings, bold terms, tables, LaTeX where applicable.`, user: `Notes for: ${subject} - ${topic} (${cur})` };
+  if (type === "flashcards") return { system: `Generate flashcards. Let the material determine how many and what type — don't pad to a target count if the material doesn't support it. Return ONLY JSON: [{"front":"question","back":"answer"}]. Do NOT include thinking tags.`, user: `Flashcards for: ${subject} - ${topic} (${cur})` };
+  if (type === "questions") return { system: `Generate mixed-difficulty questions. Difficulty should emerge from testing genuinely different depths of understanding of the actual content, not from hitting a quota. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"...","difficulty":"Easy|Medium|Hard"}]. Do NOT include thinking tags.`, user: `Questions for: ${subject} - ${topic} (${cur})` };
+  if (type === "test") return { system: `Generate exam-style questions for ${cur}. Let the source material determine coverage and question types. Return ONLY JSON: [{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]. Do NOT include thinking tags.`, user: `Practice test: ${subject} - ${topic} (${cur})` };
+  return { system: `Generate quiz questions. Prioritize genuine relevance over hitting a target count — a shorter set of well-matched questions beats a longer set with filler. Return ONLY JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"answer":0}]}. Do NOT include thinking tags.`, user: `${count||10} quiz questions about: ${topic || subject}` };
 }
 
 function cleanAndParse(raw: string) {

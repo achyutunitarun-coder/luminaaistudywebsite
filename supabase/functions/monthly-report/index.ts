@@ -18,7 +18,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Generate a monthly learning report. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["tip"],"overall_grade":"A/B/C/D"}. Do NOT include thinking tags.` },
+        { role: "system", content: `You are generating a monthly report from the underlying data. Let the actual data determine what's worth highlighting — genuinely significant changes, trends, or outliers should get real attention; flat, unremarkable metrics don't need equal-length coverage just because they're part of a fixed report template. If a month was genuinely unremarkable on most fronts, a shorter report reflecting that honestly is more useful than padding to match previous months' length. Return ONLY JSON: {"headline":"...","total_study_minutes":0,"total_study_hours":0,"average_test_score":0,"tests_taken":0,"xp_earned":0,"strengths":[{"topic":"...","detail":"..."}],"weaknesses":[{"topic":"...","detail":"..."}],"recommendations":["tip"],"overall_grade":"A/B/C/D"}. Do NOT include thinking tags.` },
         { role: "user", content: `Monthly report from:\n\n${JSON.stringify(userData)}` },
       ],
       MODELS_FAST, 1500, 0.5, 40_000, "report"

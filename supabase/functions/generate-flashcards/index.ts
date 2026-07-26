@@ -47,12 +47,14 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `You generate flashcards. RULES:
-1. Output EXACTLY ${count} cards — not ${count - 1}, not ${count + 1}, EXACTLY ${count}.
-2. Mix types: definition, why, compare, apply, recall.
-3. Front = a clear question (≤20 words). Back = a concise, factually accurate answer (≤40 words).
-4. Return ONLY this JSON shape, nothing else: {"cards": [{"front":"...","back":"..."}]}
-5. No <think> tags, no markdown fences, no commentary.` },
+        { role: "system", content: `You are generating flashcards from source material. Every card needs a clear front (prompt/question) and back (answer). What's open: how many cards this material supports (don't hit an arbitrary count by splitting single concepts into multiple redundant cards), what KIND of prompt each card uses (definition recall, application, comparison — vary based on what actually tests the concept well), and card difficulty distribution (driven by the material's actual difficulty, not a fixed quota).
+
+ANTIPATTERNS
+- Every card using the same question pattern ("What is X?") when some concepts are better tested by application or comparison
+- Splitting one concept across multiple cards to inflate count, or cramming multiple concepts onto one card because it's more "efficient"
+
+Return ONLY this JSON shape, nothing else: {"cards": [{"front":"...","back":"..."}]}
+No <think> tags, no markdown fences, no commentary.` },
         { role: "user", content: `Create EXACTLY ${count} flashcards for "${String(title||'').slice(0,200)}" from:\n\n${String(content||'').slice(0,120000)}` },
       ],
       MODELS_FAST, 4000, 0.5, 45_000, "flashcards"

@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isMounted = true;
     let retries = 0;
+    let refreshInterval: ReturnType<typeof setInterval> | null = null;
     console.log('[Auth] mount session restore');
 
     function restoreSession() {
@@ -86,9 +87,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // Proactive session keepalive every 25 min (well before the 60 min expiry)
+    refreshInterval = setInterval(async () => {
+      if (!isMounted) return;
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn('[Auth] refresh failed, will retry:', error.message);
+        } else if (data.session) {
+          console.log('[Auth] session refreshed proactively');
+        }
+      } catch (e) {
+        console.warn('[Auth] refresh exception:', e);
+      }
+    }, 25 * 60 * 1000);
+
+    // Also refresh on page visibility change (user returning to tab)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.refreshSession().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      if (refreshInterval) clearInterval(refreshInterval);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 

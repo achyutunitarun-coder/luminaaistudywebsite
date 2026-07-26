@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
 
 // ─── Types ───
@@ -100,9 +101,8 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
+      const token = await getAuthToken().catch(() => null);
+      if (!token) { setLoading(false); return; }
 
       const headers = {
         "Content-Type": "application/json",
@@ -148,8 +148,7 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
     async (action: string, category: string, description?: string, metadata?: Record<string, unknown>) => {
       if (!user) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const token = await getAuthToken().catch(() => null);
         if (!token) return;
 
         await fetch(`${MEMORY_URL}/memory-log`, {
@@ -175,8 +174,7 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
     async (prefs: Partial<UserPreferences>) => {
       if (!user) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const token = await getAuthToken().catch(() => null);
         if (!token) return;
 
         const res = await fetch(`${MEMORY_URL}/memory-preferences`, {
@@ -200,8 +198,7 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
     async (topic: string, data?: Partial<LearningProgressItem>) => {
       if (!user) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const token = await getAuthToken().catch(() => null);
         if (!token) return;
 
         const res = await fetch(`${MEMORY_URL}/memory-progress`, {
@@ -231,8 +228,7 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
     async (item: Omit<RecentlyViewedItem, "id" | "user_id" | "viewed_at">) => {
       if (!user) return;
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
+        const token = await getAuthToken().catch(() => null);
         if (!token) return;
 
         await fetch(`${MEMORY_URL}/memory-recently-viewed`, {

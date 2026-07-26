@@ -2,6 +2,7 @@
 // All upstream API calls go through `proxy` so tokens stay server-side.
 
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import {
   GOOGLE_REDIRECT_PATH,
   NOTION_REDIRECT_PATH,
@@ -14,10 +15,10 @@ const OAUTH_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/connector-oa
 const PROXY_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/connector-proxy`;
 
 async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const token = await getAuthToken().catch(() => null);
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${session?.access_token ?? ""}`,
+    Authorization: `Bearer ${token ?? ""}`,
   };
 }
 

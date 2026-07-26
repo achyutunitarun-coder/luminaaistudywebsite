@@ -7,6 +7,7 @@ import { Send, Sparkles, User, Copy, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -45,8 +46,8 @@ export default function DoubtSolver() {
     setIsLoading(true);
 
     try {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (!s?.access_token) { toast.error("Please sign in."); setIsLoading(false); return; }
+      const token = await getAuthToken().catch(() => null);
+      if (!token) { toast.error("Please sign in."); setIsLoading(false); return; }
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -55,7 +56,7 @@ export default function DoubtSolver() {
 
       const res = await fetch(CHAT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           messages: [
             { role: "system", content: systemPrompt },

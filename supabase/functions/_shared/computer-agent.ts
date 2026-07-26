@@ -129,7 +129,7 @@ export class ComputerAgent {
     // Phase 1: PLAN
     const plan = await this.client.complete(
       [
-        { role: "system", content: "You are a task planner. Break the user's request into a sequence of steps. Return a numbered list of 1-8 concrete steps. Be specific about what actions each step requires." },
+        { role: "system", content: "You are deciding the next concrete action toward the current goal. Look at where things actually stand right now (not where the original plan assumed they'd be) and decide the single next action that makes the most progress — not the next action on a pre-written checklist. If the situation has changed since the goal was set (new information from a previous step, an obstacle, an opportunity to skip steps), let the plan adapt to that reality rather than executing a stale plan because it's the plan. State the action and, briefly, why it's the right next move given the current actual state." },
         { role: "user", content: request },
       ],
       { maxTokens: 2048, temperature: 0.3, tag: "agent/plan" },
@@ -156,7 +156,7 @@ export class ComputerAgent {
       // ACT — execute the step via model
       const actResult = await this.client.complete(
         [
-          { role: "system", content: `You are executing step ${i + 1} of a plan. The overall request is: ${request}\n\nContext so far:\n${memory.steps.map((s) => `[${s.phase}] ${s.output.slice(0, 200)}`).join("\n")}` },
+          { role: "system", content: `You are executing the planned action. Do exactly this action, as precisely and correctly as the tools available allow. If partway through execution you discover the planned action was based on a wrong assumption, stop and surface that rather than forcing the action through anyway — a wrong action executed cleanly is still wrong. Report what you actually did, including any deviation from the plan and why, not just a summary that implies everything went exactly as planned.\n\nThe overall request is: ${request}\n\nContext so far:\n${memory.steps.map((s) => `[${s.phase}] ${s.output.slice(0, 200)}`).join("\n")}` },
           { role: "user", content: `Execute this step: ${step}\n\nReturn the result of this step. If you need to produce a file, use the FILE: path\ncontent\nEND FILE format.` },
         ],
         { maxTokens: 16384, temperature: 0.3, tag: `agent/step${i + 1}` },
@@ -173,7 +173,7 @@ export class ComputerAgent {
       // OBSERVE — examine the output before verifying
       const observe = await this.client.complete(
         [
-          { role: "system", content: "You are an observer. Examine the step output and extract: (1) what was produced, (2) any files created, (3) any errors or warnings. Be concise." },
+          { role: "system", content: "You are recording what actually happened as a result of the last action — not what was supposed to happen. Report the real, specific outcome: what changed, what the actual state is now, what evidence you have of success or failure. Do not editorialize about whether this is good or bad yet — that's the reflect step. If the outcome is ambiguous or you're not certain the action fully succeeded, say so explicitly rather than reporting confident success you can't actually verify." },
           { role: "user", content: `Step: ${step}\n\nOutput:\n${actResult.slice(0, 3000)}` },
         ],
         { maxTokens: 1024, temperature: 0.2, tag: "agent/observe" },
@@ -190,7 +190,7 @@ export class ComputerAgent {
       // REFLECT — think about whether the output is correct
       const reflect = await this.client.complete(
         [
-          { role: "system", content: "You are a reflective assessor. Given the step, the output, and the observation, determine if the step was completed correctly and if there are any gaps. Return REFLECTION: followed by your analysis." },
+          { role: "system", content: "You are assessing whether the last action actually moved things toward the goal, and what that means for what comes next. Be honest here even when the honest answer is \"that didn't work\" or \"that revealed the plan needs to change\" — a reflect step that always concludes \"on track, proceed as planned\" isn't doing its job. If the observed outcome suggests the overall approach needs to shift, say so clearly enough that the next plan step will actually incorporate it, not just note it and continue unchanged." },
           { role: "user", content: `Step: ${step}\n\nObservation:\n${observe}` },
         ],
         { maxTokens: 1024, temperature: 0.3, tag: "agent/reflect" },
@@ -207,7 +207,7 @@ export class ComputerAgent {
       // VERIFY — check the result
       const verify = await this.client.complete(
         [
-          { role: "system", content: "You are a task verifier. Check if the step output is correct and complete. Reply with PASS or FAIL followed by a short reason." },
+          { role: "system", content: "You are checking, with real scrutiny, whether the goal has actually been achieved — not whether the process looked reasonable. Check the actual current state against the actual original goal, specifically and concretely, not against your own summary of what you think you did. If verification requires running something, opening a file, or checking an actual output rather than reasoning about it abstractly, do that rather than inferring success. A confident-sounding summary is not evidence; the actual artifact/state is. If verification fails or is incomplete, say precisely what's missing rather than a vague \"mostly done.\"" },
           { role: "user", content: `Step: ${step}\n\nOutput:\n${actResult.slice(0, 3000)}\n\nReflection:\n${reflect}` },
         ],
         { maxTokens: 512, temperature: 0.2, tag: "agent/verify" },

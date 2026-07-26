@@ -114,7 +114,17 @@ Deno.serve(async (req) => {
       .gt("cooldown_until", new Date().toISOString());
     const cooling = new Set((cd ?? []).map((c) => c.model_id));
     const usable = candidates.filter((m) => !cooling.has(m));
-    const chain = usable.length ? usable : candidates;
+    let chain = usable.length ? usable : candidates;
+
+    // 2b. Hardcoded last‑resort models when routing table is empty
+    if (chain.length === 0) {
+      chain = [
+        "google/gemini-2.0-pro:free",
+        "openai/gpt-4o-mini",
+        "deepseek/deepseek-chat:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+      ];
+    }
 
     const messages = [
       ...(system ? [{ role: "system", content: system }] : []),
@@ -123,7 +133,6 @@ Deno.serve(async (req) => {
 
     const errors: string[] = [];
 
-    // 3. Try each candidate
     for (let i = 0; i < chain.length; i++) {
       const model = chain[i];
       const start = Date.now();
@@ -231,6 +240,64 @@ Deno.serve(async (req) => {
           latency_ms: Date.now() - start, error_text: String(e).slice(0, 200),
         });
         errors.push(`${model}: ${String(e).slice(0, 100)}`);
+      }
+    }
+
+    // 4. Last‑resort: try one more model directly when all routing models have failed
+    //    (only applies when we actually have keys — not when KEYS is empty)
+    const LAST_RESORT_MODELS = stream
+      ? ["google/gemini-2.0-pro:free", "meta-llama/llama-3.3-70b-instruct:free"]
+      : ["google/gemini-2.0-pro:free", "meta-llama/llama-3.3-70b-instruct:free"];
+    for (const lastModel of LAST_RESORT_MODELS) {
+      if (!chain.includes(lastModel)) {
+        const key = nextKey();
+        if (!key) break;
+        try {
+          const up = await fetch(OR_URL, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${key}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://luminaai.co.in",
+              "X-Title": "Lumina Computer (last-resort)",
+            },
+            body: JSON.stringify({
+              model: lastModel,
+              messages,
+              stream: false,
+              max_tokens: Math.min(max_tokens, 1200),
+              ...(temperature !== undefined ? { temperature: 0.5 } : {}),
+            }),
+          });
+          if (up.ok) {
+            const data = await up.json();
+            const content = data.choices?.[0]?.message?.content ?? "";
+            if (content.trim().length > 10) {
+              await admin.from("lc_generation_log").insert({
+                project_id, block_id, role, model_id: lastModel, success: true,
+                latency_ms: Date.now() - (errors.length ? 0 : Date.now()),
+              });
+              if (stream) {
+                const enc = new TextEncoder();
+                const out = new ReadableStream({
+                  start(ctrl) {
+                    ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ lumina_meta: { model: lastModel, fallback: true, role, last_resort: true } })}\n\n`));
+                    ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`));
+                    ctrl.enqueue(enc.encode("data: [DONE]\n\n"));
+                    ctrl.close();
+                  },
+                });
+                return new Response(out, {
+                  headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" },
+                });
+              }
+              return new Response(
+                JSON.stringify({ content, model_used: lastModel, fallback: true, last_resort: true }),
+                { headers: { ...cors, "Content-Type": "application/json" } },
+              );
+            }
+          }
+        } catch { /* last resort failed too, nothing we can do */ }
       }
     }
 

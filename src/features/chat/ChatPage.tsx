@@ -11,6 +11,7 @@ import {
   User, AlertCircle, Copy, RefreshCw, ThumbsUp, ThumbsDown, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useNavigate } from "react-router-dom";
@@ -378,8 +379,8 @@ const ChatPage = () => {
 
       const aiMessages = history.filter(m => m.type === "text").slice(-12).map(m => ({ role: m.role, content: m.content }));
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      const token = await getAuthToken().catch(() => null);
+      if (!token) {
         const final: Message = {
           id: aId, role: "assistant", type: "error",
           content: "Please sign in to chat.",
@@ -394,7 +395,7 @@ const ChatPage = () => {
       try {
         const res = await fetch(CHAT_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ messages: aiMessages, mode: "conversational" }),
           signal: ctrl.signal,
         });

@@ -45,10 +45,10 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isExamMode) {
-      systemPrompt = `You are an expert exam preparation strategist. Create a DETAILED but concise day-by-day study timetable in MARKDOWN format with tables.\nRULES:\n- Create a table for EACH day from today (${today}) to exam date\n- Include specific TIME SLOTS\n- Use spaced repetition\n- Keep each day to 3-5 focused study blocks\n- Last 2-3 days = pure revision and mock tests\n- Use markdown tables: Time | Topic | Activity | Duration\n- Return ONLY markdown.`;
+      systemPrompt = `You are building a study plan. The actual constraint that matters is real (a deadline, a time budget, prerequisite ordering where genuinely necessary) — respect those. What's open: how the plan is broken into phases or sessions, how much material is covered per session, and whether the plan is organized by topic, by difficulty progression, by exam-weighting, or some other logic — driven by the actual material and the actual goal (exam prep vs. deep mastery vs. review), not a fixed template.\n\nReturn markdown with tables. Today is ${today}.`;
       userPrompt = `Subject: ${subjects[0] || 'General'}\nExam Date: ${examDate}\nDaily Hours: ${dailyHours}h\nWake Up: ${wakeUpTime || '7:00 AM'}\nSleep: ${sleepTime || '10:00 PM'}\n\nSYLLABUS:\n${syllabus}`;
     } else {
-      systemPrompt = `Create a fast, high-quality study plan. Return ONLY valid JSON: {"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}. Include spaced repetition. Make topics SPECIFIC and concise.`;
+      systemPrompt = `Create a study plan. Let the actual material and timeframe determine the plan's structure — the number of sessions, their organization, and pacing should fit what's being studied, not a fixed template. Return ONLY valid JSON: {"days": [{"day": 1, "date": "YYYY-MM-DD", "tasks": [{"subject": "...", "topic": "specific topic", "duration_minutes": 60, "type": "study|practice|review|test", "time": "9:00 AM"}]}]}. Include spaced repetition. Make topics SPECIFIC and concise.`;
       userPrompt = `Subjects: ${JSON.stringify(subjects)}\nTarget date: ${examDate}\nDaily hours: ${dailyHours}\nToday: ${today}`;
     }
 

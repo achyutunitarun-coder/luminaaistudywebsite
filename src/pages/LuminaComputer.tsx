@@ -162,7 +162,7 @@ export default function LuminaComputer() {
     return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO_GUARD}`;
   }
 
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string, attempt = 1) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
@@ -181,43 +181,76 @@ export default function LuminaComputer() {
       extraInstruction?.trim() || undefined,
     );
 
+    let routerError: string | undefined;
+    const metaHandler = (m: any) => {
+      pushLog(`↪ streaming from ${m.model}${m.fallback ? " (fallback)" : ""}${m.last_resort ? " [last-resort]" : ""}`, m.fallback ? "warn" : "info");
+      setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, model_used: m.model } : b));
+    };
+    const errorHandler = (msg: string) => {
+      routerError = msg;
+      pushLog(`stream warning: ${msg}`, "warn");
+    };
+
     try {
       const { text, model } = await streamRoute({
         role, system, prompt,
         project_id: project.id, block_id: block.id,
         max_tokens: role === "code" ? 5200 : 2800,
         temperature: 0.82,
-        onMeta: (m) => {
-          pushLog(`↪ streaming from ${m.model}${m.fallback ? " (fallback)" : ""}`, m.fallback ? "warn" : "info");
-          setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, model_used: m.model } : b));
-        },
+        onMeta: metaHandler,
         onToken: (tk) => {
           streamingRef.current[block.id] = (streamingRef.current[block.id] ?? "") + tk;
           force((n) => n + 1);
         },
-        onError: (msg) => pushLog(`stream warning: ${msg}`, "warn"),
+        onError: errorHandler,
       });
 
       const parsed = parseContent(project.output_type, block.block_type, text);
+
+      // If parse fails but we have streaming content, save it anyway as raw markdown
+      const streamed = streamingRef.current[block.id]?.trim() ?? "";
+      if (!parsed && streamed.length > 10) {
+        const fallbackParsed = { markdown: streamed };
+        await updateBlock(block.id, {
+          status: "ready",
+          content_json: fallbackParsed,
+          rendered_html: null,
+          model_used: model ?? "streaming_fallback",
+          error_text: null,
+        });
+        setBlocks((bs) => bs.map((b) => b.id === block.id ? {
+          ...b, status: "ready",
+          content_json: fallbackParsed, model_used: model,
+        } : b));
+        pushLog(`Block fallback: ${block.title} (used raw stream, ${Date.now() - t0}ms)`, "warn");
+        return;
+      }
+
+      // Auto-retry once with simpler prompt
+      if (!parsed && attempt === 1) {
+        pushLog(`Retrying ${block.title} with simpler prompt...`, "warn");
+        return generateBlock(project, block, overallGoal, overrideStyle, extraInstruction, screenshotUrl, 2);
+      }
+
       await updateBlock(block.id, {
         status: parsed ? "ready" : "error",
         content_json: parsed ?? null,
         rendered_html: null,
         model_used: model,
-        error_text: parsed ? null : "parse_failed",
+        error_text: parsed ? null : (routerError ?? "parse_failed"),
       });
       setBlocks((bs) => bs.map((b) => b.id === block.id ? {
         ...b, status: parsed ? "ready" : "error",
         content_json: parsed ?? null, model_used: model,
-        error_text: parsed ? null : "parse_failed",
+        error_text: parsed ? null : (routerError ?? "parse_failed"),
       } : b));
-      pushLog(`Block ready: ${block.title} (${Date.now() - t0}ms)`, parsed ? "ok" : "warn");
+      pushLog(`Block ${parsed ? "ready" : "failed"}: ${block.title} (${Date.now() - t0}ms)${routerError ? ` — ${routerError}` : ""}`, parsed ? "ok" : "err");
     } catch (e: any) {
       const msg = e?.message ?? String(e ?? "unknown");
       console.error(`[Lumina Block Error] ${block.title}:`, msg, e);
-      await updateBlock(block.id, { status: "error", error_text: msg.slice(0, 300) });
+      await updateBlock(block.id, { status: "error", error_text: `${msg}${routerError ? ` (router: ${routerError})` : ""}`.slice(0, 300) });
       setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "error", error_text: msg } : b));
-      pushLog(`Block failed: ${block.title} — ${msg}`, "err");
+      pushLog(`Block failed: ${block.title} — ${msg}${routerError ? ` / ${routerError}` : ""}`, "err");
     } finally {
       delete streamingRef.current[block.id];
       force((n) => n + 1);
@@ -289,7 +322,7 @@ export default function LuminaComputer() {
         }
         const docBlocks = readyBlocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
         if (docBlocks.length > 0) {
-          const markdown = docBlocks.map((b) => b.content_json!.markdown).join("\n\n");
+          const markdown = docBlocks.map((b) => b.content_json!.markdown).join("\n\n\n---\n\n\n");
           const lines = markdown.split("\n");
           const htmlParts: string[] = [];
           let i = 0;
@@ -300,6 +333,7 @@ export default function LuminaComputer() {
           while (i < lines.length) {
             const line = lines[i];
             if (!line.trim()) { i++; continue; }
+            if (/^-{3,}\s*$/.test(line)) { htmlParts.push(`<hr />`); i++; continue; }
             if (/^###\s/.test(line)) { htmlParts.push(`<h3>${inline(line.replace(/^###\s+/, ''))}</h3>`); i++; continue; }
             if (/^##\s/.test(line)) { htmlParts.push(`<h2>${inline(line.replace(/^##\s+/, ''))}</h2>`); i++; continue; }
             if (/^#\s/.test(line)) { htmlParts.push(`<h1>${inline(line.replace(/^#\s+/, ''))}</h1>`); i++; continue; }
@@ -322,22 +356,31 @@ export default function LuminaComputer() {
               continue;
             }
             const para: string[] = [line]; i++;
-            while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s)/.test(lines[i])) {
+            while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s|-{3,}\s*$)/.test(lines[i])) {
               para.push(lines[i]); i++;
             }
             htmlParts.push(`<p>${inline(para.join(' '))}</p>`);
           }
           const contentHtml = htmlParts.join('\n');
-          const styledHtml = `<div style="font-family: 'Inter', sans-serif; font-size: 10pt; line-height: 1.45; color: #1d1d1d; padding: 42px 52px">
-<div style="font-weight:700;font-size:20pt;color:#0a1f3f;margin-bottom:24px">${escapeHtml(p.title)}</div>
-${contentHtml}
-</div>`;
-          const { default: html2pdf } = await import("html2pdf.js");
+          const pdfCss = `body{margin:0;background:#fff;font-family:'Inter',sans-serif;font-size:10pt;line-height:1.45;color:#1d1d1d;padding:42px 52px}*{box-sizing:border-box}h1{font-size:13pt;font-weight:600;color:#0a1f3f;margin:24px 0 8px}h2{font-size:11pt;font-weight:600;color:#0a1f3f;margin:18px 0 6px}h3{font-size:10pt;font-weight:600;color:#2c3e5c;margin:14px 0 4px}p{margin:0 0 8px}strong{color:#0a1f3f}ul,ol{margin:4px 0 10px 20px}li{margin-bottom:3px}blockquote{color:#5a6a82;border-left:2px solid #bac3d1;padding:4px 0 4px 16px;margin:12px 0;font-style:italic}code{font-family:'JetBrains Mono',monospace;font-size:0.85em;background:#f5f6f8;padding:1px 4px;border-radius:2px}pre{background:#f5f6f8;border:1px solid #e2e6ed;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:8.5pt;margin:10px 0}hr{border:none;border-top:1px solid #d0d5dd;margin:20px 0}`;
+          const styledHtml = `<div id="lc-export"><h1 style="font-size:20pt;font-weight:700;color:#0a1f3f;margin:0 0 24px">${escapeHtml(p.title)}</h1>${contentHtml}</div>`;
           const wrapper = document.createElement("div");
-          wrapper.innerHTML = `<!doctype html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#fff}*{box-sizing:border-box}h1{font-size:13pt;font-weight:600;color:#0a1f3f;margin:24px 0 8px}h2{font-size:11pt;font-weight:600;color:#0a1f3f;margin:18px 0 6px}h3{font-size:10pt;font-weight:600;color:#2c3e5c;margin:14px 0 4px}p{margin:0 0 8px}strong{color:#0a1f3f}ul,ol{margin:4px 0 10px 20px}li{margin-bottom:3px}blockquote{color:#5a6a82;border-left:2px solid #bac3d1;padding:4px 0 4px 16px;margin:12px 0;font-style:italic}code{font-family:'JetBrains Mono',monospace;font-size:0.85em;background:#f5f6f8;padding:1px 4px;border-radius:2px}pre{background:#f5f6f8;border:1px solid #e2e6ed;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:8.5pt;margin:10px 0}</style></head><body>${styledHtml}</body></html>`;
-          wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:816px;background:#fff;z-index:-1";
+          wrapper.id = "lc-pdf-wrapper";
+          wrapper.innerHTML = styledHtml;
+          wrapper.style.cssText = "position:fixed;left:0;top:0;width:816px;background:#fff;z-index:-1;opacity:0.01;pointer-events:none";
           document.body.appendChild(wrapper);
           try {
+            const fontLink = document.createElement("link");
+            fontLink.rel = "stylesheet";
+            fontLink.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
+            document.head.appendChild(fontLink);
+            await document.fonts.ready;
+            const styleTag = document.createElement("style");
+            styleTag.textContent = pdfCss;
+            wrapper.appendChild(styleTag);
+            await new Promise((r) => setTimeout(r, 200));
+            await document.fonts.ready;
+            const { default: html2pdf } = await import("html2pdf.js");
             await html2pdf().set({
               margin: [0.4, 0.5, 0.5, 0.5],
               filename: `${p.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "document"}.pdf`,
@@ -347,10 +390,12 @@ ${contentHtml}
               pagebreak: { mode: ["avoid-all", "css", "legacy"] },
             }).from(wrapper).save();
             toast.success("Exported .pdf");
+            return;
+          } catch (pdfErr) {
+            console.warn("[PDF Export] html2pdf failed, falling back to .md:", pdfErr);
           } finally {
-            document.body.removeChild(wrapper);
+            if (wrapper.parentNode) document.body.removeChild(wrapper);
           }
-          return;
         }
         const md = readyBlocks.map((b) => {
           if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";

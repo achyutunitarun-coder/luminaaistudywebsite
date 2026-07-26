@@ -27,7 +27,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Create a boss battle with creative questions. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}. Do NOT include thinking tags.` },
+        { role: "system", content: `Generate content adaptively — read the specific input and produce questions whose structure and depth is driven by that input's actual complexity and the user's apparent goal, not a fixed template applied regardless of input. Avoid generic, could-apply-to-anything output; be specific to what was actually provided. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Boss battle for "${topic}" with 5 challenging questions.` },
       ],
       MODELS_FAST, 1500, 0.7, 40_000, "boss"

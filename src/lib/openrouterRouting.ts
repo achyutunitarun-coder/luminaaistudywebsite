@@ -3,6 +3,7 @@
 // through the `openrouter-proxy` edge function (server holds the key).
 // ════════════════════════════════════════════════════════════════════
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import { toast } from "sonner";
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`;
@@ -60,12 +61,7 @@ export function pickModel(opts: {
 }
 
 async function authHeader(): Promise<string> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token =
-    session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  return `Bearer ${token}`;
+  return `Bearer ${await getAuthToken()}`;
 }
 
 export async function classifyIntent(

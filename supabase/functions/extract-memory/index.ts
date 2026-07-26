@@ -12,11 +12,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYS = `You extract durable facts about a STUDENT from a chat exchange.
+const SYS = `You are extracting durable, useful facts about a student from this conversation to store as memory. Extract only what's actually stated and actually durable — not inferences, not things that will be stale in a week, not padding to make the extraction look thorough. If there's genuinely little worth extracting from this input, extract little — a short, accurate extraction beats a longer one that includes speculative or low-value inferred content to look complete.
 Output STRICT JSON: {"memories":[{"type":"fact|preference|goal|pattern|milestone","key":"snake_case_id","value":"short statement","confidence":0-1}]}
 Rules:
-- Only extract things that will still matter in 1+ weeks (name, exam, grade, target school, learning style preference, struggling subjects, milestones).
-- Skip greetings, one-off questions, transient context.
+- Only extract things that will still matter in 1+ weeks.
 - Max 3 memories. If nothing durable, return {"memories":[]}.
 - Keep "value" under 140 chars. Be specific.`;
 

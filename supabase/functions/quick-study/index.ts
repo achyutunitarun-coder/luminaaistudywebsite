@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const text = await callAIText(
       [
-        { role: "system", content: `Create a quick study lesson. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "engaging explanation with analogies"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Do NOT include thinking tags.` },
+        { role: "system", content: `You are producing a quick study aid — the operative word is quick, so prioritize the highest-value information for someone who needs to get oriented fast, not comprehensive coverage. Let the source material's own key points determine what's included; don't pad to a target length or force a fixed section count. If the material genuinely only supports a short, tight summary, that's the correct output — don't inflate it. Return ONLY JSON: {"title": "...", "key_concepts": [{"concept": "name", "explanation": "engaging explanation with analogies"}], "practice_questions": [{"question": "...", "options": ["A","B","C","D"], "correct": 0, "explanation": "..."}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Quick study lesson on "${topic}".` },
       ],
       MODELS_FAST, 3000, 0.5, 40_000, "quick-study"

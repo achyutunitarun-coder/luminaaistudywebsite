@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthToken } from "@/lib/auth-helper";
 import { buildPromptForType } from "./artifactPrompts";
 
 export interface GenerationConfig {
@@ -58,16 +59,14 @@ async function queueJob(
   const timer = setTimeout(() => ctrl.abort(), 30_000);
 
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.access_token) return { error: "sign_in_required" };
+    const token = await getAuthToken().catch(() => null);
+    if (!token) return { error: "sign_in_required" };
 
     const res = await fetch(ARTIFACT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         type,
