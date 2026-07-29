@@ -189,26 +189,56 @@ Deno.serve(async (req) => {
       return "doc_section";
     };
 
-    const finalBlocks = blocks
-      .filter((b: any) => b && b.title && b.block_type)
+    // Derive a title from either legacy `title` or new `id`/`purpose` fields.
+    const deriveTitle = (b: any, i: number): string => {
+      if (b?.title) return String(b.title);
+      if (b?.id) {
+        return String(b.id)
+          .replace(/[-_]+/g, " ")
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
+      }
+      if (b?.purpose) {
+        const s = String(b.purpose).split(/[.!?]/)[0].trim();
+        return s.length > 80 ? s.slice(0, 77) + "…" : s;
+      }
+      return `Block ${i + 1}`;
+    };
+
+    const derivePromptSeed = (b: any): string => {
+      const parts: string[] = [];
+      if (b?.prompt_seed) parts.push(String(b.prompt_seed));
+      if (b?.purpose) parts.push(String(b.purpose));
+      if (b?.content_shape) parts.push(String(b.content_shape));
+      return parts.join("\n\n").slice(0, 1200);
+    };
+
+    const finalBlocks = (blocks as any[])
+      .filter((b: any) => b && (b.title || b.id || b.purpose || b.content_shape || b.block_type))
       .map((b: any, i: number) => {
-        const rawType = String(b.block_type);
+        const rawType = String(b.block_type ?? "");
         const canonical = canonicalForOutput(output_type, rawType);
         const block: Record<string, unknown> = {
           block_type: canonical,
-          title: String(b.title).slice(0, 200),
-          prompt_seed: String(b.prompt_seed ?? "").slice(0, 600),
+          title: deriveTitle(b, i).slice(0, 200),
+          prompt_seed: derivePromptSeed(b),
           order_index: Number.isFinite(b.order_index) ? b.order_index : i,
         };
-        const layoutHint = String(b.layout_hint ?? "").trim() || (rawType !== canonical ? rawType : "");
-        const narrativeBeat = String(b.narrative_beat ?? "");
+        const layoutHint = String(b.layout_hint ?? "").trim() || (rawType && rawType !== canonical ? rawType : "");
+        const narrativeBeat = String(b.narrative_beat ?? b.purpose ?? "");
         if (layoutHint) block.layout_hint = layoutHint;
         if (narrativeBeat) block.narrative_beat = narrativeBeat;
         return block;
       });
 
+    // Safety net: if mapping still yielded nothing, use fallback.
+    let outBlocks = finalBlocks;
+    if (outBlocks.length === 0) {
+      isFallback = true;
+      outBlocks = (FALLBACK_BLOCKS[output_type] ?? FALLBACK_BLOCKS.doc).map((b, i) => ({ ...b, order_index: i }));
+    }
+
     return new Response(JSON.stringify({ 
-      blocks: finalBlocks, 
+      blocks: outBlocks, 
       model_used: modelUsed ?? "fallback",
       is_fallback: isFallback,
       error_detail: isFallback ? routerError : null
