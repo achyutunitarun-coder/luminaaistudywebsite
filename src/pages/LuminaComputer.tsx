@@ -386,8 +386,8 @@ export default function LuminaComputer() {
               filename: `${p.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "document"}.pdf`,
               image: { type: "jpeg", quality: 0.98 },
               html2canvas: { scale: 2, useCORS: true, letterRendering: true, width: 816, windowWidth: 816 },
-              jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-              pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+              jsPDF: { unit: "in", format: "a4", orientation: "portrait" } as any,
+              ...({ pagebreak: { mode: ["avoid-all", "css", "legacy"] } } as any),
             }).from(wrapper).save();
             toast.success("Exported .pdf");
             return;
