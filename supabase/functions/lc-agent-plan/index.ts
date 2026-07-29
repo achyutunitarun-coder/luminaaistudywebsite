@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ 
-      blocks: finalBlocks, 
+      blocks: outBlocks, 
       model_used: modelUsed ?? "fallback",
       is_fallback: isFallback,
       error_detail: isFallback ? routerError : null
