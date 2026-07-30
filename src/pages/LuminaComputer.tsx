@@ -544,11 +544,19 @@ export default function LuminaComputer() {
                           {msg.project && (
                             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-zinc-800/50">
                               <button onClick={() => exportProject(msg.project, msg.blocks)}
-                                className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition"
+                                disabled={!!exporting}
+                                className="relative overflow-hidden inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition disabled:opacity-70 disabled:cursor-wait"
                               >
-                                <Download className="h-3 w-3" />
-                                Export
+                                {exporting && (
+                                  <span
+                                    className="absolute inset-y-0 left-0 bg-violet-500/20 transition-all duration-300"
+                                    style={{ width: `${exporting.pct}%` }}
+                                  />
+                                )}
+                                <Download className={`h-3 w-3 relative ${exporting ? "animate-pulse" : ""}`} />
+                                <span className="relative">{exporting ? `${exporting.label} ${exporting.pct}%` : "Export"}</span>
                               </button>
+
                               <button onClick={() => removeProject(msg.project!)}
                                 className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md border border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-red-300 transition"
                               >
