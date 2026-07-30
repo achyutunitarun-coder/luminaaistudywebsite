@@ -59,6 +59,8 @@ export default function LuminaComputer() {
   const [blocks, setBlocks] = useState<LcBlock[]>([]);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState<{ pct: number; label: string } | null>(null);
+
   const [designStyle, setDesignStyle] = useState("auto");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const streamingRef = useRef<Record<string, string>>({});
