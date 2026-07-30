@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import {
   Loader2, RefreshCw, Trash2, Download, FileText, LayoutGrid,
   Table as TableIcon, Globe, Bot, CheckCircle2, XCircle, Clock, ArrowUp,
-  CornerDownLeft, Palette,
+  CornerDownLeft, Palette, Library,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
 import { SYSTEM_PROMPTS, buildGeneratePrompt, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
+import { useNavigate } from "react-router-dom";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
@@ -66,6 +67,7 @@ export default function LuminaComputer() {
   const streamingRef = useRef<Record<string, string>>({});
   const [, force] = useState(0);
   const reduce = useReducedMotion();
+  const navigate = useNavigate();
 
   useEffect(() => { listProjects().then(setProjects).catch(() => {}); }, []);
   const refreshList = () => listProjects().then(setProjects).catch(() => {});
@@ -431,7 +433,7 @@ export default function LuminaComputer() {
               <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v6</span>
             </div>
 
-            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
               <div role="tablist" aria-label="Output mode" className="flex bg-black/60 p-0.5 rounded-lg border border-zinc-800/80 backdrop-blur-sm">
                 {MODES.map((m) => {
                   const on = mode === m.key;
@@ -453,11 +455,18 @@ export default function LuminaComputer() {
                   );
                 })}
               </div>
+              <button
+                onClick={() => navigate("/library")}
+                style={mono}
+                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800/80 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-200 flex items-center gap-1.5"
+              >
+                <Library className="h-3 w-3" />
+                <span className="hidden sm:inline">Library</span>
+              </button>
               <a
                 href="/lumina-computer/admin"
                 style={mono}
-                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800/80 hover:border-[#9d5cff]/40 hover:bg-[#9d5cff]/5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9d5cff]/60"
-                aria-label="Open routing and cooldowns dashboard"
+                className="text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-800/80 hover:border-[#9d5cff]/40 hover:bg-[#9d5cff]/5 transition-all duration-200"
               >
                 Routing
               </a>
@@ -495,9 +504,19 @@ export default function LuminaComputer() {
                     })}
                   </div>
                   {projects.length > 0 && (
-                    <div className="mt-8 pt-8 border-t border-zinc-800/60">
-                      <div className="text-[10px] uppercase tracking-widest text-zinc-600 mb-4 font-mono">Previous projects</div>
+                    <div className="mt-10 pt-8 border-t border-zinc-800/40">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="h-px flex-1 bg-gradient-to-r from-zinc-800/60 via-zinc-800/20 to-transparent" />
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-mono">Previous projects</span>
+                        <div className="h-px flex-1 bg-gradient-to-l from-zinc-800/60 via-zinc-800/20 to-transparent" />
+                      </div>
                       <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
+                      <div className="mt-4">
+                        <button onClick={() => navigate("/library")} className="text-[11px] text-zinc-600 hover:text-zinc-300 font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5">
+                          <Library className="h-3 w-3" />
+                          View all in Library →
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

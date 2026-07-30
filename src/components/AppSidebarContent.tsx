@@ -4,7 +4,7 @@ import {
   BarChart3, Sparkles, Brain, MessageSquare, Cpu, FileText,
   HelpCircle, Zap, Mic, PenTool, Target, Layers, Swords,
   Gamepad2, Calendar, Clock, BookOpen, ArrowUpCircle, Settings,
-  LogOut, Flame, Trophy, Crown, Monitor,
+  LogOut, Flame, Trophy, Crown, Monitor, Library,
 } from "lucide-react";
 
 type Profile = {
@@ -35,6 +35,7 @@ const navGroups = [
       { title: "AI Tools", url: "/ai-tools", icon: Sparkles },
       { title: "Lumina Computer", url: "/lumina-computer", icon: Monitor },
       { title: "Brain Hub", url: "/hub", icon: Brain },
+      { title: "Library", url: "/library", icon: Library },
     ],
   },
   {

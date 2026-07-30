@@ -49,6 +49,7 @@ const OAuthCallback = lazy(() => import("@/pages/OAuthCallback"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const ArtifactGallery = lazy(() => import("@/pages/ArtifactGallery"));
+const Library = lazy(() => import("@/pages/Library"));
 const Landing = lazy(() => import("@/pages/Landing"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -173,6 +174,7 @@ const App = () => (
                 <Route path="/computer" element={<Navigate to="/lumina-computer" replace />} />
                 <Route path="/lumina-computer" element={<LuminaComputer />} />
                 <Route path="/lumina-computer/admin" element={<LuminaComputerAdmin />} />
+                <Route path="/library" element={<Library />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/tests" element={<Tests />} />
                 <Route path="/flashcards" element={<Flashcards />} />
