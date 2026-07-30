@@ -299,143 +299,86 @@ export default function LuminaComputer() {
   async function exportProject(overrideProject?: LcProject, overrideBlocks?: LcBlock[]) {
     const p = overrideProject ?? active;
     const bs = overrideBlocks ?? blocks;
-    if (!p) return;
+    if (!p || exporting) return;
     const mode = p.output_type;
+    setExporting({ pct: 5, label: "Preparing export…" });
+    const toastId = toast.loading("Preparing export…");
+    const step = (pct: number, label: string) => {
+      setExporting({ pct, label });
+      toast.loading(label, { id: toastId });
+    };
     try {
       if (mode === "slides") {
+        step(40, "Building slides…");
         const { exportSlidesToPptx } = await import("@/features/luminaComputer/exportSlides");
         await exportSlidesToPptx(p.title, bs, p.title + (designStyle !== "auto" ? designStyle : ""));
-        toast.success("Exported .pptx");
+        toast.success("Exported .pptx", { id: toastId });
         return;
       }
       if (mode === "sheet") {
+        step(40, "Building workbook…");
         const { exportSheetsToXlsx } = await import("@/features/luminaComputer/exportSheets");
         await exportSheetsToXlsx(p.title, bs);
-        toast.success("Exported .xlsx");
+        toast.success("Exported .xlsx", { id: toastId });
         return;
       }
       if (mode === "doc" || mode === "agent") {
         const readyBlocks = bs.filter((b) => b.content_json);
         if (readyBlocks.length === 0) {
-          toast.error("No blocks to export");
+          toast.error("No generated content to export yet", { id: toastId });
           return;
         }
-        const docBlocks = readyBlocks.filter((b) => b.block_type === "doc_section" && b.content_json?.markdown);
-        if (docBlocks.length > 0) {
-          const markdown = docBlocks.map((b) => b.content_json!.markdown).join("\n\n\n---\n\n\n");
-          const lines = markdown.split("\n");
-          const htmlParts: string[] = [];
-          let i = 0;
-          const inline = (t: string) =>
-            t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-              .replace(/\*(.+?)\*/g, '<em>$1</em>')
-              .replace(/`(.+?)`/g, '<code>$1</code>');
-          while (i < lines.length) {
-            const line = lines[i];
-            if (!line.trim()) { i++; continue; }
-            if (/^-{3,}\s*$/.test(line)) { htmlParts.push(`<hr />`); i++; continue; }
-            if (/^###\s/.test(line)) { htmlParts.push(`<h3>${inline(line.replace(/^###\s+/, ''))}</h3>`); i++; continue; }
-            if (/^##\s/.test(line)) { htmlParts.push(`<h2>${inline(line.replace(/^##\s+/, ''))}</h2>`); i++; continue; }
-            if (/^#\s/.test(line)) { htmlParts.push(`<h1>${inline(line.replace(/^#\s+/, ''))}</h1>`); i++; continue; }
-            if (/^>\s/.test(line)) {
-              const buf: string[] = [];
-              while (i < lines.length && /^>\s/.test(lines[i])) { buf.push(inline(lines[i].replace(/^>\s?/, ''))); i++; }
-              htmlParts.push(`<blockquote>${buf.join(' ')}</blockquote>`);
-              continue;
-            }
-            if (/^[-*]\s/.test(line)) {
-              const buf: string[] = [];
-              while (i < lines.length && /^[-*]\s/.test(lines[i])) { buf.push(`<li>${inline(lines[i].replace(/^[-*]\s+/, ''))}</li>`); i++; }
-              htmlParts.push(`<ul>${buf.join('')}</ul>`);
-              continue;
-            }
-            if (/^\d+\.\s/.test(line)) {
-              const buf: string[] = [];
-              while (i < lines.length && /^\d+\.\s/.test(lines[i])) { buf.push(`<li>${inline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`); i++; }
-              htmlParts.push(`<ol>${buf.join('')}</ol>`);
-              continue;
-            }
-            const para: string[] = [line]; i++;
-            while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|>\s?|[-*]\s|\d+\.\s|-{3,}\s*$)/.test(lines[i])) {
-              para.push(lines[i]); i++;
-            }
-            htmlParts.push(`<p>${inline(para.join(' '))}</p>`);
-          }
-          const contentHtml = htmlParts.join('\n');
-          const pdfCss = `body{margin:0;background:#fff;font-family:'Inter',sans-serif;font-size:10pt;line-height:1.45;color:#1d1d1d;padding:42px 52px}*{box-sizing:border-box}h1{font-size:13pt;font-weight:600;color:#0a1f3f;margin:24px 0 8px}h2{font-size:11pt;font-weight:600;color:#0a1f3f;margin:18px 0 6px}h3{font-size:10pt;font-weight:600;color:#2c3e5c;margin:14px 0 4px}p{margin:0 0 8px}strong{color:#0a1f3f}ul,ol{margin:4px 0 10px 20px}li{margin-bottom:3px}blockquote{color:#5a6a82;border-left:2px solid #bac3d1;padding:4px 0 4px 16px;margin:12px 0;font-style:italic}code{font-family:'JetBrains Mono',monospace;font-size:0.85em;background:#f5f6f8;padding:1px 4px;border-radius:2px}pre{background:#f5f6f8;border:1px solid #e2e6ed;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:8.5pt;margin:10px 0}hr{border:none;border-top:1px solid #d0d5dd;margin:20px 0}`;
-          const styledHtml = `<div id="lc-export"><h1 style="font-size:20pt;font-weight:700;color:#0a1f3f;margin:0 0 24px">${escapeHtml(p.title)}</h1>${contentHtml}</div>`;
-          const wrapper = document.createElement("div");
-          wrapper.id = "lc-pdf-wrapper";
-          wrapper.innerHTML = styledHtml;
-          wrapper.style.cssText = "position:fixed;left:0;top:0;width:816px;background:#fff;z-index:-1;opacity:0.01;pointer-events:none";
-          document.body.appendChild(wrapper);
-          try {
-            const fontLink = document.createElement("link");
-            fontLink.rel = "stylesheet";
-            fontLink.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap";
-            document.head.appendChild(fontLink);
-            await document.fonts.ready;
-            const styleTag = document.createElement("style");
-            styleTag.textContent = pdfCss;
-            wrapper.appendChild(styleTag);
-            await new Promise((r) => setTimeout(r, 200));
-            await document.fonts.ready;
-            const { default: html2pdf } = await import("html2pdf.js");
-            await html2pdf().set({
-              margin: [0.4, 0.5, 0.5, 0.5],
-              filename: `${p.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "document"}.pdf`,
-              image: { type: "jpeg", quality: 0.98 },
-              html2canvas: { scale: 2, useCORS: true, letterRendering: true, width: 816, windowWidth: 816 },
-              jsPDF: { unit: "in", format: "a4", orientation: "portrait" } as any,
-              ...({ pagebreak: { mode: ["avoid-all", "css", "legacy"] } } as any),
-            }).from(wrapper).save();
-            toast.success("Exported .pdf");
-            return;
-          } catch (pdfErr) {
-            console.warn("[PDF Export] html2pdf failed, falling back to .md:", pdfErr);
-          } finally {
-            if (wrapper.parentNode) document.body.removeChild(wrapper);
-          }
+        try {
+          const { exportBlocksToPdf } = await import("@/features/luminaComputer/exportPdf");
+          await exportBlocksToPdf(p.title, readyBlocks, step);
+          toast.success("Exported .pdf", { id: toastId });
+          return;
+        } catch (pdfErr) {
+          console.warn("[PDF Export] failed, falling back to .md:", pdfErr);
+          step(70, "PDF failed — exporting markdown…");
         }
         const md = readyBlocks.map((b) => {
-          if (b.block_type === "doc_section") return b.content_json?.markdown ?? "";
+          const c: any = b.content_json ?? {};
+          if (typeof c.markdown === "string") return c.markdown;
           if (b.block_type === "slide") {
-            const c = b.content_json;
             let body = "";
             if (c?.bullets?.length) body = `\n${c.bullets.map((x: string) => `- ${x}`).join("\n")}`;
             if (c?.stat) body = `\n**${c.stat.value}** — ${c.stat.label}`;
             if (c?.quote) body = `\n> "${c.quote.text}" — ${c.quote.attribution}`;
             return `## ${c?.title ?? b.title}\n${body}`;
           }
-          if (b.block_type === "site_section") return `### ${b.title}\n\n\`\`\`html\n${b.content_json?.html ?? ""}\n\`\`\`\n`;
+          if (b.block_type === "site_section") return `### ${b.title}\n\n\`\`\`html\n${c?.html ?? ""}\n\`\`\`\n`;
           if (b.block_type === "sheet_tab") {
-            const c = b.content_json;
             if (!c?.columns?.length) return "";
             const header = `| ${c.columns.join(" | ")} |`;
             const sep = `| ${c.columns.map(() => "---").join(" | ")} |`;
             const rows = (c.rows ?? []).map((r: any[]) => `| ${r.join(" | ")} |`).join("\n");
             return `### ${c.tab_name ?? b.title}\n${header}\n${sep}\n${rows}`;
           }
-          return "";
+          return `### ${b.title}\n\n\`\`\`json\n${JSON.stringify(c, null, 2)}\n\`\`\``;
         }).filter(Boolean).join("\n\n---\n\n");
         downloadFile(`${p.title}.md`, md || "# Empty document", "text/markdown");
-        toast.success("Exported .md");
+        toast.success("Exported .md", { id: toastId });
         return;
       }
       if (mode === "website") {
+        step(50, "Bundling site…");
         const fontLink = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
         const baseCss = `*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{background:#0a0a0d;color:#f5f5f4;font-family:'Inter',ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}h1,h2,h3,h4{font-family:'Fraunces',ui-serif,Georgia,serif;font-weight:500;letter-spacing:-0.02em;margin:0;color:#f5f5f4}p{color:#a1a1aa;line-height:1.65;margin:0}a{color:inherit}img{max-width:100%;display:block}`;
         const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(p.title)}</title>${fontLink}<script src="https://cdn.tailwindcss.com"></script><style>${baseCss}\n${bs.map((b) => b.content_json?.css ?? "").join("\n")}</style></head><body>${bs.map((b) => b.content_json?.html ?? "").join("\n")}<script>${bs.map((b) => b.content_json?.js ?? "").filter(Boolean).join("\n")}</script></body></html>`;
         downloadFile(`${p.title}.html`, html, "text/html");
-        toast.success("Exported .html");
+        toast.success("Exported .html", { id: toastId });
         return;
       }
       downloadFile(`${p.title}.json`, JSON.stringify(bs.map((b) => b.content_json), null, 2), "application/json");
-      toast.success("Exported");
+      toast.success("Exported", { id: toastId });
     } catch (e: any) {
-      toast.error(`Export failed: ${e.message ?? e}`);
+      toast.error(`Export failed: ${e?.message ?? e}`, { id: toastId });
+    } finally {
+      setExporting(null);
     }
   }
+
 
   useEffect(() => {
     const id = "lc-font-space-grotesk";
