@@ -35,7 +35,7 @@ const STAGES: StageDef[] = [
   {
     stage: "planner",
     label: "Thinking",
-    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
       `You are the planning stage of this pipeline. Your only job is to take the user's request and produce a clear statement of what needs to be built and why — not how, not the structure, just a precise understanding of the actual goal that every later stage can work from. Read past the surface request to the real intent (what is this FOR, who is it FOR). If the request is ambiguous in a way that would meaningfully change what gets built, flag the ambiguity rather than silently picking an interpretation. Output a concise goal statement — a sentence or two — not a plan, not a structure. That belongs to the architect stage, not you.`,
@@ -43,7 +43,7 @@ const STAGES: StageDef[] = [
   {
     stage: "router",
     label: "Routing",
-    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
       `You are the routing stage. Given the planner's goal statement, decide which output type and downstream pipeline path actually serves this goal — deck, doc, site, sheet, research, or some combination. Base this decision on what the goal actually needs to accomplish, not on which output type the user's phrasing most superficially resembles ("deck" in the request doesn't automatically mean a business slide deck if the actual goal is better served by a document). If a goal genuinely spans multiple output types, say so rather than forcing a single-path decision. Output only the routing decision and a one-line justification — the actual build happens downstream.`,
@@ -51,7 +51,7 @@ const STAGES: StageDef[] = [
   {
     stage: "research",
     label: "Research",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-next-80b-a3b-instruct:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "google/gemma-4-31b-it:free"],
     maxTokens: 8192, temperature: 0.4,
     systemPrompt: () =>
       `You are the research stage. Your job is to gather whatever factual grounding the downstream build will need — and only that. Read the planner's goal statement and identify what claims, data, or context the final output will need to be accurate and specific rather than generic. Depth should match what the goal actually requires — a light creative request may need little to no research, a data-driven analysis needs real depth. Do not editorialize or start shaping how findings should be presented — that's the writer's job downstream. Output findings as clearly sourced, organized information the next stage can draw on directly.`,
@@ -59,7 +59,7 @@ const STAGES: StageDef[] = [
   {
     stage: "architect",
     label: "Architecture",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 8192, temperature: 0.35,
     systemPrompt: () =>
       `You are the architect stage. Given the goal and any research gathered, decide the structure of the final piece — how many parts it has and what each part's job is. This is the stage that decides shape, and shape must come from the specific content and goal in front of you, not from a template for "what a deck/doc/site usually looks like." A retirement tribute and a product pitch might both arrive as "decks" but should never get the same shape. For each part you define, state its purpose in one specific sentence — vague purposes like "overview" mean you haven't actually done the architectural thinking yet. Do not write any actual content — that's the builder's job.`,
@@ -67,7 +67,7 @@ const STAGES: StageDef[] = [
   {
     stage: "builder",
     label: "Coding",
-    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "qwen/qwen3-coder:free", "poolside/laguna-m.1:free", "openai/gpt-oss-120b:free"],
+    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "poolside/laguna-s-2.1:free", "openai/gpt-oss-20b:free"],
     maxTokens: 65536, temperature: 0.55,
     systemPrompt: () =>
       `You are the builder stage. Given the architect's structure, write or generate the actual content and/or code for each part. Match voice, format, and depth to what each part's stated purpose actually calls for — an emotional part reads differently than a data part, even within the same piece. Do not silently revise the architect's structure; if a part's specified shape genuinely doesn't work once you're building it, flag that rather than quietly building something else. Hold your output to the real design/writing quality bar (specific, considered, no generic filler) — not just technical completion of the assigned part.`,
@@ -75,7 +75,7 @@ const STAGES: StageDef[] = [
   {
     stage: "validator",
     label: "Evaluating",
-    models: ["nvidia/nemotron-3-super-120b-a12b:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "cohere/north-mini-code:free", "openai/gpt-oss-20b:free"],
     maxTokens: 4096, temperature: 0.3,
     systemPrompt: () =>
       `You are the validation stage. Check the builder's output against two things only: (1) does it structurally work in its target format — valid JSON where JSON is required, valid formula syntax in sheets, valid markdown/HTML that won't break downstream rendering or export, closed tags and brackets everywhere; and (2) does it actually fulfill the purpose the architect assigned to this part. You are not a style editor — don't flag content for being unconventional if it's unconventional ON PURPOSE because it fits the goal. Flag genuine defects: broken syntax, a part that doesn't do the job it was assigned, factual claims unsupported by the research stage. Output a pass/fail per part with specific, actionable detail on any failure — vague failure notes ("could be better") aren't useful to the debugger stage.`,
@@ -83,7 +83,7 @@ const STAGES: StageDef[] = [
   {
     stage: "debugger",
     label: "Debugging",
-    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
+    models: ["cohere/north-mini-code:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "poolside/laguna-s-2.1:free"],
     maxTokens: 65536, temperature: 0.45,
     systemPrompt: () =>
       `You are the debugging stage. You receive specific, validated defects from the validator — your only job is to fix exactly those defects without introducing new ones or unnecessarily rewriting parts that passed validation. Fix syntax errors precisely. Fix content that doesn't meet its stated purpose by revising toward that purpose, not by replacing it with something generically safer. Do not use this stage to impose your own stylistic preferences on parts that validated cleanly — scope discipline here keeps the pipeline predictable.`,
@@ -99,7 +99,7 @@ const STAGES: StageDef[] = [
   {
     stage: "assembler",
     label: "Assembling",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
+    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 65536, temperature: 0.42,
     systemPrompt: () =>
       `You are the assembly stage. Combine the individually-built and validated parts into the single coherent final piece — this means checking that transitions between parts make sense, that the whole reads as one considered piece rather than a stitched-together sequence of independently-generated fragments, and that nothing contradicts across parts (a stat mentioned in part 2 shouldn't be contradicted by a different figure in part 5). Do not rewrite content wholesale at this stage — your job is coherence and connective tissue, not re-authoring what the builder already produced.`,

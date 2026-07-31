@@ -18,33 +18,33 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 //   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
 
-// Primary model — the best all-round free model as of July 2026.
-export const OWL = "openrouter/owl-alpha";
+// PRIMARY_MODEL — the best all-round free model as of July 2026.
+// (Legacy name "OWL" is kept for compatibility; it no longer points
+// to the retired openrouter/owl-alpha endpoint.)
+export const OWL = "nvidia/nemotron-3-ultra-550b-a55b:free";
 export const PRIMARY_MODEL = OWL;
 
 // QUALITY — Complex reasoning, agentic workflows
 export const MODELS_QUALITY = [
   OWL,
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 // CODE — Software engineering specialists
 export const MODELS_CODE = [
   "cohere/north-mini-code:free",
-  OWL,
-  "poolside/laguna-m.1:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "poolside/laguna-s-2.1:free",
   "poolside/laguna-xs-2.1:free",
-  "poolside/laguna-xs-2.1:free",
-  "qwen/qwen3-coder:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-20b:free",
 ];
 
 // LONG CTX — Deep research, huge docs
 export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
   OWL,
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 
 // VISION — Multimodal, vision & video
@@ -59,25 +59,24 @@ export const MODELS_FAST = [
   OWL,
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "nvidia/nemotron-nano-9b-v2:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "liquid/lfm-2.5-1.2b-instruct:free",
-  "liquid/lfm-2.5-1.2b-thinking:free",
+  "openai/gpt-oss-20b:free",
+  "google/gemma-4-26b-a4b-it:free",
 ];
 
 // BALANCED — Daily tasks, low latency
 export const MODELS_BALANCED = [
   OWL,
-  "openai/gpt-oss-120b:free",
   "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "google/gemma-4-26b-a4b-it:free",
 ];
 
 // WRITING — Long-form prose, roleplay, multilingual
 export const MODELS_WRITING = [
-  "nousresearch/hermes-3-llama-3.1-405b:free",
   OWL,
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "inclusionai/ling-3.0-flash:free",
 ];
 
 // SAFETY — content moderation / guardrail filtering
@@ -1005,16 +1004,11 @@ function getModelOutputLimit(modelId: string): number {
   if (
     name.includes("nemotron-3-ultra") ||
     name.includes("nemotron-3-super") ||
-    name.includes("llama-3.3-70b") ||
-    name.includes("hermes-3-405b") ||
-    name.includes("gpt-oss-120b") ||
     name.includes("gpt-oss-20b") ||
     name.includes("gemma-4-26b") ||
     name.includes("glm-4-32b") ||
     name.includes("laguna") ||
-    name.includes("qwen3-coder") ||
-    name.includes("qwen3-next") ||
-    name.includes("qwen3-next-80b")
+    name.includes("north-mini-code")
   ) return 32768;
   // 16K output models
   if (
@@ -1026,13 +1020,12 @@ function getModelOutputLimit(modelId: string): number {
   ) return 16384;
   // 8K output models
   if (
-    name.includes("llama-3.2-3b") ||
-    name.includes("lfm2.5-1.2b") ||
     name.includes("nano-9b") ||
     name.includes("nemotron-nano-9b") ||
     name.includes("nemotron-nano-30b-a3b") ||
     name.includes("venice") ||
-    name.includes("north-mini")
+    name.includes("north-mini") ||
+    name.includes("ling-3.0")
   ) return 8192;
 
   // 3. Heuristic by model size in name (B = billions of params)
@@ -1525,21 +1518,21 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
     case "python":
     case "code":
     case "svg":
-      return [OWL, "cohere/north-mini-code:free", "poolside/laguna-m.1:free", "qwen/qwen3-coder:free", ...MODELS_CODE];
+      return [OWL, "cohere/north-mini-code:free", "poolside/laguna-s-2.1:free", ...MODELS_CODE];
     case "mermaid":
-      return [OWL, "qwen/qwen3-next-80b-a3b-instruct:free", "qwen/qwen3-coder:free", "openai/gpt-oss-120b:free"];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "cohere/north-mini-code:free", ...MODELS_CODE];
     case "slides":
-      return [OWL, "nvidia/nemotron-3-ultra-550b-a55b:free", "openai/gpt-oss-120b:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_WRITING];
     case "notes":
-      return [OWL, "nvidia/nemotron-3-ultra-550b-a55b:free", "nousresearch/hermes-3-llama-3.1-405b:free", ...MODELS_WRITING];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_WRITING];
     case "flashcards":
       return [OWL, "openai/gpt-oss-20b:free", "google/gemma-4-26b-a4b-it:free", ...MODELS_BALANCED];
     case "math":
-      return [OWL, "nvidia/nemotron-3-ultra-550b-a55b:free", "qwen/qwen3-next-80b-a3b-instruct:free", ...MODELS_QUALITY];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
     case "exam":
-      return [OWL, "nvidia/nemotron-3-ultra-550b-a55b:free", "openai/gpt-oss-120b:free", ...MODELS_QUALITY];
+      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
     case "general":
     default:
-      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-ultra-550b-a55b:free", "openai/gpt-oss-120b:free", ...MODELS_BALANCED];
+      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", ...MODELS_BALANCED];
   }
 }

@@ -13,11 +13,10 @@ const cors = {
 
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
 const FALLBACK_CHAIN = [
-  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "google/gemma-4-31b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
 ];
 
 const ALL_KEYS: string[] = [

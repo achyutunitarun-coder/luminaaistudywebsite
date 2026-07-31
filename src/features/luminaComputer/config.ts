@@ -83,9 +83,9 @@ export interface WebsiteSectionCopy {
 // ============================================================================
 
 export const MODEL_ROUTING: Record<string, string[]> = {
-  orchestrator: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'qwen/qwen3-next-80b-a3b-instruct:free', 'google/gemma-4-31b-it:free'],
-  content: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nousresearch/hermes-3-llama-3.1-405b:free', 'qwen/qwen3-next-80b-a3b-instruct:free', 'google/gemma-4-31b-it:free'],
-  code: ['qwen/qwen3-coder:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
+  orchestrator: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'openai/gpt-oss-20b:free', 'google/gemma-4-31b-it:free'],
+  content: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'google/gemma-4-31b-it:free'],
+  code: ['cohere/north-mini-code:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
 };
 
 // ============================================================================

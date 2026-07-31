@@ -18,32 +18,30 @@ export type ModeChip =
 
 // Verified free-tier OpenRouter models (`:free` suffix). Names are the exact
 // slugs OpenRouter publishes — do not invent new ones.
-// Verified free-tier OpenRouter models (Nov 2026). Slugs match OpenRouter's
-// published `:free` IDs exactly — do not invent new ones.
 const ROUTING: Record<string, string> = {
   "chat-low": "google/gemma-4-31b-it:free",
-  "chat-medium": "qwen/qwen3-next-80b-a3b-instruct:free",
+  "chat-medium": "nvidia/nemotron-3-super-120b-a12b:free",
   "chat-high": "nvidia/nemotron-3-ultra-550b-a55b:free",
-  "code": "qwen/qwen3-coder:free",
-  "build": "qwen/qwen3-coder:free",
+  "code": "cohere/north-mini-code:free",
+  "build": "cohere/north-mini-code:free",
   "reason": "nvidia/nemotron-3-ultra-550b-a55b:free",
   "research": "nvidia/nemotron-3-ultra-550b-a55b:free",
   "plan": "nvidia/nemotron-3-super-120b-a12b:free",
-  "creative": "nousresearch/hermes-3-llama-3.1-405b:free",
+  "creative": "nvidia/nemotron-3-super-120b-a12b:free",
   "vision": "nvidia/nemotron-nano-12b-v2-vl:free",
-  "data": "qwen/qwen3-next-80b-a3b-instruct:free",
+  "data": "google/gemma-4-31b-it:free",
   "agent": "nvidia/nemotron-3-super-120b-a12b:free",
 };
 
 const MODE_OVERRIDE: Record<ModeChip, string | null> = {
   auto: null,
-  study: "qwen/qwen3-next-80b-a3b-instruct:free",
-  coding: "qwen/qwen3-coder:free",
+  study: "google/gemma-4-31b-it:free",
+  coding: "cohere/north-mini-code:free",
   reasoning: "nvidia/nemotron-3-ultra-550b-a55b:free",
   deepDive: "nvidia/nemotron-3-ultra-550b-a55b:free",
-  creative: "nousresearch/hermes-3-llama-3.1-405b:free",
+  creative: "nvidia/nemotron-3-super-120b-a12b:free",
   fast: "google/gemma-4-31b-it:free",
-  general: "qwen/qwen3-next-80b-a3b-instruct:free",
+  general: "google/gemma-4-31b-it:free",
 };
 
 export function pickModel(opts: {

@@ -13,24 +13,23 @@ export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
   fast: [
     "nvidia/nemotron-3-nano-30b-a3b:free",
     "nvidia/nemotron-nano-9b-v2:free",
-    "meta-llama/llama-3.2-3b-instruct:free",
+    "google/gemma-4-26b-a4b-it:free",
   ],
   balanced: [
-    "openai/gpt-oss-120b:free",
     "openai/gpt-oss-20b:free",
     "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
   ],
   reasoning: [
     "nvidia/nemotron-3-ultra-550b-a55b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-4-31b-it:free",
   ],
   coding: [
     "cohere/north-mini-code:free",
-    "qwen/qwen3-coder:free",
-    "poolside/laguna-m.1:free",
+    "poolside/laguna-s-2.1:free",
     "poolside/laguna-xs-2.1:free",
-    "poolside/laguna-xs-2.1:free",
+    "openai/gpt-oss-20b:free",
   ],
   long_ctx: [
     "google/gemma-4-31b-it:free",
