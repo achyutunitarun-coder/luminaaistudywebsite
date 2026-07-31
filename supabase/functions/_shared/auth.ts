@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 /**
  * Verify the request is from an authenticated user.
  *
@@ -14,6 +16,17 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
     return {
       error: new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }),
+    } as const;
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    return {
+      error: new Response(JSON.stringify({ error: "Server misconfiguration" }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }),
     } as const;
@@ -47,7 +60,11 @@ export async function requireUser(req: Request, corsHeaders: Record<string, stri
       } as const;
     }
 
-    return { user: { id: userId, email: email ?? null }, sb: null } as const;
+    const sb = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    return { user: { id: userId, email: email ?? null }, sb } as const;
   } catch {
     return {
       error: new Response(JSON.stringify({ error: "Unauthorized" }), {

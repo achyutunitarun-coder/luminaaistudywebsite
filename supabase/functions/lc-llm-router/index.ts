@@ -2,6 +2,7 @@
 // The ONLY function that talks to OpenRouter. Server-side key.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireUser } from "../_shared/auth.ts";
+import { detectTruncation } from "../_shared/truncation-guard.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -198,21 +199,95 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Streaming passthrough with meta header and terminal log
+        // Streaming passthrough with meta header, truncation detection, and auto-continuation
         const reader = upstream.body.getReader();
         const enc = new TextEncoder();
+        const decoder = new TextDecoder();
         const meta = `data: ${JSON.stringify({ lumina_meta: { model, fallback: i > 0, role } })}\n\n`;
+        const CONTINUATION_PROMPT =
+          "Continue exactly where you left off. Do NOT repeat anything already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation — no prefixes, no explanations.";
+        const MAX_CONTINUATIONS = 4;
+        const callTokens = Math.max(2000, Math.min(max_tokens ?? 2400, 8000));
+
+        // Relay one upstream SSE stream to the client while tracking content + finish_reason.
+        const relay = async (
+          resp: Response,
+          ctrl: ReadableStreamDefaultController<Uint8Array>,
+          onDelta: (d: string) => void,
+          onFinish: (fr: string) => void,
+        ): Promise<void> => {
+          const r = resp.body!.getReader();
+          let buf = "";
+          while (true) {
+            const { done, value } = await r.read();
+            if (done) break;
+            ctrl.enqueue(value);
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() ?? "";
+            for (const raw of lines) {
+              const line = raw.trim();
+              if (!line.startsWith("data:")) continue;
+              const payload = line.slice(5).trim();
+              if (!payload || payload === "[DONE]") continue;
+              try {
+                const j = JSON.parse(payload);
+                const delta = j?.choices?.[0]?.delta?.content;
+                if (typeof delta === "string" && delta.length) onDelta(delta);
+                const fr = j?.choices?.[0]?.finish_reason;
+                if (fr) onFinish(fr);
+              } catch { /* ignore malformed */ }
+            }
+          }
+        };
 
         const out = new ReadableStream({
           async start(ctrl) {
             ctrl.enqueue(enc.encode(meta));
             let ok = true;
             try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                ctrl.enqueue(value);
+              let currentResponse = upstream;
+              let accumulated = "";
+              let finishReason: string | null = null;
+              let contRound = 0;
+              while (contRound <= MAX_CONTINUATIONS) {
+                await relay(currentResponse, ctrl, (d) => { accumulated += d; }, (fr) => { finishReason = fr; });
+
+                const trunc = detectTruncation(accumulated, finishReason, {
+                  structural: true,
+                  content: true,
+                });
+
+                if (!trunc.truncated || contRound >= MAX_CONTINUATIONS) break;
+                contRound++;
+
+                const contMessages = [
+                  ...messages,
+                  { role: "assistant", content: accumulated },
+                  { role: "user", content: CONTINUATION_PROMPT },
+                ];
+                const contKey = nextKey();
+                if (!contKey) break;
+                const contResp = await fetch(OR_URL, {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${contKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://luminaai.co.in",
+                    "X-Title": "Lumina Computer",
+                  },
+                  body: JSON.stringify({
+                    model,
+                    messages: contMessages,
+                    stream: true,
+                    max_tokens: callTokens,
+                    temperature: 0.5,
+                  }),
+                });
+                if (!contResp.ok || !contResp.body) break;
+                currentResponse = contResp;
               }
+              ctrl.enqueue(enc.encode("data: [DONE]\n\n"));
             } catch (e) {
               ok = false;
               ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ lumina_error: String(e) })}\n\n`));

@@ -234,7 +234,7 @@ export default function LuminaComputer() {
       const { text, model } = await streamRoute({
         role, system, prompt,
         project_id: project.id, block_id: block.id,
-        max_tokens: role === "code" ? 5200 : 2800,
+        max_tokens: role === "code" ? 24000 : 16000,
         temperature: 0.82,
         onMeta: metaHandler,
         onToken: (tk) => {
