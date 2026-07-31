@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type ArtifactKind = "notes" | "exam" | "slides" | "code";
 
@@ -54,7 +55,9 @@ interface ArtifactState {
 const sameArtifact = (a: ArtifactRecord, b: UpsertInput) =>
   a.type === b.type && a.title.trim().toLowerCase() === b.title.trim().toLowerCase();
 
-export const useArtifactStore = create<ArtifactState>((set, get) => ({
+export const useArtifactStore = create<ArtifactState>()(
+  persist(
+    (set, get) => ({
   artifacts: {},
   order: [],
   activeArtifactId: null,
@@ -102,4 +105,13 @@ export const useArtifactStore = create<ArtifactState>((set, get) => ({
   openArtifact: (id) => set({ activeArtifactId: id }),
   closeArtifact: () => set({ activeArtifactId: null, spotlight: false }),
   toggleSpotlight: () => set((s) => ({ spotlight: !s.spotlight })),
-}));
+    }),
+    {
+      name: "lumina-artifacts-v1",
+      partialize: (s) => ({
+        artifacts: s.artifacts,
+        order: s.order,
+      }),
+    }
+  )
+);

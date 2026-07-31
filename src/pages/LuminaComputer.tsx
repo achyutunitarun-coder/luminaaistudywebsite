@@ -16,7 +16,7 @@ import {
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
 import { SYSTEM_PROMPTS, buildGeneratePrompt, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
   { key: "doc",     label: "Docs",     icon: FileText,   role: "content", sub: "Long-form structured writing" },
@@ -68,6 +68,7 @@ export default function LuminaComputer() {
   const [, force] = useState(0);
   const reduce = useReducedMotion();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => { listProjects().then(setProjects).catch(() => {}); }, []);
   const refreshList = () => listProjects().then(setProjects).catch(() => {});
@@ -76,12 +77,46 @@ export default function LuminaComputer() {
     setLog((l) => [...l.slice(-200), { id: crypto.randomUUID(), ts: Date.now(), text, tone }]);
   }
 
+  useEffect(() => {
+    const pid = searchParams.get("project");
+    if (!pid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await getProject(pid);
+        if (cancelled) return;
+        setActive(p);
+        setMode(p.output_type);
+        setLog([]);
+        setGoal("");
+        streamingRef.current = {};
+        const bs = await listBlocks(p.id);
+        if (cancelled) return;
+        setBlocks(bs);
+        setMessages((m) =>
+          m.some((x) => x.project?.id === p.id && x.role === "assistant")
+            ? m
+            : [...m, { id: crypto.randomUUID(), role: "assistant", goal: p.title, project: p, blocks: bs, timestamp: Date.now() }]
+        );
+      } catch (e: any) {
+        toast.error(`Could not open project: ${e?.message ?? "not found"}`);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function openProject(p: LcProject) {
     setActive(p);
     setLog([]);
     const bs = await listBlocks(p.id);
     setBlocks(bs);
     streamingRef.current = {};
+    setMessages((m) =>
+      m.some((x) => x.project?.id === p.id && x.role === "assistant")
+        ? m
+        : [...m, { id: crypto.randomUUID(), role: "assistant", goal: p.title, project: p, blocks: bs, timestamp: Date.now() }]
+    );
   }
 
   async function handleBuild() {

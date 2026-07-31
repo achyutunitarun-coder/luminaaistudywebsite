@@ -156,7 +156,7 @@ export default function LibraryPage() {
                             className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200">
                             <Trash2 className="h-3 w-3" />
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); navigate("/lumina-computer"); }}
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/lumina-computer?project=${p.id}`); }}
                             className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-all duration-200">
                             <ExternalLink className="h-3 w-3" />
                           </button>
@@ -267,7 +267,7 @@ export default function LibraryPage() {
                 <h2 className="text-lg font-medium text-zinc-100 truncate" style={{ fontFamily: "'Space Grotesk', ui-sans-serif" }}>{selectedProject.title}</h2>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => navigate("/lumina-computer")}
+                <button onClick={() => navigate(`/lumina-computer?project=${selectedProject.id}`)}
                   className="text-[11px] px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition flex items-center gap-1.5">
                   <Eye className="h-3 w-3" /> Open
                 </button>
