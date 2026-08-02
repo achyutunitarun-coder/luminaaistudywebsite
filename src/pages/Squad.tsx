@@ -147,22 +147,29 @@ const SquadPage = () => {
     if (!joinCode.trim() || !user) return;
     setJoining(true);
     const code = joinCode.trim().toUpperCase();
-    const { data: lookup, error: lookupErr } = await (supabase as any).rpc('lookup_squad_by_invite_code', { _code: code });
-    if (lookupErr) console.error('Squad lookup error:', lookupErr);
-    const squad = Array.isArray(lookup) ? lookup[0] : lookup;
-    if (!squad) { toast.error('Invalid invite code'); setJoining(false); return; }
-    const { data: existing } = await supabase.from('squad_members').select('id').eq('squad_id', squad.id).eq('user_id', user.id).maybeSingle();
-    if (existing) { toast.info('Already in this squad'); setJoining(false); return; }
-    const { data: countData } = await supabase.from('squad_members').select('id').eq('squad_id', squad.id);
-    if (countData && countData.length >= 12) { toast.error('Squad is full (max 12)'); setJoining(false); return; }
-    await supabase.from('squad_members').insert({ squad_id: squad.id, user_id: user.id, display_name: profile?.display_name || 'Student' });
-    await supabase.from('squad_activity').insert({ squad_id: squad.id, user_id: user.id, activity_type: 'join', description: `${profile?.display_name || 'A student'} joined the squad` });
+    const { data, error } = await (supabase as any).rpc('join_squad_by_invite_code', {
+      _code: code,
+      _display_name: profile?.display_name || 'Student',
+    });
+    if (error) {
+      const msg = error.message?.includes('squad_full')
+        ? 'Squad is full (max 12)'
+        : error.message?.includes('invalid_invite_code')
+          ? 'Invalid invite code'
+          : 'Could not join squad';
+      toast.error(msg);
+      setJoining(false);
+      return;
+    }
+    const result = Array.isArray(data) ? data[0] : data;
     setJoinCode('');
     await loadSquads();
     setTab('my');
-    toast.success(`Joined ${squad.name}!`);
+    if (result?.already_member) toast.info('Already in this squad');
+    else toast.success(`Joined ${result?.squad_name ?? 'squad'}!`);
     setJoining(false);
   };
+
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
