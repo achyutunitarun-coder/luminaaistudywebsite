@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
         }
 
         // Streaming passthrough with meta header, truncation detection, and auto-continuation
-        const reader = upstream.body.getReader();
+        
         const enc = new TextEncoder();
         const decoder = new TextDecoder();
         const meta = `data: ${JSON.stringify({ lumina_meta: { model, fallback: i > 0, role } })}\n\n`;
