@@ -66,7 +66,7 @@ export default function LibraryPage() {
 
   const itemAnim = {
     hidden: { opacity: 0, y: 12 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } },
+    show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] as const } },
   };
 
   return (
@@ -139,7 +139,7 @@ export default function LibraryPage() {
             ) : (
               <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {projects.map((p) => {
-                  const modeIcon = p.output_type === "doc" ? FileText : p.output_type === "slides" ? LayoutGrid : p.output_type === "sheet" ? TableIcon : p.output_type === "website" ? Globe : Bot;
+                  const ModeIcon = p.output_type === "doc" ? FileText : p.output_type === "slides" ? LayoutGrid : p.output_type === "sheet" ? TableIcon : p.output_type === "website" ? Globe : Bot;
                   return (
                     <motion.div key={p.id} variants={itemAnim} layout
                       className="group relative rounded-xl border border-zinc-800/80 bg-gradient-to-b from-[#0c0c10]/90 to-[#0a0a0d]/80 p-4 hover:border-zinc-700/80 hover:shadow-[0_0_20px_rgba(157,92,255,0.04)] transition-all duration-200 cursor-pointer overflow-hidden"
@@ -148,7 +148,7 @@ export default function LibraryPage() {
                       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="flex items-start justify-between mb-2">
                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900/80 border border-zinc-800/60">
-                          <modeIcon className="w-3 h-3 text-[#9d5cff]" />
+                          <ModeIcon className="w-3 h-3 text-[#9d5cff]" />
                           <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-mono">{p.output_type === "doc" ? "Document" : p.output_type === "slides" ? "Slides" : p.output_type === "sheet" ? "Sheet" : p.output_type === "website" ? "Website" : "Agent"}</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -258,7 +258,7 @@ export default function LibraryPage() {
             initial={{ opacity: 0, x: 320 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 320 }}
-            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] as const }}
             className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#0a0a0d]/98 backdrop-blur-xl border-l border-zinc-800/80 z-50 flex flex-col shadow-2xl"
           >
             <div className="flex items-center justify-between p-4 border-b border-zinc-800/60">
