@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
   theme text NOT NULL DEFAULT 'dark',
   language text NOT NULL DEFAULT 'en',
   notifications_enabled boolean NOT NULL DEFAULT true,
-  preferred_model text NOT NULL DEFAULT 'meta-llama/llama-3.3-70b-instruct:free',
+  preferred_model text NOT NULL DEFAULT 'nvidia/nemotron-3-ultra-550b-a55b:free',
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()

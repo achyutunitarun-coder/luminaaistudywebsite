@@ -77,12 +77,12 @@ ALTER TABLE public.lc_model_routing ENABLE ROW LEVEL SECURITY;
 -- no policies: authenticated users have no access
 
 INSERT INTO public.lc_model_routing (role, primary_model_id, fallback_model_ids, notes) VALUES
-  ('orchestrator', 'nvidia/nemotron-3-ultra-550b-a55b:free', ARRAY['nvidia/nemotron-3-super-120b-a12b:free'], 'Agent planning'),
-  ('content',      'moonshotai/kimi-k2.6:free',              ARRAY['z-ai/glm-4.5-air:free','nvidia/nemotron-3-super-120b-a12b:free'], 'Narrative/doc/sheet logic'),
-  ('code',         'poolside/laguna-m.1:free',               ARRAY['openai/gpt-oss-120b:free','qwen/qwen3-coder:free'], 'Websites/code'),
-  ('visual',       'poolside/laguna-xs.2:free',              ARRAY['openai/gpt-oss-20b:free'], 'SVG/charts'),
-  ('perception',   'nvidia/nemotron-nano-12b-v2-vl:free',    ARRAY['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'], 'OCR/vision'),
-  ('router',       'google/gemma-4-26b-a4b-it:free',         ARRAY['nvidia/nemotron-nano-9b-v2:free'], 'Classification');
+  ('orchestrator', 'nvidia/nemotron-3-ultra-550b-a55b:free', ARRAY['nvidia/nemotron-3-super-120b-a12b:free','openai/gpt-oss-20b:free','google/gemma-4-31b-it:free'], 'Agent planning'),
+  ('content',      'nvidia/nemotron-3-ultra-550b-a55b:free', ARRAY['nvidia/nemotron-3-super-120b-a12b:free','google/gemma-4-31b-it:free'], 'Narrative/doc/sheet logic'),
+  ('code',         'cohere/north-mini-code:free',            ARRAY['nvidia/nemotron-3-super-120b-a12b:free','nvidia/nemotron-3-ultra-550b-a55b:free','openai/gpt-oss-20b:free'], 'Websites/code'),
+  ('visual',       'google/gemma-4-31b-it:free',             ARRAY['google/gemma-4-26b-a4b-it:free','nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'], 'SVG/charts'),
+  ('perception',   'google/gemma-4-31b-it:free',             ARRAY['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free','nvidia/nemotron-nano-12b-v2-vl:free'], 'OCR/vision'),
+  ('router',       'google/gemma-4-26b-a4b-it:free',         ARRAY['nvidia/nemotron-nano-9b-v2:free','nvidia/nemotron-3-nano-30b-a3b:free'], 'Classification');
 
 -- lc_model_cooldowns (service-role only)
 CREATE TABLE public.lc_model_cooldowns (

@@ -469,7 +469,8 @@ const PRIMARY_RACE_TIMEOUT_MS = 9_000;  // give primary model TTFB headroom; tin
 // Models confirmed dead by 404 — skipped entirely for this process lifetime.
 const _deadModels = new Set<string>();
 
-const MOONSHOT_MODELS = ["moonshotai/kimi-k2", "moonshotai/kimi-k2.5"];
+// Moonshot/Kimi direct-provider hooks. Key pool is empty, so this never fires.
+const MOONSHOT_MODELS: string[] = [];
 
 function isMoonshotModel(model: string): boolean {
   const base = model.toLowerCase().replace(/:(free|online)$/, "");
@@ -997,7 +998,6 @@ function getModelOutputLimit(modelId: string): number {
   const name = base.toLowerCase();
   // LONG_CTX / QUALITY — 32K-1M output
   if (name.includes("gemini-1.5-pro")) return 1_000_000;
-  if (name.includes("kimi-k2")) return 256_000;
   // 64K output code models
   if (name.includes("codex-north")) return 64000;
   // 32K output models

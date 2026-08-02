@@ -30,3 +30,4 @@ hf.env
 .vercel
 UsersTarunluminaaistudywebsite/
 .env*
+tmp/

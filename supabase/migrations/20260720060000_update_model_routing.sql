@@ -6,32 +6,29 @@ UPDATE public.lc_model_routing
 SET primary_model_id = 'nvidia/nemotron-3-ultra-550b-a55b:free',
     fallback_model_ids = ARRAY[
       'nvidia/nemotron-3-super-120b-a12b:free',
-      'qwen/qwen3-next-80b-a3b-instruct:free',
-      'google/gemma-4-31b-it:free',
-      'nousresearch/hermes-3-llama-3.1-405b:free'
+      'openai/gpt-oss-20b:free',
+      'google/gemma-4-31b-it:free'
     ],
-    notes = 'Planning: free primary + 4 diverse fallbacks'
+    notes = 'Planning: free primary + diverse fallbacks'
 WHERE role = 'orchestrator';
 
 -- Content: doc/slide/sheet generation - needs quality writing
 UPDATE public.lc_model_routing
-SET primary_model_id = 'moonshotai/kimi-k2',
+SET primary_model_id = 'nvidia/nemotron-3-ultra-550b-a55b:free',
     fallback_model_ids = ARRAY[
-      'nvidia/nemotron-3-ultra-550b-a55b:free',
-      'nousresearch/hermes-3-llama-3.1-405b:free',
-      'qwen/qwen3-next-80b-a3b-instruct:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
       'google/gemma-4-31b-it:free'
     ],
-    notes = 'Content: Kimi K2 primary + diverse free fallbacks'
+    notes = 'Content: free primary + free fallbacks'
 WHERE role = 'content';
 
 -- Code: website generation
 UPDATE public.lc_model_routing
-SET primary_model_id = 'qwen/qwen3-coder:free',
+SET primary_model_id = 'cohere/north-mini-code:free',
     fallback_model_ids = ARRAY[
       'nvidia/nemotron-3-ultra-550b-a55b:free',
       'nvidia/nemotron-3-super-120b-a12b:free',
-      'qwen/qwen3-next-80b-a3b-instruct:free'
+      'openai/gpt-oss-20b:free'
     ],
-    notes = 'Code: Qwen Coder + fallbacks'
+    notes = 'Code: North Mini Code + fallbacks'
 WHERE role = 'code';
