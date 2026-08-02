@@ -2831,6 +2831,14 @@ export type Database = {
         Args: { p_feature: string; p_period_type?: string; p_user_id: string }
         Returns: number
       }
+      join_squad_by_invite_code: {
+        Args: { _code: string; _display_name?: string }
+        Returns: {
+          already_member: boolean
+          squad_id: string
+          squad_name: string
+        }[]
+      }
       lookup_squad_by_invite_code: {
         Args: { _code: string }
         Returns: {
