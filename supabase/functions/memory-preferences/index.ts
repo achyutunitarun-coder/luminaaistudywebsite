@@ -75,10 +75,16 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.warn("memory-preferences: upsert failed", error.message);
+        return new Response(JSON.stringify({ user_id: user.id, ...updates, persisted: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
     }
 
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
