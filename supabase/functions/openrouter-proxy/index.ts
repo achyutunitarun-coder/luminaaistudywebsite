@@ -4,6 +4,7 @@
 // → current fast free models with one retry after 800ms.
 // ════════════════════════════════════════════════════════════════════
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { clampTokens } from "../_shared/free-model-caps.ts";
 import { requireUser } from "../_shared/auth.ts";
 
 const cors = {
@@ -74,7 +75,7 @@ async function callOR(model: string, body: any, stream: boolean, keyIdx: number)
       "HTTP-Referer": "https://luminaai.co.in",
       "X-Title": "Lumina AI",
     },
-    body: JSON.stringify({ ...body, model, stream, max_tokens: body.max_tokens ?? 4096 }),
+    body: JSON.stringify({ ...body, model, stream, max_tokens: clampTokens(model, body.max_tokens, 4096) }),
   });
 }
 
