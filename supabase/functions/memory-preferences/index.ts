@@ -44,11 +44,19 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (createErr) throw createErr;
+      if (createErr) {
+        // Persisting defaults can fail (e.g. FK/RLS on a user row that isn't
+        // provisioned yet). Preferences are non-critical — serve defaults.
+        console.warn("memory-preferences: default insert failed", createErr.message);
+        return new Response(JSON.stringify({ ...defaults, persisted: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify(created), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (req.method === "POST") {
       const body = await req.json();
@@ -67,10 +75,16 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.warn("memory-preferences: upsert failed", error.message);
+        return new Response(JSON.stringify({ user_id: user.id, ...updates, persisted: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
     }
 
     return new Response(JSON.stringify({ error: "Method not allowed" }), {

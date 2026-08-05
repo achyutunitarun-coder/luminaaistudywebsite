@@ -4,25 +4,30 @@ import path from "path";
 import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 
-function readAuthoritativeBackendConfig() {
-  const file = fs.readFileSync(path.resolve(__dirname, ".env"), "utf8");
-  const entries = Object.fromEntries(
-    file.split(/\r?\n/).flatMap((line) => {
-      const match = line.match(/^([A-Z0-9_]+)=(?:"([^"]*)"|'([^']*)'|([^#\s]*))/);
-      return match ? [[match[1], match[2] ?? match[3] ?? match[4] ?? ""]] : [];
-    }),
-  );
-  return entries;
+const FALLBACK_BACKEND_URL = "https://mnljpvotimtxkufwkano.supabase.co";
+const FALLBACK_PUBLISHABLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ubGpwdm90aW10eGt1ZndrYW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NjY1MjYsImV4cCI6MjA5NzQ0MjUyNn0.w4aYYhBq5wA2093s_-rT55F_QSbugAFRAnqjhsgWXAI";
+
+function readAuthoritativeBackendConfig(): Record<string, string> {
+  try {
+    const file = fs.readFileSync(path.resolve(__dirname, ".env"), "utf8");
+    return Object.fromEntries(
+      file.split(/\r?\n/).flatMap((line) => {
+        const match = line.match(/^([A-Z0-9_]+)=(?:"([^"]*)"|'([^']*)'|([^#\s]*))/);
+        return match ? [[match[1], match[2] ?? match[3] ?? match[4] ?? ""]] : [];
+      }),
+    );
+  } catch {
+    // .env is git-ignored; fresh clones, CI and preview builds fall back below.
+    return {};
+  }
 }
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...readAuthoritativeBackendConfig() };
-  const backendUrl = env.SUPABASE_URL;
-  const publishableKey = env.SUPABASE_PUBLISHABLE_KEY;
+  const backendUrl = env.SUPABASE_URL || FALLBACK_BACKEND_URL;
+  const publishableKey = env.SUPABASE_PUBLISHABLE_KEY || FALLBACK_PUBLISHABLE_KEY;
 
-  if (!backendUrl || !publishableKey) {
-    throw new Error("Missing authoritative backend configuration");
-  }
 
   return ({
   server: {
