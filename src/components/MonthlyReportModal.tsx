@@ -4,6 +4,7 @@ import { X, TrendingUp, TrendingDown, Star, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthToken } from '@/lib/auth-helper';
 
 type Report = {
   headline: string;
@@ -70,7 +71,7 @@ export const MonthlyReportModal = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${await getAuthToken()}`,
         },
         body: JSON.stringify({
           userData: {

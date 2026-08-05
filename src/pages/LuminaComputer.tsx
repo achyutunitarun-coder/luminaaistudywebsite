@@ -9,6 +9,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
+import { CREDIT_COSTS, hasEnoughCredits } from "@/features/credits/creditsSystem";
+import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
+import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
 import {
   planBlocks, streamRoute, createProject, listProjects, getProject,
   insertBlocks, listBlocks, updateBlock, updateProject, deleteProject,
@@ -69,6 +75,9 @@ export default function LuminaComputer() {
   const reduce = useReducedMotion();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { isPro } = useSubscription();
+  const credits = useCreditsStore();
+  const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => { listProjects().then(setProjects).catch(() => {}); }, []);
   const refreshList = () => listProjects().then(setProjects).catch(() => {});
@@ -123,6 +132,14 @@ export default function LuminaComputer() {
     const g = goal.trim();
     if (!g) { toast.error("Type what you want to build"); return; }
     if (busy) return;
+
+    const cost = CREDIT_COSTS.lumina_computer;
+    if (!isPro && !hasEnoughCredits("lumina_computer", credits.balance)) {
+      setBuyOpen(true);
+      toast.error(`Need ${cost} credits to build. Top up to continue.`);
+      return;
+    }
+
     setBusy(true);
     setLog([]);
     setGoal("");
@@ -179,6 +196,24 @@ export default function LuminaComputer() {
       await new Promise((r) => setTimeout(r, 500));
       const finalBlocks = await listBlocks(project.id).catch(() => [] as LcBlock[]);
       if (finalBlocks.length) setBlocks(finalBlocks);
+
+      if (!isPro) {
+        try {
+          const { data } = await (supabase as any).rpc("spend_user_credits", { _amount: cost, _action: "lumina computer" });
+          const r = Array.isArray(data) ? data[0] : data;
+          if (r?.success && typeof r.balance !== "undefined") {
+            credits.setBalance(Number(r.balance));
+            pushLog(`Charged ${cost} credits (balance ${Number(r.balance).toFixed(1)}).`, "info");
+          } else {
+            creditsActions.deduct("lumina_computer");
+            pushLog(`Charged ${cost} credits.`, "info");
+          }
+        } catch {
+          creditsActions.deduct("lumina_computer");
+          pushLog(`Charged ${cost} credits.`, "info");
+        }
+      }
+
       const assistantMsg: ChatMessage = { id: crypto.randomUUID(), role: "assistant", goal: g, project, blocks: finalBlocks, timestamp: Date.now() };
       setMessages((m) => [...m, assistantMsg]);
     } catch (e: any) {
@@ -453,19 +488,69 @@ export default function LuminaComputer() {
     <div className="min-h-screen w-full text-zinc-300 relative overflow-hidden" style={{background:'radial-gradient(ellipse at 50% 0%, #0f0d18 0%, #08080c 50%, #06060a 100%)'}}>
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage:'radial-gradient(circle at 1px 1px, #9d5cff 1px, transparent 0)', backgroundSize:'40px 40px'}} />
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:py-8 relative z-10">
-        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10]/95 backdrop-blur-sm shadow-2xl shadow-black/60 overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+        <div className="rounded-xl border border-zinc-800/80 bg-[#0d0d10]/95 backdrop-blur-sm shadow-2xl shadow-black/60 overflow-hidden flex" style={{ height: 'calc(100vh - 4rem)' }}>
+          {/* Left session sidebar */}
+          <aside className="hidden lg:flex flex-col w-[300px] shrink-0 border-r border-zinc-800/70 bg-[#0a0a0e]/70 backdrop-blur-sm relative">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#9d5cff]/30 to-transparent" />
+            <div className="flex items-center gap-2.5 px-4 h-14 border-b border-zinc-800/70 shrink-0">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_12px_rgba(157,92,255,0.7)] relative" aria-hidden style={{animation:'pulse-ring 2s ease-in-out infinite'}}>
+                <div className="absolute inset-0 rounded-full bg-[#9d5cff] animate-ping opacity-30" />
+              </div>
+              <span style={heading} className="text-[12px] font-semibold tracking-[0.18em] uppercase bg-gradient-to-r from-zinc-200 via-[#c39aff] to-zinc-200 bg-clip-text text-transparent">Lumina Computer</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+              <div className="flex items-center gap-3 mb-3 px-1">
+                <div className="h-px flex-1 bg-gradient-to-r from-zinc-800/60 via-zinc-800/20 to-transparent" />
+                <span className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-mono">Sessions</span>
+                <div className="h-px flex-1 bg-gradient-to-l from-zinc-800/60 via-zinc-800/20 to-transparent" />
+              </div>
+              {projects.length === 0 ? (
+                <div className="text-[11px] text-zinc-600 px-2 py-6 text-center font-mono">No builds yet</div>
+              ) : (
+                projects.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => openProject(p)}
+                    className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer border transition-all duration-150 ${
+                      active?.id === p.id
+                        ? "bg-[#9d5cff]/8 border-[#9d5cff]/30"
+                        : "border-transparent hover:bg-zinc-900/60"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] text-zinc-300 truncate group-hover:text-zinc-100 transition-colors">{p.title}</div>
+                      <div className="text-[9px] text-zinc-600 font-mono uppercase tracking-wider">{p.output_type}</div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeProject(p); }}
+                      className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="px-3 pb-3 pt-2 border-t border-zinc-800/70 shrink-0">
+              <button onClick={() => navigate("/library")} className="w-full text-[10px] text-zinc-600 hover:text-zinc-300 font-mono uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1.5 py-2 rounded-lg border border-zinc-800/70 hover:border-zinc-700 hover:bg-zinc-900/40">
+                <Library className="h-3 w-3" />
+                Library
+              </button>
+            </div>
+          </aside>
+
+          {/* Main column */}
+          <div className="flex-1 min-w-0 flex flex-col">
           {/* Header bar */}
           <header className="h-14 border-b border-zinc-800/80 flex items-center justify-between px-4 md:px-6 bg-[#111114] shrink-0 relative">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#9d5cff]/30 to-transparent" />
             <div className="flex items-center gap-4 min-w-0">
-              <div className="flex items-center gap-2.5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#9d5cff] shadow-[0_0_12px_rgba(157,92,255,0.7)] relative" aria-hidden style={{animation:'pulse-ring 2s ease-in-out infinite'}}>
-                  <div className="absolute inset-0 rounded-full bg-[#9d5cff] animate-ping opacity-30" />
-                </div>
-                <span style={heading} className="text-[13px] font-semibold tracking-[0.18em] uppercase bg-gradient-to-r from-zinc-200 via-[#c39aff] to-zinc-200 bg-clip-text text-transparent">Lumina Computer</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation</span>
+                <div className="h-4 w-px bg-gradient-to-b from-zinc-800/80 via-zinc-800 to-zinc-800/80" />
+                <span style={heading} className="text-[13px] font-semibold tracking-[0.12em] uppercase text-zinc-300">{activeMode?.label ?? mode}</span>
               </div>
-              <div className="h-4 w-px bg-gradient-to-b from-zinc-800/80 via-zinc-800 to-zinc-800/80" />
-              <span style={mono} className="text-[10px] text-zinc-600 tracking-wider uppercase hidden sm:inline">Workstation · v6</span>
             </div>
 
               <div className="flex items-center gap-2">
@@ -490,6 +575,7 @@ export default function LuminaComputer() {
                   );
                 })}
               </div>
+              <CreditsDisplay onClick={() => setBuyOpen(true)} />
               <button
                 onClick={() => navigate("/library")}
                 style={mono}
@@ -538,22 +624,6 @@ export default function LuminaComputer() {
                       );
                     })}
                   </div>
-                  {projects.length > 0 && (
-                    <div className="mt-10 pt-8 border-t border-zinc-800/40">
-                      <div className="flex items-center gap-3 mb-5">
-                        <div className="h-px flex-1 bg-gradient-to-r from-zinc-800/60 via-zinc-800/20 to-transparent" />
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600 font-mono">Previous projects</span>
-                        <div className="h-px flex-1 bg-gradient-to-l from-zinc-800/60 via-zinc-800/20 to-transparent" />
-                      </div>
-                      <ProjectList projects={projects} onOpen={openProject} onDelete={removeProject} />
-                      <div className="mt-4">
-                        <button onClick={() => navigate("/library")} className="text-[11px] text-zinc-600 hover:text-zinc-300 font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5">
-                          <Library className="h-3 w-3" />
-                          View all in Library →
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 messages.map((msg, mi) => (
@@ -735,8 +805,10 @@ export default function LuminaComputer() {
               <span className="bg-gradient-to-r from-zinc-400 to-zinc-500 bg-clip-text text-transparent">v1.1 · Polished</span>
             </div>
           </footer>
+          </div>
         </div>
       </div>
+      <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
     </div>
   );
 }

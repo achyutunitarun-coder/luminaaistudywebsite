@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getAuthToken } from '@/lib/auth-helper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CURRICULA, getTopicsForSubject } from '@/lib/curricula';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -124,8 +124,7 @@ const Resources = () => {
       const allowed = await checkAndIncrement('resources');
       if (!allowed) throw new Error('Usage limit reached');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = await getAuthToken();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-resources`, {
         method: 'POST',
         headers: {

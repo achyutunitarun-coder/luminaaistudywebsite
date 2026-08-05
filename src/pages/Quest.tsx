@@ -9,6 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { getAuthToken } from '@/lib/auth-helper';
 
 type Boss = {
   name: string;
@@ -47,7 +48,7 @@ const Quest = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${await getAuthToken()}`,
         },
         body: JSON.stringify({ topic }),
       });

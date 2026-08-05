@@ -13,7 +13,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getAuthToken } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
-import { useSubscription } from "@/hooks/useSubscription";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { attemptGeneration } from "./utils/generationWrapper";
@@ -23,11 +22,6 @@ import { PremiumArtifactWorkspace } from "@/features/artifacts/PremiumArtifactWo
 import { useArtifactStore } from "@/features/artifacts/artifactStore";
 import { type ModelMode } from "./components/ModelSelector";
 
-import { CreditsDisplay } from "@/features/credits/CreditsDisplay";
-import { BuyCreditsModal } from "@/features/credits/BuyCreditsModal";
-import { ManualRestoreButton } from "@/features/credits/ManualRestore";
-import { useCreditsStore, creditsActions } from "@/features/credits/useCreditsStore";
-import { CREDIT_COSTS, hasEnoughCredits, type CreditAction } from "@/features/credits/creditsSystem";
 import { executeAgentAction, type AgentAction } from "@/lib/agent/actions";
 import { useMemory } from "@/contexts/MemoryContext";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -218,9 +212,7 @@ const MessageBubble = ({
 // ─── Main Component ───
 const ChatPage = () => {
   const { user } = useAuth();
-    const { isPro } = useSubscription();
     const navigate = useNavigate();
-    const credits = useCreditsStore();
     const upsertArtifact = useArtifactStore((s) => s.upsertArtifact);
     const openArtifact = useArtifactStore((s) => s.openArtifact);
     const activeArtifactId = useArtifactStore((s) => s.activeArtifactId);
@@ -230,7 +222,6 @@ const ChatPage = () => {
     const [loading, setLoading] = useState(false);
     const [loadingStage, setLoadingStage] = useState("");
     const [model, setModel] = useState<ModelMode>("auto");
-    const [buyOpen, setBuyOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 768);
     const [chatSessions, setChatSessions] = useState<ChatSummary[]>([]);
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -460,24 +451,17 @@ const ChatPage = () => {
     }, [persistMessage, pushCanvasFromMessage, executeToolCalls]);
 
     const runArtifact = useCallback(async (type: "notes" | "exam" | "slides" | "code", topic: string, originalPrompt: string, chatId: string | null) => {
-      const action = `${type}_artifact` as CreditAction; const cost = CREDIT_COSTS[action];
-      if (!isPro && !hasEnoughCredits(action, credits.balance)) { setBuyOpen(true); return; }
       const lid = uid();
       setMessages(p => [...p, { id: lid, role: "assistant", content: `Creating your ${type}…`, type: "loading", timestamp: Date.now() }]);
       try {
         const result = await attemptGeneration({ type, topic, prompt: originalPrompt, chatId: chatId ?? undefined, timeoutMs: 540_000, maxRetries: 1, onStage: setLoadingStage });
         if (result.success) {
-          let nb = credits.balance;
-          if (!isPro) {
-            try { const { data } = await (supabase as any).rpc("spend_user_credits", { _amount: cost, _action: action.replace(/_/g, " ") }); const r = Array.isArray(data) ? data[0] : data; if (r?.success && typeof r.balance !== "undefined") { nb = Number(r.balance); credits.setBalance(nb); } else { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); } }
-            catch { creditsActions.deduct(action); nb = Math.max(0, +(credits.balance - cost).toFixed(2)); }
-          }
-          const msg: Message = { id: uid(), role: "assistant", type: "artifact", content: "", artifactHtml: result.content, artifactType: type, topic, creditsUsed: isPro ? 0 : cost, newBalance: nb, timestamp: Date.now() };
+          const msg: Message = { id: uid(), role: "assistant", type: "artifact", content: "", artifactHtml: result.content, artifactType: type, topic, timestamp: Date.now() };
           upsertArtifact({ id: msg.id, type, title: topic, html: result.content, createdAt: msg.timestamp, sourceMessageId: msg.id, contextMessageIds: [], summary: `Created ${type}` });
           openArtifact(msg.id); setMessages(p => p.filter(m => m.id !== lid).concat(msg)); await persistMessage(chatId, msg);
-        } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
-      } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed — no credits charged.", timestamp: Date.now() })); }
-    }, [credits.balance, isPro, upsertArtifact, openArtifact, persistMessage]);
+        } else { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed.", timestamp: Date.now() })); }
+      } catch { setMessages(p => p.filter(m => m.id !== lid).concat({ id: uid(), role: "assistant", type: "error", content: "Generation failed.", timestamp: Date.now() })); }
+    }, [upsertArtifact, openArtifact, persistMessage]);
 
     const handleSend = useCallback(async (text?: string, artifactType?: "notes" | "exam" | "slides" | "code") => {
       const t = (text || input).trim();
@@ -610,7 +594,7 @@ const ChatPage = () => {
               ))}
               {chatSessions.length === 0 && <div className="text-center p-3 text-xs" style={{ color: "var(--text-muted)" }}>No conversations yet</div>}
             </div>
-            <div className="chat-sidebar-footer"><CreditsDisplay onClick={() => setBuyOpen(true)} /></div>
+            <div className="chat-sidebar-footer" />
           </motion.aside>
         )}
       </AnimatePresence>
@@ -637,8 +621,6 @@ const ChatPage = () => {
           </div>
           <div className="chat-topbar-right">
             <button onClick={startNewChat} className="chat-topbar-btn hidden sm:inline-flex"><MessageSquarePlus className="w-3.5 h-3.5" /> New</button>
-            <CreditsDisplay onClick={() => setBuyOpen(true)} />
-            <ManualRestoreButton />
           </div>
         </div>
 
@@ -677,7 +659,7 @@ const ChatPage = () => {
               {messages.map(m => (
                 <MessageBubble key={m.id} message={m}
                   onRegenerate={() => handleRegenerate(m.id)} onRetry={() => handleRetry(m.id)}
-                  onEdit={(text) => handleEdit(m.id, text)} onTopUp={() => setBuyOpen(true)}
+                  onEdit={(text) => handleEdit(m.id, text)}
                   onConfirmAction={handleConfirmAction ? () => handleConfirmAction(m.id) : undefined}
                   onCancelAction={handleCancelAction ? () => handleCancelAction(m.id) : undefined}
                 />
@@ -703,7 +685,6 @@ const ChatPage = () => {
           <p className="chat-disclaimer">Press ⌘↵ to send · Shift↵ for new line</p>
         </div>
 
-        <BuyCreditsModal open={buyOpen} onOpenChange={setBuyOpen} />
       </div>
 
       {canvasOpen && <div className="hidden md:flex" style={{ flex: "0 0 54%", minWidth: 0 }}><CanvasPanel open={canvasOpen} versions={canvasVersions} onClose={() => setCanvasOpen(false)} /></div>}

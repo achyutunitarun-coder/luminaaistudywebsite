@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthToken } from '@/lib/auth-helper';
 import { extractDocumentText, DOCUMENT_ACCEPT } from '@/lib/extractDocumentText';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -66,8 +67,7 @@ const SmartNotebook = () => {
   };
 
   const fetchResponse = async (body: Record<string, unknown>, onText?: (text: string) => void): Promise<string> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const token = await getAuthToken();
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
       method: 'POST',
       headers: {
@@ -135,8 +135,7 @@ const SmartNotebook = () => {
     setFlowNodes([]);
     setFlowEdges([]);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const token = await getAuthToken();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-notebook`, {
         method: 'POST',
         headers: {

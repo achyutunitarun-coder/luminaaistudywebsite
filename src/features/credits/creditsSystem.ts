@@ -8,6 +8,8 @@ export const CREDIT_COSTS = {
   slides_artifact: 1.5,
   code_artifact: 1.5,
 
+  lumina_computer: 5,
+
   lecture_notes_only: 3,
   lecture_notes_flashcards: 5,
   lecture_notes_flashcards_quiz: 7,

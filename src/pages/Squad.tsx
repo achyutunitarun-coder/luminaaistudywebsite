@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { getAuthToken } from '@/lib/auth-helper';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -208,7 +209,7 @@ const SquadPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${await getAuthToken()}`,
         },
         body: JSON.stringify({ messages: recentMsgs, mode: 'study' }),
       });

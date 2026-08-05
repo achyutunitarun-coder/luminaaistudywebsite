@@ -31,3 +31,9 @@ hf.env
 UsersTarunluminaaistudywebsite/
 .env*
 tmp/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+supabase/.temp/

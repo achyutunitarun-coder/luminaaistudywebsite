@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Upload, Loader2, StopCircle, FileText, FileAudio, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { getAuthToken } from '@/lib/auth-helper';
 import {
   getPreferredRecordingMimeType,
   prepareAudioChunksForTranscription,
@@ -65,9 +65,7 @@ const LectureRecorder = ({ onTranscriptReady, isProcessing, setIsProcessing, onD
   }, [cleanupAudioPipeline]);
 
   const getAuthorizationHeader = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    return `Bearer ${token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
+    return `Bearer ${await getAuthToken()}`;
   }, []);
 
   const startTranscriptionJob = useCallback(async (chunk: PreparedAudioChunk, authHeader: string, attempt = 1) => {

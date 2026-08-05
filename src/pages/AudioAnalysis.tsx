@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UpgradePopup } from '@/components/UpgradePopup';
+import { getAuthToken } from '@/lib/auth-helper';
 import { createBufferedTextAccumulator, streamSSE } from '@/lib/aiStream';
 
 type TranscriptionState = 'idle' | 'recording' | 'processing' | 'done';
@@ -100,7 +101,7 @@ const AudioAnalysis = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${await getAuthToken()}`,
         },
         body: JSON.stringify({
           topic: 'Lecture Analysis',
