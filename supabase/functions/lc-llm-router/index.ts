@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
         const CONTINUATION_PROMPT =
           "Continue exactly where you left off. Do NOT repeat anything already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation — no prefixes, no explanations.";
         const MAX_CONTINUATIONS = 4;
-        const callTokens = requestTokens;
+        const callTokens = clampTokens(model, requestedTokens);
 
         // Relay one upstream SSE stream to the client while tracking content + finish_reason.
         const relay = async (
