@@ -134,6 +134,9 @@ Deno.serve(async (req) => {
 
     const errors: string[] = [];
 
+    // Free-tier models reject very large completion budgets; clamp what we ask for.
+    const requestTokens = Math.max(512, Math.min(Number(max_tokens) || 2400, 8000));
+
     for (let i = 0; i < chain.length; i++) {
       const model = chain[i];
       const start = Date.now();
@@ -156,7 +159,7 @@ Deno.serve(async (req) => {
             model,
             messages,
             stream,
-            max_tokens,
+            max_tokens: requestTokens,
             ...(temperature !== undefined ? { temperature } : {}),
             ...(response_format ? { response_format } : {}),
           }),
@@ -207,7 +210,7 @@ Deno.serve(async (req) => {
         const CONTINUATION_PROMPT =
           "Continue exactly where you left off. Do NOT repeat anything already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation — no prefixes, no explanations.";
         const MAX_CONTINUATIONS = 4;
-        const callTokens = Math.max(2000, Math.min(max_tokens ?? 2400, 8000));
+        const callTokens = requestTokens;
 
         // Relay one upstream SSE stream to the client while tracking content + finish_reason.
         const relay = async (
@@ -340,7 +343,7 @@ Deno.serve(async (req) => {
               model: lastModel,
               messages,
               stream: false,
-              max_tokens: Math.min(max_tokens, 1200),
+              max_tokens: Math.min(requestTokens, 1200),
               ...(temperature !== undefined ? { temperature: 0.5 } : {}),
             }),
           });
