@@ -1,6 +1,7 @@
 // Lumina Computer — role-based, cooldown-aware, streaming router.
 // The ONLY function that talks to OpenRouter. Server-side key.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { clampTokens } from "../_shared/free-model-caps.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { detectTruncation } from "../_shared/truncation-guard.ts";
 
@@ -134,8 +135,8 @@ Deno.serve(async (req) => {
 
     const errors: string[] = [];
 
-    // Free-tier models reject very large completion budgets; clamp what we ask for.
-    const requestTokens = Math.max(512, Math.min(Number(max_tokens) || 2400, 8000));
+    // Free-tier models reject completion budgets above their own cap; clamp per model.
+    const requestedTokens = Number(max_tokens) || 2400;
 
     for (let i = 0; i < chain.length; i++) {
       const model = chain[i];
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
             model,
             messages,
             stream,
-            max_tokens: requestTokens,
+            max_tokens: clampTokens(model, requestedTokens),
             ...(temperature !== undefined ? { temperature } : {}),
             ...(response_format ? { response_format } : {}),
           }),
@@ -210,7 +211,7 @@ Deno.serve(async (req) => {
         const CONTINUATION_PROMPT =
           "Continue exactly where you left off. Do NOT repeat anything already written. Do NOT summarize. Resume mid-sentence, mid-code, or mid-JSON if needed. Output ONLY the direct continuation — no prefixes, no explanations.";
         const MAX_CONTINUATIONS = 4;
-        const callTokens = requestTokens;
+        const callTokens = clampTokens(model, requestedTokens);
 
         // Relay one upstream SSE stream to the client while tracking content + finish_reason.
         const relay = async (
@@ -283,7 +284,7 @@ Deno.serve(async (req) => {
                     model,
                     messages: contMessages,
                     stream: true,
-                    max_tokens: callTokens,
+                    max_tokens: Math.min(callTokens, clampTokens(model, requestedTokens)),
                     temperature: 0.5,
                   }),
                 });
@@ -343,7 +344,7 @@ Deno.serve(async (req) => {
               model: lastModel,
               messages,
               stream: false,
-              max_tokens: Math.min(requestTokens, 1200),
+              max_tokens: clampTokens(lastModel, Math.min(requestedTokens, 1500)),
               ...(temperature !== undefined ? { temperature: 0.5 } : {}),
             }),
           });
