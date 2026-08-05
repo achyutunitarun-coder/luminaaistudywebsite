@@ -44,11 +44,19 @@ serve(async (req) => {
         .select("*")
         .single();
 
-      if (createErr) throw createErr;
+      if (createErr) {
+        // Persisting defaults can fail (e.g. FK/RLS on a user row that isn't
+        // provisioned yet). Preferences are non-critical — serve defaults.
+        console.warn("memory-preferences: default insert failed", createErr.message);
+        return new Response(JSON.stringify({ ...defaults, persisted: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify(created), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (req.method === "POST") {
       const body = await req.json();
