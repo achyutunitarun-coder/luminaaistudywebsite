@@ -10,3 +10,7 @@ if ("serviceWorker" in navigator) {
     });
   });
 }
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+});

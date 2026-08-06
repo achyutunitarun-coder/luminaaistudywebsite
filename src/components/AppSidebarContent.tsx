@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { NavLink } from "@/components/NavLink";
-import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import {
   BarChart3, Sparkles, Brain, MessageSquare, Cpu, FileText,
   HelpCircle, Zap, Mic, PenTool, Target, Layers, Swords,
@@ -86,7 +85,6 @@ export const AppSidebarContent = memo(
   ({ profile, pathname, onCloseMobile, onSignOut, collapsed, isMobile }: SidebarContentProps) => {
     const levelProgress = profile ? Math.min((profile.xp || 0) % 100, 100) : 0;
     const isCollapsed = collapsed && !isMobile;
-    const { canInstall, installed, promptInstall } = useInstallPrompt();
 
     return (
       <div className="sidebar">
@@ -145,16 +143,17 @@ export const AppSidebarContent = memo(
 
         {/* Footer */}
         <div className="sidebar-footer">
-          {canInstall && (
-            <button
-              onClick={promptInstall}
-              className="sidebar-nav-item sidebar-nav-button"
-              title={installed ? "Lumina is installed" : "Install Lumina as a desktop app"}
-            >
-              <Download className="sidebar-nav-icon" />
-              {!isCollapsed && <span className="sidebar-nav-text">Install App</span>}
-            </button>
-          )}
+          <a
+            href="/downloads/Lumina-Setup.exe"
+            download="Lumina-Setup.exe"
+            target="_blank"
+            rel="noreferrer"
+            className="sidebar-nav-item sidebar-nav-button"
+            title="Download Lumina desktop app for Windows"
+          >
+            <Download className="sidebar-nav-icon" />
+            {!isCollapsed && <span className="sidebar-nav-text">Download Desktop</span>}
+          </a>
           <NavLink to="/upgrade" className="sidebar-nav-item" title="Upgrade">
             <Crown className="sidebar-nav-icon" />
             {!isCollapsed && <span className="sidebar-nav-text">Upgrade</span>}
