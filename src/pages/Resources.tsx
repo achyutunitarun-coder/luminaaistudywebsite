@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { getAuthToken } from '@/lib/auth-helper';
+import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CURRICULA, getTopicsForSubject } from '@/lib/curricula';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
