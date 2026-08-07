@@ -29,12 +29,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     function restoreSession() {
       supabase.auth.getSession()
-        .then(({ data: { session } }) => {
+        .then(async ({ data: { session } }) => {
           if (!isMounted) return;
           if (!session && window.location.hash.includes('access_token=') && retries < 5) {
             retries++;
             setTimeout(restoreSession, 300);
             return;
+          }
+          // Validate the stored token against the Auth server. If the signing key
+          // was rotated, the token can no longer be verified (bad_jwt) — drop it
+          // instead of leaving the user in a broken half-signed-in state.
+          if (session) {
+            const { error } = await supabase.auth.getUser();
+            if (error && isStaleTokenError(error)) {
+              console.warn('[Auth] stale token detected, signing out:', error.message);
+              await clearStaleSession();
+              if (!isMounted) return;
+              setSession(null);
+              setUser(null);
+              return;
+            }
           }
           setSession(session);
           setUser(session?.user ?? null);
@@ -54,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     restoreSession();
+
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
