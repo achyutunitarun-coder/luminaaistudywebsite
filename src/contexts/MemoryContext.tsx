@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuthToken } from "@/lib/auth-helper";
+import { getAuthToken, clearStaleSession } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
 
 // ─── Types ───
