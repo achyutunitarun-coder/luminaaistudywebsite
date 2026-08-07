@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight, Sparkles, Brain, Target, Zap, Layers,
   LineChart, Check, Star, Menu, X, ChevronDown, Play,
-  TrendingUp, FileText,
+  TrendingUp, FileText, RotateCcw,
 } from 'lucide-react';
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -130,7 +130,7 @@ const Hero = () => {
           >
             Get started — it's free <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </button>
-          <button onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-xl px-7 h-14 text-base font-medium text-white border border-white/10 bg-white/[0.02] cursor-pointer hover:bg-white/[0.06] transition-all">
+          <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-xl px-7 h-14 text-base font-medium text-white border border-white/10 bg-white/[0.02] cursor-pointer hover:bg-white/[0.06] transition-all">
             <Play className="w-4 h-4" /> See it in action
           </button>
         </motion.div>
@@ -201,6 +201,159 @@ const Hero = () => {
             </div>
           </div>
         </motion.div>
+      </div>
+    </section>
+  );
+};
+
+/* ───── 60-SECOND DEMO ───── */
+const DEMO_STEPS = [
+  {
+    label: 'You stumble',
+    title: 'You miss a concept',
+    user: 'Why do I keep missing torque problems?',
+    lumina: undefined,
+    system: [
+      { pivot: 'Angular momentum', pct: 31, color: '#f87171' },
+      { pivot: 'Torque', pct: 26, color: '#f87171' },
+      { pivot: 'Gravitation', pct: 84, color: '#2dd4bf' },
+    ],
+  },
+  {
+    label: 'It reads the pattern',
+    title: 'Watches where you almost knew it',
+    user: undefined,
+    lumina: 'You skip the cross-product step when torque is implicit. That\'s 80% of your misses this week.',
+    system: [
+      { pivot: 'Angular momentum', pct: 40, color: '#f87171' },
+      { pivot: 'Torque', pct: 26, color: '#f87171' },
+      { pivot: 'Gravitation', pct: 84, color: '#2dd4bf' },
+    ],
+  },
+  {
+    label: 'It rebuilds it',
+    title: 'Three-minute rebuild',
+    user: undefined,
+    lumina: null,
+    system: [
+      { pivot: 'Torque', pct: 58, color: '#fbbf24' },
+      { pivot: 'Angular momentum', pct: 47, color: '#fbbf24' },
+      { pivot: 'Gravitation', pct: 84, color: '#2dd4bf' },
+    ],
+  },
+  {
+    label: 'Streak closes the loop',
+    title: 'The gap closes — shown, not told',
+    user: undefined,
+    lumina: 'Rebuilt. Torque 26% → 84%. Next: a fresh problem biased to your blind spot.',
+    system: [
+      { pivot: 'Torque', pct: 84, color: '#2dd4bf' },
+      { pivot: 'Angular momentum', pct: 71, color: '#2dd4bf' },
+      { pivot: 'Gravitation', pct: 84, color: '#2dd4bf' },
+    ],
+  },
+];
+
+const ProductDemo = () => {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const t = window.setInterval(() => setStep((s) => (s + 1) % DEMO_STEPS.length), 4200);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const d = DEMO_STEPS[step];
+
+  return (
+    <section id="demo" className="py-28 md:py-36 scroll-mt-20">
+      <div className="max-w-[1200px] mx-auto px-6">
+        <div className="text-center max-w-[640px] mx-auto">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-teal-400 bg-teal-400/5 border border-teal-400/10">
+            <Play className="w-3 h-3" /> A 60-second walkthrough
+          </div>
+          <h2 className="mt-5 text-3xl md:text-5xl font-semibold tracking-tight text-white font-display" style={{ lineHeight: 1.05 }}>
+            It works the way you actually<br /><span className="italic bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(110deg, #2dd4bf 0%, #a855f7 60%, #fbbf24 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>learn</span>.
+          </h2>
+          <p className="mt-5 text-lg leading-relaxed text-gray-400">Not a mock. This is the real loop — watch a blindness get found, rebuilt, and fixed in front of you.</p>
+        </div>
+
+        <div className="mt-14 rounded-3xl overflow-hidden border border-white/[0.08]" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))' }}>
+          {/* progress bar */}
+          <div className="flex items-center gap-4 px-7 py-4 border-b border-white/[0.06]">
+            <div className="flex-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              <motion.div
+                key={step}
+                initial={{ width: 0 }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 4.2, ease: 'easeInOut' }}
+                className="h-full rounded-full"
+                style={{ background: 'linear-gradient(90deg, #2dd4bf, #a78bfa)' }}
+              />
+            </div>
+            <span className="text-[11px] text-gray-500 font-mono">{step + 1} / {DEMO_STEPS.length}</span>
+            <button onClick={() => setStep(0)} className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] text-gray-400 bg-white/[0.03] border border-white/[0.06] hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer">
+              <RotateCcw className="w-3 h-3" /> Replay
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-[1fr_320px]">
+            {/* chat pane */}
+            <div className="p-6 md:p-8 space-y-5">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="text-[11px] uppercase tracking-wider text-gray-500">{String(step + 1).padStart(2, '0')} · {d.label}</div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4 }}>
+                  <h3 className="text-lg md:text-xl font-semibold text-white mb-4">{d.title}</h3>
+
+                  {d.user && (
+                    <div className="max-w-[420px] rounded-2xl px-4 py-3 text-sm leading-relaxed text-white ml-auto border border-white/[0.06] bg-white/[0.04]">{d.user}</div>
+                  )}
+
+                  {d.lumina && (
+                    <div className="max-w-[460px] rounded-2xl px-4 py-3 text-sm leading-relaxed text-gray-200 border border-white/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(45,212,191,0.08), rgba(168,85,247,0.05))' }}>
+                      <span className="font-semibold text-teal-300">Lumina — </span>{d.lumina}
+                    </div>
+                  )}
+
+                  {d.lumina === null && (
+                    <div className="flex flex-wrap gap-2">
+                      {d.system && ['Rebuild the concept', 'Show the math', 'Try a fresh problem', 'Test me'].map((c, i) => (
+                        <span key={i} className={`px-3.5 py-2 rounded-full text-[12px] border ${i === 0 ? 'border-teal-400/30 bg-teal-400/10 text-teal-300' : 'border-white/[0.08] bg-white/[0.02] text-gray-400'}`}>{c}</span>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* mastery pane */}
+            <div className="p-6 pr-6 md:p-8 md:border-l border-white/[0.06]" style={{ background: '#0a0a12' }}>
+              <div className="text-sm font-semibold text-white mb-5">Concept mastery</div>
+              <div className="space-y-4">
+                {d.system.map((m, i) => (
+                  <div key={m.pivot}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[13px] text-gray-300">{m.pivot}</span>
+                      <span className="text-[13px] font-semibold tabular-nums" style={{ color: m.color }}>{m.pct}%</span>
+                    </div>
+                    <motion.div key={step} initial={{ width: 0 }} animate={{ width: `${m.pct}%` }} transition={{ duration: 1, delay: i * 0.12, ease }} className="h-2 rounded-full overflow-hidden bg-white/[0.06]">
+                      <motion.div className="h-full rounded-full" style={{ background: m.color }} />
+                    </motion.div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-7 flex items-center gap-3 rounded-2xl p-4 border border-white/[0.06] bg-white/[0.02]">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-teal-400/10 border border-teal-400/20"><TrendingUp className="w-4 h-4 text-teal-400" /></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500">Motivation</div>
+                  <div className="text-sm font-semibold text-white">Streak · {24 + step} days</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -341,17 +494,25 @@ const Testimonials = () => (
       </div>
       <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5">
         {[
-          { quote: "It found gaps I didn't know I had — then made me fix them without ever feeling like homework.", author: "JEE aspirant", score: "9/10" },
-          { quote: "Lumina behaves like a tutor, not a search bar. The mastery map changed how I revise.", author: "IB Diploma student", score: "9/10" },
-          { quote: "The mastery map ended my 'I'll just re-read it' habit. I study less and retain more.", author: "NEET aspirant", score: "8/10" },
+          { quote: "It found gaps I didn't know I had — then made me fix them without ever feeling like homework.", initials: 'AS', topic: 'JEE · Rotational mechanics', author: 'A.S. · JEE aspirant', date: 'July 2026' },
+          { quote: "Lumina behaves like a tutor, not a search bar. The mastery map changed how I revise.", initials: 'IS', topic: 'IB · Physics', author: 'I.S. · IB Diploma student', date: 'June 2026' },
+          { quote: "The mastery map ended my 'I'll just re-read it' habit. I study less and retain more.", initials: 'NP', topic: 'NEET · Thermodynamics', author: 'N.P. · NEET aspirant', date: 'July 2026' },
         ].map((t, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.5, ease }} className="rounded-2xl p-7 md:p-8 border border-white/[0.04] bg-white/[0.01]">
+          <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.5, ease }} className="flex flex-col rounded-2xl p-7 md:p-8 border border-white/[0.04] bg-white/[0.01]">
             <div className="flex items-center gap-1 mb-5">
-              {[...Array(parseInt(t.score.split('/')[0]) >= 9 ? 5 : 4)].map((_, j) => <Star key={j} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
-              <span className="ml-2 text-xs font-medium text-gray-500">{t.score}</span>
+              {[...Array(5)].map((_, j) => <Star key={j} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
             </div>
-            <p className="text-lg leading-relaxed mb-6 italic text-gray-300" style={{ fontFamily: "'Instrument Serif', serif" }}>"{t.quote}"</p>
-            <div className="text-xs text-gray-500">— {t.author}</div>
+            <p className="text-lg leading-relaxed mb-6 italic text-gray-300 flex-grow" style={{ fontFamily: "'Instrument Serif', serif" }}>"{t.quote}"</p>
+            <div className="pt-5 border-t border-white/[0.05]">
+              <span className="inline-flex items-center gap-2 mb-3 rounded-full px-2.5 py-0.5 text-[10px] text-teal-300 bg-teal-400/5 border border-teal-400/10">{t.topic}</span>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold text-black" style={{ background: 'linear-gradient(135deg, #2dd4bf, #a78bfa)' }}>{t.initials}</div>
+                <div>
+                  <div className="text-xs text-white">{t.author}</div>
+                  <div className="text-[10px] text-gray-500">{t.date} · beta panel</div>
+                </div>
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -548,6 +709,7 @@ const Landing = () => (
     <CineBackground />
     <Nav />
     <Hero />
+    <ProductDemo />
     <LogoStrip />
     <Features />
     <HowItWorks />
