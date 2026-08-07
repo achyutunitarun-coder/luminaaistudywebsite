@@ -3,7 +3,7 @@
 // Idempotent: replayed events return 200 without side effects.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,16 +96,14 @@ serve(async (req) => {
         const customerEmail = (paymentData.customer?.email as string) || "";
 
         if (productId && customerEmail) {
-          // Find user by email and apply credits
-          const { data: userProfile } = await admin
-            .from("profiles")
-            .select("user_id")
-            .eq("email", customerEmail)
-            .maybeSingle();
-
-          if (userProfile) {
+          // Find user by email and apply credits.
+          // NOTE: `profiles` has no `email` column; the email lives on
+          // auth.users, so look the user up via the Admin API (same approach
+          // as dodo-webhook).
+          const userId = await findUserIdByEmail(admin, customerEmail);
+          if (userId) {
             await admin.rpc("sync_dodo_entitlement_for_user", {
-              _user_id: userProfile.user_id,
+              _user_id: userId,
               _product_id: productId,
               _payment_id: dodoPaymentId,
               _source: "webhook",
@@ -114,6 +112,8 @@ serve(async (req) => {
               _current_period_end: null,
             });
             console.log("[billing-webhook] Legacy credits applied for", customerEmail);
+          } else {
+            console.error("[billing-webhook] User not found for email:", customerEmail);
           }
         }
       }
@@ -145,6 +145,21 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), { status: 500, headers: jsonOk });
   }
 });
+
+async function findUserIdByEmail(
+  admin: SupabaseClient,
+  email: string,
+): Promise<string | null> {
+  const target = email.toLowerCase();
+  for (let page = 1; page <= 20; page++) {
+    const { data: userData, error: listError } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+    if (listError) throw listError;
+    const hit = userData?.users?.find((u: { email?: string | null }) => u.email?.toLowerCase() === target);
+    if (hit) return hit.id;
+    if (!userData?.users?.length || userData.users.length < 100) break;
+  }
+  return null;
+}
 
 async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
   if (!signature || !secret) return true;
