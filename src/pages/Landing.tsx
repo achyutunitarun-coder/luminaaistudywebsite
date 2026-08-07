@@ -405,7 +405,7 @@ const Pricing = () => {
         'Smart Paper Generator',
         'Predicted Question Generator',
         'Concept Map Mastery',
-        'Highest model priority',
+        '150 credits/mo for heavy AI use',
       ],
       cta: 'Go PRO+',
       featured: false,

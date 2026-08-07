@@ -75,7 +75,7 @@ const TIERS: Tier[] = [
     bullets: [
       '40 credits / month · rollover up to 80',
       'Unlimited AI Chat',
-      '5 AI models',
+      'Full AI model lineup',
       'Unlimited Notes, Tests, Flashcards',
       'Guided Lesson · Smart Notebook',
       'Lecture AI · Note to Quiz',
@@ -95,7 +95,7 @@ const TIERS: Tier[] = [
     rollover: SUBSCRIPTION_PLANS.pro_plus.rolloverCap,
     bullets: [
       '150 credits / month · rollover up to 300',
-      'All 8 AI models',
+      'Full AI model lineup',
       'Reasoning · Deep Dive · Creative modes',
       'Larger tests & flashcard decks',
       'AI Study Plans',
@@ -119,8 +119,8 @@ const TIERS: Tier[] = [
       'Everything in PRO+',
       'Advanced Weakness Radar',
       'Enhanced Study Session',
-      'More AI horsepower per task',
-      'Priority routing',
+      'Larger batches & faster runs',
+      'Full model fallback redundancy',
     ],
     accent: 'amber',
     icon: Rocket,
