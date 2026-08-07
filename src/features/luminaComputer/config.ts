@@ -202,7 +202,8 @@ export function buildGeneratePrompt(
   narrativeBeat?: string,
   screenshotUrl?: string,
   designMood?: string,
-  subjectContext?: string
+  subjectContext?: string,
+  siteContext?: string
 ): string {
   const parts: string[] = [];
 
@@ -212,6 +213,11 @@ export function buildGeneratePrompt(
   if (subjectContext?.trim()) {
     parts.push(`\n## Refinement`);
     parts.push(subjectContext.trim());
+  }
+
+  if (siteContext?.trim()) {
+    parts.push(`\n## Whole-page plan`);
+    parts.push(siteContext.trim());
   }
 
   parts.push(`\n## Block`);
@@ -231,4 +237,37 @@ export function buildGeneratePrompt(
   parts.push(`\nProduce the block now.`);
 
   return parts.join('\n');
+}
+
+// ============================================================================
+// SITE CONTEXT — gives every block awareness of the whole page's plan so the
+// output is a coherent, single-design artifact instead of isolated sections.
+// ============================================================================
+
+export interface SiteBlockRef {
+  title: string;
+  prompt_seed: string;
+  block_type?: string;
+}
+
+export function buildSiteContext(overallIntent?: string, blocks?: SiteBlockRef[]): string {
+  const lines: string[] = [];
+
+  if (overallIntent?.trim()) {
+    lines.push(`Overall intent of the site: ${overallIntent.trim()}`);
+  }
+
+  if (blocks && blocks.length) {
+    lines.push(`\nThe full page is built from these sections, in order:`);
+    blocks.forEach((b, i) => {
+      lines.push(`  ${i + 1}. ${b.title} — ${b.prompt_seed}`);
+    });
+    lines.push(`\nRules:`);
+    lines.push(`  - You are building section ${blocks.length > 1 ? `one part of a ${blocks.length}-section page` : `the entire page`}. Match the sections above in voice and design language.`);
+    lines.push(`  - Do NOT restate or duplicate the intent of sections you do not own. Only build your own section's content.`);
+    lines.push(`  - Reuse the same accent color, font family, spacing rhythm, and border radius across all sections for a consistent look.`);
+    lines.push(`  - Make the page feel complete and premium even in isolation: real, specific copy — never lorem ipsum, never "placeholder", never "..." filler.`);
+  }
+
+  return lines.join('\n');
 }

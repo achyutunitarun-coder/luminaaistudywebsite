@@ -33,6 +33,22 @@ export interface LcProject {
   updated_at: string;
 }
 
+export interface PlannedBlock {
+  block_type: string;
+  title: string;
+  prompt_seed: string;
+  order_index: number;
+  layout_hint?: string;
+  narrative_beat?: string;
+}
+
+export interface BlockPlan {
+  blocks: PlannedBlock[];
+  model_used?: string;
+  is_fallback?: boolean;
+  overall_intent?: string;
+}
+
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 export async function planBlocks(goal: string, output_type: OutputType) {

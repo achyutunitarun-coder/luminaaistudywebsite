@@ -21,7 +21,7 @@ import {
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
-import { SYSTEM_PROMPTS, buildGeneratePrompt, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
+import { SYSTEM_PROMPTS, buildGeneratePrompt, buildSiteContext, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
@@ -71,6 +71,7 @@ export default function LuminaComputer() {
   const [designStyle, setDesignStyle] = useState("auto");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const streamingRef = useRef<Record<string, string>>({});
+  const planContextRef = useRef<string>("");
   const [, force] = useState(0);
   const reduce = useReducedMotion();
   const navigate = useNavigate();
@@ -184,6 +185,12 @@ export default function LuminaComputer() {
       }
       pushLog(`Plan ready — ${plan.blocks.length} blocks (via ${plan.model_used ?? "orchestrator"})`, "ok");
 
+      const siteContext = buildSiteContext(
+        (plan as any).overall_intent ?? g,
+        plan.blocks.map((b: any) => ({ title: b.title, prompt_seed: b.prompt_seed, block_type: b.block_type }))
+      );
+      planContextRef.current = siteContext;
+
       const inserted = await insertBlocks(project.id, plan.blocks);
       setBlocks(inserted);
 
@@ -256,7 +263,7 @@ export default function LuminaComputer() {
     return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO_GUARD}`;
   }
 
-  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string, attempt = 1) {
+  async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string, attempt = 1, siteContext?: string) {
     const t0 = Date.now();
     await updateBlock(block.id, { status: "generating" });
     setBlocks((bs) => bs.map((b) => b.id === block.id ? { ...b, status: "generating" } : b));
@@ -273,6 +280,7 @@ export default function LuminaComputer() {
       screenshotUrl,
       overrideStyle ?? undefined,
       extraInstruction?.trim() || undefined,
+      siteContext ?? planContextRef.current,
     );
 
     let routerError: string | undefined;
