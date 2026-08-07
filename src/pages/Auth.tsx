@@ -47,13 +47,17 @@ const Auth = () => {
         if (data?.session) navigate('/dashboard', { replace: true });
       } else {
         if (!name.trim()) return toast.error('Enter your name');
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: name, display_name: name } },
         });
         if (error) throw error;
-        toast.success('Account created! You are now signed in.');
+        if (data?.session) {
+          navigate('/dashboard', { replace: true });
+        } else {
+          toast.success('Account created! Check your email to confirm, then sign in.');
+        }
       }
     } catch (err: any) {
       toast.error(err.message || 'Authentication failed');

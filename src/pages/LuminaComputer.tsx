@@ -134,10 +134,30 @@ export default function LuminaComputer() {
     if (busy) return;
 
     const cost = CREDIT_COSTS.lumina_computer;
-    if (!isPro && !hasEnoughCredits("lumina_computer", credits.balance)) {
-      setBuyOpen(true);
-      toast.error(`Need ${cost} credits to build. Top up to continue.`);
-      return;
+
+    if (!isPro) {
+      // Authoritative check against the server balance, not the stale local store.
+      let serverBalance: number | null = null;
+      try {
+        const { data: row } = await (supabase as any)
+          .from("user_credit_balances")
+          .select("balance,plan")
+          .maybeSingle();
+        if (row?.plan === "power_plus" || row?.plan === "mega" || row?.plan === "pro_plus") {
+          serverBalance = null; // subscribed tiers are exempt; leave pro handling to spend RPC
+        } else if (row?.balance !== undefined) {
+          serverBalance = Number(row.balance);
+        }
+      } catch {
+        serverBalance = null;
+      }
+      if (serverBalance !== null) credits.setBalance(serverBalance);
+
+      if (serverBalance !== null && !hasEnoughCredits("lumina_computer", serverBalance)) {
+        setBuyOpen(true);
+        toast.error(`Need ${cost} credits to build. Top up to continue.`);
+        return;
+      }
     }
 
     setBusy(true);

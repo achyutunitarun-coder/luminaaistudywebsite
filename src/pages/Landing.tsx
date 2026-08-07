@@ -96,7 +96,7 @@ const Hero = () => {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease }} className="flex justify-center mb-8">
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-gray-400 bg-white/[0.03] border border-white/[0.08]">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
-            12,000+ students. JEE · NEET · SAT · IB · A-Levels.
+            Built for JEE · NEET · SAT · IB · A-Levels.
           </div>
         </motion.div>
 
@@ -341,9 +341,9 @@ const Testimonials = () => (
       </div>
       <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5">
         {[
-          { quote: "It found gaps I didn't know I had — then made me fix them without ever feeling like homework.", author: "JEE aspirant · Hyderabad", score: "9/10" },
-          { quote: "Lumina is the only thing on my laptop that actually behaves like a tutor, not a search bar.", author: "IB Diploma · Year 12", score: "9/10" },
-          { quote: "The mastery map ended my 'I'll just re-read it' habit. I study less, retain more. Brutal upgrade.", author: "NEET repeater", score: "10/10" },
+          { quote: "It found gaps I didn't know I had — then made me fix them without ever feeling like homework.", author: "JEE aspirant", score: "9/10" },
+          { quote: "Lumina behaves like a tutor, not a search bar. The mastery map changed how I revise.", author: "IB Diploma student", score: "9/10" },
+          { quote: "The mastery map ended my 'I'll just re-read it' habit. I study less and retain more.", author: "NEET aspirant", score: "8/10" },
         ].map((t, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.5, ease }} className="rounded-2xl p-7 md:p-8 border border-white/[0.04] bg-white/[0.01]">
             <div className="flex items-center gap-1 mb-5">

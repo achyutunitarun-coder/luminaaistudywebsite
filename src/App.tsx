@@ -27,6 +27,7 @@ const WeaknessRadar = lazy(() => import("@/pages/WeaknessRadar"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const StudyPlanner = lazy(() => import("@/pages/StudyPlanner"));
 const QuickStudy = lazy(() => import("@/pages/QuickStudy"));
+const GuidedLesson = lazy(() => import("@/pages/GuidedLesson"));
 const StudySession = lazy(() => import("@/pages/StudySession"));
 const Pulse = lazy(() => import("@/pages/Pulse"));
 const NotesGenerator = lazy(() => import("@/pages/NotesGenerator"));
@@ -185,7 +186,7 @@ const App = () => (
                 <Route path="/study-planner" element={<StudyPlanner />} />
                 <Route path="/note-to-quiz" element={<Navigate to="/ai-tools" replace />} />
                 <Route path="/quick-study" element={<QuickStudy />} />
-                <Route path="/guided-lesson" element={<Navigate to="/ai-tools" replace />} />
+                <Route path="/guided-lesson" element={<GuidedLesson />} />
                 <Route path="/study-session" element={<StudySession />} />
                 <Route path="/pulse" element={<Pulse />} />
                 <Route path="/notes-generator" element={<NotesGenerator />} />

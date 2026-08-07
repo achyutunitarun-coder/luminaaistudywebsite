@@ -17,7 +17,7 @@ export default function ConnectorHub() {
     setBusy(service);
     try {
       const url = await startOAuth(provider, provider === "google" ? [service as any] : undefined);
-      sessionStorage.setItem("lumina_oauth_return", "/connectors");
+      sessionStorage.setItem("lumina_oauth_return", "/chat");
       window.location.assign(url);
     } catch (e) {
       toast.error("Could not start sign-in", { description: String(e) });
