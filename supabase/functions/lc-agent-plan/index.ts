@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           role: "orchestrator",
           stream: false,
-          max_tokens: 4000,
+          max_tokens: 8000,
           temperature: 0.6,
           system,
           prompt: buildUserPrompt(goal, output_type),
@@ -248,6 +248,7 @@ Deno.serve(async (req) => {
       blocks: outBlocks, 
       model_used: modelUsed ?? "fallback",
       is_fallback: isFallback,
+      overall_intent: typeof parsed?.overall_intent === "string" ? parsed.overall_intent : undefined,
       error_detail: isFallback ? routerError : null
     }), {
       headers: { ...cors, "Content-Type": "application/json" },

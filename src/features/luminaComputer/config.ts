@@ -260,7 +260,9 @@ export function buildSiteContext(overallIntent?: string, blocks?: SiteBlockRef[]
   if (blocks && blocks.length) {
     lines.push(`\nThe full page is built from these sections, in order:`);
     blocks.forEach((b, i) => {
-      lines.push(`  ${i + 1}. ${b.title} — ${b.prompt_seed}`);
+      const seed = b.prompt_seed ?? "";
+      const short = seed.length > 120 ? seed.slice(0, 117) + "…" : seed;
+      lines.push(`  ${i + 1}. ${(b.title ?? "").slice(0, 60)} — ${short}`);
     });
     lines.push(`\nRules:`);
     lines.push(`  - You are building section ${blocks.length > 1 ? `one part of a ${blocks.length}-section page` : `the entire page`}. Match the sections above in voice and design language.`);
