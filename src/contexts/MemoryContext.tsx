@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getAuthToken } from "@/lib/auth-helper";
+import { getAuthToken, clearStaleSession } from "@/lib/auth-helper";
 import { useAuth } from "@/hooks/useAuth";
 
 // ─── Types ───
@@ -116,10 +116,19 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
         fetch(`${MEMORY_URL}/memory-summary`, { headers }),
       ]);
 
+      if (prefsRes.status === 401) {
+        // Token subject no longer resolves to a real user (rotated key / deleted
+        // account) — clear the dead session instead of retrying on every mount.
+        console.warn("Memory: stale session detected, signing out");
+        await clearStaleSession();
+        setLoading(false);
+        return;
+      }
       if (prefsRes.ok) {
         const p = await prefsRes.json();
         if (p && p.id) setPreferences(p);
       }
+
       if (progressRes.ok) {
         const p = await progressRes.json();
         setProgress(Array.isArray(p) ? p : []);
