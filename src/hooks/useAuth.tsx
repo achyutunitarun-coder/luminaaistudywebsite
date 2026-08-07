@@ -110,10 +110,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data, error } = await supabase.auth.refreshSession();
         if (error) {
+          if (isStaleTokenError(error)) {
+            console.warn('[Auth] stale token on refresh, signing out:', error.message);
+            await clearStaleSession();
+            if (!isMounted) return;
+            setSession(null);
+            setUser(null);
+            return;
+          }
           console.warn('[Auth] refresh failed, will retry:', error.message);
         } else if (data.session) {
           console.log('[Auth] session refreshed proactively');
         }
+
       } catch (e) {
         console.warn('[Auth] refresh exception:', e);
       }
