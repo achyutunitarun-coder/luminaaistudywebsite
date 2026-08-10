@@ -165,14 +165,24 @@ ta.addEventListener('input', () => localStorage.setItem(key, ta.value));
 </body></html>`;
 }
 
-// ── System prompt builder — SHORT and FOCUSED ────────────────────────
-// Long prompts overwhelm free models → raw output. Keep it under 50 lines.
+// ── System prompt builder ────────────────────────────────────────────
+// The client ships a full craft spec (aesthetic direction + medium brief +
+// quality bar). Honour it when present; otherwise fall back to a compact brief.
 
-function makeSystemPrompt(type: string, topic: string, _provided: string) {
-  void _provided;
-  return `Generate a complete, self-contained HTML ${type} about "${topic}".
+const OUTPUT_CONTRACT =
+  `\n\nOUTPUT CONTRACT: reply with ONLY the raw HTML document, starting at <!DOCTYPE html> and ending at </html>. No markdown fences, no commentary, no preamble.`;
 
-[Applies the artifact engine and slides/notes/exam logic from the shared artifact-prompts, depending on the artifact type requested.] Let the medium constraints (slides: glance-length, doc: sustained reading, exam: assessable answers) determine structure — not a fixed section template. Include real educational content, not placeholders. Working interactivity where it serves the content. Start with <!DOCTYPE html> and end with </html>. NOTHING else. No markdown fences, no commentary, no preamble.`;
+function makeSystemPrompt(type: string, topic: string, provided: string) {
+  const spec = (provided || "").trim();
+  if (spec.length > 400) {
+    return spec.includes("OUTPUT CONTRACT") ? spec : spec + OUTPUT_CONTRACT;
+  }
+
+  return `You are Lumina's Artifact Engine. Generate a complete, self-contained HTML ${type} about "${topic}".
+
+Design it like a senior designer would: a display face at clamp(38px,7vw,84px) with tight tracking, body text at 17-19px capped at 68ch, a real grid with deliberate asymmetry, one accent colour, hairline rules, one consistent shadow and radius scale, and a single staggered entrance motion killed under prefers-reduced-motion. Google Fonts only; inline SVG for any graphic. Responsive 360px-1600px with no horizontal scroll.
+
+Let the medium decide structure (slides: glance-length with an action title per slide; notes: sustained reading with worked examples and reveal-answer practice; exam: sittable questions with a mark scheme; code: a fully working app). Real, accurate subject matter throughout — no placeholders, no lorem ipsum, no emoji as UI. Working interactivity where it serves the content. Close every tag.${OUTPUT_CONTRACT}`;
 }
 
 // ── Main generation logic ───────────────────────────────────────────
