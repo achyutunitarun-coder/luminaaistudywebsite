@@ -1,6 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireUser } from "../_shared/auth.ts";
-import { callAIText, OWL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
+import { callAIText, MODELS_FAST } from "../_shared/models.ts";
+
+// Hard ceiling for the entire AI call. The shared router's phases/continuations
+// can each scale past the per-call timeout and add up to 120s+; we race them
+// against this fixed deadline and always return (fallback) within it.
+const HARD_DEADLINE_MS = 20_000;
+
+async function generateWithDeadline(
+  messages: { role: string; content: string }[],
+  models: string[],
+  maxTokens: number,
+  temperature: number,
+  timeoutMs: number,
+  tag: string,
+): Promise<string> {
+  const ai = callAIText(messages, models, maxTokens, temperature, timeoutMs, tag);
+  const timer = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("deadline exceeded")), HARD_DEADLINE_MS)
+  );
+  return Promise.race([ai, timer]).catch((e) => {
+    if (e instanceof Error && e.message === "deadline exceeded") throw e;
+    throw e;
+  });
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,19 +75,37 @@ serve(async (req) => {
       userPrompt = `Subjects: ${JSON.stringify(subjects)}\nTarget date: ${examDate}\nDaily hours: ${dailyHours}\nToday: ${today}`;
     }
 
-    const models = [OWL, MODEL_FREE_ROUTER];
-    const maxTokens = isExamMode ? 4000 : 2000;
-    const timeoutMs = isExamMode ? 25_000 : 15_000;
+    const models = MODELS_FAST;
+    const maxTokens = isExamMode ? 3000 : 1500;
+    const timeoutMs = HARD_DEADLINE_MS;
 
-    const content = await callAIText(
-      [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      models, maxTokens, 0.4, timeoutMs, "plan"
-    );
+    let content: string;
+    try {
+      content = await generateWithDeadline(
+        [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+        models, maxTokens, 0.4, timeoutMs, "plan"
+      );
+    } catch (e) {
+      const t = e instanceof Error ? e.message : "";
+      if (t === "deadline exceeded") {
+        if (isExamMode) {
+          return new Response(
+            JSON.stringify({
+              markdown: `## Exam Study Plan\nToday is ${new Date().toISOString().split("T")[0]}. Exam date: ${examDate || "N/A"}. Daily study budget: ${dailyHours || 2}h.\n\nHere is a structured plan. Study each subject in focused sessions, prioritise weak areas, and leave the final days for revision and practice tests.`,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const fallback = fallbackStudyPlan(subjects || [], examDate, dailyHours);
+        return new Response(JSON.stringify(fallback), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      throw e;
+    }
 
     if (isExamMode) {
       return new Response(JSON.stringify({ markdown: content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
-      const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+      const cleaned = content.replace(/<thinking[\s\S]*?<\/think>/gi, "").replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) return new Response(match[0], { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify(fallbackStudyPlan(subjects || [], examDate, dailyHours)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -121,7 +121,6 @@ Deno.serve(async (req) => {
     // 2b. Hardcoded last‑resort models when routing table is empty
     if (chain.length === 0) {
       chain = [
-        "nvidia/nemotron-3-ultra-550b-a55b:free",
         "nvidia/nemotron-3-super-120b-a12b:free",
         "openai/gpt-oss-20b:free",
         "google/gemma-4-31b-it:free",
@@ -326,8 +325,8 @@ Deno.serve(async (req) => {
     // 4. Last‑resort: try one more model directly when all routing models have failed
     //    (only applies when we actually have keys — not when KEYS is empty)
     const LAST_RESORT_MODELS = stream
-      ? ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"]
-      : ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
+      ? ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"]
+      : ["nvidia/nemotron-3-super-120b-a12b:free", "openrouter/free"];
     for (const lastModel of LAST_RESORT_MODELS) {
       if (!chain.includes(lastModel)) {
         const key = nextKey();

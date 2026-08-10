@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAIText, OWL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
+import { callAIText, PRIMARY_MODEL, MODEL_FREE_ROUTER } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +87,7 @@ FORMAT: Return ONLY valid JSON (no markdown, no thinking tags):
           content: `Subject: ${subjectStr}\n\nSyllabus/Topic:\n${syllabusStr}\n\nGenerate ${num} conceptual, exam-grade MCQs.`
         },
       ],
-      [OWL, MODEL_FREE_ROUTER],
+      [PRIMARY_MODEL, MODEL_FREE_ROUTER],
       Math.min(8000, Math.max(3000, num * 800)),
       0.35,
       30_000,

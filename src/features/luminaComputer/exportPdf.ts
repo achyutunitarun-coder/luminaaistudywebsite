@@ -201,16 +201,6 @@ const CSS = `
 #lc-pdf-root .foot{margin-top:34px;padding-top:14px;border-top:1px solid #e0e3e8;font-family:'JetBrains Mono',monospace;font-size:7.5pt;color:#a0a5ae;text-align:center}
 `;
 
-function ensureFonts() {
-  const id = "lc-pdf-fonts";
-  if (document.getElementById(id)) return;
-  const l = document.createElement("link");
-  l.id = id;
-  l.rel = "stylesheet";
-  l.href = "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap";
-  document.head.appendChild(l);
-}
-
 export function buildPdfHtml(title: string, blocks: LcBlock[]): string {
   const ready = blocks.filter((b) => b.content_json);
   const body = ready.map(blockHtml).filter(Boolean).join("\n");
@@ -229,43 +219,62 @@ export async function exportBlocksToPdf(
   const ready = blocks.filter((b) => b.content_json);
   if (ready.length === 0) throw new Error("Nothing to export yet — no generated content.");
 
-  onProgress(10, "Collecting generated content…");
   const html = buildPdfHtml(title, ready);
 
-  ensureFonts();
   const style = document.createElement("style");
   style.textContent = CSS;
-  const root = document.createElement("div");
-  root.id = "lc-pdf-root";
-  root.innerHTML = html;
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;left:-10000px;top:0;width:816px;background:#fff;pointer-events:none;z-index:-1";
   host.appendChild(style);
-  host.appendChild(root);
+  host.id = "lc-export-pdf";
   document.body.appendChild(host);
 
   try {
-    onProgress(30, "Laying out pages…");
+    onProgress(20, "Laying out pages…");
+    // Warm up fonts so text is measured/rendered correctly.
     try { await (document as any).fonts?.ready; } catch { /* noop */ }
     await new Promise((r) => setTimeout(r, 120));
 
-    onProgress(50, "Rendering document…");
-    const { default: html2pdf } = await import("html2pdf.js");
+    // Split the document into page-sized DOM chunks. Rendering the whole
+    // document in ONE html2canvas pass can exceed the browser canvas-height
+    // limit and produce a fully blank PDF (a known html2pdf limitation). By
+    // rendering each page chunk separately we stay well under the limit.
+    const pages = paginateHtml(html);
+
+    onProgress(40, "Rendering document…");
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
     const filename = `${title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "document"}.pdf`;
 
-    const worker = html2pdf()
-      .set({
-        margin: [0.45, 0.4, 0.55, 0.4],
-        filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 816 },
-        jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
-      } as any)
-      .from(root);
+    const pdf = new jsPDF({ unit: "in", format: "a4", orientation: "portrait" });
+    const M = { top: 0.45, left: 0.4, bottom: 0.55, right: 0.4 };
+    const usableW = 8.27 - M.left - M.right;
 
-    const blob: Blob = await worker.outputPdf("blob");
+    for (let i = 0; i < pages.length; i++) {
+      onProgress(30 + Math.round((i / pages.length) * 50), `Rendering page ${i + 1}/${pages.length}…`);
+      const pg = document.createElement("div");
+      pg.id = "lc-pdf-root";
+      pg.innerHTML = pages[i];
+      host.appendChild(pg);
+
+      const canvas = await html2canvas(pg, {
+        scale: 1,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 816,
+      });
+      host.removeChild(pg);
+
+      if (i > 0) pdf.addPage();
+      const imgW = usableW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", M.left, M.top, imgW, imgH);
+    }
+
     onProgress(85, "Preparing download…");
+    const blob: Blob = pdf.output("blob");
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -280,4 +289,51 @@ export async function exportBlocksToPdf(
   } finally {
     host.remove();
   }
+}
+
+/**
+ * Builds page chunks of the PDF HTML. The height returned by the browser layout
+ * is used to break after a block would overflow the A4 content height.
+ */
+function paginateHtml(html: string): string[] {
+  const host = document.getElementById("lc-export-pdf");
+  if (!host) return [html];
+
+  const doc = document.createElement("div");
+  doc.id = "lc-pdf-root";
+  doc.innerHTML = html;
+  host.appendChild(doc);
+
+  const children = Array.from(doc.children) as HTMLElement[];
+  const cover = children.shift();
+
+  // A4 portrait: usable content height in px at the 816px print width.
+  // (CSS `#lc-pdf-root` is 816px wide; text is ~10.5pt.)
+  const usableIn = 11.69 - 1.0; // page height minus top/bottom margin
+  const pxPerInch = 96;
+  const maxPagePx = Math.floor(usableIn * pxPerInch);
+
+  const pages: string[] = [];
+  let cur: HTMLElement[] = [];
+  let curH = 0;
+
+  const flush = () => {
+    const parts: string[] = [];
+    if (pages.length === 0 && cover) parts.push(cover.outerHTML);
+    parts.push(...cur.map((el) => el.outerHTML));
+    if (parts.length) pages.push(parts.join(""));
+    cur = [];
+    curH = 0;
+  };
+
+  for (const el of children) {
+    const h = el.offsetHeight || 0;
+    if (cur.length && curH + h > maxPagePx) flush();
+    cur.push(el);
+    curH += h;
+  }
+  flush();
+
+  host.removeChild(doc);
+  return pages;
 }

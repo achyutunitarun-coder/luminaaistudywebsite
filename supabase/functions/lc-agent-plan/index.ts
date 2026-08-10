@@ -1,6 +1,6 @@
 // Lumina Computer — agent planner. One orchestrator-role call, returns block plan JSON.
 import { requireUser } from "../_shared/auth.ts";
-import { selectCraftSkills, buildCraftSkillsBlock } from "../_shared/craft-skills.ts";
+import { selectComputerSkills, buildComputerSkillsBlock } from "../_shared/computer-skill-library.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -122,11 +122,11 @@ Deno.serve(async (req) => {
     }
 
     async function callRouter(useJsonFormat: boolean) {
-      // Select craft skills based on the goal and append to system prompt
-      const craftMatches = selectCraftSkills(goal);
-      const craftBlock = buildCraftSkillsBlock(craftMatches);
-      const system = craftBlock
-        ? `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n${craftBlock}`
+      // Select skills matched to the goal and append to system prompt
+      const skillMatches = selectComputerSkills(goal);
+      const skillBlock = buildComputerSkillsBlock(skillMatches);
+      const system = skillBlock
+        ? `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n${skillBlock}`
         : ORCHESTRATOR_SYSTEM_PROMPT;
 
       return await fetch(routerUrl, {

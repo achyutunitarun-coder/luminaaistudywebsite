@@ -20,11 +20,9 @@ export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) return;
       (supabase as any)
-        .from('user_credit_balances')
-        .select('balance,plan')
-        .maybeSingle()
+        .rpc('get_daily_credit_balance')
         .then(({ data: row }: any) => {
-          if (!cancelled && row) setBalance(Number(row.balance), row.plan);
+          if (!cancelled && row) setBalance(Number(row.balance));
         });
     });
     return () => { cancelled = true; };

@@ -2,7 +2,7 @@
 // POST returns { jobId, status: "queued" } immediately; the client polls artifact_jobs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAIText, getModelsForArtifact, OWL, type ArtifactType } from "../_shared/models.ts";
+import { callAIText, getModelsForArtifact, PRIMARY_MODEL, type ArtifactType } from "../_shared/models.ts";
 import { detectTruncation } from "../_shared/truncation-guard.ts";
 
 declare const EdgeRuntime:
@@ -279,7 +279,7 @@ async function generateHtml(
     }
   }
 
-  // ── Attempt 3: Minimal, OWL only ──
+  // ── Attempt 3: Minimal, PRIMARY only ──
   {
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
@@ -289,7 +289,7 @@ async function generateHtml(
             { role: "system", content: `Write HTML. Output only a complete <!DOCTYPE html> page. No markdown or explanations.` },
             { role: "user", content: `Write a complete HTML page about "${topic}". Include sections: overview, key concepts, examples, practice questions. Dark theme. Real content.` },
           ],
-          [OWL],
+          [PRIMARY_MODEL],
           12000,
           0.2,
           Math.min(maxTtl - elapsed, 60_000),
@@ -297,10 +297,10 @@ async function generateHtml(
         );
         const cleaned = cleanHtml(text);
         if (validHtml(cleaned)) {
-          return { html: cleaned, model: OWL };
+          return { html: cleaned, model: PRIMARY_MODEL };
         }
         if (cleaned.length > 500) {
-          return { html: cleaned, model: OWL };
+          return { html: cleaned, model: PRIMARY_MODEL };
         }
       } catch (e) {
         console.warn(`[artifact] minimal error:`, e);

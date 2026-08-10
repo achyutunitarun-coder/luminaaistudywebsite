@@ -138,14 +138,13 @@ export default function LuminaComputer() {
 
     if (!isPro) {
       // Authoritative check against the server balance, not the stale local store.
+      // Uses the daily-refill RPC so the free 5/day allowance is granted up-front.
       let serverBalance: number | null = null;
       try {
-        const { data: row } = await (supabase as any)
-          .from("user_credit_balances")
-          .select("balance,plan")
-          .maybeSingle();
-        if (row?.plan === "power_plus" || row?.plan === "mega" || row?.plan === "pro_plus") {
-          serverBalance = null; // subscribed tiers are exempt; leave pro handling to spend RPC
+        const { data: row } = await (supabase as any).rpc("get_daily_credit_balance");
+        if (Array.isArray(row)) {
+          const r = row[0];
+          if (r?.balance !== undefined) serverBalance = Number(r.balance);
         } else if (row?.balance !== undefined) {
           serverBalance = Number(row.balance);
         }

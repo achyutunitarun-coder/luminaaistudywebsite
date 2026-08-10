@@ -2873,6 +2873,13 @@ export type Database = {
           success: boolean
         }[]
       }
+      get_daily_credit_balance: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          balance: number
+          daily_refilled: boolean
+        }[]
+      }
       sync_dodo_entitlement_for_user: {
         Args: {
           _current_period_end?: string

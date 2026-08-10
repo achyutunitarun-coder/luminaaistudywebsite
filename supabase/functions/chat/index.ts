@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callWithFallback, callAIText, getModelsForIntent, getSystemPromptForIntent, MODELS_LONG_CTX } from "../_shared/models.ts";
+import { TEACHER_SYSTEM_PROMPT } from "../_shared/teacher-system-prompt.ts";
+import { COMPUTER_SYSTEM_PROMPT } from "../_shared/computer-system-prompt.ts";
 import { LuminaModeOrchestrator } from "../_shared/mode-orchestrator.ts";
 import { ModeRouter, formatModeRoutes } from "../_shared/mode-router.ts";
 import { classifyBudget, getBudgetForMode } from "../_shared/tool-budget.ts";
@@ -26,12 +28,14 @@ const CONT_LONG = "Continue exactly where you left off. Do NOT repeat ANYTHING a
 
 function buildSystem(intent: string, mode: string, effort: string, isComputer: boolean): string {
   if (isComputer) {
-    const detailed = getSystemPromptForIntent(mode === "mun" ? "mun" : "computer");
+    const detailed = mode === "mun" ? getSystemPromptForIntent("mun") : COMPUTER_SYSTEM_PROMPT;
     return `${detailed}\n\nEffort: ${effort}`;
+  }
+  if (intent === "study") {
+    return `${TEACHER_SYSTEM_PROMPT}\n\nEffort: ${effort}`;
   }
   const base = "Compose the final system prompt by layering: (1) the base Lumina identity and behavioral floor that applies regardless of mode, (2) the selected mode's capabilities, (3) any session-specific context that should shape THIS response specifically. Do not let mode selection override genuine safety or accuracy behavior — mode changes response style and depth, never correctness standards or the behavioral floor.";
   if (intent === "coding") return `${base}\nThe user needs working code. Prioritize correct implementation and concise technical communication.`;
-  if (intent === "study") return `${base}\nThe user is learning. Prioritize genuine comprehension, analogies, and progressive explanation depth.`;
   if (intent === "greeting") return `${base}\nShort warm reply, 1-2 sentences.`;
   if (intent === "research") return `${base}\nThorough multi-source analysis with clear distinctions between fact and inference.`;
   if (intent === "slides") return `${base}\nWell-structured slide content with one clear idea per slide.`;
@@ -65,8 +69,9 @@ async function streamContinuation(
   maxTokens: number,
   tag: string,
   delta: (t: string) => void,
+  minExpected?: number,
 ): Promise<{ text: string; continuationRounds: number }> {
-  const minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : 1229;
+  if (minExpected === undefined) minExpected = maxTokens > 0 ? Math.round(maxTokens * 0.15) : 1229;
   let accumulated = "";
 
   // ── Inline continuation: stream, detect, continue, repeat ──
@@ -258,7 +263,11 @@ serve(async (req) => {
             const models = isComputer ? MODELS_LONG_CTX : (getModelsForIntent(intent.intent as any) || MODELS_LONG_CTX);
             const convo = [{ role: "system", content: system }, ...messages];
             const tag = isComputer ? "computer" : intent.intent;
-            const { continuationRounds } = await streamContinuation(convo, models, maxTokens, tag, delta);
+            // For chat (non-computer), do NOT force continuation by length — real
+// truncation is caught by the content/structural checks (unclosed code fences,
+// mid-word cutoffs, [truncated] markers). Only computer/heavy keep a length bar.
+            const floor = isComputer ? undefined : 0;
+            const { continuationRounds } = await streamContinuation(convo, models, maxTokens, tag, delta, floor);
             try { send({ lumina_usage: { continuations: continuationRounds, model: models[0] ?? "unknown" } }); } catch (e) { /* best-effort */ }
           }
         } catch (e) { delta(`\n**Error:** ${e instanceof Error ? e.message : String(e)}\n`); }

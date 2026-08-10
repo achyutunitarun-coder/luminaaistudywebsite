@@ -8,7 +8,6 @@
 export const GLOBAL_OUTPUT_CEILING = 32768;
 
 export const FREE_MODEL_OUTPUT_CAPS: Record<string, number> = {
-  "nvidia/nemotron-3-ultra-550b-a55b:free": 65536,
   "nvidia/nemotron-3-super-120b-a12b:free": 65536,
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": 65536,
   "nvidia/nemotron-nano-12b-v2-vl:free": 32768,

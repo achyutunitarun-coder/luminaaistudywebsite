@@ -18,16 +18,18 @@ export const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 //   The Automator                → openrouter/free
 // ═══════════════════════════════════════════════════════════════════
 
-// PRIMARY_MODEL — the best all-round free model as of July 2026.
-// (Legacy name "OWL" is kept for compatibility; it no longer points
-// to the retired openrouter/owl-alpha endpoint.)
-export const OWL = "nvidia/nemotron-3-ultra-550b-a55b:free";
-export const PRIMARY_MODEL = OWL;
+// ═══════════════════════════════════════════════════════════════════
 
-// QUALITY — Complex reasoning, agentic workflows
+// PRIMARY_MODEL — best all-round free model (July 2026).
+// The former "OWL" alias pointed at the retired openrouter/owl-alpha endpoint;
+// that alias was removed and PRIMARY_MODEL now points to a live 120B Nemotron.
+export const PRIMARY_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+
+// QUALITY — Complex reasoning, agentic workflows (primary is a live 120B Nemotron;
+// the former "OWL" alias pointed at the retired openrouter/owl-alpha endpoint and was removed)
 export const MODELS_QUALITY = [
-  OWL,
-  "nvidia/nemotron-3-super-120b-a12b:free",
+  PRIMARY_MODEL,
+  "nvidia/nemotron-3-nano-30b-a3b:free",
   "google/gemma-4-31b-it:free",
 ];
 
@@ -43,8 +45,8 @@ export const MODELS_CODE = [
 // LONG CTX — Deep research, huge docs
 export const MODELS_LONG_CTX = [
   "google/gemma-4-31b-it:free",
-  OWL,
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
 ];
 
 // VISION — Multimodal, vision & video
@@ -54,28 +56,29 @@ export const MODELS_VISION = [
   "nvidia/nemotron-nano-12b-v2-vl:free",
 ];
 
-// FAST — Quick responses, ultra-fast, edge
+// FAST — quick responses, ultra-fast, edge. Fast-first: small/high tok/s
+// models lead, the heavy 120B Nemotron ranks last as a fallback (speeds up
+// first token and token-per-second for interactive chat/SSE).
 export const MODELS_FAST = [
-  OWL,
+  "google/gemma-4-26b-a4b-it:free",
+  "openai/gpt-oss-20b:free",
   "nvidia/nemotron-3-nano-30b-a3b:free",
   "nvidia/nemotron-nano-9b-v2:free",
-  "openai/gpt-oss-20b:free",
-  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 
-// BALANCED — Daily tasks, low latency
+// BALANCED — daily tasks, low latency. Fast-first for chat/SSE snappiness.
 export const MODELS_BALANCED = [
-  OWL,
+  "google/gemma-4-26b-a4b-it:free",
   "openai/gpt-oss-20b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "google/gemma-4-26b-a4b-it:free",
 ];
 
 // WRITING — Long-form prose, roleplay, multilingual
 export const MODELS_WRITING = [
-  OWL,
   "nvidia/nemotron-3-super-120b-a12b:free",
   "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
   "inclusionai/ling-3.0-flash:free",
 ];
 
@@ -210,7 +213,7 @@ export interface ModelClient {
 }
 
 /** Default ModelClient implementation using the shared key pool and routing */
-export function createModelClient(models: string[] = [OWL, ...MODELS_CODE]): ModelClient {
+export function createModelClient(models: string[] = ["nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_CODE]): ModelClient {
   return {
     async complete(messages, opts = {}) {
       const { maxTokens = 16384, temperature = 0.3, tag = "client" } = opts;
@@ -279,10 +282,10 @@ const ROLE_PREFERENCES: Record<ModelRole, (m: typeof _modelCatalog[0]) => number
 
 export function resolveModelForRole(role: ModelRole): string {
   const catalog = _modelCatalog;
-  if (catalog.length === 0) return OWL; // fallback to static default
+  if (catalog.length === 0) return "nvidia/nemotron-3-super-120b-a12b:free";
   const scorer = ROLE_PREFERENCES[role];
-  if (!scorer) return OWL;
-  let best = catalog[0]?.id ?? OWL;
+  if (!scorer) return "nvidia/nemotron-3-super-120b-a12b:free";
+  let best = catalog[0]?.id ?? "nvidia/nemotron-3-super-120b-a12b:free";
   let bestScore = -Infinity;
   for (const m of catalog) {
     const s = scorer(m);
@@ -385,7 +388,7 @@ export function getPoolStatus(): Record<string, any> {
   return {
     model_catalog: { synced: _modelCatalog.length, last_sync: _modelCatalogLastSync ? new Date(_modelCatalogLastSync).toISOString() : null },
     pools: status,
-    static_primary: OWL,
+    static_primary: PRIMARY_MODEL,
   };
 }
 
@@ -458,7 +461,7 @@ const HEADERS_BASE = {
 // Moonshot/Kimi direct API — removed per user preference (OpenRouter + Google AI Studio only)
 
 const PARALLEL_RACE_COUNT = 4;          // race more models for snappier first-token
-const OWL_KEY_FANOUT = 3;               // fire OWL on this many keys in parallel — first responder wins
+const OWL_KEY_FANOUT = 3;               // fire PRIMARY on this many keys in parallel — first responder wins
 // Long, generous budgets — we don't cap output length, so the wall-clock has to be big enough
 // for full games / long files to finish streaming through the gateway.
 const STREAM_TOTAL_BUDGET_MS = 150_000; // practical edge-safe streaming budget
@@ -688,7 +691,7 @@ async function raceModels(
   const live = models.filter((m) => !_deadModels.has(m));
   const selected = (live.length > 0 ? live : models).slice(0, Math.min(PARALLEL_RACE_COUNT, models.length));
   const racers = selected.map(async (model) => {
-    const res = model === models[0] || model === OWL
+    const res = model === models[0] || model === PRIMARY_MODEL
       ? await callModelKeyFanout(model, body, timeoutMs, tag, 3)
       : await callModel(model, body, timeoutMs, tag);
     if (!res) throw new Error(`${model} failed`);
@@ -870,7 +873,7 @@ export async function callWithFallback(
 
   const tryModel = async (model: string, timeout: number): Promise<Response | null> => {
     if (_deadModels.has(model)) return null;
-    const isPrimary = model === models[0] || model === OWL;
+    const isPrimary = model === models[0] || model === PRIMARY_MODEL;
     // Cap per-call max_tokens to the model's single-shot output limit
     // Auto-continuation in callAIText chains multiple chunks to reach the
     // caller's total maxTokens.
@@ -926,7 +929,7 @@ export async function callWithFallback(
     const tryModelReset = async (m: string, t: number): Promise<Response | null> => {
       // In force-retry, the module-level _deadModels set is respected
       // (populated by callModel/callModelKeyFanout on 404).
-      const isPrimary = m === models[0] || m === OWL;
+      const isPrimary = m === models[0] || m === PRIMARY_MODEL;
       return isPrimary
         ? await callModelKeyFanout(m, perModelBody, t, `${tag}/force`, 3)
         : await callModel(m, perModelBody, t, `${tag}/force`);
@@ -1518,21 +1521,21 @@ export function getModelsForArtifact(type: ArtifactType, hasImage = false): stri
     case "python":
     case "code":
     case "svg":
-      return [OWL, "cohere/north-mini-code:free", "poolside/laguna-s-2.1:free", ...MODELS_CODE];
+      return [PRIMARY_MODEL, "cohere/north-mini-code:free", "poolside/laguna-s-2.1:free", ...MODELS_CODE];
     case "mermaid":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "cohere/north-mini-code:free", ...MODELS_CODE];
+      return [PRIMARY_MODEL, "nvidia/nemotron-3-nano-30b-a3b:free", "cohere/north-mini-code:free", ...MODELS_CODE];
     case "slides":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", ...MODELS_WRITING];
+      return [PRIMARY_MODEL, "google/gemma-4-31b-it:free", ...MODELS_WRITING];
     case "notes":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_WRITING];
+      return [PRIMARY_MODEL, "google/gemma-4-31b-it:free", ...MODELS_WRITING];
     case "flashcards":
-      return [OWL, "openai/gpt-oss-20b:free", "google/gemma-4-26b-a4b-it:free", ...MODELS_BALANCED];
+      return [PRIMARY_MODEL, "openai/gpt-oss-20b:free", "google/gemma-4-26b-a4b-it:free", ...MODELS_BALANCED];
     case "math":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
+      return [PRIMARY_MODEL, "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
     case "exam":
-      return [OWL, "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
+      return [PRIMARY_MODEL, "google/gemma-4-31b-it:free", ...MODELS_QUALITY];
     case "general":
     default:
-      return [OWL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", ...MODELS_BALANCED];
+      return [PRIMARY_MODEL, MODEL_FREE_ROUTER, "nvidia/nemotron-3-nano-30b-a3b:free", "openai/gpt-oss-20b:free", ...MODELS_BALANCED];
   }
 }

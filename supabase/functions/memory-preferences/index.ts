@@ -35,7 +35,7 @@ serve(async (req) => {
         theme: "dark",
         language: "en",
         notifications_enabled: true,
-        preferred_model: "nvidia/nemotron-3-ultra-550b-a55b:free",
+        preferred_model: "nvidia/nemotron-3-super-120b-a12b:free",
         metadata: {},
       };
       const { data: created, error: createErr } = await sb

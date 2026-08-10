@@ -10,7 +10,6 @@ const corsHeaders = {
 
 // Preferred models for HTML artifact generation (July 2026 free roster).
 const HTML_MODELS = [
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
   "cohere/north-mini-code:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "poolside/laguna-s-2.1:free",

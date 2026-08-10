@@ -28,3 +28,14 @@
 - `supabase/migrations/20260712060410_c9b25e66-0b25-44b8-a9cc-b2c9fa281a57.sql`: Creates `lc_projects`, `lc_blocks`, `lc_model_routing` tables
 - `supabase/migrations/0022_20260504062357_ec837ab2-ba51-4afc-a697-5bc039ff3c8d.sql`: Creates `user_credit_balances` table and `touch_updated_at()` function
 - `src/features/luminaComputer/api.ts` (line 35–39): `FN_BASE` and `authHeader()` — backend URL uses `VITE_SUPABASE_URL`
+
+## Craft-skill system (Lumina Computer "no random skill" wiring — built)
+- `_shared/teacher-system-prompt.ts` → `TEACHER_SYSTEM_PROMPT`; `_shared/doubt-solver-system-prompt.ts` → `DOUBT_SOLVER_SYSTEM_PROMPT`; `_shared/computer-system-prompt.ts` → `COMPUTER_SYSTEM_PROMPT`.
+- `_shared/computer-skill-library.ts` aggregates 8 skill categories from `_shared/skill-library/skills/category-{1..8}.ts` (each exports `CATEGORY_N: ComputerSkill[]`) into `COMPUTER_SKILLS`. Exports `COMPUTER_SKILL_ROUTER_PROMPT`, `selectComputerSkills(request, {limit,minScore})`, `buildComputerSkillsBlock(matches)`.
+  - WARNING: `_shared/skills/` (docs/sheets/slides/webapp) is a SEPARATE, unrelated dir — imports must point at `./skill-library/skills/category-N.ts`.
+- Wired into endpoints:
+  - `chat/index.ts` `buildSystem`: computer → `COMPUTER_SYSTEM_PROMPT`; study → `TEACHER_SYSTEM_PROMPT`; mun → `getSystemPromptForIntent("mun")`.
+  - `doubt-solver/index.ts`: uses `DOUBT_SOLVER_SYSTEM_PROMPT`.
+  - `lc-agent-plan/index.ts` `callRouter`: uses `selectComputerSkills`/`buildComputerSkillsBlock` (was `selectCraftSkills` from `_shared/craft-skills.ts`).
+  - `_shared/craft-skills.ts` and `_shared/skills.ts` still exist but the above paths no longer import them.
+- BUILD CHECK (esbuild, no Deno locally): `npx --no-install esbuild <fn>/index.ts --bundle --loader:.ts=ts --outdir=<tmp> --log-level=error` must exit 0.

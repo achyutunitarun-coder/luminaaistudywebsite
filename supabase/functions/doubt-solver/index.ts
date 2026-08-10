@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { streamAI, MODELS_FAST } from "../_shared/models.ts";
+import { DOUBT_SOLVER_SYSTEM_PROMPT } from "../_shared/doubt-solver-system-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,10 +29,8 @@ serve(async (req) => {
     const { messages } = JSON.parse(body);
     if (!Array.isArray(messages) || messages.length > 60) return new Response(JSON.stringify({ error: 'Invalid messages' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const systemPrompt = `You are answering a specific question a student got stuck on. Address exactly what they're confused about — do not deliver a generic explanation of the broader topic when their actual confusion is narrower than that. Diagnose what the likely source of the confusion is (a specific misconception, a missing prerequisite, an ambiguous phrasing in their source material) and address that directly, not just the surface question. Match depth to what's actually needed to resolve the doubt — sometimes that's one clarifying sentence, sometimes it's working through an example. Don't pad a simple clarification into a longer response to seem more thorough.`;
-
     const res = await streamAI(
-      [{ role: "system", content: systemPrompt }, ...messages],
+      [{ role: "system", content: DOUBT_SOLVER_SYSTEM_PROMPT }, ...messages],
       MODELS_FAST, 2000, 0.55, 45_000, "doubt"
     );
     return new Response(res.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });

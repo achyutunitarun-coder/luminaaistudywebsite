@@ -35,7 +35,7 @@ const STAGES: StageDef[] = [
   {
     stage: "planner",
     label: "Thinking",
-    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 4096, temperature: 0.4,
     systemPrompt: () =>
       `You are the planning stage of this pipeline. Your only job is to take the user's request and produce a clear statement of what needs to be built and why — not how, not the structure, just a precise understanding of the actual goal that every later stage can work from. Read past the surface request to the real intent (what is this FOR, who is it FOR). If the request is ambiguous in a way that would meaningfully change what gets built, flag the ambiguity rather than silently picking an interpretation. Output a concise goal statement — a sentence or two — not a plan, not a structure. That belongs to the architect stage, not you.`,
@@ -51,7 +51,7 @@ const STAGES: StageDef[] = [
   {
     stage: "research",
     label: "Research",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "google/gemma-4-31b-it:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free", "google/gemma-4-31b-it:free"],
     maxTokens: 8192, temperature: 0.4,
     systemPrompt: () =>
       `You are the research stage. Your job is to gather whatever factual grounding the downstream build will need — and only that. Read the planner's goal statement and identify what claims, data, or context the final output will need to be accurate and specific rather than generic. Depth should match what the goal actually requires — a light creative request may need little to no research, a data-driven analysis needs real depth. Do not editorialize or start shaping how findings should be presented — that's the writer's job downstream. Output findings as clearly sourced, organized information the next stage can draw on directly.`,
@@ -59,7 +59,7 @@ const STAGES: StageDef[] = [
   {
     stage: "architect",
     label: "Architecture",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 8192, temperature: 0.35,
     systemPrompt: () =>
       `You are the architect stage. Given the goal and any research gathered, decide the structure of the final piece — how many parts it has and what each part's job is. This is the stage that decides shape, and shape must come from the specific content and goal in front of you, not from a template for "what a deck/doc/site usually looks like." A retirement tribute and a product pitch might both arrive as "decks" but should never get the same shape. For each part you define, state its purpose in one specific sentence — vague purposes like "overview" mean you haven't actually done the architectural thinking yet. Do not write any actual content — that's the builder's job.`,
@@ -99,7 +99,7 @@ const STAGES: StageDef[] = [
   {
     stage: "assembler",
     label: "Assembling",
-    models: ["nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
+    models: ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"],
     maxTokens: 65536, temperature: 0.42,
     systemPrompt: () =>
       `You are the assembly stage. Combine the individually-built and validated parts into the single coherent final piece — this means checking that transitions between parts make sense, that the whole reads as one considered piece rather than a stitched-together sequence of independently-generated fragments, and that nothing contradicts across parts (a stat mentioned in part 2 shouldn't be contradicted by a different figure in part 5). Do not rewrite content wholesale at this stage — your job is coherence and connective tissue, not re-authoring what the builder already produced.`,
