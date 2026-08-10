@@ -264,7 +264,7 @@ async function generateHtml(
     const elapsed = Date.now() - started;
     if (elapsed < maxTtl) {
       try {
-        const simpleSys = `Output a complete HTML page about "${topic}". Start with <!DOCTYPE html>. Real content, dark theme, No markdown, No explanations.`;
+        const simpleSys = `Output one complete, beautifully designed HTML page about "${topic}". Start at <!DOCTYPE html>, end at </html>. Use a Google Fonts pairing, an oversized display heading, a 68ch reading measure, one accent colour on a considered palette, hairline rules, generous whitespace, and a subtle fade-up entrance. Fully responsive. Real, accurate content — no placeholders, no emoji as UI. No markdown, no explanations.`;
         const text = await callAIText(
           [
             { role: "system", content: simpleSys },
