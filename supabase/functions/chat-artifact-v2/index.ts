@@ -230,7 +230,7 @@ async function generateHtml(
           console.warn(`[artifact] primary truncated: ${truncation.signal}, retrying with simpler prompt...`);
           const retryText = await callAIText(
             [
-              { role: "system", content: `Output a complete HTML page about "${type}". Start with <!DOCTYPE html>. Real content, dark theme, No markdown, No explanations.` },
+              { role: "system", content: `Output one complete, designed HTML page about "${topic}" (${type}). Start at <!DOCTYPE html>, end at </html>. Google Fonts, oversized display headings, 68ch measure, one accent colour, hairline rules, responsive. Real subject content, no placeholders. No markdown, no explanations.` },
               { role: "user", content: `Create a ${type} artifact. Complete HTML with real content, minimum 400 lines.` },
             ],
             models,
