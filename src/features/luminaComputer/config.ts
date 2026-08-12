@@ -182,29 +182,22 @@ export function buildSchemaGuide(mode: string, blockType: string): string {
   if (blockType === "site_section" || mode === "website") return "";
 
   if (blockType === "sheet_tab" || mode === "sheet") {
-    return `OUTPUT SHAPE — return ONLY a single JSON object (no prose around it) matching exactly this schema:
-{"tab_name":"Short tab label","columns":["Column A","Column B","..."],"rows":[["v1","v2"],...],"formulas":{"C2":"=B2/B1*100", ...}}
+    return `This is a SPREADSHEET TAB, not a document. Respond in EXACTLY one JSON object and nothing else (no markdown, no prose, no fences). Use precisely this schema:
+{"tab_name":"Short tab label","columns":["Column A","Column B"],"rows":[["v1","v2"],["v3","v4"]],"formulas":{"C2":"=B2*C3"}}
 
-Columns are the header labels. Each row is an array of values in column order. Numeric data should be real numbers, not strings. Include a "formulas" map of cell references (A1-style, header is row 1) to live Excel formulas so the exported workbook is a functional model, not just static values — e.g. totals, percentages, growth, compounding, projections. Fill every column with complete, plausible, detailed data for every row — never leave cells empty, never "..." placeholders.`;
+Worked example fragment: {"tab_name":"Revenue","columns":["Quarter","ARR","Growth%"],"rows":[["Q1","100000",null],["Q2","125000",25]],"formulas":{"C3":"=B3/B2-1"}}
+
+Columns are header labels. Each row is an array of values in column order. Numeric data are real numbers, not strings. Include a "formulas" map of A1-style cell refs (header is row 1) to live Excel formulas so the export is a functional model — totals, percentages, growth, projections. Fill EVERY cell with complete, plausible, detailed data — never empty, never "..." placeholders. Real numbers, real specifics.`;
   }
 
   if (blockType === "slide" || mode === "slides") {
-    return `OUTPUT SHAPE — return ONLY a single JSON object (no prose around it, no markdown fences). Choose exactly ONE of these layouts that best serves this slide's intent and emit ONLY its shape, with all fields complete and genuinely useful (real numbers, real specifics — never empty strings, never "0", never "..." placeholders):
+    return `This is a SLIDE, not a document. The "go long / thousands of words / book chapter" instruction above does NOT apply — a slide is one crisp claim with dense supporting detail. Respond in EXACTLY one JSON object and nothing else (no markdown, no headings, no prose, no code fences, no text before or after).
 
-- cover:     {"layout":"cover","eyebrow":"<kicker>","title":"Big headline","subtitle":"One-line positioning"}
-- section_divider: {"layout":"section_divider","eyebrow":"<number/section>","title":"Section name","subtitle":"optional"}
-- statement: {"title":"Headline","subtitle":"Supporting statement"}             (omit layout)
-- bullets:   {"layout":"bullets","title":"Headline","subtitle":"optional","bullets":["Complete point 1","Complete point 2","Complete point 3","..."]}
-- kpi_grid:  {"layout":"kpi_grid","title":"optional","kpis":[{"value":"42%","label":"What this metric means","delta":"+3 pts vs last year"}, ...]}  (use 4+ KPIs for a 4-up grid)
-- comparison:{"layout":"comparison","title":"Headline","comparison":{"left":{"heading":"Before / Option A","points":["line 1","line 2","..."]},"right":{"heading":"After / Option B","points":["line 1","line 2","..."]}}}
-- timeline:  {"layout":"timeline","title":"optional","timeline":[{"when":"Q1'26","what":"What happened then"}, ...]}
-- agenda:    {"layout":"agenda","title":"optional","agenda":[{"title":"Topic","note":"optional detail"}, ...]}
-- stat:      {"layout":"stat","stat":{"value":"92%","label":"What this number is and why it matters","source":"optional source"},"title":"optional"}
-- quote:     {"layout":"quote","quote":{"text":"The quotation itself","attribution":"Person, Role"}}
-- two_column:{"layout":"two_column","title":"Headline","columns":[{"heading":"Left","body":"Developed paragraph of real substance"},{"heading":"Right","body":"Developed paragraph of real substance"}]}
-- closing:   {"layout":"closing","closing":{"message":"Powerful closing line","cta":"optional call to action"}}
+Worked examples (match their exact shape):
+- Traction:   {"layout":"kpi_grid","title":"Traction","kpis":[{"value":"$1.8M","label":"7-mo ARR","delta":"+3x"},{"value":"92%","label":"Gross retention"},{"value":"47%","label":"Thin-file uplift"},{"value":"6.2%","label":"Default rate"}]}
+- Problem:    {"layout":"comparison","title":"The Underwriting Gap","comparison":{"left":{"heading":"Legacy","points":["FICO-only rejects 40% of thin-file","Manual review costs lenders $18B/yr","Skews toward the already-banked"]},"right":{"heading":"Lumina","points":["Alt-data + ML approve 47% more","2.5s real-time decisions","FCRA-compliant, explainable"]}}}
 
-Add these optional fields to ANY layout when useful: "eyebrow" (uppercase kicker), "footnote" (source/citation line), "speaker_notes" (what to say aloud). Write dense, specific content for every field — a slide is one crisp claim + supporting detail, not an essay. Pick the layout that makes the point land hardest.`;
+Pick the ONE layout that makes this block's point land hardest from: cover, section_divider, statement (omit "layout"), bullets, kpi_grid (4+ KPIs), comparison, timeline, agenda, stat, quote, two_column, closing. Emit ONLY that layout's fields, all complete and specific — real numbers, real specifics, never empty strings, never "0", never "..." placeholders. Optionally add "eyebrow", "footnote", or "speaker_notes". Dense detail, concise overall.`;
   }
 
   return "";

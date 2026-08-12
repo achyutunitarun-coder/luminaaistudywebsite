@@ -271,6 +271,7 @@ export default function LuminaComputer() {
 
     const role = block.block_type === "site_section" ? "code" : "content";
     const system = systemFor(project.output_type, block.block_type, overrideStyle);
+    const wantsJson = block.block_type === "slide" || block.block_type === "sheet_tab" || project.output_type === "slides" || project.output_type === "sheet";
     const prompt = buildGeneratePrompt(
       overallGoal,
       block.title ?? "",
@@ -299,6 +300,7 @@ export default function LuminaComputer() {
         project_id: project.id, block_id: block.id,
         max_tokens: role === "code" ? 16000 : 12000,
         temperature: 0.82,
+        response_format: wantsJson ? { type: "json_object" } : undefined,
         onMeta: metaHandler,
         onToken: (tk) => {
           streamingRef.current[block.id] = (streamingRef.current[block.id] ?? "") + tk;

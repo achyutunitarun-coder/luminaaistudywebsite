@@ -85,6 +85,7 @@ export async function streamRoute(opts: {
   block_id?: string;
   max_tokens?: number;
   temperature?: number;
+  response_format?: { type: string } | Record<string, unknown>;
 } & StreamCallbacks): Promise<{ text: string; model: string | null }> {
   const res = await fetchWithAuth(`${FN_BASE}/lc-llm-router`, {
     method: "POST",
@@ -97,6 +98,7 @@ export async function streamRoute(opts: {
       block_id: opts.block_id,
       max_tokens: opts.max_tokens,
       temperature: opts.temperature,
+      response_format: opts.response_format,
       stream: true,
     }),
     signal: opts.signal,
