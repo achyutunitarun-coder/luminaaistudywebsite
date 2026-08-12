@@ -2,7 +2,6 @@
 // Pure constants, no logic.
 
 export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
-  "nvidia/nemotron-3-ultra-550b-a55b:free": 1000000,
   "nvidia/nemotron-3-super-120b-a12b:free": 262144,
   "google/gemma-4-31b-it:free": 262144,
   "google/gemma-4-26b-a4b-it:free": 262144,
@@ -20,7 +19,6 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 };
 
 export const MODEL_OUTPUT_CAPS: Record<string, number> = {
-  "nvidia/nemotron-3-ultra-550b-a55b:free": 32768,
   "nvidia/nemotron-3-super-120b-a12b:free": 32768,
   "google/gemma-4-31b-it:free": 32768,
   "google/gemma-4-26b-a4b-it:free": 32768,

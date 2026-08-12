@@ -75,7 +75,7 @@ const SettingsPage = () => {
   const save = async () => {
     await updateProfile.mutateAsync(settings);
     await updatePreferences({
-      preferred_model: settings.study_mode === 'concept_mastery' ? 'nvidia/nemotron-3-ultra-550b-a55b:free' : undefined,
+      preferred_model: settings.study_mode === 'concept_mastery' ? 'nvidia/nemotron-3-super-120b-a12b:free' : undefined,
       metadata: { study_mode: settings.study_mode, difficulty: settings.difficulty, learning_style: settings.learning_style },
     });
     logActivity('settings_changed', 'settings', 'Updated settings', settings as any);

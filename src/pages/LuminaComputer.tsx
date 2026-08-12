@@ -21,7 +21,7 @@ import {
   type LcBlock, type LcProject, type OutputType,
 } from "@/features/luminaComputer/api";
 import { WebsitePreview } from "@/features/luminaComputer/WebsitePreview";
-import { SYSTEM_PROMPTS, buildGeneratePrompt, buildSiteContext, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
+import { SYSTEM_PROMPTS, buildGeneratePrompt, buildSiteContext, buildSchemaGuide, ANTI_ECHO_GUARD, styleDirective } from "@/features/luminaComputer/config";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const MODES: Array<{ key: OutputType; label: string; icon: any; role: string; sub: string }> = [
@@ -259,7 +259,8 @@ export default function LuminaComputer() {
     if (mode === "website" || blockType === "site_section")
       return `${SYSTEM_PROMPTS.code}${styleDir}${ANTI_ECHO_GUARD}`;
 
-    return `${SYSTEM_PROMPTS.content}${styleDir}${ANTI_ECHO_GUARD}`;
+    const schemaGuide = buildSchemaGuide(mode, blockType);
+    return `${SYSTEM_PROMPTS.content}${styleDir}${schemaGuide}\n${ANTI_ECHO_GUARD}`;
   }
 
   async function generateBlock(project: LcProject, block: LcBlock, overallGoal: string, overrideStyle?: string | null, extraInstruction?: string, screenshotUrl?: string, attempt = 1, siteContext?: string) {

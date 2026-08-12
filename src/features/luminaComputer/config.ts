@@ -83,9 +83,9 @@ export interface WebsiteSectionCopy {
 // ============================================================================
 
 export const MODEL_ROUTING: Record<string, string[]> = {
-  orchestrator: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'openai/gpt-oss-20b:free', 'google/gemma-4-31b-it:free'],
-  content: ['nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free', 'google/gemma-4-31b-it:free'],
-  code: ['cohere/north-mini-code:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
+  orchestrator: ['nvidia/nemotron-3-super-120b-a12b:free', 'openai/gpt-oss-20b:free', 'google/gemma-4-31b-it:free'],
+  content: ['nvidia/nemotron-3-super-120b-a12b:free', 'google/gemma-4-31b-it:free'],
+  code: ['cohere/north-mini-code:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
 };
 
 // ============================================================================
@@ -177,6 +177,38 @@ export const SYSTEM_PROMPTS: Record<'orchestrator' | 'content' | 'code', string>
 // ============================================================================
 // VISUAL DIRECTION — design style directives
 // ============================================================================
+
+export function buildSchemaGuide(mode: string, blockType: string): string {
+  if (blockType === "site_section" || mode === "website") return "";
+
+  if (blockType === "sheet_tab" || mode === "sheet") {
+    return `OUTPUT SHAPE — return ONLY a single JSON object (no prose around it) matching exactly this schema:
+{"tab_name":"Short tab label","columns":["Column A","Column B","..."],"rows":[["v1","v2"],...],"formulas":{"C2":"=B2/B1*100", ...}}
+
+Columns are the header labels. Each row is an array of values in column order. Numeric data should be real numbers, not strings. Include a "formulas" map of cell references (A1-style, header is row 1) to live Excel formulas so the exported workbook is a functional model, not just static values — e.g. totals, percentages, growth, compounding, projections. Fill every column with complete, plausible, detailed data for every row — never leave cells empty, never "..." placeholders.`;
+  }
+
+  if (blockType === "slide" || mode === "slides") {
+    return `OUTPUT SHAPE — return ONLY a single JSON object (no prose around it, no markdown fences). Choose exactly ONE of these layouts that best serves this slide's intent and emit ONLY its shape, with all fields complete and genuinely useful (real numbers, real specifics — never empty strings, never "0", never "..." placeholders):
+
+- cover:     {"layout":"cover","eyebrow":"<kicker>","title":"Big headline","subtitle":"One-line positioning"}
+- section_divider: {"layout":"section_divider","eyebrow":"<number/section>","title":"Section name","subtitle":"optional"}
+- statement: {"title":"Headline","subtitle":"Supporting statement"}             (omit layout)
+- bullets:   {"layout":"bullets","title":"Headline","subtitle":"optional","bullets":["Complete point 1","Complete point 2","Complete point 3","..."]}
+- kpi_grid:  {"layout":"kpi_grid","title":"optional","kpis":[{"value":"42%","label":"What this metric means","delta":"+3 pts vs last year"}, ...]}  (use 4+ KPIs for a 4-up grid)
+- comparison:{"layout":"comparison","title":"Headline","comparison":{"left":{"heading":"Before / Option A","points":["line 1","line 2","..."]},"right":{"heading":"After / Option B","points":["line 1","line 2","..."]}}}
+- timeline:  {"layout":"timeline","title":"optional","timeline":[{"when":"Q1'26","what":"What happened then"}, ...]}
+- agenda:    {"layout":"agenda","title":"optional","agenda":[{"title":"Topic","note":"optional detail"}, ...]}
+- stat:      {"layout":"stat","stat":{"value":"92%","label":"What this number is and why it matters","source":"optional source"},"title":"optional"}
+- quote:     {"layout":"quote","quote":{"text":"The quotation itself","attribution":"Person, Role"}}
+- two_column:{"layout":"two_column","title":"Headline","columns":[{"heading":"Left","body":"Developed paragraph of real substance"},{"heading":"Right","body":"Developed paragraph of real substance"}]}
+- closing:   {"layout":"closing","closing":{"message":"Powerful closing line","cta":"optional call to action"}}
+
+Add these optional fields to ANY layout when useful: "eyebrow" (uppercase kicker), "footnote" (source/citation line), "speaker_notes" (what to say aloud). Write dense, specific content for every field — a slide is one crisp claim + supporting detail, not an essay. Pick the layout that makes the point land hardest.`;
+  }
+
+  return "";
+}
 
 export function styleDirective(styleId: string): string {
   const directives: Record<string, string> = {

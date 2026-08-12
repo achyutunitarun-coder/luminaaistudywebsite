@@ -5,7 +5,7 @@ import { callAIText, MODELS_FAST } from "../_shared/models.ts";
 // Hard ceiling for the entire AI call. The shared router's phases/continuations
 // can each scale past the per-call timeout and add up to 120s+; we race them
 // against this fixed deadline and always return (fallback) within it.
-const HARD_DEADLINE_MS = 20_000;
+const HARD_DEADLINE_MS = 35_000;
 
 async function generateWithDeadline(
   messages: { role: string; content: string }[],
@@ -30,17 +30,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const FALLBACK_TOPICS = [
+  "Foundations and core concepts",
+  "Derivation, formulas and worked examples",
+  "Common exam questions and problems",
+  "Application to real-world scenarios",
+  "Weak areas, revision and spaced practice",
+  "Final review and practice tests",
+];
+
 function fallbackStudyPlan(subjects: string[], examDate: string, dailyHours: number) {
   const today = new Date();
   const end = new Date(examDate || Date.now() + 7 * 86400000);
   const days = Math.max(1, Math.min(30, Math.ceil((end.getTime() - today.getTime()) / 86400000)));
-  return { days: Array.from({ length: days }, (_, i) => ({
+  const subj = subjects.length ? subjects : ["General"];
+  return { is_fallback: true, days: Array.from({ length: days }, (_, i) => ({
     day: i + 1,
     date: new Date(today.getTime() + i * 86400000).toISOString().slice(0, 10),
-    tasks: (subjects.length ? subjects : ["General"]).slice(0, 3).map((subject, j) => ({
+    tasks: subj.slice(0, 3).map((subject, j) => ({
       subject,
-      topic: i === days - 1 ? "Final review and weak areas" : `Core topic ${i + 1}.${j + 1}`,
-      duration_minutes: Math.max(30, Math.round((Number(dailyHours) || 2) * 60 / Math.min(3, Math.max(1, subjects.length || 1)))),
+      topic: i === days - 1
+        ? "Final review and weak areas"
+        : `${FALLBACK_TOPICS[(i + j) % FALLBACK_TOPICS.length]}`,
+      duration_minutes: Math.max(30, Math.round((Number(dailyHours) || 2) * 60 / Math.min(3, Math.max(1, subj.length || 1)))),
       type: i % 3 === 2 ? "practice" : i === days - 1 ? "test" : "study",
       time: `${9 + j * 2}:00`,
     })),
@@ -76,7 +88,7 @@ serve(async (req) => {
     }
 
     const models = MODELS_FAST;
-    const maxTokens = isExamMode ? 3000 : 1500;
+    const maxTokens = isExamMode ? 3000 : 3200;
     const timeoutMs = HARD_DEADLINE_MS;
 
     let content: string;

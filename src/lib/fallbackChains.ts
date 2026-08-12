@@ -21,8 +21,8 @@ export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
     "google/gemma-4-31b-it:free",
   ],
   reasoning: [
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
+    "openai/gpt-oss-20b:free",
     "google/gemma-4-31b-it:free",
   ],
   coding: [
@@ -33,7 +33,6 @@ export const FALLBACK_CHAINS: Record<ModelClass, string[]> = {
   ],
   long_ctx: [
     "google/gemma-4-31b-it:free",
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
   ],
   vision: [
