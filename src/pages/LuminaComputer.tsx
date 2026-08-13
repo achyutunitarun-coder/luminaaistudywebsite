@@ -373,6 +373,77 @@ export default function LuminaComputer() {
             .trim();
   }
 
+  function normalizeSlideJson(input: any): any {
+    if (!input || typeof input !== "object") return input;
+    // Model sometimes wraps the slide under a nested key (e.g. { block: {...} }).
+    const c = input.block && typeof input.block === "object" ? input.block : input;
+    const knownLayouts = [
+      "cover", "section_divider", "statement", "bullets", "kpi_grid", "comparison",
+      "timeline", "agenda", "stat", "quote", "two_column", "closing",
+    ];
+    const layout = typeof c.layout === "string" && knownLayouts.includes(c.layout) ? c.layout : undefined;
+
+    // comparison: model often emits top-level { left, right } with {title, items}
+    // instead of the nested { comparison: { left: {heading, points}, right: {...} } }.
+    if (layout === "comparison" || (!layout && (c.left || c.right))) {
+      const mkSide = (s: any, accent: boolean) => ({
+        heading: typeof s?.heading === "string" ? s.heading
+          : (typeof s?.title === "string" ? s.title : (accent ? "After" : "Before")),
+        points: Array.isArray(s?.points) && s.points.length ? s.points
+          : Array.isArray(s?.items) && s.items.length ? s.items
+          : Array.isArray(s) ? s : [],
+      });
+      const normalized = {
+        ...c,
+        layout: "comparison",
+        comparison: {
+          left: mkSide(c.comparison?.left ?? c.left, false),
+          right: mkSide(c.comparison?.right ?? c.right, true),
+        },
+      };
+      delete normalized.left;
+      delete normalized.right;
+      return normalized;
+    }
+
+    // kpi_grid: tolerate KPI fields landing under kpis/items/top-level metrics.
+    if (layout === "kpi_grid" || (!layout && Array.isArray(c?.kpis))) {
+      const kpiArr = Array.isArray(c.kpis) && c.kpis.length ? c.kpis
+        : Array.isArray(c.items) && c.items.length ? c.items
+        : Array.isArray(c.metrics) && c.metrics.length ? c.metrics : [];
+      const kpis = kpiArr.map((k: any) =>
+        (typeof k === "string") ? { value: "", label: k }
+        : { value: k?.value ?? "", label: k?.label ?? k?.name ?? "", delta: k?.delta })
+        .filter((k: any) => k.label || k.value);
+      return { ...c, layout: "kpi_grid", title: c.title ?? "", kpis };
+    }
+
+    // Nested { block: { title, content, ... } } prose shape: render as a statement
+    // so the title + developed content both appear instead of a blank slide.
+    if (!layout && c.title && (typeof c.content === "string" || Array.isArray(c.bullets))) {
+      const bullets = Array.isArray(c.bullets) && c.bullets.length
+        ? c.bullets.map((b: any) => (typeof b === "string" ? b : b?.text ?? String(b ?? "")))
+        : undefined;
+      if (bullets) return { ...c, layout: "bullets", title: c.title, bullets };
+      if (typeof c.content === "string" && c.content.length > 0) {
+        return { ...c, layout: "statement", title: c.title, subtitle: c.subtitle ?? c.content };
+      }
+    }
+
+    return c;
+  }
+
+  function normalizeSheetJson(input: any): any {
+    if (!input || typeof input !== "object") return input;
+    const tab = input.tab ?? input;
+    return {
+      tab_name: tab.tab_name ?? tab.name ?? tab.title ?? "",
+      columns: Array.isArray(tab.columns) ? tab.columns : [],
+      rows: Array.isArray(tab.rows) ? tab.rows : [],
+      formulas: tab.formulas && typeof tab.formulas === "object" ? tab.formulas : {},
+    };
+  }
+
   function parseContent(mode: OutputType, blockType: string, text: string): any {
     const raw = text.trim();
     const clean = stripPreamble(raw) || raw;
@@ -380,10 +451,16 @@ export default function LuminaComputer() {
       if (clean.length <= 5) return raw.length > 5 ? { markdown: raw } : null;
       return { markdown: clean };
     }
-    try { return JSON.parse(clean); } catch { /* */ }
-    const m = clean.match(/\{[\s\S]*\}/);
-    if (m) { try { return JSON.parse(m[0]); } catch { /* */ } }
-    return null;
+    let parsed: any = null;
+    try { parsed = JSON.parse(clean); } catch { /* */ }
+    if (!parsed) {
+      const m = clean.match(/\{[\s\S]*\}/);
+      if (m) { try { parsed = JSON.parse(m[0]); } catch { /* */ } }
+    }
+    if (!parsed) return null;
+    if (blockType === "slide" || mode === "slides") return normalizeSlideJson(parsed);
+    if (blockType === "sheet_tab" || mode === "sheet") return normalizeSheetJson(parsed);
+    return parsed;
   }
 
   async function regenerate(block: LcBlock, refinement?: string) {
