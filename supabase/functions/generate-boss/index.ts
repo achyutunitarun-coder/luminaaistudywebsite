@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireUser } from "../_shared/auth.ts";
-import { callAIText, MODELS_FAST } from "../_shared/models.ts";
+import { callAIText, MODELS_QUALITY } from "../_shared/models.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +30,7 @@ serve(async (req) => {
         { role: "system", content: `Generate content adaptively — read the specific input and produce questions whose structure and depth is driven by that input's actual complexity and the user's apparent goal, not a fixed template applied regardless of input. Avoid generic, could-apply-to-anything output; be specific to what was actually provided. Return ONLY JSON: {"name": "Boss Name", "icon": "emoji", "questions": [{"q": "question", "options": ["A","B","C","D"], "correct": 0}]}. Do NOT include thinking tags.` },
         { role: "user", content: `Boss battle for "${topic}" with 5 challenging questions.` },
       ],
-      MODELS_FAST, 1500, 0.7, 40_000, "boss"
+      MODELS_QUALITY, 1500, 0.7, 40_000, "boss"
     );
     const parsed = cleanJSON(text);
     if (parsed?.questions) return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
