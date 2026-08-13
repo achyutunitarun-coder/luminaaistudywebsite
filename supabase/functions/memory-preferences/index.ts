@@ -29,6 +29,17 @@ serve(async (req) => {
         });
       }
 
+      // Confirm the token's subject is still a real auth user before inserting —
+      // stale tokens (e.g. after a signing-key rotation or user deletion) would
+      // otherwise trigger a foreign-key violation on every page load.
+      const { data: authUser } = await sb.auth.admin.getUserById(user.id);
+      if (!authUser?.user) {
+        return new Response(JSON.stringify({ error: "user_not_found" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Create defaults
       const defaults = {
         user_id: user.id,
@@ -43,6 +54,7 @@ serve(async (req) => {
         .insert(defaults)
         .select("*")
         .single();
+
 
       if (createErr) {
         // Persisting defaults can fail (e.g. FK/RLS on a user row that isn't
