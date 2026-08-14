@@ -357,11 +357,12 @@ function paginateHtml(html: string): string[] {
   const children = Array.from(doc.children) as HTMLElement[];
   const cover = children.shift();
 
-  // A4 portrait: usable content height in px at the 816px print width.
-  // (CSS `#lc-pdf-root` is 816px wide; text is ~10.5pt.)
+  // The 816px-wide render is mapped onto the A4 usable width (7.47in), so the
+  // effective scale is 816/7.47 px per inch — not 96.
   const usableIn = 11.69 - 1.0; // page height minus top/bottom margin
-  const pxPerInch = 96;
+  const pxPerInch = 816 / (8.27 - 0.8);
   const maxPagePx = Math.floor(usableIn * pxPerInch);
+  const coverH = cover?.offsetHeight ?? 0;
 
   const pages: string[] = [];
   let cur: HTMLElement[] = [];
@@ -378,11 +379,13 @@ function paginateHtml(html: string): string[] {
 
   for (const el of children) {
     const h = el.offsetHeight || 0;
-    if (cur.length && curH + h > maxPagePx) flush();
+    const budget = pages.length === 0 ? maxPagePx - coverH : maxPagePx;
+    if (cur.length && curH + h > budget) flush();
     cur.push(el);
     curH += h;
   }
   flush();
+
 
   host.removeChild(doc);
   return pages;
