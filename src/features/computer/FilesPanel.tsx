@@ -50,7 +50,7 @@ export function FilesPanel() {
         >
           {iconFor(f.type)}
           <span className="text-[12px] text-white/85 truncate flex-1">{f.name}</span>
-          <span className="text-[10px] text-white/30 tabular-nums">{f.sizeKB.toFixed(1)}KB</span>
+          <span className="text-[10px] text-white/30 tabular-nums">{(Number(f.sizeKB) || 0).toFixed(1)}KB</span>
           {f.type === "html" && (
             <button
               onClick={() => openInCanvas(f)}

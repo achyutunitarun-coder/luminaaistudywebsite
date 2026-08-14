@@ -158,7 +158,7 @@ const ArtifactCard = ({ message, onOpen }: { message: Message; onOpen: () => voi
               {typeof message.newBalance === 'number' && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span>Balance: {message.newBalance.toFixed(1)}</span>
+                  <span>Balance: {(Number(message.newBalance) || 0).toFixed(1)}</span>
                 </>
               )}
             </div>
@@ -309,7 +309,7 @@ export const MessageBubble = ({ message, onRegenerate, onRetry, onEdit, onTopUp,
               <div className="text-sm text-foreground leading-relaxed">
                 {message.content}{' '}
                 <span className="text-muted-foreground">You have</span>{' '}
-                <span className="text-amber-400 font-semibold">{have.toFixed(1)} credits</span>,{' '}
+                <span className="text-amber-400 font-semibold">{(Number(have) || 0).toFixed(1)} credits</span>,{' '}
                 <span className="text-muted-foreground">need</span>{' '}
                 <span className="text-amber-400 font-semibold">{need}</span>.
               </div>

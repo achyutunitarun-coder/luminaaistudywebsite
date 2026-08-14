@@ -10,7 +10,8 @@ interface Props {
 }
 
 export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
-  const { balance, setBalance, plan } = useCreditsStore();
+  const { balance: rawBalance, setBalance, plan } = useCreditsStore();
+  const balance = Number.isFinite(Number(rawBalance)) ? Number(rawBalance) : 0;
   const { isPro, plan: subPlan } = useSubscription();
   const isLow = balance < 3 && !isPro;
   const isPremium = isPro;
@@ -22,7 +23,7 @@ export const CreditsDisplay = ({ onClick, className = '' }: Props) => {
       (supabase as any)
         .rpc('get_daily_credit_balance')
         .then(({ data: row }: any) => {
-          if (!cancelled && row) setBalance(Number(row.balance));
+          if (!cancelled && row && row.balance != null && Number.isFinite(Number(row.balance))) setBalance(Number(row.balance));
         });
     });
     return () => { cancelled = true; };

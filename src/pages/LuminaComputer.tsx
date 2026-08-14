@@ -229,7 +229,7 @@ export default function LuminaComputer() {
           const r = Array.isArray(data) ? data[0] : data;
           if (r?.success && typeof r.balance !== "undefined") {
             credits.setBalance(Number(r.balance));
-            pushLog(`Charged ${cost} credits (balance ${Number(r.balance).toFixed(1)}).`, "info");
+            pushLog(`Charged ${cost} credits (balance ${(Number(r.balance) || 0).toFixed(1)}).`, "info");
           } else {
             creditsActions.deduct("lumina_computer");
             pushLog(`Charged ${cost} credits.`, "info");

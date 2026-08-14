@@ -61,7 +61,7 @@ export const useCreditsStore = create<CreditsState>()(
           source,
         };
         set((s) => ({
-          balance: +(s.balance + amount).toFixed(2),
+          balance: +((Number(s.balance) || 0) + (Number(amount) || 0)).toFixed(2),
           transactions: [tx, ...s.transactions].slice(0, 100),
           processedPayments: paymentId ? [...s.processedPayments, paymentId] : s.processedPayments,
           lastUpdated: Date.now(),
@@ -80,7 +80,7 @@ export const useCreditsStore = create<CreditsState>()(
           source: 'spend',
         };
         set((s) => ({
-          balance: Math.max(0, +(s.balance - amount).toFixed(2)),
+          balance: Math.max(0, +((Number(s.balance) || 0) - (Number(amount) || 0)).toFixed(2)),
           transactions: [tx, ...s.transactions].slice(0, 100),
           lastUpdated: Date.now(),
         }));
@@ -95,7 +95,7 @@ export const useCreditsStore = create<CreditsState>()(
         })),
       setBalance: (balance, plan) =>
         set((s) => ({
-          balance: Math.max(0, +Number(balance).toFixed(2)),
+          balance: Math.max(0, +(Number(balance) || 0).toFixed(2)),
           plan: plan ?? s.plan,
           lastUpdated: Date.now(),
         })),
