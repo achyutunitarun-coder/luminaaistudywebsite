@@ -168,11 +168,25 @@ Return a single valid JSON object with this exact shape (nothing before or after
 {"html": "<complete section markup>", "css": "<section styles, scoped to this section>", "js": "<section interactivity, or empty string>"}
 Inside the JSON, build the section fully as described above — all content written out, all states handled, all interactions wired, complete styling. Never truncate the JSON. Never use "..." placeholders. Every property must be complete.`;
 
+// Shared craft bar — the same standard the chat artifact engine holds to, so a
+// Computer build and a chat artifact come out of the same design house.
+const CRAFT_BAR = `
+
+NON-NEGOTIABLE CRAFT BAR
+1. Typography carries the design: a display face at clamp(38px,7vw,84px) with tight tracking (-0.02em to -0.04em), body at 17-19px, line-height 1.65, measure capped at 68ch. At least three type sizes and two weights per screen. Never leave text at browser defaults.
+2. Composition: asymmetry over centred stacks. Use a real 12-col or 8-col grid and break it deliberately — an oversized numeral, a full-bleed band, a hanging pull-quote.
+3. Depth: layered surfaces, hairline 1px rules at low opacity, one shadow language held consistently, one radius scale held consistently.
+4. Colour: one accent carries all emphasis. No rainbow. All body text passes WCAG AA contrast.
+5. Motion: one entrance language (staggered 40-70ms) and one hover language, both disabled under prefers-reduced-motion.
+6. Detail: an eyebrow/kicker on every major section, a figure/caption pattern, real numbers in any stat, a considered footer. Whitespace is a design element.
+7. Zero emoji as UI. Zero lorem ipsum. Zero "coming soon". Every sentence is real, accurate, specific subject matter.`;
+
 export const SYSTEM_PROMPTS: Record<'orchestrator' | 'content' | 'code', string> = {
   orchestrator: ORCHESTRATOR_SYSTEM_PROMPT,
-  content: CONTENT_SYSTEM_PROMPT,
-  code: CODE_SYSTEM_PROMPT,
+  content: CONTENT_SYSTEM_PROMPT + CRAFT_BAR,
+  code: CODE_SYSTEM_PROMPT + CRAFT_BAR,
 };
+
 
 // ============================================================================
 // VISUAL DIRECTION — design style directives
