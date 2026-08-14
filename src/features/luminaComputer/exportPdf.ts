@@ -208,6 +208,31 @@ export function buildPdfHtml(title: string, blocks: LcBlock[]): string {
   return `<div class="cover"><p class="eyebrow">Lumina Computer</p><h1 class="doc-title">${esc(title)}</h1><p class="meta">${date} · ${ready.length} section${ready.length === 1 ? "" : "s"}</p></div>${body}<p class="foot">Generated with Lumina · ${esc(title)}</p>`;
 }
 
+const FONT_HREF =
+  "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap";
+
+async function ensureFonts(): Promise<void> {
+  try {
+    if (!document.querySelector('link[data-lc-pdf-fonts]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = FONT_HREF;
+      link.setAttribute("data-lc-pdf-fonts", "1");
+      document.head.appendChild(link);
+      await new Promise((r) => { link.onload = r; link.onerror = r; setTimeout(r, 2500); });
+    }
+    const f: any = (document as any).fonts;
+    if (f?.load) {
+      await Promise.all([
+        f.load('600 30pt Fraunces'), f.load('400 12pt Fraunces'),
+        f.load('400 10.5pt Inter'), f.load('600 10.5pt Inter'),
+        f.load('400 8.5pt "JetBrains Mono"'),
+      ].map((p: Promise<any>) => p.catch(() => null)));
+    }
+    await f?.ready;
+  } catch { /* fonts are a nicety, never a blocker */ }
+}
+
 /**
  * Render blocks to a PDF and download it directly (blob + anchor, never a popup).
  */
@@ -230,18 +255,18 @@ export async function exportBlocksToPdf(
   document.body.appendChild(host);
 
   try {
-    onProgress(20, "Laying out pages…");
-    // Warm up fonts so text is measured/rendered correctly.
-    try { await (document as any).fonts?.ready; } catch { /* noop */ }
-    await new Promise((r) => setTimeout(r, 120));
+    onProgress(15, "Loading typography…");
+    await ensureFonts();
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 80)));
 
+    onProgress(25, "Laying out pages…");
     // Split the document into page-sized DOM chunks. Rendering the whole
     // document in ONE html2canvas pass can exceed the browser canvas-height
     // limit and produce a fully blank PDF (a known html2pdf limitation). By
     // rendering each page chunk separately we stay well under the limit.
     const pages = paginateHtml(html);
 
-    onProgress(40, "Rendering document…");
+    onProgress(35, "Rendering document…");
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
       import("html2canvas"),
       import("jspdf"),
@@ -250,31 +275,55 @@ export async function exportBlocksToPdf(
 
     const pdf = new jsPDF({ unit: "in", format: "a4", orientation: "portrait" });
     const M = { top: 0.45, left: 0.4, bottom: 0.55, right: 0.4 };
-    const usableW = 8.27 - M.left - M.right;
+    const PAGE_W = 8.27;
+    const PAGE_H = 11.69;
+    const usableW = PAGE_W - M.left - M.right;
+    const usableH = PAGE_H - M.top - M.bottom;
+    let first = true;
+
+    const addCanvas = (canvas: HTMLCanvasElement) => {
+      const pxPerIn = canvas.width / usableW;
+      const sliceHpx = Math.floor(usableH * pxPerIn);
+      // Slice any chunk taller than one page instead of letting it run off.
+      for (let y = 0; y < canvas.height; y += sliceHpx) {
+        const h = Math.min(sliceHpx, canvas.height - y);
+        if (h < 4) break;
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = h;
+        const ctx = slice.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if (!first) pdf.addPage();
+        first = false;
+        pdf.addImage(slice.toDataURL("image/jpeg", 0.94), "JPEG", M.left, M.top, usableW, h / pxPerIn);
+      }
+    };
 
     for (let i = 0; i < pages.length; i++) {
-      onProgress(30 + Math.round((i / pages.length) * 50), `Rendering page ${i + 1}/${pages.length}…`);
+      onProgress(35 + Math.round((i / pages.length) * 45), `Rendering page ${i + 1}/${pages.length}…`);
       const pg = document.createElement("div");
       pg.id = "lc-pdf-root";
       pg.innerHTML = pages[i];
       host.appendChild(pg);
 
       const canvas = await html2canvas(pg, {
-        scale: 1,
+        scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
         windowWidth: 816,
+        logging: false,
       });
       host.removeChild(pg);
-
-      if (i > 0) pdf.addPage();
-      const imgW = usableW;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", M.left, M.top, imgW, imgH);
+      addCanvas(canvas);
     }
 
-    onProgress(85, "Preparing download…");
+    if (first) throw new Error("Nothing rendered — document was empty.");
+
+    onProgress(88, "Preparing download…");
     const blob: Blob = pdf.output("blob");
+    if (!blob || blob.size < 1000) throw new Error("PDF came out empty.");
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -290,6 +339,7 @@ export async function exportBlocksToPdf(
     host.remove();
   }
 }
+
 
 /**
  * Builds page chunks of the PDF HTML. The height returned by the browser layout
