@@ -4,6 +4,7 @@
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap');
+@import './styles/lumina-tokens.css';
 
 @tailwind base;
 @tailwind components;
@@ -3049,4 +3050,156 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
 
 .auth-switch-btn:hover {
   color: var(--brand);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODERN SCHOLARLY WORKSPACE — token remap
+   Maps every legacy variable and Tailwind/shadcn token onto the
+   Lumina design-token system (src/styles/lumina-tokens.css).
+   ═══════════════════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    /* Surfaces */
+    --bg-base:      var(--lm-bg-canvas);
+    --bg-surface:   var(--lm-bg-surface);
+    --bg-elevated:  var(--lm-bg-surface-raised);
+    --bg-overlay:   var(--lm-bg-surface-raised);
+    --bg-hover:     rgba(255,255,255,0.04);
+    --bg-active:    rgba(255,255,255,0.07);
+
+    /* Brand */
+    --brand:            var(--lm-violet);
+    --brand-primary:    var(--lm-violet);
+    --brand-hover:      #7358dd;
+    --brand-muted:      var(--lm-violet-muted);
+    --brand-glow:       var(--lm-violet-text);
+    --brand-subtle:     var(--lm-violet-muted);
+    --brand-tint:       var(--lm-violet-muted);
+    --brand-tint-hover: rgba(102, 77, 206, 0.22);
+
+    /* Semantic accents */
+    --teal:       var(--lm-teal);
+    --teal-tint:  var(--lm-teal-muted);
+    --accent-teal: var(--lm-teal);
+    --amber:      var(--lm-amber);
+    --amber-tint: var(--lm-amber-muted);
+    --accent-amber: var(--lm-amber);
+    --red:        var(--lm-red);
+    --red-tint:   var(--lm-red-muted);
+    --accent-red: var(--lm-red);
+    --green:      var(--lm-green);
+    --green-tint: var(--lm-green-muted);
+    --success:    var(--lm-green);
+    --warning:    var(--lm-amber);
+    --error:      var(--lm-red);
+
+    /* Text */
+    --text-primary:   var(--lm-text-primary);
+    --text-secondary: var(--lm-text-secondary);
+    --text-muted:     var(--lm-text-tertiary);
+    --text-disabled:  var(--lm-text-disabled);
+    --text-inverse:   var(--lm-text-inverse);
+    --text-on-brand:  #ffffff;
+
+    /* Borders */
+    --border-faint:   var(--lm-border-subtle);
+    --border-subtle:  var(--lm-border-subtle);
+    --border-default: var(--lm-border-default);
+    --border-strong:  var(--lm-border-strong);
+    --border-brand:   rgba(102, 77, 206, 0.55);
+    --border-focus:   var(--lm-violet);
+
+    /* Radius */
+    --r-xs: var(--lm-radius-sm);
+    --r-sm: var(--lm-radius-sm);
+    --r-md: var(--lm-radius-md);
+    --r-lg: var(--lm-radius-lg);
+    --r-xl: var(--lm-radius-xl);
+    --r-2xl: var(--lm-radius-xl);
+    --r-full: var(--lm-radius-full);
+    --radius-sm: var(--lm-radius-sm);
+    --radius-md: var(--lm-radius-md);
+    --radius-lg: var(--lm-radius-lg);
+    --radius-xl: var(--lm-radius-xl);
+    --radius-full: var(--lm-radius-full);
+
+    /* Elevation */
+    --shadow-xs: var(--lm-elevation-1);
+    --shadow-sm: var(--lm-elevation-1);
+    --shadow-md: var(--lm-elevation-2);
+    --shadow-lg: var(--lm-elevation-3);
+    --shadow-brand: 0 0 0 3px rgba(102, 77, 206, 0.28);
+
+    /* Motion */
+    --ease-out:   var(--lm-ease-emphasized);
+    --ease-in:    var(--lm-ease-exit);
+    --ease-in-out: var(--lm-ease-standard);
+    --dur-instant: var(--lm-duration-instant);
+    --dur-fast:   var(--lm-duration-fast);
+    --dur-base:   var(--lm-duration-base);
+    --dur-slow:   var(--lm-duration-slow);
+    --duration-fast: var(--lm-duration-fast);
+    --duration-base: var(--lm-duration-base);
+    --duration-slow: var(--lm-duration-slow);
+
+    /* Fonts */
+    --font-display: var(--lm-font-serif);
+    --font-body:    var(--lm-font-sans);
+    --font-mono:    var(--lm-font-mono);
+
+    /* Tailwind / shadcn HSL tokens */
+    --background: 240 6% 7%;
+    --foreground: 45 19% 95%;
+    --card: 232 12% 10%;
+    --card-foreground: 45 19% 95%;
+    --popover: 231 14% 13%;
+    --popover-foreground: 45 19% 95%;
+    --primary: 253 58% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 231 14% 13%;
+    --secondary-foreground: 45 19% 95%;
+    --muted: 232 12% 14%;
+    --muted-foreground: 222 6% 65%;
+    --accent: 193 60% 54%;
+    --accent-foreground: 240 6% 7%;
+    --destructive: 358 75% 59%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 154 66% 54%;
+    --success-foreground: 240 6% 7%;
+    --warning: 34 79% 57%;
+    --warning-foreground: 240 6% 7%;
+    --info: 229 77% 66%;
+    --border: 235 10% 20%;
+    --input: 235 10% 20%;
+    --ring: 253 58% 55%;
+    --sidebar-background: 232 12% 10%;
+    --sidebar-foreground: 45 19% 95%;
+    --sidebar-primary: 253 58% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 231 14% 13%;
+    --sidebar-accent-foreground: 45 19% 95%;
+    --sidebar-border: 235 10% 20%;
+    --sidebar-ring: 253 58% 55%;
+    --xp: 253 58% 55%;
+    --xp-foreground: 0 0% 100%;
+    --radius: 6px;
+  }
+
+  body {
+    background: var(--lm-bg-canvas);
+    color: var(--lm-text-primary);
+    font-family: var(--lm-font-sans);
+  }
+
+  h1, h2 {
+    font-family: var(--lm-font-serif);
+    font-weight: 400;
+    letter-spacing: var(--lm-letter-spacing-tight);
+  }
+
+  h3, h4, h5, h6 {
+    font-family: var(--lm-font-sans);
+    font-weight: 600;
+    letter-spacing: 0;
+  }
 }

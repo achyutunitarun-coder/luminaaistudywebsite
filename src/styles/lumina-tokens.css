@@ -1,0 +1,190 @@
+/**
+ * LUMINA DESIGN SYSTEM — DESIGN TOKENS
+ * "Modern Scholarly Workspace"
+ *
+ * Dark is the default theme (:root). Apply data-theme="light" to <html>
+ * or any container to switch. All tokens are prefixed --lm- to avoid
+ * collisions when dropped into an existing codebase.
+ *
+ * Source of truth: design-tokens.json (same values, structured for tooling).
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ============ COLOR — SURFACES (dark) ============ */
+  --lm-bg-canvas: #111113;          /* app background — near-black, not pure black */
+  --lm-bg-surface: #17181e;         /* panels, sidebar, cards */
+  --lm-bg-surface-raised: #1d1f27;  /* popovers, dropdowns, modals */
+  --lm-bg-surface-sunken: #0b0c10;  /* code blocks, insets, wells */
+  --lm-bg-overlay: rgba(9, 9, 11, 0.72); /* modal scrim */
+
+  /* ============ COLOR — BORDERS (dark) ============ */
+  --lm-border-subtle: rgba(255, 255, 255, 0.06);
+  --lm-border-default: rgba(255, 255, 255, 0.10);
+  --lm-border-strong: rgba(255, 255, 255, 0.16);
+
+  /* ============ COLOR — TEXT (dark) ============ */
+  --lm-text-primary: #f5f4f1;    /* warm white */
+  --lm-text-secondary: #9ca0ac; /* cool gray */
+  --lm-text-tertiary: #6b6f7b;
+  --lm-text-disabled: #4a4d57;
+  --lm-text-inverse: #111113;   /* text placed on a solid accent fill */
+
+  /* ============ COLOR — SEMANTIC (dark) ============ */
+  /* Violet — brand signal only: primary actions, active nav, focus accent */
+  --lm-violet: #664dce;
+  --lm-violet-muted: rgba(102, 77, 206, 0.14);
+  --lm-violet-text: #a996f0;   /* AA-safe on dark canvas, for links/small text */
+
+  /* Teal — active intelligence: streaming, live processing, constructive progress */
+  --lm-teal: #43b3d0;
+  --lm-teal-muted: rgba(67, 179, 208, 0.14);
+  --lm-teal-text: #7fd4e8;
+
+  /* Indigo — secondary interactive accent: links, secondary actions, info */
+  --lm-indigo: #667deb;
+  --lm-indigo-muted: rgba(102, 125, 235, 0.14);
+  --lm-indigo-text: #a9b4f5;
+
+  /* Amber — attention, streaks, non-destructive warnings */
+  --lm-amber: #e8a23d;
+  --lm-amber-muted: rgba(232, 162, 61, 0.14);
+  --lm-amber-text: #f0be76;
+
+  /* Red — destructive actions and errors only */
+  --lm-red: #e5484d;
+  --lm-red-muted: rgba(229, 72, 77, 0.14);
+  --lm-red-text: #f28e91;
+
+  /* Green — completed / verified states only */
+  --lm-green: #3dd68c;
+  --lm-green-muted: rgba(61, 214, 140, 0.14);
+  --lm-green-text: #7fe6b3;
+
+  /* ============ TYPOGRAPHY ============ */
+  --lm-font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --lm-font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --lm-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* type scale — shorthand: weight size/line-height family */
+  --lm-text-display: 400 3.5rem/1.1 var(--lm-font-serif);     /* 56px — marketing hero only */
+  --lm-text-h1: 400 2.25rem/1.15 var(--lm-font-serif);        /* 36px — page titles */
+  --lm-text-h2: 500 1.75rem/1.2 var(--lm-font-serif);         /* 28px — section titles */
+  --lm-text-h3: 600 1.375rem/1.3 var(--lm-font-sans);         /* 22px — panel/card titles */
+  --lm-text-h4: 600 1.125rem/1.35 var(--lm-font-sans);        /* 18px — subheads */
+  --lm-text-body-lg: 400 1.125rem/1.6 var(--lm-font-sans);    /* 18px — lead paragraphs */
+  --lm-text-body: 400 1rem/1.55 var(--lm-font-sans);          /* 16px — default UI/body */
+  --lm-text-body-sm: 400 0.875rem/1.5 var(--lm-font-sans);    /* 14px — secondary UI text */
+  --lm-text-caption: 500 0.75rem/1.4 var(--lm-font-sans);     /* 12px — metadata, timestamps */
+  --lm-text-label: 600 0.8125rem/1.3 var(--lm-font-sans);     /* 13px — form labels, tabs */
+  --lm-text-code: 400 0.875rem/1.6 var(--lm-font-mono);       /* 14px — code, logs, IDs */
+
+  --lm-letter-spacing-tight: -0.01em;  /* display/h1 only */
+  --lm-letter-spacing-normal: 0em;
+  --lm-letter-spacing-wide: 0.01em;    /* caption/label only — never full tracking on body */
+
+  --lm-measure-serif: 72ch;  /* max line length for serif reading content */
+  --lm-measure-sans: 68ch;   /* max line length for sans body content */
+
+  /* ============ SPACING — 4px base scale ============ */
+  --lm-space-0: 0px;
+  --lm-space-1: 4px;
+  --lm-space-2: 8px;
+  --lm-space-3: 12px;
+  --lm-space-4: 16px;
+  --lm-space-5: 20px;
+  --lm-space-6: 24px;
+  --lm-space-8: 32px;
+  --lm-space-10: 40px;
+  --lm-space-12: 48px;
+  --lm-space-16: 64px;
+  --lm-space-20: 80px;
+  --lm-space-24: 96px;
+  --lm-space-32: 128px;
+
+  /* ============ RADIUS ============ */
+  --lm-radius-sm: 4px;    /* chips, inputs, small controls */
+  --lm-radius-md: 6px;    /* buttons, cards, list rows — default */
+  --lm-radius-lg: 8px;    /* panels, sidebars, large surfaces */
+  --lm-radius-xl: 12px;   /* substantial modal surfaces only */
+  --lm-radius-full: 999px; /* avatars, status dots, count badges — not general buttons */
+
+  /* ============ BORDER WIDTH ============ */
+  --lm-border-width: 1px;
+  --lm-border-width-strong: 1.5px; /* focus rings, selected/active states */
+
+  /* ============ ELEVATION — dark surfaces read via light border + soft shadow ============ */
+  --lm-elevation-0: none;
+  --lm-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.24);   /* raised cards, dropdown triggers */
+  --lm-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.32);  /* popovers, tooltips, menus */
+  --lm-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.4);  /* modals, dialogs */
+
+  /* ============ MOTION ============ */
+  --lm-duration-instant: 100ms;  /* icon/state toggles */
+  --lm-duration-fast: 150ms;     /* hover, focus, small reveals */
+  --lm-duration-base: 200ms;     /* default transitions */
+  --lm-duration-slow: 320ms;     /* panel/drawer transitions */
+  --lm-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);   /* default easing */
+  --lm-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);   /* entrances */
+  --lm-ease-exit: cubic-bezier(0.4, 0, 1, 1);         /* exits */
+}
+
+/* ============ LIGHT THEME OVERRIDES ============ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --lm-bg-canvas: #fafaf8;
+  --lm-bg-surface: #ffffff;
+  --lm-bg-surface-raised: #ffffff;
+  --lm-bg-surface-sunken: #f1f1ef;
+  --lm-bg-overlay: rgba(28, 29, 33, 0.4);
+
+  --lm-border-subtle: rgba(17, 17, 19, 0.06);
+  --lm-border-default: rgba(17, 17, 19, 0.12);
+  --lm-border-strong: rgba(17, 17, 19, 0.2);
+
+  --lm-text-primary: #1c1d21;
+  --lm-text-secondary: #55575f;
+  --lm-text-tertiary: #82838c;
+  --lm-text-disabled: #b4b5bc;
+  --lm-text-inverse: #fafaf8;
+
+  --lm-violet: #5b3fc0;
+  --lm-violet-muted: rgba(91, 63, 192, 0.1);
+  --lm-violet-text: #5b3fc0;
+
+  --lm-teal: #1e8fae;
+  --lm-teal-muted: rgba(30, 143, 174, 0.1);
+  --lm-teal-text: #1e8fae;
+
+  --lm-indigo: #4c5fd6;
+  --lm-indigo-muted: rgba(76, 95, 214, 0.1);
+  --lm-indigo-text: #4c5fd6;
+
+  --lm-amber: #b5730a;
+  --lm-amber-muted: rgba(181, 115, 10, 0.1);
+  --lm-amber-text: #b5730a;
+
+  --lm-red: #c4342d;
+  --lm-red-muted: rgba(196, 52, 45, 0.08);
+  --lm-red-text: #c4342d;
+
+  --lm-green: #1a8f5c;
+  --lm-green-muted: rgba(26, 143, 92, 0.1);
+  --lm-green-text: #1a8f5c;
+
+  --lm-elevation-1: 0 1px 2px rgba(17, 17, 19, 0.06);
+  --lm-elevation-2: 0 4px 16px rgba(17, 17, 19, 0.08);
+  --lm-elevation-3: 0 16px 40px rgba(17, 17, 19, 0.12);
+}
+
+/* ============ MOTION PREFERENCE ============ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lm-duration-instant: 0ms;
+    --lm-duration-fast: 0ms;
+    --lm-duration-base: 0ms;
+    --lm-duration-slow: 0ms;
+  }
+}
