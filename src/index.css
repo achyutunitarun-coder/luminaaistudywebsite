@@ -3203,3 +3203,15 @@ body { background: var(--bg-base) !important; color: var(--text-primary) !import
     letter-spacing: 0;
   }
 }
+
+/* ── Test generator: staged progress + hints (QA DEF-03 / DEF-05) ── */
+.t-gen-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: -8px; }
+.t-gen-progress {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px; border-radius: var(--r-md);
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+}
+.t-gen-stages { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text-muted); }
+.t-gen-stages span.is-done { color: var(--green); }
+.t-gen-stages span.is-active { color: var(--text-primary); font-weight: 600; }
+.t-gen-elapsed { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
