@@ -58,50 +58,89 @@ const Tests = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [questions.length]);
 
-  const generateTest = async () => {
-    if (!syllabus.trim() || !user) return;
-    if (!session?.access_token) { toast.error("Please sign in to generate tests."); return; }
-    const allowed = await checkAndIncrement("test_generations");
-    if (!allowed) return;
-    setGenerating(true);
-    setQuestions([]);
-    setAnswers({});
-    setSubmitted(false);
-    setCurrentQ(0);
+  const GEN_STAGES = ["Analyzing your material…", "Writing questions…", "Checking answer quality…", "Finalizing your test…"];
 
+  // DEF-03: staged progress + elapsed timer while generating
+  useEffect(() => {
+    if (!generating) {
+      setGenStartedAt(null);
+      setGenStage(0);
+      return;
+    }
+    setGenStartedAt(Date.now());
+    const tick = setInterval(() => setTick(n => n + 1), 1000);
+    const s1 = setTimeout(() => setGenStage(1), 8000);
+    const s2 = setTimeout(() => setGenStage(2), 22000);
+    const s3 = setTimeout(() => setGenStage(3), 45000);
+    return () => { clearInterval(tick); clearTimeout(s1); clearTimeout(s2); clearTimeout(s3); };
+  }, [generating]);
+
+  const generateTest = async () => {
+    if (genInFlightRef.current || !user) return;
+    if (!subject.trim() && !syllabus.trim()) return;
+    if (!session?.access_token) { toast.error("Please sign in to generate tests."); return; }
+    genInFlightRef.current = true;
     try {
+      // Reserve quota only after the single-flight guard so double clicks can't double-spend
+      const allowed = await checkAndIncrement("test_generations");
+      if (!allowed) return;
+      setGenerating(true);
+      setQuestions([]);
+      setAnswers({});
+      setSubmitted(false);
+      setCurrentQ(0);
+
       const fileContext = buildFileContext(uploadedFiles);
-      const fullSyllabus = syllabus + fileContext;
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ syllabus: fullSyllabus, subject, numQuestions }),
-      });
+      const fullSyllabus = [syllabus.trim(), fileContext].filter(Boolean).join("\n\n");
+      const topicFocus = fullSyllabus || subject.trim();
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 150000);
+      let resp: Response;
+      try {
+        resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-test`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ syllabus: topicFocus, subject, numQuestions }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (controller.signal.aborted) {
+          toast.error("This generation took too long. Please try again — larger tests can take a couple of minutes.");
+        } else {
+          toast.error("Failed to reach the test generator. Please check your connection and try again.");
+        }
+        return;
+      }
+      clearTimeout(timeout);
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({ error: "Unknown error" }));
         if (resp.status === 429) toast.error("Rate limit exceeded. Please wait a moment and try again.");
         else if (resp.status === 402) toast.error("AI credits exhausted. Please add credits to continue.");
         else toast.error(errData.error || "Failed to generate test. Please try again.");
-        setGenerating(false);
         return;
       }
 
       const data = await resp.json();
-      if (data.questions) {
+      if (data.questions?.length) {
         setQuestions(data.questions);
         const { data: test } = await supabase.from("tests").insert({
-          user_id: user.id, title: subject || "AI Generated Test", subject, syllabus,
+          user_id: user.id, title: subject || "AI Generated Test", subject, syllabus: syllabus.trim(),
           total_questions: data.questions.length, questions: data.questions, status: "in_progress",
         }).select().single();
         if (test) setTestId(test.id);
       } else {
         toast.error("No questions received. Please try again with more detailed topics.");
       }
-    } catch {
-      toast.error("Failed to generate test. Please check your connection and try again.");
+    } catch (err) {
+      console.error("Test generation failed:", err);
+      toast.error("Failed to generate test. Please try again.");
+    } finally {
+      genInFlightRef.current = false;
+      setGenerating(false);
     }
-    setGenerating(false);
   };
 
   const submitTest = async () => {
