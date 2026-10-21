@@ -2,7 +2,8 @@
  * TESTS — Complete UI Rewrite
  * Full-page exam experience with proper paper-like output
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { deriveMistakeTopic } from "@/lib/topic";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, Target, Brain, Trophy, ArrowLeft, CheckCircle, XCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { SavedItemsPanel } from "@/components/SavedItemsPanel";
@@ -23,6 +24,7 @@ type Question = {
   options: string[];
   correct: number;
   explanation: string;
+  topic?: string;
 };
 
 const Tests = () => {
