@@ -9,6 +9,23 @@ import {
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
+// DEF-01: explicit hrefs — derived hyphenation produced dead anchors
+// ("How it works" → #how-it-works, but the section id is "how").
+const NAV_LINKS = [
+  ['Features', '#features'],
+  ['How it works', '#how'],
+  ['Pricing', '#pricing'],
+  ['FAQ', '#faq'],
+] as const;
+
+if (import.meta.env.DEV) {
+  // Build-time guard: every same-page anchor must resolve to a real section id.
+  const ids = new Set(['demo', 'features', 'how', 'pricing', 'faq', 'community']);
+  NAV_LINKS.forEach(([, href]) => {
+    if (!ids.has(href.slice(1))) console.warn(`[Landing] nav anchor ${href} has no matching section id`);
+  });
+}
+
 /* ───── Cinematic background (no orbs, no blur blobs) ───── */
 const CineBackground = () => (
   <div className="cine-bg" aria-hidden />
@@ -45,8 +62,8 @@ const Nav = () => {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-          {['Features', 'How it works', 'Pricing', 'FAQ'].map(item => (
-            <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="hover:text-white transition-colors">{item}</a>
+          {NAV_LINKS.map(([item, href]) => (
+            <a key={item} href={href} className="hover:text-white transition-colors">{item}</a>
           ))}
         </nav>
 
@@ -73,8 +90,8 @@ const Nav = () => {
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="md:hidden border-t border-white/[0.06] px-6 py-4 flex flex-col gap-3 bg-[#06060a]/95">
-            {['Features', 'How it works', 'Pricing', 'FAQ'].map(item => (
-              <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} onClick={() => setOpen(false)} className="text-gray-400 hover:text-white">{item}</a>
+            {NAV_LINKS.map(([item, href]) => (
+              <a key={item} href={href} onClick={() => setOpen(false)} className="text-gray-400 hover:text-white">{item}</a>
             ))}
             <div className="flex gap-2 pt-2">
               <button onClick={() => navigate('/auth')} className="flex-1 h-10 rounded-xl text-sm font-medium text-white border border-white/10 bg-transparent cursor-pointer">Sign in</button>
