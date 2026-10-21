@@ -1619,6 +1619,7 @@ export type Database = {
           gamification_mode: string | null
           id: string
           last_study_date: string | null
+          leaderboard_opt_out: boolean
           learning_style: string | null
           level: number
           streak_days: number
@@ -1639,6 +1640,7 @@ export type Database = {
           gamification_mode?: string | null
           id?: string
           last_study_date?: string | null
+          leaderboard_opt_out?: boolean
           learning_style?: string | null
           level?: number
           streak_days?: number
@@ -1659,6 +1661,7 @@ export type Database = {
           gamification_mode?: string | null
           id?: string
           last_study_date?: string | null
+          leaderboard_opt_out?: boolean
           learning_style?: string | null
           level?: number
           streak_days?: number
