@@ -58,20 +58,23 @@ function buildSubjectData(
 
   // Build topics from mistakes and guided lessons
   const topicMap: Record<string, { mistakes: number; lessonScore: number; lessonCount: number }> = {};
+  const fallbackTopic = subjectName === 'Overall' ? 'General' : subjectName;
   const subjectMistakes = subjectName === 'Overall'
     ? mistakes
     : mistakes.filter(m => (m.subject || '').toLowerCase() === subjectName.toLowerCase());
 
   subjectMistakes.forEach(m => {
-    if (!topicMap[m.topic]) topicMap[m.topic] = { mistakes: 0, lessonScore: 0, lessonCount: 0 };
-    topicMap[m.topic].mistakes++;
+    // DEF-02: sanitize legacy topics stored as raw question fragments
+    const t = sanitizeTopicName(m.topic || '', fallbackTopic);
+    if (!topicMap[t]) topicMap[t] = { mistakes: 0, lessonScore: 0, lessonCount: 0 };
+    topicMap[t].mistakes++;
   });
 
-  const subjectLessons = subjectName === 'Overall' ? guidedLessons : guidedLessons;
-  subjectLessons.forEach(l => {
-    if (!topicMap[l.topic]) topicMap[l.topic] = { mistakes: 0, lessonScore: 0, lessonCount: 0 };
-    topicMap[l.topic].lessonScore += l.score || 0;
-    topicMap[l.topic].lessonCount++;
+  guidedLessons.forEach(l => {
+    const t = sanitizeTopicName(l.topic || '', fallbackTopic);
+    if (!topicMap[t]) topicMap[t] = { mistakes: 0, lessonScore: 0, lessonCount: 0 };
+    topicMap[t].lessonScore += l.score || 0;
+    topicMap[t].lessonCount++;
   });
 
   const topics: TopicData[] = Object.entries(topicMap).slice(0, 6).map(([name, data]) => {

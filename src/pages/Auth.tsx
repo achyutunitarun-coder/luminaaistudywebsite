@@ -14,6 +14,19 @@ import { toast } from 'sonner';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
+// DEF-07: map raw auth errors to plain-language copy
+const authErrorCopy = (message?: string) => {
+  const m = (message || '').toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Email or password is incorrect. Please try again.';
+  if (m.includes('email not confirmed')) return 'Please confirm your email first — check your inbox for the confirmation link.';
+  if (m.includes('user already registered')) return 'An account with this email already exists. Try signing in instead.';
+  if (m.includes('rate limit')) return 'Too many attempts. Please wait a minute and try again.';
+  if (m.includes('password should be') || m.includes('at least')) return 'Password must be at least 6 characters.';
+  if (m.includes('signups not allowed')) return 'Sign-ups are currently closed. Please contact support.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Network issue — please check your connection and try again.';
+  return 'Something went wrong. Please try again.';
+};
+
 const Auth = () => {
   const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
@@ -39,6 +52,8 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return toast.error('Fill in all fields');
+    // DEF-10: replace native tooltips with clear custom validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast.error('Please enter a valid email address.');
     setLoading(true);
     try {
       if (isLogin) {
@@ -60,7 +75,7 @@ const Auth = () => {
         }
       }
     } catch (err: any) {
-      toast.error(err.message || 'Authentication failed');
+      toast.error(authErrorCopy(err?.message));
     } finally {
       setLoading(false);
     }
