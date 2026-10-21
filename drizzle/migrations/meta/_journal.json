@@ -8,6 +8,13 @@
       "when": 1792586067092,
       "tag": "0000_leaderboard_opt_out",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792586881250,
+      "tag": "0001_remove_blanket_read_policy_on_concept_nodes",
+      "breakpoints": true
     }
   ]
 }
