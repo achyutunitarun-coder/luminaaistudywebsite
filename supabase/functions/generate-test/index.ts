@@ -79,7 +79,8 @@ FORMAT: Return ONLY valid JSON (no markdown, no thinking tags):
     "question": "The question text",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct": 0,
-    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong."
+    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong.",
+    "topic": "Short topic label (2-5 words, e.g. 'Quadratic Equations') naming the concept the question tests — never copy the question text into it."
   }
 ]}`
         },

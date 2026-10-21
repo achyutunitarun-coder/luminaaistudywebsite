@@ -12,6 +12,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { MonthlyReportModal } from "@/components/MonthlyReportModal";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { CreditToast } from "@/features/credits/CreditToast";
+import AuthConfirmRedirect from "@/components/AuthConfirmRedirect";
 import { usePaymentReturn } from "@/features/credits/usePaymentReturn";
 import { MemoryProvider } from "@/contexts/MemoryContext";
 import { ChatErrorBoundary } from "./components/ChatErrorBoundary";
@@ -157,6 +158,7 @@ const App = () => (
             <AuthProvider>
               <MemoryProvider>
                 <PaymentReturnHandler />
+                <AuthConfirmRedirect />
                 <CreditToast />
                 <Suspense fallback={<PageLoading />}>
                   <Routes>

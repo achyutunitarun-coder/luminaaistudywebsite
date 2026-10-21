@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeTopicName } from '@/lib/topic';
 import { useAuth } from '@/hooks/useAuth';
 
 export type TopicData = {

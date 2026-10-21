@@ -157,7 +157,7 @@ const Auth = () => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} noValidate className="auth-form">
           {!isLogin && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
