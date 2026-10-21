@@ -132,7 +132,7 @@ const Flashcards = () => {
           <div className="flex flex-col items-center pt-4">
             <div className="w-full" style={{ perspective: '1200px' }}>
               <motion.div
-                className="relative w-full aspect-[4/3] cursor-pointer select-none"
+                className="relative w-full aspect-[4/3] max-h-[46vh] cursor-pointer select-none"
                 onClick={() => setFlipped((f) => !f)}
                 style={{ transformStyle: 'preserve-3d' }}
                 animate={{ rotateY: flipped ? 180 : 0 }}

@@ -85,7 +85,7 @@ export default function Privacy() {
         </Section>
 
         <Section n={8} title="Your Rights">
-          <p>Access your data, correct inaccuracies, delete your account and data, withdraw service connections. Contact us through Instagram <a href="https://www.instagram.com/luminastudyai/" className="text-teal-300 underline-offset-2 hover:underline">(@luminastudyai)</a> to exercise these rights.</p>
+          <p>Access your data, correct inaccuracies, delete your account and data, withdraw service connections. You can also hide your name and XP from public leaderboards at any time in Settings. Contact us through Instagram <a href="https://www.instagram.com/luminastudyai/" className="text-teal-300 underline-offset-2 hover:underline">(@luminastudyai)</a> to exercise these rights.</p>
         </Section>
 
         <Section n={9} title="Children's Privacy">

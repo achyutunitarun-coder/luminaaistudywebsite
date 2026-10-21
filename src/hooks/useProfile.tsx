@@ -25,6 +25,7 @@ export const useProfile = () => {
   const SAFE_FIELDS = new Set([
     'display_name', 'avatar_url', 'study_mode', 'difficulty',
     'learning_style', 'gamification_mode', 'theme', 'extra_preferences',
+    'leaderboard_opt_out',
   ]);
 
   const updateProfile = useMutation({

@@ -41,6 +41,10 @@ const Tests = () => {
   const [testId, setTestId] = useState<string | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [genStage, setGenStage] = useState(0);
+  const [genStartedAt, setGenStartedAt] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+  const genInFlightRef = useRef(false);
 
   useEffect(() => {
     if (questions.length === 0) return;
@@ -120,8 +124,7 @@ const Tests = () => {
 
     questions.forEach((q, i) => {
       if (answers[i] !== undefined && answers[i] !== q.correct) {
-        const topicWords = q.question.replace(/[?!.]/g, "").split(/\s+/).slice(0, 6).join(" ");
-        const topic = topicWords.length > 50 ? topicWords.slice(0, 50) + "..." : topicWords;
+        const topic = deriveMistakeTopic({ topic: q.topic }, subject);
         supabase.from("mistakes").insert({
           user_id: user.id, topic: topic || "General Concept", subject: subject || "General",
           mistake_type: "conceptual", question: q.question,
@@ -328,9 +331,33 @@ const Tests = () => {
             <div className="t-upload"><FileUploadButton files={uploadedFiles} onFilesChange={setUploadedFiles} /></div>
           </div>
 
-          <Button onClick={generateTest} disabled={generating || !syllabus.trim()} className="t-generate-btn">
-            {generating ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Generating...</> : <><Sparkles className="w-5 h-5 mr-2" /> Generate Test</>}
+          <Button
+            onClick={generateTest}
+            disabled={generating || (!subject.trim() && !syllabus.trim())}
+            className="t-generate-btn"
+          >
+            {generating ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Generating…</> : <><Sparkles className="w-5 h-5 mr-2" /> Generate Test</>}
           </Button>
+
+          {!generating && !syllabus.trim() && !subject.trim() && (
+            <p className="t-gen-hint">Add a subject or syllabus topics to get started.</p>
+          )}
+          {!generating && !syllabus.trim() && subject.trim() && (
+            <p className="t-gen-hint">Add syllabus topics for more targeted questions — you can also generate from the subject alone.</p>
+          )}
+
+          {generating && (
+            <div className="t-gen-progress" role="status" aria-live="polite">
+              <div className="t-gen-stages">
+                {GEN_STAGES.map((stage, i) => (
+                  <span key={stage} className={i < genStage ? "is-done" : i === genStage ? "is-active" : ""}>
+                    {i < genStage ? "✓ " : ""}{stage}
+                  </span>
+                ))}
+              </div>
+              <span className="t-gen-elapsed">{genStartedAt ? Math.max(0, Math.round((Date.now() - genStartedAt) / 1000)) : 0}s elapsed</span>
+            </div>
+          )}
         </div>
       </div>
     </>
