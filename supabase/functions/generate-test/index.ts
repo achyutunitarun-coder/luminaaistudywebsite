@@ -24,7 +24,7 @@ function cleanJSON(raw: string): any {
   }
 }
 
-type Q = { question: string; options: string[]; correct: number; explanation: string };
+type Q = { question: string; options: string[]; correct: number; explanation: string; topic?: string };
 
 function sanitize(payload: any): Q[] {
   const raw = payload?.questions;
@@ -35,9 +35,10 @@ function sanitize(payload: any): Q[] {
     const options = Array.isArray(item?.options) ? item.options.map((o: any) => String(o ?? "").trim()).filter(Boolean) : [];
     const correct = Number(item?.correct);
     const explanation = typeof item?.explanation === "string" ? item.explanation.trim() : "";
+    const topic = typeof item?.topic === "string" ? item.topic.trim().slice(0, 60) : "";
     if (!question || options.length < 2 || !Number.isInteger(correct) || correct < 0 || correct >= options.length || !explanation) continue;
     const key = question.toLowerCase().replace(/\s+/g, " ").trim();
-    if (!deduped.has(key)) deduped.set(key, { question, options, correct, explanation });
+    if (!deduped.has(key)) deduped.set(key, topic ? { question, options, correct, explanation, topic } : { question, options, correct, explanation });
   }
   return [...deduped.values()];
 }
@@ -78,7 +79,8 @@ FORMAT: Return ONLY valid JSON (no markdown, no thinking tags):
     "question": "The question text",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct": 0,
-    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong."
+    "explanation": "Clear 2-3 sentence explanation of why the correct answer is right AND why each distractor is wrong.",
+    "topic": "Short topic label (2-5 words, e.g. 'Quadratic Equations') naming the concept the question tests — never copy the question text into it."
   }
 ]}`
         },

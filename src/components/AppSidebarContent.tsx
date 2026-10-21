@@ -143,17 +143,19 @@ export const AppSidebarContent = memo(
 
         {/* Footer */}
         <div className="sidebar-footer">
-          <a
-            href="/downloads/Lumina-Setup.exe"
-            download="Lumina-Setup.exe"
-            target="_blank"
-            rel="noreferrer"
-            className="sidebar-nav-item sidebar-nav-button"
-            title="Download Lumina desktop app for Windows"
-          >
-            <Download className="sidebar-nav-icon" />
-            {!isCollapsed && <span className="sidebar-nav-text">Download Desktop</span>}
-          </a>
+          {typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent || '') && (
+            <a
+              href="/downloads/Lumina-Setup.exe"
+              download="Lumina-Setup.exe"
+              target="_blank"
+              rel="noreferrer"
+              className="sidebar-nav-item sidebar-nav-button"
+              title="Download Lumina desktop app for Windows"
+            >
+              <Download className="sidebar-nav-icon" />
+              {!isCollapsed && <span className="sidebar-nav-text">Download for Windows</span>}
+            </a>
+          )}
           <NavLink to="/upgrade" className="sidebar-nav-item" title="Upgrade">
             <Crown className="sidebar-nav-icon" />
             {!isCollapsed && <span className="sidebar-nav-text">Upgrade</span>}

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useProfile } from '@/hooks/useProfile';
 import { useMemory } from '@/contexts/MemoryContext';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const options = {
@@ -45,6 +47,7 @@ const fadeUp = (delay = 0) => ({
 const SettingsPage = () => {
   const { profile, updateProfile } = useProfile();
   const { logActivity, updatePreferences } = useMemory();
+  const { user } = useAuth();
 
   useEffect(() => {
     logActivity('page_view', 'settings', 'Viewed Settings', { page: '/settings' });
@@ -56,6 +59,7 @@ const SettingsPage = () => {
     learning_style: 'deep_explanation',
     gamification_mode: 'solo',
     extra_preferences: '',
+    leaderboard_opt_out: false,
   });
 
   const [saved, setSaved] = useState(false);
@@ -68,12 +72,17 @@ const SettingsPage = () => {
         learning_style: profile.learning_style || 'deep_explanation',
         gamification_mode: profile.gamification_mode || 'solo',
         extra_preferences: (profile as any).extra_preferences || '',
+        leaderboard_opt_out: (profile as any).leaderboard_opt_out || false,
       });
     }
   }, [profile]);
 
   const save = async () => {
     await updateProfile.mutateAsync(settings);
+    // Purge public leaderboard entries when privacy mode is on
+    if (settings.leaderboard_opt_out && user) {
+      try { await supabase.rpc('sync_leaderboard', { p_user_id: user.id }); } catch { /* non-fatal */ }
+    }
     await updatePreferences({
       preferred_model: settings.study_mode === 'concept_mastery' ? 'nvidia/nemotron-3-super-120b-a12b:free' : undefined,
       metadata: { study_mode: settings.study_mode, difficulty: settings.difficulty, learning_style: settings.learning_style },
@@ -122,6 +131,29 @@ const SettingsPage = () => {
         <OptionGroup title="Difficulty" description="Challenge level for generated content" field="difficulty" opts={options.difficulty} />
         <OptionGroup title="Learning Style" description="How do you absorb information best?" field="learning_style" opts={options.learning_style} />
         <OptionGroup title="Gamification" description="Compete or go solo" field="gamification_mode" opts={options.gamification_mode} />
+
+        <div className="set-group">
+          <div className="set-group-header">
+            <h3 className="set-group-title">Public leaderboard</h3>
+            <p className="set-group-desc">Show your name and XP on public leaderboards. Hide yourself anytime.</p>
+          </div>
+          <div className="set-options">
+            <button
+              className={`set-opt ${!settings.leaderboard_opt_out ? 'is-active' : ''}`}
+              onClick={() => setSettings(prev => ({ ...prev, leaderboard_opt_out: false }))}
+            >
+              <span className="set-opt-label">Show my name & XP</span>
+              {!settings.leaderboard_opt_out && <Check className="w-3.5 h-3.5 set-opt-check" />}
+            </button>
+            <button
+              className={`set-opt ${settings.leaderboard_opt_out ? 'is-active' : ''}`}
+              onClick={() => setSettings(prev => ({ ...prev, leaderboard_opt_out: true }))}
+            >
+              <span className="set-opt-label">Hide me (private)</span>
+              {settings.leaderboard_opt_out && <Check className="w-3.5 h-3.5 set-opt-check" />}
+            </button>
+          </div>
+        </div>
 
         <div className="set-group">
           <div className="set-group-header">
