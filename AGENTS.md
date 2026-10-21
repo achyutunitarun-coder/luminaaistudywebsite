@@ -1,6 +1,6 @@
 ## Objective
 - Maintain live site `luminaai.co.in` (React app; backend Lovable Cloud/Supabase). Keep every feature production-grade.
-- Subdirectories have their own `AGENTS.md` — read before changing files there (`supabase/functions/`, `supabase/migrations/`).
+- Subdirectories have their own `AGENTS.md` — read before changing files there (`supabase/functions/`); migration history notes: `supabase/MIGRATION_NOTES.md`.
 
 ## Environment
 - Supabase CLI has no `db query`; check the DB via REST with service-role or the Lovable DB tools (Management API `/database/query` for raw SQL). Edge CPU quota is tight — run heavy live tests sequentially with sleeps.
