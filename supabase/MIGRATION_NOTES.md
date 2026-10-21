@@ -1,0 +1,6 @@
+# Migrations history notes
+
+- Missing tables (`lc_projects`, `lc_blocks`, `lc_generation_log`, `lc_model_routing`, `lc_model_cooldowns`, `user_credit_balances`; `study_sessions` already existed) were created directly via `db query --linked` then marked applied. `public.touch_updated_at()` created; `lc_model_routing` seeded.
+- `migrations/20260813130000_restore_missing_tables.sql` restores 13 tables lost when intermediate old-style migrations were reverted (ingest-learning-data, task-history, generate-html-artifact, connector-oauth/proxy, preflight, learning-pipeline, artifact-store). Applied directly then marked applied — history is in sync.
+- `migrations/20260812130000_content_strong_model.sql`: content upstreamed to nemotron-3-super-120b. `migrations/20260712060410_c9b25e66-0b25-44b8-a9cc-b2c9fa281a57.sql` creates `lc_projects`, `lc_blocks`, `lc_model_routing`.
+- Old-style files from `migrations_old/` were consolidated into `migrations/` (numbered duplicates `0001`–`0049` deleted). Timestamped migrations `20260623153430`–`20260716040005` were marked applied (SQL had run manually). Intermediate `20260416022100`–`20260619065343` were removed/repaired as reverted — missing dependencies (e.g. `squads`), content partially applied via direct queries. `supabase db push --linked` reports up to date.
