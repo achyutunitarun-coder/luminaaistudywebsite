@@ -15,6 +15,13 @@
       "when": 1792586881250,
       "tag": "0001_remove_blanket_read_policy_on_concept_nodes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792586973605,
+      "tag": "0002_admin_role_lock_lc_tables",
+      "breakpoints": true
     }
   ]
 }
