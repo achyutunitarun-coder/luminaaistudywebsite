@@ -41,3 +41,4 @@
   - `lc-agent-plan/index.ts` `callRouter`: uses `selectComputerSkills`/`buildComputerSkillsBlock` (was `selectCraftSkills` from `_shared/craft-skills.ts`).
   - `_shared/craft-skills.ts` and `_shared/skills.ts` still exist but the above paths no longer import them.
 - BUILD CHECK (esbuild, no Deno locally): `npx --no-install esbuild <fn>/index.ts --bundle --loader:.ts=ts --outdir=<tmp> --log-level=error` must exit 0.
+- Admin privileges live in `public.user_roles` (enum `app_role`) checked via `has_role()` security-definer; never gate admin features by client state. Why: prevents privilege escalation and RLS recursion on admin-only tables.
