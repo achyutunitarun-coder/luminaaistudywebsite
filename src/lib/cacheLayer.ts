@@ -1,6 +1,6 @@
-// Lumina v2 — Cache layer (hot-path + policy-driven).
-
-import { supabase } from "@/integrations/supabase/client";
+// Lumina v2 — Cache layer (policy-driven, in-memory).
+// Note: the persistent AI answer cache (hot_cache) is served exclusively
+// server-side by edge functions; the client never queries it directly.
 
 export type CachePolicy = "permanent" | "week" | "day" | "none";
 
@@ -51,51 +51,6 @@ function hashKey(fingerprint: string): string {
   } catch {
     return fingerprint.slice(0, 32);
   }
-}
-
-/** Look up a canonical answer in the hot cache. Returns null on miss. */
-export async function hotCacheLookup(
-  query: string,
-  feature: string,
-): Promise<string | null> {
-  const fp = fingerprintQuery(query);
-  if (!fp) return null;
-  const key = hashKey(fp);
-  const { data, error } = await (supabase as any)
-    .from("hot_cache")
-    .select("answer")
-    .eq("query_hash", key)
-    .eq("feature", feature)
-    .maybeSingle();
-  if (error || !data) return null;
-  // Fire-and-forget hit count bump (best effort — auth users can't update; service role can).
-  // We skip server-side updates to avoid permission errors.
-  return data.answer as string;
-}
-
-/** Persist a generated answer into the hot cache if it's generic enough. */
-export async function maybeStoreHotCache(
-  query: string,
-  feature: string,
-  answer: string,
-  board: string = "all",
-): Promise<void> {
-  if (!isGenericQuery(query)) return;
-  const fp = fingerprintQuery(query);
-  if (!fp) return;
-  const key = hashKey(fp);
-  // RLS only allows service-role writes; ignore errors silently.
-  await (supabase as any)
-    .from("hot_cache")
-    .insert({
-      query_hash: key,
-      canonical_query: query,
-      feature,
-      board,
-      answer,
-      hit_count: 1,
-    })
-    .catch?.(() => {});
 }
 
 const GENERIC_PATTERNS = [
