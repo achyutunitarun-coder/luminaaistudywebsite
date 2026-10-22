@@ -44,14 +44,6 @@ export function fingerprintQuery(query: string): string {
     .trim();
 }
 
-function hashKey(fingerprint: string): string {
-  // btoa is browser-safe for ASCII (fingerprint is already normalised ASCII).
-  try {
-    return btoa(unescape(encodeURIComponent(fingerprint))).slice(0, 32);
-  } catch {
-    return fingerprint.slice(0, 32);
-  }
-}
 
 const GENERIC_PATTERNS = [
   /^(what is|define|explain|what are|what does)\b/i,
