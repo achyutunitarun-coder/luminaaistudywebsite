@@ -22,6 +22,13 @@
       "when": 1792586973605,
       "tag": "0002_admin_role_lock_lc_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792654824907,
+      "tag": "0003_lock_down_hot_cache",
+      "breakpoints": true
     }
   ]
 }
